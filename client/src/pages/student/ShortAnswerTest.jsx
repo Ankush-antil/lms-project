@@ -337,14 +337,16 @@ const ShortAnswerTest = () => {
                                         {(isTextType || (!isAudio && !isVideo)) && (
                                             <div className="relative group">
                                                 <textarea
+                                                    disabled={!!submittedAnswers[idx]}
                                                     value={answers[idx] || ""}
                                                     onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                    className={`w-full p-5 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700 ${type?.includes('long') || type?.includes('para') ? 'h-64' : 'h-32'}`}
+                                                    className={`w-full p-5 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700 ${submittedAnswers[idx] ? 'opacity-60 cursor-not-allowed' : ''} ${type?.includes('long') || type?.includes('para') ? 'h-64' : 'h-32'}`}
                                                     placeholder="Type your answer here or use voice typing..."
                                                 ></textarea>
                                                 <button
+                                                    disabled={!!submittedAnswers[idx]}
                                                     onClick={() => toggleVoiceTyping(idx)}
-                                                    className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                                                    className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'} ${submittedAnswers[idx] ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     title="Voice Typing"
                                                 >
                                                     <Mic size={20} />
@@ -355,7 +357,7 @@ const ShortAnswerTest = () => {
                                         {isAudio && (
                                             <div className="border-2 border-dashed border-indigo-100 rounded-2xl bg-indigo-50/20 overflow-hidden">
                                                 <div className="p-10 flex flex-col items-center gap-4">
-                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-200' : 'bg-indigo-100 text-indigo-600'}`}>
+                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-200' : 'bg-indigo-100 text-indigo-600'} ${submittedAnswers[idx] ? 'opacity-50' : ''}`}>
                                                         <Mic size={32} />
                                                     </div>
                                                     <div className="text-center">
@@ -368,7 +370,11 @@ const ShortAnswerTest = () => {
                                                             <Square size={18} fill="currentColor" /> Stop Recording
                                                         </button>
                                                     ) : (
-                                                        <button onClick={() => startRecording(idx, 'audio')} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all">
+                                                        <button
+                                                            disabled={!!submittedAnswers[idx]}
+                                                            onClick={() => startRecording(idx, 'audio')}
+                                                            className={`px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all ${submittedAnswers[idx] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
                                                             <Mic size={18} /> Start Audio Record
                                                         </button>
                                                     )}
@@ -378,7 +384,9 @@ const ShortAnswerTest = () => {
                                                         <div className="w-full mt-2 bg-white rounded-xl p-4 border border-indigo-100 shadow-sm">
                                                             <p className="text-xs font-bold text-slate-500 mb-2">🎵 Your Recording</p>
                                                             <audio controls src={recordedURLs[idx].url} className="w-full" />
-                                                            <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
+                                                            {!submittedAnswers[idx] && (
+                                                                <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -396,7 +404,7 @@ const ShortAnswerTest = () => {
                                                 />
 
                                                 <div className="p-10 flex flex-col items-center gap-4">
-                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-200' : 'bg-purple-100 text-purple-600'}`}>
+                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-200' : 'bg-purple-100 text-purple-600'} ${submittedAnswers[idx] ? 'opacity-50' : ''}`}>
                                                         <Video size={32} />
                                                     </div>
                                                     <div className="text-center">
@@ -409,7 +417,11 @@ const ShortAnswerTest = () => {
                                                             <Square size={18} fill="currentColor" /> Stop Capture
                                                         </button>
                                                     ) : (
-                                                        <button onClick={() => startRecording(idx, 'video')} className="px-8 py-3 bg-purple-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-purple-700 transition-all">
+                                                        <button
+                                                            disabled={!!submittedAnswers[idx]}
+                                                            onClick={() => startRecording(idx, 'video')}
+                                                            className={`px-8 py-3 bg-purple-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-purple-700 transition-all ${submittedAnswers[idx] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
                                                             <Video size={18} /> Start Video Record
                                                         </button>
                                                     )}
@@ -419,7 +431,9 @@ const ShortAnswerTest = () => {
                                                         <div className="w-full mt-2 bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
                                                             <p className="text-xs font-bold text-slate-500 mb-2">🎬 Your Recording</p>
                                                             <video controls src={recordedURLs[idx].url} className="w-full rounded-lg max-h-48" />
-                                                            <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
+                                                            {!submittedAnswers[idx] && (
+                                                                <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -434,9 +448,24 @@ const ShortAnswerTest = () => {
                                         </div>
                                         <div className="flex items-center gap-3">
                                             {submittedAnswers[idx] ? (
-                                                <span className="px-6 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-lg flex items-center gap-2">
-                                                    ✓ Answer Submitted
-                                                </span>
+                                                <div className="flex gap-2">
+                                                    <span className="px-6 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-lg flex items-center gap-2">
+                                                        ✓ Answer Submitted
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSubmittedAnswers(prev => {
+                                                                const n = { ...prev };
+                                                                delete n[idx];
+                                                                return n;
+                                                            });
+                                                            toast.success('You can now edit your answer');
+                                                        }}
+                                                        className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition-all border border-slate-200"
+                                                    >
+                                                        Re-attempt
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <button
                                                     onClick={() => submitQuestion(idx, q)}

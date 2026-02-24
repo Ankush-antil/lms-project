@@ -35,6 +35,32 @@ const getSubmissions = asyncHandler(async (req, res) => {
     let query = {};
     if (req.user.role === 'Student') {
         query.student = req.user._id;
+    } else if (req.user.role === 'Teacher') {
+        const User = require('../models/User');
+        const teacher = await User.findById(req.user._id).populate('teacherProfile.assignedCourses', 'name');
+
+        if (!teacher) {
+            return res.status(404).json({ message: 'Teacher not found' });
+        }
+
+        const assignedCourseNames = teacher.teacherProfile?.assignedCourses?.map(c => c.name) || [];
+        const assignedSubjects = teacher.teacherProfile?.subjects || [];
+
+        // Find tests matching teacher's assignments
+        const matchingTests = await Test.find({
+            $or: [
+                { course: { $in: assignedCourseNames } },
+                { subject: { $in: assignedSubjects } }
+            ]
+        }).select('_id');
+
+        const testIds = matchingTests.map(t => t._id);
+
+        if (testIds.length === 0) {
+            return res.json([]);
+        }
+
+        query.test = { $in: testIds };
     }
 
     const submissions = await Submission.find(query)
@@ -50,6 +76,26 @@ const getSubmissions = asyncHandler(async (req, res) => {
 // @route   GET /api/submissions/test/:testId
 // @access  Private
 const getSubmissionsByTest = asyncHandler(async (req, res) => {
+    // Basic authorization check for Teachers
+    if (req.user.role === 'Teacher') {
+        const User = require('../models/User');
+        const teacher = await User.findById(req.user._id).populate('teacherProfile.assignedCourses', 'name');
+        const test = await Test.findById(req.params.testId);
+
+        if (!test) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+
+        const assignedCourseNames = teacher.teacherProfile?.assignedCourses?.map(c => c.name) || [];
+        const assignedSubjects = teacher.teacherProfile?.subjects || [];
+
+        const isAuthorized = assignedCourseNames.includes(test.course) || assignedSubjects.includes(test.subject);
+
+        if (!isAuthorized) {
+            return res.status(403).json({ message: 'Not authorized to view submissions for this test' });
+        }
+    }
+
     const submissions = await Submission.find({ test: req.params.testId })
         .populate('student', 'name email')
         .sort({ submittedAt: -1 });

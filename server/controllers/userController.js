@@ -23,7 +23,7 @@ const getUsers = asyncHandler(async (req, res) => {
 // @access  Private (Teacher)
 const getTeacherStudents = asyncHandler(async (req, res) => {
     try {
-        const teacher = await User.findById(req.user._id);
+        const teacher = await User.findById(req.user._id).populate('teacherProfile.assignedCourses', 'name');
         if (!teacher || teacher.role !== 'Teacher') {
             return res.status(403).json({ message: 'Not authorized as a teacher' });
         }
@@ -44,7 +44,20 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
 
         const studentsWithStats = await Promise.all(students.map(async (student) => {
             try {
-                const subs = await Submission.find({ student: student._id });
+                // Find tests matching teacher's assignments
+                const matchingTests = await Test.find({
+                    $or: [
+                        { course: { $in: teacher.teacherProfile?.assignedCourses?.map(c => c.name) || [] } },
+                        { subject: { $in: teacher.teacherProfile?.subjects || [] } }
+                    ]
+                }).select('_id');
+                const testIds = matchingTests.map(t => t._id);
+
+                const subs = await Submission.find({
+                    student: student._id,
+                    test: { $in: testIds }
+                });
+
                 return {
                     ...student.toObject(),
                     stats: {

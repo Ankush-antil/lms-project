@@ -11,23 +11,27 @@ This project is a MERN stack Learning Management System.
 
 ### 🛠️ Installation & Setup
 
-The project is already set up. If you need to restart it:
-
-1.  **Install Dependencies** (if not done):
+1.  **Install Dependencies**:
     ```bash
     npm install
-    cd client && npm install
-    cd ../server && npm install
+    # This will install root, client, and server dependencies
     ```
 
-2.  **Start the App**:
-    In the root folder `lms-project/`:
+2.  **Start Development**:
     ```bash
     npm run dev
     ```
-    This will start both:
-    - **Frontend**: `http://localhost:5173`
-    - **Backend**: `http://localhost:5000`
+    This will start both the Frontend (`http://localhost:5173`) and Backend (`http://localhost:5000`).
+
+3.  **Production Build & Start**:
+    ```bash
+    # Build the frontend
+    npm run build
+
+    # Start the production server
+    npm start
+    ```
+    In production, the server serves the frontend from `client/dist`.
 
 ### 🔑 Default Login Credentials
 

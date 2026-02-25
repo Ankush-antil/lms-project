@@ -5,7 +5,8 @@ const {
     getSubmissions,
     getSubmissionsByTest,
     getSubmissionById,
-    evaluateSubmission
+    evaluateSubmission,
+    updateStudentComment
 } = require('../controllers/submissionController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -21,5 +22,8 @@ router.route('/:id')
 
 router.route('/:id/evaluate')
     .put(protect, evaluateSubmission);
+
+router.route('/:id/student-comment')
+    .put(protect, updateStudentComment);
 
 module.exports = router;

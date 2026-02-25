@@ -9,7 +9,11 @@ const answerSchema = new mongoose.Schema({
     audioData: { type: String, default: '' },  // base64 audio/webm
     videoData: { type: String, default: '' },  // base64 video/webm
     marks: { type: Number, default: 0 },       // filled by teacher
-    feedback: { type: String, default: '' }    // teacher comment
+    conversation: [{
+        role: { type: String, enum: ['Teacher', 'Student'] },
+        message: { type: String },
+        timestamp: { type: Date, default: Date.now }
+    }]
 });
 
 const submissionSchema = new mongoose.Schema({

@@ -66,6 +66,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         course: '',
         subject: '',
         date: '',
+        index: '',
         activity: '',
         name: ''
     });
@@ -75,6 +76,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         institute: [],
         course: [],
         subject: [],
+        index: Array.from({ length: 50 }, (_, i) => `Index ${i + 1}`),
         activity: ['Viva', 'Exam', 'Assignment', 'Test', 'Quiz']
     });
 
@@ -112,8 +114,13 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (isOpen) {
             if (initialData) {
                 setFormData({
-                    ...initialData,
-                    date: initialData.date || new Date().toISOString().split('T')[0]
+                    institute: initialData.institute || '',
+                    course: initialData.course || '',
+                    subject: initialData.subject || '',
+                    date: initialData.date || new Date().toISOString().split('T')[0],
+                    index: initialData.index || '',
+                    activity: initialData.activity || '',
+                    name: initialData.name || ''
                 });
             } else {
                 setFormData({
@@ -121,6 +128,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                     course: '',
                     subject: '',
                     date: '',
+                    index: '',
                     activity: '',
                     name: ''
                 });
@@ -184,7 +192,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             label="Institute Name"
                             value={formData.institute}
                             options={options.institute}
-                            onChange={(val) => setFormData({ ...formData, institute: val })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, institute: val }))}
                             onCreateNew={() => handleCreateNew('Institute Name', 'institute')}
                             placeholder="Select Institute"
                         />
@@ -193,7 +201,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             label="Course Name"
                             value={formData.course}
                             options={options.course}
-                            onChange={(val) => setFormData({ ...formData, course: val })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
                             onCreateNew={() => handleCreateNew('Course Name', 'course')}
                             placeholder="Select Course"
                         />
@@ -202,7 +210,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             label="Subject Name"
                             value={formData.subject}
                             options={options.subject}
-                            onChange={(val) => setFormData({ ...formData, subject: val })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             onCreateNew={() => handleCreateNew('Subject Name', 'subject')}
                             placeholder="Select Subject"
                         />
@@ -212,16 +220,25 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             <input
                                 type="date"
                                 value={formData.date}
-                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                                 className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-sans font-bold"
                             />
                         </div>
 
                         <CustomSelect
+                            label="Test Index"
+                            value={formData.index}
+                            options={options.index}
+                            onChange={(val) => setFormData(prev => ({ ...prev, index: val }))}
+                            onCreateNew={() => handleCreateNew('Test Index', 'index')}
+                            placeholder="Select Index (e.g. Index 1)"
+                        />
+
+                        <CustomSelect
                             label="Type of Activity"
                             value={formData.activity}
                             options={options.activity}
-                            onChange={(val) => setFormData({ ...formData, activity: val })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, activity: val }))}
                             onCreateNew={() => handleCreateNew('Type of Activity', 'activity')}
                             placeholder="Select Activity"
                         />
@@ -232,7 +249,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             <input
                                 type="text"
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                 placeholder="Enter test name..."
                                 className="w-full p-4 font-bold text-indigo-600 bg-indigo-50/30 border border-indigo-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 placeholder-indigo-300 transition-all"
                             />

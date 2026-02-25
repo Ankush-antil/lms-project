@@ -16,9 +16,11 @@ import InstitutesList from './pages/admin/InstitutesList';
 import CoursesList from './pages/admin/CoursesList';
 import StudentTests from './pages/student/StudentTests';
 import ShortAnswerTest from './pages/student/ShortAnswerTest';
+import ViewTestResult from './pages/student/ViewTestResult';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import ProfilePage from './pages/ProfilePage';
+import TakeTestPage from './pages/student/TakeTestPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { Toaster } from 'react-hot-toast';
 
@@ -128,11 +130,6 @@ function App() {
                             <EvaluatePage />
                         </PrivateRoute>
                     } />
-                    <Route path="/admin/evaluate" element={
-                        <PrivateRoute role="Admin">
-                            <EvaluatePage />
-                        </PrivateRoute>
-                    } />
 
                     {/* Student Routes */}
                     <Route path="/student" element={
@@ -155,12 +152,20 @@ function App() {
                             <ShortAnswerTest />
                         </PrivateRoute>
                     } />
+                    <Route path="/student/test-result/:id" element={
+                        <PrivateRoute role="Student">
+                            <ViewTestResult />
+                        </PrivateRoute>
+                    } />
 
                     <Route path="/profile" element={
                         <PrivateRoute>
                             <ProfilePage />
                         </PrivateRoute>
                     } />
+
+                    {/* Public: shared test link — handles auth internally */}
+                    <Route path="/take-test/:id" element={<TakeTestPage />} />
 
                 </Routes>
             </UserProfileProvider>

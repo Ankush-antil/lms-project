@@ -122,14 +122,16 @@ const updateTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
 
     if (test) {
-        test.title = testDetails.title || test.title;
-        test.institute = testDetails.institute || test.institute;
-        test.course = testDetails.course || test.course;
-        test.subject = testDetails.subject || test.subject;
-        test.date = testDetails.date || test.date;
-        test.activity = testDetails.activity || test.activity;
-        test.settings = settings || test.settings;
-        test.questions = questions || test.questions;
+        if (testDetails.title !== undefined) test.title = testDetails.title;
+        if (testDetails.institute !== undefined) test.institute = testDetails.institute;
+        if (testDetails.course !== undefined) test.course = testDetails.course;
+        if (testDetails.subject !== undefined) test.subject = testDetails.subject;
+        if (testDetails.date !== undefined) test.date = testDetails.date;
+        if (testDetails.index !== undefined) test.index = testDetails.index;
+        if (testDetails.activity !== undefined) test.activity = testDetails.activity;
+
+        if (settings !== undefined) test.settings = settings;
+        if (questions !== undefined) test.questions = questions;
 
         const updatedTest = await test.save();
         res.json(updatedTest);

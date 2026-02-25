@@ -293,18 +293,32 @@ const ShortAnswerTest = () => {
             <div className="flex-1 p-6 space-y-6 pb-24 max-w-5xl mx-auto w-full">
 
                 {showInfo && (
-                    <div className="bg-white rounded-xl shadow-lg border-l-4 border-indigo-500 p-6 animate-fade-in grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created Date</span>
-                            <span className="text-slate-900 font-bold">{new Date(test.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
-                            <span className="text-slate-900 font-bold">{test.institute}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Subject</span>
-                            <span className="text-slate-900 font-bold">{test.subject}</span>
+                    <div className="bg-white rounded-xl shadow-lg border-l-4 border-indigo-500 p-8 animate-fade-in text-slate-800">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
+                                <span className="font-bold text-slate-900">{test?.institute || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
+                                <span className="font-bold text-slate-900">{test?.course || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Subject</span>
+                                <span className="font-bold text-slate-900">{test?.subject || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Date</span>
+                                <span className="font-bold text-slate-900">{test?.date || (test?.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A')}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                <span className="font-bold text-slate-900">{test?.index || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Type</span>
+                                <span className="font-bold text-slate-900">{test?.activity || 'N/A'}</span>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -398,7 +412,7 @@ const ShortAnswerTest = () => {
                                                 {/* Live Camera Preview */}
                                                 <video
                                                     ref={el => videoPreviewRef.current[idx] = el}
-                                                    className={`w-full max-h-64 object-cover bg-black rounded-b-none transition-all ${recordingStatus[idx] === 'recording' ? 'block' : 'hidden'}`}
+                                                    className={`w-full h-auto max-h-[500px] object-contain bg-black rounded-t-2xl transition-all ${recordingStatus[idx] === 'recording' ? 'block' : 'hidden'}`}
                                                     muted
                                                     playsInline
                                                 />
@@ -430,7 +444,7 @@ const ShortAnswerTest = () => {
                                                     {recordedURLs[idx]?.type === 'video' && (
                                                         <div className="w-full mt-2 bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
                                                             <p className="text-xs font-bold text-slate-500 mb-2">🎬 Your Recording</p>
-                                                            <video controls src={recordedURLs[idx].url} className="w-full rounded-lg max-h-48" />
+                                                            <video controls src={recordedURLs[idx].url} className="w-full rounded-lg h-auto max-h-[500px] object-contain bg-black" />
                                                             {!submittedAnswers[idx] && (
                                                                 <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
                                                             )}

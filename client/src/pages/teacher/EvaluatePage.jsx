@@ -4,10 +4,11 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, ChevronDown, ChevronUp, User, BookOpen,
-    CheckCircle2, Clock, Mic, Video, FileText, Star, MessageSquare, Info
+    CheckCircle2, Clock, Mic, Video, FileText, Star, MessageSquare, Info, RefreshCw, Send
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const EvaluatePage = () => {
     const navigate = useNavigate();
@@ -21,21 +22,33 @@ const EvaluatePage = () => {
     const [showInfo, setShowInfo] = useState(false);
     const { openProfile } = useUserProfile();
 
+    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+    const role = userInfo?.role || 'Teacher';
+
     useEffect(() => {
         const fetchSubmissions = async () => {
+            setLoading(true);
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
                 const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                const res = await axios.get('/api/submissions', config);
-                setSubmissions(res.data);
+                if (id) {
+                    console.log("Fetching single submission:", id);
+                    const res = await axios.get(`/api/submissions/${id}`, config);
+                    setSubmissions([res.data]);
+                    setExpandedId(id);
+                } else {
+                    console.log("Fetching all submissions");
+                    const res = await axios.get('/api/submissions', config);
+                    setSubmissions(res.data);
+                }
             } catch (err) {
                 console.error('Error fetching submissions:', err);
+                toast.error('Failed to load submission data.');
             } finally {
                 setLoading(false);
             }
         };
         fetchSubmissions();
-    }, []);
+    }, [id]);
 
     const setMark = (subId, qIdx, val) => {
         setMarks(prev => ({
@@ -51,10 +64,42 @@ const EvaluatePage = () => {
         }));
     };
 
+    const saveSingleFeedback = async (submission, qIdx) => {
+        try {
+            setSaving(`${submission._id}-${qIdx}`);
+            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            const answersPayload = submission.answers.map((a, i) => ({
+                marks: i === qIdx ? parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0) : a.marks,
+                feedback: i === qIdx ? (feedback[submission._id]?.[i] ?? '') : ''
+            }));
+
+            const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
+
+            const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
+                answers: answersPayload,
+                totalMarks: total
+            }, config);
+
+            setSubmissions(prev => prev.map(s => s._id === submission._id ? res.data : s));
+
+            setFeedback(prev => ({
+                ...prev,
+                [submission._id]: { ...(prev[submission._id] || {}), [qIdx]: '' }
+            }));
+
+            toast.success('Feedback sent!');
+        } catch (err) {
+            console.error('Single evaluate error:', err);
+            toast.error('Error sending feedback.');
+        } finally {
+            setSaving(null);
+        }
+    };
+
     const submitEvaluation = async (submission) => {
         try {
             setSaving(submission._id);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
             const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
 
             const answersPayload = submission.answers.map((a, i) => ({
@@ -64,18 +109,28 @@ const EvaluatePage = () => {
 
             const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
 
-            await axios.put(`/api/submissions/${submission._id}/evaluate`, {
+            const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
                 answers: answersPayload,
                 totalMarks: total
             }, config);
 
-            // Update local state
+            // Update local state with fresh data from server
             setSubmissions(prev => prev.map(s =>
-                s._id === submission._id
-                    ? { ...s, status: 'evaluated', totalMarks: total, answers: s.answers.map((a, i) => ({ ...a, marks: answersPayload[i].marks, feedback: answersPayload[i].feedback })) }
-                    : s
+                s._id === submission._id ? res.data : s
             ));
-            toast.success('Evaluation saved successfully!');
+
+            // Clear feedback inputs for this submission
+            setFeedback(prev => ({
+                ...prev,
+                [submission._id]: {}
+            }));
+
+            toast.success('Evaluation updated!');
+
+            // Redirect back to activities after final evaluation
+            setTimeout(() => {
+                navigate('/teacher/activities');
+            }, 1000);
         } catch (err) {
             console.error('Evaluate error:', err);
             toast.error('Error saving evaluation.');
@@ -85,216 +140,322 @@ const EvaluatePage = () => {
     };
 
     if (loading) return (
-        <div className="min-h-screen bg-slate-50">
-            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-                <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+        <DashboardLayout role={role}>
+            <div className="flex items-center gap-4 mb-6">
+                <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-xl shadow-sm border border-slate-100 transition-all text-slate-500 hover:text-indigo-600">
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-xl font-bold text-slate-900">Test Evaluations</h1>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Test Evaluations</h1>
             </div>
             <LoadingPlaceholder type="test" />
-        </div>
+        </DashboardLayout>
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-                <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                    <ArrowLeft size={20} />
-                </button>
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">Test Evaluations</h1>
-                    <p className="text-xs text-slate-500">{submissions.length} submission{submissions.length !== 1 ? 's' : ''} received</p>
+        <DashboardLayout role={role}>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => navigate(-1)} className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-200 transition-all text-slate-500 hover:text-indigo-600 hover:shadow-md">
+                        <ArrowLeft size={22} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Test Evaluations</h1>
+                        <p className="text-slate-500 text-sm font-medium">
+                            {id ? 1 : submissions.length} total submission{(!id && submissions.length !== 1) ? 's' : ''}
+                        </p>
+                    </div>
                 </div>
-                <div className="ml-auto flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={() => setShowInfo(!showInfo)}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${showInfo ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-600 border border-purple-100 hover:bg-purple-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${showInfo ? 'bg-indigo-600 text-white shadow-indigo-200 shadow-md' : 'bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50'}`}
                     >
-                        <Info size={14} /> Relevant Information
+                        <Info size={14} /> System Info
                     </button>
-                    <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
-                        {submissions.filter(s => s.status === 'submitted').length} Pending
-                    </span>
-                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
-                        {submissions.filter(s => s.status === 'evaluated').length} Evaluated
-                    </span>
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+                        <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-bold">
+                            {submissions.filter(s => s.status === 'submitted').length} Pending
+                        </span>
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold">
+                            {submissions.filter(s => s.status === 'evaluated').length} Done
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto p-6 space-y-4">
+            <div className="max-w-4xl mx-auto space-y-6">
                 {showInfo && submissions.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 border-l-4 border-purple-500 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in mb-6">
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Date</span>
-                            <span className="text-slate-900 font-bold">{new Date(submissions[0].test?.date || submissions[0].test?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
-                            <span className="text-slate-900 font-bold">{submissions[0].test?.institute?.name || submissions[0].test?.institute || 'Digital Study Institute'}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Subject</span>
-                            <span className="text-slate-900 font-bold">{submissions[0].test?.subject || 'Academic'}</span>
+                    <div className="bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 p-6 animate-fade-in relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-16 -mt-16 rounded-full"></div>
+                        <div className="relative z-10">
+                            <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest block mb-1 opacity-70">Activity Identity</span>
+                            <span className="text-white font-black text-lg">
+                                {submissions[0].test?.index || 'No Index'}
+                            </span>
                         </div>
                     </div>
                 )}
 
                 {submissions.length === 0 && (
-                    <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-slate-200">
-                        <div className="text-5xl mb-4">📭</div>
-                        <h3 className="text-xl font-bold text-slate-700 mb-2">No Submissions Yet</h3>
-                        <p className="text-slate-400">Student submissions will appear here once they complete their tests.</p>
+                    <div className="bg-white rounded-3xl p-16 text-center shadow-sm border border-slate-100">
+                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <FileText size={32} className="text-slate-300" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">No Submissions Yet</h3>
+                        <p className="text-slate-500 font-medium max-w-xs mx-auto text-sm">Waiting for students to complete and submit their tests.</p>
                     </div>
                 )}
 
-                {submissions.map((sub) => (
-                    <div key={sub._id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all ${sub.status === 'evaluated' ? 'border-emerald-200' : 'border-slate-200'}`}>
-                        {/* Submission Header */}
-                        <div
-                            className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                            onClick={() => setExpandedId(expandedId === sub._id ? null : sub._id)}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div
-                                    className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                                    onClick={(e) => { e.stopPropagation(); openProfile(sub.student?._id || sub.student); }}
-                                >
-                                    {sub.studentName?.[0] || sub.student?.name?.[0] || 'S'}
-                                </div>
-                                <div>
-                                    <p
-                                        className="font-bold text-slate-800 text-base cursor-pointer hover:text-indigo-600 transition-colors"
+                {submissions
+                    .filter(sub => !id || sub._id === id)
+                    .map((sub) => (
+                        <div key={sub._id} className={`bg-white rounded-3xl shadow-sm border overflow-hidden transition-all duration-300 ${sub.status === 'evaluated' ? 'border-emerald-100 hover:border-emerald-200' : 'border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
+                            {/* Submission Header */}
+                            <div
+                                className="p-6 flex items-center justify-between cursor-pointer group"
+                                onClick={() => setExpandedId(expandedId === sub._id ? null : sub._id)}
+                            >
+                                <div className="flex items-center gap-5">
+                                    <div
+                                        className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ring-4 ring-slate-50 group-hover:scale-105 transition-transform duration-300"
                                         onClick={(e) => { e.stopPropagation(); openProfile(sub.student?._id || sub.student); }}
                                     >
-                                        {sub.studentName || sub.student?.name}
-                                    </p>
-                                    <div className="flex items-center gap-3 mt-0.5">
-                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                            <BookOpen size={11} /> {sub.test?.title || 'Test'}
-                                        </span>
-                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                            <Clock size={11} /> {new Date(sub.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                        </span>
+                                        {sub.studentName?.[0] || sub.student?.name?.[0] || 'S'}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p
+                                                className="font-black text-slate-900 text-lg group-hover:text-indigo-600 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); openProfile(sub.student?._id || sub.student); }}
+                                            >
+                                                {sub.studentName || sub.student?.name}
+                                            </p>
+                                            {sub.answers.some(a => a.studentComment) && (
+                                                <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[9px] font-black uppercase tracking-tighter animate-pulse">
+                                                    <MessageSquare size={10} fill="currentColor" /> Student Note
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                <BookOpen size={12} className="text-indigo-400" /> {sub.test?.title || 'Test'}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                                                <Clock size={12} className="text-indigo-400" /> {new Date(sub.submittedAt).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    {sub.status === 'evaluated' && (
+                                        <div className="text-right">
+                                            <p className="text-2xl font-black text-emerald-600 leading-none">{sub.totalMarks}</p>
+                                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Final Score</p>
+                                        </div>
+                                    )}
+                                    <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${sub.status === 'evaluated' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                        {sub.status === 'evaluated' ? 'PASSED' : 'PENDING'}
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                        {expandedId === sub._id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                {sub.status === 'evaluated' && (
-                                    <div className="text-center">
-                                        <p className="text-xl font-bold text-emerald-600">{sub.totalMarks}</p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Marks</p>
+
+                            {/* Expanded Answers */}
+                            {expandedId === sub._id && (
+                                <div className="border-t border-slate-50 p-6 space-y-8 bg-slate-50/30">
+                                    {sub.answers.map((ans, qi) => (
+                                        <div key={qi} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm relative group overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className="flex-1 pr-4">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className="w-6 h-6 bg-slate-900 text-white rounded-md flex items-center justify-center text-[10px] font-bold">Q{qi + 1}</span>
+                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[9px] font-bold uppercase tracking-widest border border-slate-200">{ans.questionType}</span>
+                                                    </div>
+                                                    <h4 className="font-bold text-slate-800 text-base leading-snug">{ans.questionText}</h4>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 mb-8">
+                                                {/* Text Answer */}
+                                                {ans.textAnswer && (
+                                                    <div className="p-5 bg-white rounded-2xl border border-slate-100 ring-1 ring-slate-50">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <FileText size={14} className="text-indigo-500" />
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Student Response</span>
+                                                        </div>
+                                                        <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">{ans.textAnswer}</div>
+                                                    </div>
+                                                )}
+
+                                                {/* Audio Answer */}
+                                                {ans.audioData && (
+                                                    <div className="p-5 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <Mic size={14} className="text-indigo-600" />
+                                                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-[0.2em]">Voice Feedback</span>
+                                                        </div>
+                                                        <audio controls src={ans.audioData} className="w-full h-10" />
+                                                    </div>
+                                                )}
+
+                                                {/* Video Answer */}
+                                                {ans.videoData && (
+                                                    <div className="p-5 bg-purple-50/30 rounded-2xl border border-purple-100/50">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <Video size={14} className="text-purple-600" />
+                                                            <span className="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Video Capture</span>
+                                                        </div>
+                                                        <video controls src={ans.videoData} className="w-full rounded-xl max-h-72 shadow-lg" />
+                                                    </div>
+                                                )}
+
+                                                {!ans.textAnswer && !ans.audioData && !ans.videoData && (
+                                                    <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">No Response Provided</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Conversation Thread Display */}
+                                                {(sub.status === 'evaluated' || marks[sub._id]?.[qi] || feedback[sub._id]?.[qi] || (ans.conversation && ans.conversation.length > 0)) ? (
+                                                    <div className="mt-8 space-y-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <MessageSquare size={12} className="text-slate-400" />
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Feedback History</span>
+                                                        </div>
+
+                                                        {/* Conversation History */}
+                                                        {(ans.conversation || []).map((msg, mi) => (
+                                                            <div
+                                                                key={mi}
+                                                                className={`flex items-start gap-2 max-w-[90%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
+                                                            >
+                                                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                                                                    {msg.role === 'Teacher' ? 'T' : (sub.studentName?.[0]?.toUpperCase() || 'S')}
+                                                                </div>
+                                                                <div className={`p-3 rounded-xl shadow-sm border ${msg.role === 'Teacher'
+                                                                    ? 'bg-indigo-50 border-indigo-100 rounded-tl-none'
+                                                                    : 'bg-emerald-50 border-emerald-100 rounded-tr-none'
+                                                                    }`}>
+                                                                    <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
+                                                                        <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                                                            {msg.role === 'Teacher' ? 'Teacher' : (sub.studentName || 'Student')}
+                                                                        </p>
+                                                                        <span className="text-[7px] text-slate-400 font-bold">
+                                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className={`text-xs text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
+                                                                        {msg.message}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Teacher's Current Input Area */}
+                                                        <div className="flex items-start gap-3 max-w-[95%] pt-2">
+                                                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
+                                                                T
+                                                            </div>
+                                                            <div className="bg-white border border-slate-200 rounded-2xl p-4 w-full shadow-sm">
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Add Note / Adjust Marks</p>
+                                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                    <div className="md:col-span-1 space-y-1">
+                                                                        <label className="text-[8px] font-bold text-slate-400 uppercase">Score</label>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
+                                                                            onChange={e => setMark(sub._id, qi, e.target.value)}
+                                                                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                            placeholder="Marks"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="md:col-span-3 space-y-1">
+                                                                        <label className="text-[8px] font-bold text-slate-400 uppercase">Next Feedback Note</label>
+                                                                        <div className="relative">
+                                                                            <input
+                                                                                type="text"
+                                                                                value={feedback[sub._id]?.[qi] ?? ''}
+                                                                                onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
+                                                                                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
+                                                                                placeholder="Type notes for student..."
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => saveSingleFeedback(sub, qi)}
+                                                                                disabled={saving === `${sub._id}-${qi}` || (!feedback[sub._id]?.[qi]?.trim() && marks[sub._id]?.[qi] === undefined)}
+                                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                                                                            >
+                                                                                {saving === `${sub._id}-${qi}` ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    /* Initial Evaluation Input if nothing exists yet */
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-50">
+                                                        <div className="space-y-2">
+                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                                                                <Star size={12} className="text-amber-400" /> Score (Weightage)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
+                                                                onChange={e => setMark(sub._id, qi, e.target.value)}
+                                                                className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
+                                                                placeholder="0.0"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                                                                <MessageSquare size={12} className="text-indigo-400" /> Improvement Feedback
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={feedback[sub._id]?.[qi] ?? ans.feedback ?? ''}
+                                                                onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
+                                                                className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
+                                                                placeholder="Type notes for student..."
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Save Evaluation Button */}
+                                    <div className="flex justify-end pt-4">
+                                        <button
+                                            onClick={() => submitEvaluation(sub)}
+                                            disabled={saving === sub._id}
+                                            className={`px-10 py-4 font-black rounded-2xl transition-all shadow-xl hover:-translate-y-1 active:scale-95 disabled:opacity-60 flex items-center gap-3 tracking-widest text-xs uppercase ${sub.status === 'evaluated'
+                                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200'
+                                                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                                                }`}
+                                        >
+                                            {saving === sub._id ? (
+                                                <RefreshCw size={18} className="animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <CheckCircle2 size={18} />
+                                                    {sub.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
-                                )}
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${sub.status === 'evaluated' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    {sub.status === 'evaluated' ? '✓ Evaluated' : 'Pending'}
-                                </span>
-                                {expandedId === sub._id ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-                            </div>
+                                </div>
+                            )}
                         </div>
-
-                        {/* Expanded Answers */}
-                        {expandedId === sub._id && (
-                            <div className="border-t border-slate-100 p-5 space-y-6 bg-slate-50/50">
-                                {sub.answers.map((ans, qi) => (
-                                    <div key={qi} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-bold text-slate-800 text-sm">Q{qi + 1}. {ans.questionText}</h4>
-                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">{ans.questionType}</span>
-                                        </div>
-
-                                        {/* Text Answer */}
-                                        {ans.textAnswer && (
-                                            <div className="mb-4 p-4 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                                                <div className="flex items-center gap-1.5 mb-2">
-                                                    <FileText size={13} className="text-indigo-500" />
-                                                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Text Answer</span>
-                                                </div>
-                                                <p className="text-slate-700 text-sm leading-relaxed">{ans.textAnswer}</p>
-                                            </div>
-                                        )}
-
-                                        {/* Audio Answer */}
-                                        {ans.audioData && (
-                                            <div className="mb-4 p-4 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                                                <div className="flex items-center gap-1.5 mb-2">
-                                                    <Mic size={13} className="text-indigo-500" />
-                                                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Audio Answer</span>
-                                                </div>
-                                                <audio controls src={ans.audioData} className="w-full" />
-                                            </div>
-                                        )}
-
-                                        {/* Video Answer */}
-                                        {ans.videoData && (
-                                            <div className="mb-4 p-4 bg-purple-50/50 rounded-lg border border-purple-100">
-                                                <div className="flex items-center gap-1.5 mb-2">
-                                                    <Video size={13} className="text-purple-500" />
-                                                    <span className="text-xs font-bold text-purple-600 uppercase tracking-wide">Video Answer</span>
-                                                </div>
-                                                <video controls src={ans.videoData} className="w-full rounded-lg max-h-56" />
-                                            </div>
-                                        )}
-
-                                        {!ans.textAnswer && !ans.audioData && !ans.videoData && (
-                                            <p className="text-sm text-slate-400 italic py-2">No answer provided.</p>
-                                        )}
-
-                                        {/* Marks & Feedback */}
-                                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-slate-100 pt-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-1">
-                                                    <Star size={12} /> Marks
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
-                                                    onChange={e => setMark(sub._id, qi, e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-bold focus:ring-2 focus:ring-purple-300 focus:border-purple-400 outline-none transition-all"
-                                                    placeholder="Enter marks"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-1">
-                                                    <MessageSquare size={12} /> Feedback
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={feedback[sub._id]?.[qi] ?? ans.feedback ?? ''}
-                                                    onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-700 focus:ring-2 focus:ring-purple-300 focus:border-purple-400 outline-none transition-all"
-                                                    placeholder="Add feedback for student..."
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {/* Save Evaluation Button */}
-                                <div className="flex justify-end pt-2">
-                                    <button
-                                        onClick={() => submitEvaluation(sub)}
-                                        disabled={saving === sub._id}
-                                        className="px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-md disabled:opacity-60 flex items-center gap-2"
-                                    >
-                                        {saving === sub._id ? 'Saving...' : <><CheckCircle2 size={16} /> Save Evaluation</>}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                    ))}
             </div>
-            <style>{`
-                .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
-        </div>
+        </DashboardLayout >
     );
 };
 

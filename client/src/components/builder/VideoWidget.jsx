@@ -234,23 +234,7 @@ const VideoWidget = ({ onDelete, onDuplicate, onUpdate, initialText = "" }) => {
                         </div>
                     )}
 
-                    {/* Video Source Input */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-bold text-slate-500 mb-2">Video Source</label>
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="text"
-                                placeholder="Paste YouTube or Vimeo URL..."
-                                className="flex-1 text-sm text-slate-600 px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 transition-all"
-                            />
-                            <button className="px-6 py-3 bg-[#6366F1] text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors shadow-sm">
-                                Embed
-                            </button>
-                            <button className="px-6 py-3 bg-white border border-[#FF5B5B] text-[#FF5B5B] font-bold rounded-lg hover:bg-red-50 transition-colors shadow-sm">
-                                See Preview
-                            </button>
-                        </div>
-                    </div>
+
 
                     {/* Uploaded Files List */}
                     {uploadedFiles.length > 0 && (

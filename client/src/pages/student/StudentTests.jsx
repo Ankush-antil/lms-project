@@ -5,7 +5,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
-    Mic, Video, FileText, Star, MessageSquare, ChevronDown, ChevronUp,
+    Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play
 } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const StudentTests = () => {
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | null
     const [hiddenActivities, setHiddenActivities] = useState({});
     const [showRelevantInfo, setShowRelevantInfo] = useState(false);
-    const [expandedResult, setExpandedResult] = useState(null); // submission._id expanded in completed view
+    const [infoModalData, setInfoModalData] = useState(null);
 
     useEffect(() => {
         const fetch = async () => {
@@ -51,25 +51,28 @@ const StudentTests = () => {
         [submissions]
     );
 
-    // Group tests by Assigned Date
+    // Group tests by Index
     const dynamicInboxItems = useMemo(() => {
         const grouped = tests.reduce((acc, test) => {
-            const dateStr = test.date ? new Date(test.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No Date';
-            if (!acc[dateStr]) acc[dateStr] = [];
-            acc[dateStr].push(test);
+            const indexStr = test.index || 'No Index';
+            if (!acc[indexStr]) acc[indexStr] = [];
+            acc[indexStr].push(test);
             return acc;
         }, {});
 
+        // Sort by index numerically if possible
+        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+
         return Object.keys(grouped)
-            .sort((a, b) => new Date(b) - new Date(a)) // Sort by date descending
-            .map(dateStr => ({
-                id: dateStr,
-                title: dateStr,
-                // Done = tests in this date that have a submission
-                completed: grouped[dateStr].filter(t => submittedTestIds.has(t._id)).length,
+            .sort((a, b) => getNum(a) - getNum(b))
+            .map(indexStr => ({
+                id: indexStr,
+                title: indexStr,
+                // Done = tests in this index that have a submission
+                completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
                 // Pending = tests with no submission yet
-                pending: grouped[dateStr].filter(t => !submittedTestIds.has(t._id)).length,
-                tests: grouped[dateStr]
+                pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
+                tests: grouped[indexStr]
             }));
     }, [tests, submittedTestIds]);
 
@@ -99,7 +102,7 @@ const StudentTests = () => {
                 {/* ── LEFT SIDEBAR ───────────────────────────────────── */}
                 <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col bg-white">
                     <div className="p-4 border-b border-slate-100">
-                        <h2 className="font-bold text-slate-800 text-lg mb-4">Academic Days</h2>
+                        <h2 className="font-bold text-slate-800 text-lg mb-4">Course Progress</h2>
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
@@ -139,7 +142,7 @@ const StudentTests = () => {
                                             <h3 className="font-bold text-slate-700 text-sm">{item.title}</h3>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                            <span className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100 uppercase tracking-tighter">Date</span>
+                                            <span className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100 uppercase tracking-tighter">Index</span>
                                         </div>
                                     </div>
 
@@ -185,7 +188,7 @@ const StudentTests = () => {
                                 <div className="bg-red-500 rounded-xl p-3 flex items-center justify-between text-white shadow-md">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-white/20 p-2 rounded-lg"><BookOpen size={20} /></div>
-                                        <h2 className="font-bold text-lg">Assigned Date: {selectedGroup?.title} ({viewMode === 'pending' ? 'Pending' : 'Completed'})</h2>
+                                        <h2 className="font-bold text-lg">{viewMode === 'pending' ? 'Pending Tests' : 'Completed Tests'}</h2>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className="bg-white/20 rounded-full flex items-center px-3 py-1.5 gap-2 border border-white/30">
@@ -195,22 +198,12 @@ const StudentTests = () => {
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-l-4 border-red-500 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created Date</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.createdAt ? new Date(selectedGroup.tests[0].createdAt).toLocaleDateString('en-GB') : 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.institute || 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.course || 'N/A'}</span>
-                                    </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                                <div className={`grid gap-4 ${pendingTests.length === 1 ? 'grid-cols-1' :
+                                        pendingTests.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                                            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                                    }`}>
                                     {pendingTests.length === 0 ? (
                                         <div className="col-span-3 py-16 text-center">
                                             <div className="text-5xl mb-3">🎉</div>
@@ -222,18 +215,32 @@ const StudentTests = () => {
                                             <div
                                                 key={test._id}
                                                 onClick={() => navigate(`/student/take-test/${test._id}`)}
-                                                className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer group flex items-center justify-between gap-3 ring-2 ring-transparent hover:ring-indigo-100"
+                                                className="bg-white p-4 rounded-xl shadow-sm border-2 border-[#3E3ADD] hover:shadow-md transition-all cursor-pointer group flex items-center justify-between gap-4"
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-2 h-2 rounded-full bg-slate-800 group-hover:bg-indigo-500 transition-colors"></div>
+                                                <div className="flex items-start gap-3">
+                                                    {/* Bullet point */}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-900 mt-2 flex-shrink-0" />
                                                     <div>
-                                                        <span className="font-semibold text-slate-700 group-hover:text-indigo-700 block">{test.title}</span>
-                                                        <span className="text-xs text-slate-400">{test.subject} · {test.questions?.length || 0} Qs</span>
+                                                        <h3 className="font-bold text-slate-800 text-sm leading-tight group-hover:text-[#3E3ADD] transition-colors">{test.title}</h3>
+                                                        <p className="text-[10px] font-semibold text-slate-500 mt-1 uppercase tracking-wider">
+                                                            Created date: {test.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A'}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1">
-                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Assigned Date</span>
-                                                    <span className="text-[10px] text-indigo-600 font-bold">{test.date ? new Date(test.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No Date'}</span>
+
+                                                <div className="flex items-center gap-3">
+                                                    <MoreVertical size={16} className="text-[#3E3ADD]" />
+                                                    <div className="bg-[#1E293B] p-2 rounded-xl flex items-center justify-center">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setInfoModalData(test);
+                                                            }}
+                                                            className="bg-[#FFE4E6] text-[#E11D48] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider hover:bg-[#FECDD3] transition-colors"
+                                                        >
+                                                            Relevant Information
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))
@@ -248,24 +255,11 @@ const StudentTests = () => {
                                 <div className="bg-emerald-600 rounded-xl p-3 flex items-center justify-between text-white shadow-md">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-white/20 p-2 rounded-lg"><CheckCircle size={20} /></div>
-                                        <h2 className="font-bold text-lg">Assigned Date: {selectedGroup?.title} (Completed)</h2>
+                                        <h2 className="font-bold text-lg">Test Index: {selectedGroup?.title} (Completed)</h2>
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-l-4 border-emerald-500 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created Date</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.createdAt ? new Date(selectedGroup.tests[0].createdAt).toLocaleDateString('en-GB') : 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.institute || 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
-                                        <span className="text-slate-900 font-bold">{selectedGroup?.tests?.[0]?.course || 'N/A'}</span>
-                                    </div>
-                                </div>
+
 
                                 {completedSubmissions.length === 0 ? (
                                     <div className="py-16 text-center">
@@ -274,115 +268,49 @@ const StudentTests = () => {
                                         <p className="text-slate-400 text-sm mt-1">Submit a test to see it here.</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className={`grid gap-4 ${completedSubmissions.length === 1 ? 'grid-cols-1' :
+                                            completedSubmissions.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                                                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                                        }`}>
                                         {completedSubmissions.map(sub => {
                                             const isEvaluated = sub.status === 'evaluated';
-                                            const isExpanded = expandedResult === sub._id;
 
                                             return (
-                                                <div key={sub._id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isEvaluated ? 'border-emerald-200' : 'border-slate-200'}`}>
+                                                <div
+                                                    key={sub._id}
+                                                    onClick={(e) => {
+                                                        console.log("Card clicked, navigating to result:", sub._id);
+                                                        navigate(`/student/test-result/${sub._id}`);
+                                                    }}
+                                                    className={`bg-white rounded-2xl border-2 overflow-hidden transition-all cursor-pointer group hover:shadow-md ${isEvaluated ? 'border-emerald-500 shadow-emerald-50' : 'border-[#3E3ADD]'}`}
+                                                >
                                                     {/* Submission card header */}
-                                                    <div
-                                                        className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                                        onClick={() => setExpandedResult(isExpanded ? null : sub._id)}
-                                                    >
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm text-lg ${isEvaluated ? 'bg-emerald-500' : 'bg-indigo-400'}`}>
-                                                                {isEvaluated ? '✓' : '⏳'}
-                                                            </div>
+                                                    <div className="p-4 flex items-center justify-between transition-colors">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${isEvaluated ? 'bg-emerald-500' : 'bg-slate-900'}`} />
                                                             <div>
-                                                                <p className="font-bold text-slate-800">{sub.test?.title || 'Test'}</p>
-                                                                <p className="text-xs text-slate-400 mt-0.5">
-                                                                    Submitted {new Date(sub.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                                    {isEvaluated && ` · ${sub.answers?.length || 0} questions evaluated`}
+                                                                <h3 className="font-bold text-slate-800 text-sm leading-tight transition-colors group-hover:text-indigo-600">{sub.test?.title || 'Test'}</h3>
+                                                                <p className="text-[10px] font-semibold text-slate-500 mt-1 uppercase tracking-wider">
+                                                                    Submitted date: {new Date(sub.submittedAt).toLocaleDateString('en-GB')}
                                                                 </p>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-center gap-3">
-                                                            {isEvaluated && (
-                                                                <div className="text-center">
-                                                                    <p className="text-xl font-bold text-emerald-600">{sub.totalMarks}</p>
-                                                                    <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Total Marks</p>
-                                                                </div>
-                                                            )}
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${isEvaluated ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                                {isEvaluated ? '✓ Evaluated' : 'Awaiting Evaluation'}
-                                                            </span>
-                                                            {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                            <MoreVertical size={16} className="text-[#3E3ADD]" />
+                                                            <div className="bg-[#1E293B] p-2 rounded-xl flex items-center justify-center">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setInfoModalData(sub.test);
+                                                                    }}
+                                                                    className={`${isEvaluated ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-[#FFE4E6] text-[#E11D48] hover:bg-[#FECDD3]'} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all`}
+                                                                >
+                                                                    {isEvaluated ? 'View Feedback' : 'Relevant Information'}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
-
-                                                    {/* Expanded: answers + marks + feedback */}
-                                                    {isExpanded && (
-                                                        <div className="border-t border-slate-100 bg-slate-50/50 p-5 space-y-4">
-                                                            {sub.answers?.map((ans, qi) => (
-                                                                <div key={qi} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                                                                    <div className="flex justify-between items-start mb-3">
-                                                                        <h4 className="font-bold text-slate-800 text-sm">Q{qi + 1}. {ans.questionText}</h4>
-                                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">{ans.questionType}</span>
-                                                                    </div>
-
-                                                                    {/* Student's answer */}
-                                                                    {ans.textAnswer && (
-                                                                        <div className="mb-3 p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                                                                            <div className="flex items-center gap-1.5 mb-1">
-                                                                                <FileText size={12} className="text-indigo-500" />
-                                                                                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Your Answer</span>
-                                                                            </div>
-                                                                            <p className="text-slate-700 text-sm">{ans.textAnswer}</p>
-                                                                        </div>
-                                                                    )}
-                                                                    {ans.audioData && (
-                                                                        <div className="mb-3 p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                                <Mic size={12} className="text-indigo-500" />
-                                                                                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Your Audio Answer</span>
-                                                                            </div>
-                                                                            <audio controls src={ans.audioData} className="w-full" />
-                                                                        </div>
-                                                                    )}
-                                                                    {ans.videoData && (
-                                                                        <div className="mb-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-                                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                                <Video size={12} className="text-purple-500" />
-                                                                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wide">Your Video Answer</span>
-                                                                            </div>
-                                                                            <video controls src={ans.videoData} className="w-full rounded-lg max-h-40" />
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Teacher evaluation (marks + feedback) */}
-                                                                    {isEvaluated && (
-                                                                        <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
-                                                                            <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 flex items-center gap-2">
-                                                                                <Star size={14} className="text-amber-500 shrink-0" fill="currentColor" />
-                                                                                <div>
-                                                                                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Marks</p>
-                                                                                    <p className="text-lg font-bold text-slate-800">{ans.marks ?? 0}</p>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-start gap-2">
-                                                                                <MessageSquare size={14} className="text-blue-500 shrink-0 mt-0.5" />
-                                                                                <div>
-                                                                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">Teacher Feedback</p>
-                                                                                    <p className="text-sm text-slate-700 mt-0.5">{ans.feedback || <span className="italic text-slate-400">No feedback added</span>}</p>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {!isEvaluated && (
-                                                                        <div className="mt-3 pt-3 border-t border-slate-100">
-                                                                            <p className="text-xs text-amber-500 font-semibold flex items-center gap-1">
-                                                                                ⏳ Marks and feedback will appear here once your teacher evaluates this answer.
-                                                                            </p>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -413,6 +341,82 @@ const StudentTests = () => {
                 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 4px; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+            `}</style>
+            {/* Relevant Information Modal */}
+            {infoModalData && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up">
+                        <div className="p-8">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                        <BookOpen size={20} strokeWidth={2.5} />
+                                    </div>
+                                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Relevant Information</h2>
+                                </div>
+                                <button
+                                    onClick={() => setInfoModalData(null)}
+                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+                                >
+                                    <Menu size={20} className="rotate-45" /> {/* Use Menu icon or a proper X if available, keeping style consistent */}
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-2">
+                                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">Test Name</span>
+                                    <span className="font-bold text-indigo-900 text-lg">{infoModalData.title || infoModalData.name || 'Untitled Test'}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.institute || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.course || 'N/A'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Subject</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.subject || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Date</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.date || (infoModalData.createdAt ? new Date(infoModalData.createdAt).toLocaleDateString('en-GB') : 'N/A')}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.index || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Type</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.activity || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setInfoModalData(null)}
+                                className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all active:scale-95 uppercase tracking-widest text-xs"
+                            >
+                                Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+                .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             `}</style>
         </DashboardLayout>
     );

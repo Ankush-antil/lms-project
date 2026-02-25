@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check } from 'lucide-react';
 
 const TestsList = () => {
     const navigate = useNavigate();
@@ -11,6 +11,25 @@ const TestsList = () => {
     const [filterSubject, setFilterSubject] = useState('All');
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [copiedId, setCopiedId] = useState(null);
+
+    const handleCopyUrl = (testId) => {
+        const url = `${window.location.origin}/take-test/${testId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            setCopiedId(testId);
+            setTimeout(() => setCopiedId(null), 1500);
+        }).catch(() => {
+            // Fallback for older browsers
+            const el = document.createElement('textarea');
+            el.value = url;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            setCopiedId(testId);
+            setTimeout(() => setCopiedId(null), 1500);
+        });
+    };
 
     useEffect(() => {
         const fetchTests = async () => {
@@ -52,6 +71,12 @@ const TestsList = () => {
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
         return titleMatch && subjectMatch;
+    }).sort((a, b) => {
+        const getNum = (s) => parseInt(s?.match(/\d+/)?.[0] || 0);
+        const numA = getNum(a.index);
+        const numB = getNum(b.index);
+        if (numA !== numB) return numA - numB;
+        return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
     const uniqueSubjects = ['All', ...new Set(tests.map(t => t.subject).filter(s => s && s.trim() !== ''))];
@@ -125,7 +150,7 @@ const TestsList = () => {
                                     <th className="p-4 font-semibold whitespace-nowrap">Subject</th>
                                     <th className="p-4 font-semibold whitespace-nowrap">Duration</th>
                                     <th className="p-4 font-semibold whitespace-nowrap">Questions</th>
-                                    <th className="p-4 font-semibold whitespace-nowrap">Assigned Date</th>
+                                    <th className="p-4 font-semibold whitespace-nowrap">Test Index</th>
                                     <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Actions</th>
                                 </tr>
                             </thead>
@@ -159,16 +184,27 @@ const TestsList = () => {
                                         <td className="p-4 whitespace-nowrap text-slate-600 text-sm font-mono">
                                             {test.questions?.length || 0} Qs
                                         </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5 text-slate-600 text-sm">
-                                                <Calendar size={14} className="text-slate-400" />
-                                                {test.date || 'Not set'}
-                                            </div>
+                                        <td className="p-4 whitespace-nowrap text-slate-600 text-sm">
+                                            {test.index ? (
+                                                <span className="font-bold text-indigo-600 px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">{test.index}</span>
+                                            ) : (
+                                                <span className="text-slate-400 italic">No Index</span>
+                                            )}
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
                                             <button
+                                                onClick={() => handleCopyUrl(test._id)}
+                                                className={`p-2 rounded-lg transition-all ${copiedId === test._id
+                                                        ? 'text-emerald-600 bg-emerald-50'
+                                                        : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+                                                    }`}
+                                                title="Copy shareable test URL"
+                                            >
+                                                {copiedId === test._id ? <Check size={18} /> : <Link2 size={18} />}
+                                            </button>
+                                            <button
                                                 onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
                                                 title="Edit Test"
                                             >
                                                 <Edit size={18} />

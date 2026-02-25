@@ -12,13 +12,15 @@ import { useUserProfile } from '../../components/common/UserProfileContext';
 const TeacherActivities = () => {
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [selectedInbox, setSelectedInbox] = useState(null);
-    const [selectedDate, setSelectedDate] = useState('All');
+    const [selectedIndex, setSelectedIndex] = useState('All');
+    const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'completed'
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [loading, setLoading] = useState(false);
     const [teacherInfo, setTeacherInfo] = useState(null);
     const [students, setStudents] = useState([]);
     const [studentSubmissions, setStudentSubmissions] = useState([]);
+    const [infoModalData, setInfoModalData] = useState(null);
     const { openProfile } = useUserProfile();
 
     const navigate = useNavigate();
@@ -54,68 +56,68 @@ const TeacherActivities = () => {
             const filtered = data.filter(s => (s.student?._id || s.student) === studentId);
             setStudentSubmissions(filtered);
             if (filtered.length > 0) {
-                const sortedDates = [...new Set(filtered.map(s =>
-                    new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                ))].sort((a, b) => new Date(b) - new Date(a));
-                setSelectedDate(sortedDates[0]);
+                const uniqueIndices = [...new Set(filtered.map(s => s.test?.index || 'No Index'))];
+                setSelectedIndex(uniqueIndices[0]);
+                setViewMode('pending');
             }
         } catch (error) {
             console.error("Error fetching student submissions:", error);
         }
     };
 
-    // Group submissions by the Test's Assigned Date for the left sidebar "Inboxes"
-    const groupedByDate = studentSubmissions.reduce((acc, sub) => {
-        const dateStr = sub.test?.date
-            ? new Date(sub.test.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            : new Date(sub.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Group submissions by the Test's Index strictly for the left sidebar "Inboxes"
+    const groupedByIndex = studentSubmissions.reduce((acc, sub) => {
+        const indexStr = sub.test?.index || 'No Index';
 
-        if (!acc[dateStr]) {
-            acc[dateStr] = {
-                id: dateStr,
-                title: dateStr,
+        if (!acc[indexStr]) {
+            acc[indexStr] = {
+                id: indexStr,
+                title: indexStr,
                 submissions: [],
                 pending: 0,
                 completed: 0,
                 latestTime: new Date(sub.submittedAt)
             };
         }
-        acc[dateStr].submissions.push(sub);
-        if (sub.status === 'submitted') acc[dateStr].pending++;
-        else acc[dateStr].completed++;
-        if (new Date(sub.submittedAt) > acc[dateStr].latestTime) acc[dateStr].latestTime = new Date(sub.submittedAt);
+        acc[indexStr].submissions.push(sub);
+        if (sub.status === 'submitted') acc[indexStr].pending++;
+        else acc[indexStr].completed++;
+        if (new Date(sub.submittedAt) > acc[indexStr].latestTime) acc[indexStr].latestTime = new Date(sub.submittedAt);
         return acc;
     }, {});
 
-    const dynamicInboxes = Object.values(groupedByDate).sort((a, b) => new Date(b.id) - new Date(a.id));
+    const dynamicInboxes = Object.values(groupedByIndex).sort((a, b) => {
+        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        return getNum(a.id) - getNum(b.id) || b.latestTime - a.latestTime;
+    });
 
-    // Date filtering and counts for the dashboard
-    const dateStats = studentSubmissions.reduce((acc, s) => {
-        const date = s.test?.date
-            ? new Date(s.test.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            : new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Index filtering and counts for the dashboard
+    const indexStats = studentSubmissions.reduce((acc, s) => {
+        const indexKey = s.test?.index || 'No Index';
 
-        if (!acc[date]) acc[date] = { count: 0, pending: 0, completed: 0 };
-        acc[date].count++;
-        if (s.status === 'submitted') acc[date].pending++;
-        else acc[date].completed++;
+        if (!acc[indexKey]) acc[indexKey] = { count: 0, pending: 0, completed: 0 };
+        acc[indexKey].count++;
+        if (s.status === 'submitted') acc[indexKey].pending++;
+        else acc[indexKey].completed++;
         return acc;
     }, {});
 
-    const uniqueDates = studentSubmissions.length ? Object.keys(dateStats).sort((a, b) => new Date(b) - new Date(a)) : [];
+    const uniqueIndices = studentSubmissions.length ? Object.keys(indexStats).sort((a, b) => {
+        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        return getNum(a) - getNum(b);
+    }) : [];
 
     const filteredSubmissions = studentSubmissions.filter(s => {
-        const sDate = s.test?.date
-            ? new Date(s.test.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            : new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-
-        return sDate === selectedDate;
+        const sIndex = s.test?.index || 'No Index';
+        const matchesIndex = sIndex === selectedIndex;
+        const matchesStatus = viewMode === 'pending' ? s.status === 'submitted' : s.status === 'evaluated';
+        return matchesIndex && matchesStatus;
     }) || [];
 
     // Dashboard summary stats
     const summaryStats = {
-        pending: dateStats[selectedDate]?.pending || 0,
-        completed: dateStats[selectedDate]?.completed || 0
+        pending: indexStats[selectedIndex]?.pending || 0,
+        completed: indexStats[selectedIndex]?.completed || 0
     };
 
     const filteredStudents = students.filter(s =>
@@ -127,18 +129,31 @@ const TeacherActivities = () => {
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* --- Left Sidebar: Activities Inbox --- */}
-                <aside className="w-80 border-r border-slate-100 flex flex-col shrink-0 overflow-hidden bg-slate-50/30">
-                    <div className="p-6 border-b border-slate-100 bg-white">
+                <aside className="w-80 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-gray-100">
+                    <div className="p-6 border-b border-slate-200 bg-gray-100">
                         <h2 className="text-lg font-bold text-slate-800 mb-4">Student Profile</h2>
 
                         {selectedStudent ? (
                             <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 mb-4">
                                 <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm">
-                                        {selectedStudent.name[0]}
+                                    <div
+                                        className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm cursor-pointer hover:scale-110 hover:ring-2 hover:ring-indigo-400 hover:ring-offset-2 transition-all overflow-hidden"
+                                        onClick={() => openProfile(selectedStudent._id)}
+                                        title="View student profile"
+                                    >
+                                        {selectedStudent.avatar ? (
+                                            <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            selectedStudent.name[0]
+                                        )}
                                     </div>
                                     <div className="min-w-0">
-                                        <h3 className="font-bold text-slate-800 text-sm truncate">{selectedStudent.name}</h3>
+                                        <h3
+                                            className="font-bold text-slate-800 text-sm truncate cursor-pointer hover:text-indigo-600 transition-colors"
+                                            onClick={() => openProfile(selectedStudent._id)}
+                                        >
+                                            {selectedStudent.name}
+                                        </h3>
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider truncate">{selectedStudent.studentProfile?.course?.name || 'No Course'}</p>
                                     </div>
                                 </div>
@@ -163,7 +178,7 @@ const TeacherActivities = () => {
                         {selectedStudent ? dynamicInboxes.map(inbox => (
                             <div
                                 key={inbox.id}
-                                onClick={() => { setSelectedInbox(inbox); setSelectedDate(inbox.title); }}
+                                onClick={() => { setSelectedInbox(inbox); setSelectedIndex(inbox.title); }}
                                 className={`p-4 rounded-2xl border transition-all cursor-pointer group ${selectedInbox?.id === inbox.id ? 'border-indigo-500 bg-white shadow-md ring-1 ring-indigo-500/20' : 'border-transparent hover:border-indigo-200 hover:bg-white'}`}
                             >
                                 <div className="flex justify-between items-start mb-3">
@@ -173,14 +188,20 @@ const TeacherActivities = () => {
                                     </div>
                                     <button className="text-slate-300 hover:text-slate-500"><MoreVertical size={14} /></button>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="flex items-center space-x-1.5 px-2 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100/50">
-                                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                                        <span className="text-[10px] font-black text-emerald-700 uppercase">Completed {inbox.completed}</span>
+                                <div className="grid grid-cols-2 gap-2 mt-3">
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); setSelectedInbox(inbox); setSelectedIndex(inbox.title); setViewMode('completed'); }}
+                                        className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-lg border transition-all ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-100/50 hover:bg-emerald-100'}`}
+                                    >
+                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'bg-white' : 'bg-emerald-500'}`}></div>
+                                        <span className={`text-[10px] font-black uppercase ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'text-white' : 'text-emerald-700'}`}>Completed {inbox.completed}</span>
                                     </div>
-                                    <div className="flex items-center space-x-1.5 px-2 py-1.5 bg-orange-50 rounded-lg border border-orange-100/50">
-                                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                                        <span className="text-[10px] font-black text-orange-700 uppercase leading-none">Pending : {inbox.pending}</span>
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); setSelectedInbox(inbox); setSelectedIndex(inbox.title); setViewMode('pending'); }}
+                                        className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-lg border transition-all ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'bg-orange-500 text-white border-orange-600' : 'bg-orange-50 text-orange-700 border-orange-100/50 hover:bg-orange-100'}`}
+                                    >
+                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'bg-white' : 'bg-orange-500'}`}></div>
+                                        <span className={`text-[10px] font-black uppercase leading-none ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'text-white' : 'text-orange-700'}`}>Pending : {inbox.pending}</span>
                                     </div>
                                 </div>
                             </div>
@@ -198,23 +219,16 @@ const TeacherActivities = () => {
                     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                         {selectedStudent ? (
                             <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-                                <div className="flex justify-between items-end border-b border-slate-100 pb-6">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold uppercase tracking-widest">Activity Report</span>
-                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase">{selectedDate === 'All' ? 'All Activities' : selectedDate}</span>
-                                        </div>
-                                        <h2
-                                            className="text-4xl font-black text-slate-800 tracking-tight cursor-pointer hover:text-indigo-600 transition-colors"
-                                            onClick={() => openProfile(selectedStudent._id)}
-                                        >
-                                            {selectedStudent.name}
-                                        </h2>
+                                <div className={`rounded-xl p-3 flex items-center justify-between text-white shadow-md ${viewMode === 'pending' ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-white/20 p-2 rounded-lg"><BookOpen size={20} /></div>
+                                        <h2 className="font-bold text-lg">{viewMode === 'pending' ? 'Pending Submissions' : 'Completed Submissions'}</h2>
                                     </div>
-                                    <button className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-100 transition-colors border border-slate-100">
-                                        <RefreshCw size={20} />
-                                    </button>
+                                    {/* <div className="flex items-center gap-3">
+                                        <button onClick={() => fetchStudentSubmissions(selectedStudent._id)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                                            <RefreshCw size={18} />
+                                        </button>
+                                    </div> */}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -234,76 +248,62 @@ const TeacherActivities = () => {
                                     </div>
                                 </div>
 
-                                {selectedInbox && (
-                                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 border-l-8 border-indigo-500 p-8 animate-fade-in">
-                                        <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-[0.1em] mb-6 flex items-center gap-2">
-                                            <Info size={16} /> Relevant Information
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
-                                                <span className="text-slate-900 font-bold">{selectedInbox.submissions[0]?.test?.institute || 'N/A'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
-                                                <span className="text-slate-900 font-bold">{selectedInbox.submissions[0]?.test?.course || 'N/A'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+
 
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Submission List</h4>
-                                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-md">
-                                            {uniqueDates.map(date => (
-                                                <button
-                                                    key={date}
-                                                    onClick={() => setSelectedDate(date)}
-                                                    className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all whitespace-nowrap border ${selectedDate === date ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-200'}`}
-                                                >
-                                                    {`${date} (${dateStats[date].count})`}
-                                                </button>
-                                            ))}
-                                        </div>
                                     </div>
 
                                     {filteredSubmissions.length > 0 ? (
                                         <div className="space-y-4">
-                                            {filteredSubmissions.map((sub) => (
-                                                <div key={sub._id} className="flex items-center justify-between bg-slate-50 p-6 rounded-[32px] border border-slate-100 group hover:bg-white hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all">
-                                                    <div className="flex items-center space-x-5">
-                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border ${sub.status === 'submitted' ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-emerald-50 text-emerald-500 border-emerald-100'}`}>
-                                                            <BookOpen size={24} />
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <h5 className="font-bold text-slate-800">{sub.test?.title}</h5>
-                                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${sub.status === 'submitted' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                                                    {sub.status === 'submitted' ? 'Pending' : 'Completed'}
-                                                                </span>
+                                            {filteredSubmissions.map((sub) => {
+                                                const isEvaluated = sub.status === 'evaluated';
+                                                return (
+                                                    <div
+                                                        key={sub._id}
+                                                        onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
+                                                        className={`bg-white rounded-2xl border-2 overflow-hidden transition-all cursor-pointer group hover:shadow-md ${isEvaluated ? 'border-emerald-500 shadow-emerald-50' : 'border-[#3E3ADD]'}`}
+                                                    >
+                                                        {/* Submission card header */}
+                                                        <div className="p-4 flex items-center justify-between transition-colors">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${isEvaluated ? 'bg-emerald-500' : 'bg-slate-900'}`} />
+                                                                <div>
+                                                                    <h3 className="font-bold text-slate-800 text-sm leading-tight transition-colors group-hover:text-indigo-600">{sub.test?.title || 'Test'}</h3>
+                                                                    <p className="text-[10px] font-semibold text-slate-500 mt-1 uppercase tracking-wider">
+                                                                        Submitted date: {new Date(sub.submittedAt).toLocaleDateString('en-GB')}
+                                                                    </p>
+                                                                </div>
                                                             </div>
-                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
-                                                                <Clock size={10} /> {new Date(sub.submittedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                            </p>
-                                                            <div className="mt-3 flex flex-wrap gap-1.5">
-                                                                {sub.answers?.map((ans, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-white border border-slate-100 rounded-lg text-[8px] font-bold shadow-sm text-slate-500">
-                                                                        <span className="w-1 h-1 rounded-full bg-indigo-400"></span>
-                                                                        {ans.questionType || 'Item'}
-                                                                    </div>
-                                                                ))}
+
+                                                            <div className="flex items-center gap-3">
+                                                                <MoreVertical size={16} className="text-[#3E3ADD]" />
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setInfoModalData(sub.test);
+                                                                        }}
+                                                                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
+                                                                    >
+                                                                        Relevant Information
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            navigate(`/teacher/evaluate/${sub._id}`);
+                                                                        }}
+                                                                        className={`${isEvaluated ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-[#FFE4E6] text-[#E11D48] hover:bg-[#FECDD3]'} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all`}
+                                                                    >
+                                                                        {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <button
-                                                        onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
-                                                        className={`px-6 py-2.5 rounded-2xl text-xs font-bold transition-all ${sub.status === 'submitted' ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-900/10' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'}`}
-                                                    >
-                                                        {sub.status === 'submitted' ? 'Evaluate Item' : 'View Outcome'}
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="py-24 text-center bg-slate-50/50 rounded-[40px] border border-dashed border-slate-200">
@@ -332,8 +332,8 @@ const TeacherActivities = () => {
                 </main>
 
                 {/* --- Right Sidebar: Students Selecting --- */}
-                <aside className="w-80 border-l border-slate-100 flex flex-col shrink-0 overflow-hidden bg-slate-50/30">
-                    <div className="p-6 border-b border-slate-100 bg-white">
+                <aside className="w-80 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-gray-100">
+                    <div className="p-6 border-b border-slate-200 bg-gray-100">
                         <h2 className="text-lg font-bold text-slate-800 mb-6 tracking-tight">Student List</h2>
 
                         <div className="relative mb-6">
@@ -396,7 +396,81 @@ const TeacherActivities = () => {
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+                .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             `}} />
+
+            {/* Relevant Information Modal */}
+            {infoModalData && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up">
+                        <div className="p-8">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                        <BookOpen size={20} strokeWidth={2.5} />
+                                    </div>
+                                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Relevant Information</h2>
+                                </div>
+                                <button
+                                    onClick={() => setInfoModalData(null)}
+                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+                                >
+                                    <RefreshCw size={20} className="rotate-45" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-2">
+                                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">Test Name</span>
+                                    <span className="font-bold text-indigo-900 text-lg">{infoModalData.title || infoModalData.name || 'Untitled Test'}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.institute || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Course</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.course || 'N/A'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Subject</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.subject || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Date</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.date || (infoModalData.createdAt ? new Date(infoModalData.createdAt).toLocaleDateString('en-GB') : 'N/A')}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.index || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Type</span>
+                                        <span className="font-bold text-slate-900">{infoModalData.activity || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setInfoModalData(null)}
+                                className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all active:scale-95 uppercase tracking-widest text-xs"
+                            >
+                                Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 };

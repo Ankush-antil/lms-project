@@ -64,7 +64,7 @@ const getSubmissions = asyncHandler(async (req, res) => {
     }
 
     const submissions = await Submission.find(query)
-        .populate('test', 'title subject institute course date')
+        .populate('test')
         .populate('student', 'name email')
         .sort({ submittedAt: -1 });
 
@@ -108,7 +108,7 @@ const getSubmissionsByTest = asyncHandler(async (req, res) => {
 // @access  Private
 const getSubmissionById = asyncHandler(async (req, res) => {
     const submission = await Submission.findById(req.params.id)
-        .populate('test', 'title subject institute course questions')
+        .populate('test')
         .populate('student', 'name email');
 
     if (!submission) {
@@ -135,7 +135,14 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
         answers.forEach((a, i) => {
             if (submission.answers[i]) {
                 submission.answers[i].marks = a.marks ?? submission.answers[i].marks;
-                submission.answers[i].feedback = a.feedback ?? submission.answers[i].feedback;
+                // If teacher provided feedback, append it to the conversation
+                if (a.feedback) {
+                    submission.answers[i].conversation.push({
+                        role: 'Teacher',
+                        message: a.feedback,
+                        timestamp: new Date()
+                    });
+                }
             }
         });
     }
@@ -147,4 +154,30 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
     res.json(updated);
 });
 
-module.exports = { submitTest, getSubmissions, getSubmissionsByTest, getSubmissionById, evaluateSubmission };
+const updateStudentComment = asyncHandler(async (req, res) => {
+    const { answers } = req.body;
+
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        res.status(404);
+        throw new Error('Submission not found');
+    }
+
+    if (answers && Array.isArray(answers)) {
+        answers.forEach((a, i) => {
+            if (submission.answers[i] && a.studentComment) {
+                // Append the student's new comment to the conversation array
+                submission.answers[i].conversation.push({
+                    role: 'Student',
+                    message: a.studentComment,
+                    timestamp: new Date()
+                });
+            }
+        });
+    }
+
+    const updated = await submission.save();
+    res.json(updated);
+});
+
+module.exports = { submitTest, getSubmissions, getSubmissionsByTest, getSubmissionById, evaluateSubmission, updateStudentComment };

@@ -20,6 +20,9 @@ const testSchema = new mongoose.Schema({
     date: {
         type: String
     },
+    index: {
+        type: String
+    },
     activity: {
         type: String
     },

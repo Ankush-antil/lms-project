@@ -43,6 +43,7 @@ const TestBuilder = () => {
                         course: test.course,
                         subject: test.subject,
                         date: test.date,
+                        index: test.index,
                         activity: test.activity
                     });
                     setIsConnected(true);
@@ -99,6 +100,7 @@ const TestBuilder = () => {
         setConnectData(data);
         setIsConnected(true);
         setIsConnectModalOpen(false);
+        toast.success('Test details connected! Don\'t forget to Publish your changes.');
     };
 
     const handlePublish = async () => {
@@ -125,6 +127,7 @@ const TestBuilder = () => {
                     course: connectData.course,
                     subject: connectData.subject,
                     date: connectData.date,
+                    index: connectData.index,
                     activity: connectData.activity
                 },
                 questions: formElements.map((el, index) => ({

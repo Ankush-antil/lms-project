@@ -21,6 +21,13 @@ app.use(cors({
     credentials: true
 }));
 
+// Prevent Cloudflare/CDN from caching API responses
+app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    next();
+});
+
 // Health check
 app.get('/api/health', async (req, res) => {
     const status = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
@@ -37,10 +44,14 @@ app.use('/api/submissions', require('./routes/submissionRoutes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-    // Set static folder
+    // Serve React static files
     app.use(express.static(path.join(__dirname, '../client/dist')));
 
-    app.get('*', (req, res) => {
+    // Catch-all: only serve index.html for non-API routes
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api/')) {
+            return next(); // Let API 404 handler respond
+        }
         res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
     });
 } else {

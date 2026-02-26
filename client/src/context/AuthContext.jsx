@@ -4,12 +4,12 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
+// Set axios defaults globally
+axios.defaults.withCredentials = true;
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    // Prepare axios defaults
-    axios.defaults.withCredentials = true;
 
     const fetchUser = async () => {
         try {

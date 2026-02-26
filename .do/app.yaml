@@ -24,11 +24,11 @@ services:
         value: "8080"
         scope: RUN_TIME
       - key: MONGO_URI
-        value: "${MONGO_URI}"
+        value: "mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster"
         type: SECRET
         scope: RUN_TIME
       - key: JWT_SECRET
-        value: "your_super_secret_jwt_key"
+        value: "LmsDeploy@d3b64c5eSecure!"
         type: SECRET
         scope: RUN_TIME
     health_check:

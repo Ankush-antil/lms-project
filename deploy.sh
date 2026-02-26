@@ -7,7 +7,7 @@ echo "========================================="
 
 DOMAIN="digitalstudyacademy.com"
 REPO="https://github.com/rahuldv006/llms.git"
-APP_DIR="/var/www/lms"
+APP_DIR="/var/www/llms"
 
 # ── 1. System Update ─────────────────────────────────────
 echo "[1/8] Updating system..."
@@ -39,8 +39,8 @@ cd $APP_DIR/server
 cat > .env << 'EOF'
 NODE_ENV=production
 PORT=5000
-MONGO_URI=${PROD_MONGO_URI:-"mongodb://localhost:27017/lms"}
-JWT_SECRET=your_super_secret_jwt_key
+MONGO_URI=mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster
+JWT_SECRET=LmsDeploy@d3b64c5eSecure!
 EOF
 npm install --production
 
@@ -52,8 +52,8 @@ npm run build
 
 # ── 7. Start server with PM2 ─────────────────────────────
 echo "[7/8] Starting server with PM2..."
-pm2 delete lms-api 2>/dev/null || true
-pm2 start $APP_DIR/server/server.js --name lms-api --env production
+pm2 delete llms 2>/dev/null || true
+pm2 start $APP_DIR/server/server.js --name llms --env production
 pm2 save
 pm2 startup systemd -u root --hp /root | grep "^sudo" | bash || true
 

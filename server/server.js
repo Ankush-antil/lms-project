@@ -1,5 +1,5 @@
 // Final clean server file - Restarting for role-check verification
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');

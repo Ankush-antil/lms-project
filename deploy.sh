@@ -39,7 +39,7 @@ cd $APP_DIR/server
 cat > .env << 'EOF'
 NODE_ENV=production
 PORT=5000
-MONGO_URI=mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster
+MONGO_URI=mongodb+srv://digitalstudy:digitalstudy%23%405555@digitalstudy.lzqs6z8.mongodb.net/digitalstudy?retryWrites=true&w=majority&appName=Digitalstudy
 JWT_SECRET=LmsDeploy@d3b64c5eSecure!
 EOF
 npm install --production

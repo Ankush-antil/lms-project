@@ -24,7 +24,7 @@ services:
         value: "8080"
         scope: RUN_TIME
       - key: MONGO_URI
-        value: "mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster"
+        value: "mongodb+srv://digitalstudy:digitalstudy%23%405555@digitalstudy.lzqs6z8.mongodb.net/digitalstudy?retryWrites=true&w=majority&appName=Digitalstudy"
         type: SECRET
         scope: RUN_TIME
       - key: JWT_SECRET

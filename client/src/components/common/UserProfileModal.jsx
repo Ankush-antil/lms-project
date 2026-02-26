@@ -1,10 +1,12 @@
 import { useAuth } from '../../context/AuthContext';
 import React, { useEffect, useState } from 'react';
+
 import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
 
 const UserProfileModal = ({ userId, isOpen, onClose }) => {
+    const { user: currentUser } = useAuth();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -20,11 +22,12 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                     setError(null);
 
 
-                    if (!userInfo.token) {
+                    const token = localStorage.getItem('authToken');
+                    if (!token) {
                         throw new Error("No authentication token found");
                     }
 
-                    
+
 
                     // Safely extract the ID. Handles string ID or User Object
                     let actualId = userId;

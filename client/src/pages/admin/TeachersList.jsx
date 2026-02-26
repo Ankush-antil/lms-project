@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Eye, Plus, GraduationCap, Trash2, Edit } from 'lucide-react';
+import { Search, Filter, Plus, GraduationCap, Trash2, Edit } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -27,7 +27,7 @@ const TeachersList = () => {
     const fetchData = async () => {
         try {
 
-            
+
 
             const [userRes, courseRes] = await Promise.all([
                 axios.get('/api/users?role=Teacher'),
@@ -50,7 +50,7 @@ const TeachersList = () => {
         if (window.confirm('Are you sure you want to delete this teacher?')) {
             try {
 
-                
+
                 await axios.delete(`/api/users/${id}`);
                 setTeachers(teachers.filter(t => t._id !== id));
                 toast.success('Teacher deleted successfully');
@@ -203,12 +203,7 @@ const TeachersList = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
-                                            <button
-                                                onClick={() => navigate(`/admin/teachers/${teacher._id}`)}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                            >
-                                                <Eye size={20} />
-                                            </button>
+
                                             <button
                                                 onClick={() => {
                                                     setSelectedUser(teacher);

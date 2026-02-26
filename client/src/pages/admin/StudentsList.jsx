@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Eye, MoreVertical, Plus, Trash2, Edit } from 'lucide-react';
+import { Search, Filter, Plus, Trash2, Edit } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -28,7 +28,7 @@ const StudentsList = () => {
     const fetchData = async () => {
         try {
 
-            
+
 
             const [userRes, courseRes] = await Promise.all([
                 axios.get('/api/users?role=Student'),
@@ -51,7 +51,7 @@ const StudentsList = () => {
         if (window.confirm('Are you sure you want to delete this student?')) {
             try {
 
-                
+
                 await axios.delete(`/api/users/${id}`);
                 setStudents(students.filter(s => s._id !== id));
                 toast.success('Student deleted successfully');
@@ -193,13 +193,7 @@ const StudentsList = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
-                                            <button
-                                                onClick={() => navigate(`/admin/students/${student._id}`)}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                title="View Details"
-                                            >
-                                                <Eye size={20} />
-                                            </button>
+
                                             <button
                                                 onClick={() => {
                                                     setSelectedUser(student);

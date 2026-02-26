@@ -2,42 +2,43 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
-    Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck
+    Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../common/UserProfileContext';
 
-const Header = ({ role }) => {
+const menuItems = {
+    Admin: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+        { name: 'Institutes', icon: Building, path: '/admin/institutes' },
+        { name: 'Students', icon: Users, path: '/admin/students' },
+        { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
+        { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
+        { name: 'Tests', icon: FileText, path: '/admin/tests' },
+        { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+    ],
+    Teacher: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
+        { name: 'Activities', icon: FileText, path: '/teacher/activities' },
+        { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
+    ],
+    Student: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
+        { name: 'My Tests', icon: FileText, path: '/student/tests' },
+    ]
+};
+
+/* ─────────────────────────────────────────
+   Shared Header (branding + user profile)
+───────────────────────────────────────── */
+const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { openProfile } = useUserProfile();
     const { logout, user } = useAuth();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const menuItems = {
-        Admin: [
-            { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-            { name: 'Institutes', icon: Building, path: '/admin/institutes' },
-            { name: 'Students', icon: Users, path: '/admin/students' },
-            { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
-            { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
-            { name: 'Tests', icon: FileText, path: '/admin/tests' },
-            { name: 'Tools', icon: PenTool, path: '/admin/tools' },
-        ],
-        Teacher: [
-            { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
-            { name: 'Activities', icon: FileText, path: '/teacher/activities' },
-            { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
-        ],
-        Student: [
-            { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
-            { name: 'My Tests', icon: FileText, path: '/student/tests' },
-        ]
-    };
-
-    const handleLogout = () => {
-        logout();
-    };
+    const handleLogout = () => logout();
 
     const isActive = (path) => {
         if (path === '/admin' || path === '/teacher' || path === '/student') {
@@ -46,36 +47,33 @@ const Header = ({ role }) => {
         return location.pathname.startsWith(path);
     };
 
-    // Close mobile menu on route change
-    useEffect(() => {
-        setIsMobileMenuOpen(false);
-    }, [location.pathname]);
-
     return (
         <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-sm">
-            {/* Logo Section */}
+            {/* Logo + Non-admin desktop nav */}
             <div className="flex items-center space-x-6 xl:space-x-12">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${role.toLowerCase()}`)}>
                     <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform duration-300">L</div>
                     <span className="text-xl font-black text-slate-900 tracking-tight hidden sm:block">LMS<span className="text-indigo-600">Portal</span></span>
                 </div>
 
-                {/* Desktop Navigation */}
-                <nav className="hidden lg:flex items-center space-x-1">
-                    {menuItems[role]?.map((item) => (
-                        <button
-                            key={item.name}
-                            onClick={() => navigate(item.path)}
-                            className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm ${isActive(item.path)
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                                }`}
-                        >
-                            <item.icon size={18} strokeWidth={isActive(item.path) ? 2.5 : 2} />
-                            <span>{item.name}</span>
-                        </button>
-                    ))}
-                </nav>
+                {/* Desktop nav — only for non-admin roles */}
+                {role !== 'Admin' && (
+                    <nav className="hidden lg:flex items-center space-x-1">
+                        {menuItems[role]?.map((item) => (
+                            <button
+                                key={item.name}
+                                onClick={() => navigate(item.path)}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm ${isActive(item.path)
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                                    }`}
+                            >
+                                <item.icon size={18} strokeWidth={isActive(item.path) ? 2.5 : 2} />
+                                <span>{item.name}</span>
+                            </button>
+                        ))}
+                    </nav>
+                )}
             </div>
 
             {/* User Profile & Mobile Toggle */}
@@ -122,48 +120,214 @@ const Header = ({ role }) => {
 
                 {/* Mobile Menu Button */}
                 <button
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    onClick={onMobileMenuToggle}
                     className="lg:hidden p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200"
                 >
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </div>
-
-            {/* Mobile Navigation Drawer */}
-            <div className={`lg:hidden fixed inset-0 top-20 bg-white z-[60] p-6 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
-                <nav className="space-y-3">
-                    {menuItems[role]?.map((item) => (
-                        <button
-                            key={item.name}
-                            onClick={() => navigate(item.path)}
-                            className={`flex items-center space-x-4 w-full p-5 rounded-2xl transition-all font-bold ${isActive(item.path)
-                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
-                                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                }`}
-                        >
-                            <item.icon size={22} />
-                            <span className="text-lg">{item.name}</span>
-                        </button>
-                    ))}
-                    <div className="h-px bg-slate-100 my-6"></div>
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center justify-center space-x-3 w-full p-5 bg-red-50 text-red-600 rounded-2xl font-black text-lg transition-all border border-red-100 shadow-sm"
-                    >
-                        <LogOut size={22} />
-                        <span>Logout from Portal</span>
-                    </button>
-                </nav>
-            </div>
         </header>
     );
 };
 
+/* ─────────────────────────────────────────
+   Admin Left Sidebar
+───────────────────────────────────────── */
+const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { logout } = useAuth();
+
+    const isActive = (path) => {
+        if (path === '/admin') return location.pathname === path;
+        return location.pathname.startsWith(path);
+    };
+
+    return (
+        <>
+            {/* Sidebar — desktop */}
+            <aside
+                style={{ transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)' }}
+                className={`hidden lg:flex flex-col fixed top-20 left-0 bottom-0 z-40 bg-white border-r border-slate-200/70 shadow-sm ${collapsed ? 'w-[72px]' : 'w-56'}`}
+            >
+                {/* Collapse toggle */}
+                <button
+                    onClick={onToggle}
+                    className="absolute -right-3.5 top-6 w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-md hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 text-slate-400 transition-all z-10"
+                >
+                    {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                </button>
+
+                <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+                    {menuItems.Admin.map((item) => {
+                        const active = isActive(item.path);
+                        return (
+                            <button
+                                key={item.name}
+                                onClick={() => navigate(item.path)}
+                                title={collapsed ? item.name : undefined}
+                                className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group
+                                    ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
+                                    ${active
+                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                                    }`}
+                            >
+                                <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
+                                {!collapsed && <span>{item.name}</span>}
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* Logout at bottom */}
+                <div className={`px-3 pb-6 ${collapsed ? '' : ''}`}>
+                    <button
+                        onClick={logout}
+                        title={collapsed ? 'Sign Out' : undefined}
+                        className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm text-red-500 hover:bg-red-50
+                            ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}`}
+                    >
+                        <LogOut size={20} className="flex-shrink-0" />
+                        {!collapsed && <span>Sign Out</span>}
+                    </button>
+                </div>
+            </aside>
+
+            {/* Mobile drawer */}
+            <div className={`lg:hidden fixed inset-0 top-20 z-[60] transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
+                {/* Backdrop */}
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+                {/* Drawer panel */}
+                <div className={`absolute left-0 top-0 bottom-0 w-64 bg-white shadow-2xl p-6 flex flex-col transition-transform duration-300 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <nav className="flex-1 space-y-2">
+                        {menuItems.Admin.map((item) => {
+                            const active = isActive(item.path);
+                            return (
+                                <button
+                                    key={item.name}
+                                    onClick={() => navigate(item.path)}
+                                    className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold ${active
+                                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                        }`}
+                                >
+                                    <item.icon size={22} />
+                                    <span className="text-base">{item.name}</span>
+                                </button>
+                            );
+                        })}
+                    </nav>
+                    <div className="pt-4 border-t border-slate-100">
+                        <button
+                            onClick={logout}
+                            className="flex items-center justify-center space-x-3 w-full p-4 bg-red-50 text-red-600 rounded-2xl font-black text-base transition-all border border-red-100 shadow-sm"
+                        >
+                            <LogOut size={22} />
+                            <span>Logout from Portal</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+/* ─────────────────────────────────────────
+   Non-admin Mobile Drawer
+───────────────────────────────────────── */
+const MobileNavDrawer = ({ role, isMobileOpen }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { logout } = useAuth();
+
+    const isActive = (path) => {
+        if (path === '/teacher' || path === '/student') return location.pathname === path;
+        return location.pathname.startsWith(path);
+    };
+
+    return (
+        <div className={`lg:hidden fixed inset-0 top-20 bg-white z-[60] p-6 transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
+            <nav className="space-y-3">
+                {menuItems[role]?.map((item) => (
+                    <button
+                        key={item.name}
+                        onClick={() => navigate(item.path)}
+                        className={`flex items-center space-x-4 w-full p-5 rounded-2xl transition-all font-bold ${isActive(item.path)
+                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                            }`}
+                    >
+                        <item.icon size={22} />
+                        <span className="text-lg">{item.name}</span>
+                    </button>
+                ))}
+                <div className="h-px bg-slate-100 my-6"></div>
+                <button
+                    onClick={logout}
+                    className="flex items-center justify-center space-x-3 w-full p-5 bg-red-50 text-red-600 rounded-2xl font-black text-lg transition-all border border-red-100 shadow-sm"
+                >
+                    <LogOut size={22} />
+                    <span>Logout from Portal</span>
+                </button>
+            </nav>
+        </div>
+    );
+};
+
+/* ─────────────────────────────────────────
+   Main DashboardLayout
+───────────────────────────────────────── */
 const DashboardLayout = ({ children, role }) => {
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const location = useLocation();
+    const isAdmin = role === 'Admin';
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [location.pathname]);
+
+    const sidebarWidth = isAdmin ? (sidebarCollapsed ? 72 : 224) : 0;
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
-            <Header role={role} />
-            <main className="flex-1 pt-24 pb-12 px-4 md:px-8">
+            <Header
+                role={role}
+                onMobileMenuToggle={() => setIsMobileMenuOpen(prev => !prev)}
+                isMobileMenuOpen={isMobileMenuOpen}
+            />
+
+            {/* Admin sidebar */}
+            {isAdmin && (
+                <AdminSidebar
+                    collapsed={sidebarCollapsed}
+                    onToggle={() => setSidebarCollapsed(prev => !prev)}
+                    isMobileOpen={isMobileMenuOpen}
+                />
+            )}
+
+            {/* Non-admin mobile drawer */}
+            {!isAdmin && (
+                <MobileNavDrawer role={role} isMobileOpen={isMobileMenuOpen} />
+            )}
+
+            {/* Main content */}
+            <main
+                style={{
+                    paddingLeft: isAdmin ? `${sidebarWidth}px` : undefined,
+                    transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
+                }}
+                className="flex-1 pt-24 pb-12 px-4 md:px-8 hidden lg:block"
+            >
+                <div className="max-w-7xl mx-auto animate-fade-in relative">
+                    {children}
+                </div>
+            </main>
+
+            {/* Mobile main content (no sidebar offset) */}
+            <main className="flex-1 pt-24 pb-12 px-4 md:px-8 lg:hidden">
                 <div className="max-w-7xl mx-auto animate-fade-in relative">
                     {children}
                 </div>

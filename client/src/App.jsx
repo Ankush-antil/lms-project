@@ -20,6 +20,7 @@ import ViewTestResult from './pages/student/ViewTestResult';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import ProfilePage from './pages/ProfilePage';
+import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -175,6 +176,9 @@ function App() {
 
                         {/* Public: shared test link — handles auth internally */}
                         <Route path="/take-test/:id" element={<TakeTestPage />} />
+
+                        {/* 404 – catch all unmatched routes */}
+                        <Route path="*" element={<NotFoundPage />} />
 
                     </Routes>
                 </UserProfileProvider>

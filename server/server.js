@@ -9,6 +9,9 @@ const mongoose = require('mongoose');
 const app = express();
 const path = require('path');
 
+// Trust proxy for secure cookies behind reverse proxies (like DigitalOcean)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Activity = require('../models/Activity');
 const Course = require('../models/Course');
 const Institute = require('../models/Institute');
+const Test = require('../models/Test');
 
 // @desc    Get all users (filtered by role)
 // @route   GET /api/users
@@ -10,11 +11,15 @@ const Institute = require('../models/Institute');
 const getUsers = asyncHandler(async (req, res) => {
     const role = req.query.role;
     const query = role ? { role } : {};
+    console.log(`[API] Fetching users with query:`, query);
+
     const users = await User.find(query)
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name')
         .populate('teacherProfile.assignedCourses', 'name');
+
+    console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
     res.json(users);
 });
 
@@ -29,6 +34,7 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         }
 
         const assignedCourses = teacher.teacherProfile?.assignedCourses || [];
+        console.log(`[API] Teacher ${teacher.name} fetching students for courses:`, assignedCourses.map(c => c._id || c));
 
         // Find students whose course ID is in the teacher's assignedCourses list
         const students = await User.find({

@@ -40,7 +40,7 @@ const LoginPage = () => {
                     <div className="absolute top-0 left-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80')] bg-cover opacity-20"></div>
                     <div className="relative z-10 text-center">
                         <GraduationCap size={80} className="mx-auto mb-6" />
-                        <h1 className="text-4xl font-bold mb-4">LMS Portal 123</h1>
+                        <h1 className="text-4xl font-bold mb-4">LMS Portal 123123576123</h1>
                         <p className="text-lg text-indigo-100">Empowering education through technology. Manage courses, track progress, and achieve your goals.</p>
                     </div>
                 </div>

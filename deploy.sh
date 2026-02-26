@@ -39,7 +39,7 @@ cd $APP_DIR/server
 cat > .env << 'EOF'
 NODE_ENV=production
 PORT=5000
-MONGO_URI=mongodb+srv://digitalstudy:digitalstudy%23%405555@digitalstudy.lzqs6z8.mongodb.net/digitalstudy?retryWrites=true&w=majority&appName=Digitalstudy
+MONGO_URI=mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster
 JWT_SECRET=LmsDeploy@d3b64c5eSecure!
 EOF
 npm install --production
@@ -59,7 +59,7 @@ pm2 startup systemd -u root --hp /root | grep "^sudo" | bash || true
 
 # ── 8. Configure Nginx ───────────────────────────────────
 echo "[8/8] Configuring Nginx..."
-cat > /etc/nginx/sites-available/lms << NGINX
+cat > /etc/nginx/sites-available/digitalstudyacademy.com << NGINX
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
@@ -86,7 +86,7 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/lms /etc/nginx/sites-enabled/lms
+ln -sf /etc/nginx/sites-available/digitalstudyacademy.com /etc/nginx/sites-enabled/digitalstudyacademy.com
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl restart nginx && systemctl enable nginx
 
@@ -95,7 +95,7 @@ echo "[SSL] Setting up HTTPS..."
 apt-get install -y certbot python3-certbot-nginx
 certbot --nginx -d $DOMAIN -d www.$DOMAIN \
   --non-interactive --agree-tos \
-  --email digitalstudy5555@gmail.com \
+  --email devopkaran06@gmail.com \
   --redirect || echo "NOTE: SSL skipped - ensure DNS is pointed to this server first"
 
 echo ""

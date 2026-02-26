@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { loginUser, registerUser } = require('../controllers/authController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { loginUser, registerUser, getMe, logoutUser } = require('../controllers/authController');
+const { protect } = require('../middleware/authMiddleware');
 
 router.post('/login', loginUser);
-router.post('/register', registerUser); // Open for now to seed, can protect later
+router.post('/register', registerUser);
+router.get('/me', protect, getMe);
+router.post('/logout', logoutUser);
 
 module.exports = router;

@@ -4,12 +4,14 @@ import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../common/UserProfileContext';
 
-const Header = ({ role, user }) => {
+const Header = ({ role }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { openProfile } = useUserProfile();
+    const { logout, user } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const menuItems = {
@@ -34,8 +36,7 @@ const Header = ({ role, user }) => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('userInfo');
-        navigate('/');
+        logout();
     };
 
     const isActive = (path) => {
@@ -81,7 +82,7 @@ const Header = ({ role, user }) => {
             <div className="flex items-center space-x-4">
                 <div
                     className="flex items-center space-x-3 pl-4 border-l border-slate-200 relative group cursor-pointer"
-                    onClick={() => openProfile(user._id || user.id)}
+                    onClick={() => openProfile(user?._id || user?.id)}
                 >
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-slate-800 leading-none">{user?.name || 'User'}</p>
@@ -102,7 +103,7 @@ const Header = ({ role, user }) => {
                             <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
                         </div>
                         <button
-                            onClick={() => openProfile(user._id || user.id)}
+                            onClick={() => openProfile(user?._id || user?.id)}
                             className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-xl transition-all font-bold"
                         >
                             <User size={18} />
@@ -159,11 +160,9 @@ const Header = ({ role, user }) => {
 };
 
 const DashboardLayout = ({ children, role }) => {
-    const user = JSON.parse(localStorage.getItem('userInfo') || '{}');
-
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
-            <Header role={role} user={user} />
+            <Header role={role} />
             <main className="flex-1 pt-24 pb-12 px-4 md:px-8">
                 <div className="max-w-7xl mx-auto animate-fade-in relative">
                     {children}

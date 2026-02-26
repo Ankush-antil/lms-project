@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -6,6 +7,8 @@ import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap } f
 import AddCourseModal from '../../components/AddCourseModal';
 
 const CoursesList = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const [searchTerm, setSearchTerm] = useState('');
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,9 +17,9 @@ const CoursesList = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-            const { data } = await axios.get('/api/setup/courses', config);
+
+            
+            const { data } = await axios.get('/api/setup/courses');
             setCourses(data);
             setLoading(false);
         } catch (error) {
@@ -33,9 +36,9 @@ const CoursesList = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this course? This will affect students and teachers enrolled in it.')) {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                await axios.delete(`/api/setup/courses/${id}`, config);
+
+                
+                await axios.delete(`/api/setup/courses/${id}`);
                 setCourses(courses.filter(c => c._id !== id));
                 toast.success('Course deleted successfully');
             } catch (error) {

@@ -11,6 +11,7 @@ import {
     FolderUp, CircleDot, File, Mic, Video, Monitor, Camera, Phone, PlaySquare, Box, Globe, Headphones, Brain
 } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import ShortAnswerWidget from '../../components/builder/ShortAnswerWidget';
 import VoiceWidget from '../../components/builder/VoiceWidget';
 import VideoWidget from '../../components/builder/VideoWidget';
@@ -32,9 +33,7 @@ const TestBuilder = () => {
         if (id) {
             const fetchTest = async () => {
                 try {
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                    const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                    const res = await axios.get(`/api/tests/${id}`, config);
+                    const res = await axios.get(`/api/tests/${id}`);
                     const test = res.data;
 
                     setConnectData({
@@ -117,8 +116,6 @@ const TestBuilder = () => {
 
         try {
             setPublishing(true);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
 
             const testData = {
                 testDetails: {
@@ -143,10 +140,10 @@ const TestBuilder = () => {
             };
 
             if (id) {
-                await axios.put(`/api/tests/${id}`, testData, config);
+                await axios.put(`/api/tests/${id}`, testData);
                 toast.success('Test updated successfully!');
             } else {
-                await axios.post('/api/tests', testData, config);
+                await axios.post('/api/tests', testData);
                 toast.success('Test published successfully! It will now be visible to students in ' + connectData.course);
             }
 

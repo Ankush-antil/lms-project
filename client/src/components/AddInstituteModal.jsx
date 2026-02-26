@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -14,10 +15,10 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
 
-            await axios.post('/api/setup/institutes', { name, code, address }, config);
+            
+
+            await axios.post('/api/setup/institutes', { name, code, address });
 
             setLoading(false);
             onClose();

@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -10,6 +11,8 @@ import {
 } from 'lucide-react';
 
 const StudentTests = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]); // student's own submissions
@@ -23,14 +26,14 @@ const StudentTests = () => {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
                 if (!userInfo) return;
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+                
 
                 // Fetch tests AND student's own submissions in parallel
                 const [testsRes, subsRes] = await Promise.all([
-                    axios.get('/api/tests', config),
-                    axios.get('/api/submissions', config)
+                    axios.get('/api/tests'),
+                    axios.get('/api/submissions')
                 ]);
 
                 setTests(testsRes.data);

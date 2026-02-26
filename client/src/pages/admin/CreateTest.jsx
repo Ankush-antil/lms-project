@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,8 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Save, Plus, Trash2, Clock, Upload, CheckSquare, AlignLeft, Calendar } from 'lucide-react';
 
 const CreateTest = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -89,11 +92,11 @@ const CreateTest = () => {
 
     const handleSave = async () => {
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             setLoading(true);
-            await axios.post('/api/tests', { testDetails, settings, questions }, config);
+            await axios.post('/api/tests', { testDetails, settings, questions });
             setLoading(false);
 
             toast.success('Test Created and Published Successfully!');

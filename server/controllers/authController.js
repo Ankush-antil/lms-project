@@ -19,12 +19,21 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 
         if (user && (await user.matchPassword(password))) {
+            const token = generateToken(user._id);
+
+            // Set Cookie
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            });
+
             res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
-                token: generateToken(user._id),
+                role: user.role
             });
         } else {
             res.status(401).json({ message: 'Invalid email or password' });
@@ -33,6 +42,33 @@ const loginUser = async (req, res) => {
         console.error('CRITICAL LOGIN ERROR:', error);
         res.status(500).json({ message: error.message || 'Server error' });
     }
+};
+
+// @desc    Get current user profile
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Logout user / clear cookie
+// @route   POST /api/auth/logout
+// @access  Public
+const logoutUser = async (req, res) => {
+    res.cookie('token', '', {
+        httpOnly: true,
+        expires: new Date(0)
+    });
+    res.json({ message: 'Logged out successfully' });
 };
 
 // @desc    Register a new user (Admin specific for this use case, or public)
@@ -68,16 +104,25 @@ const registerUser = async (req, res) => {
     const user = await User.create(userFields);
 
     if (user) {
+        const token = generateToken(user._id);
+
+        // Set Cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+
         res.status(201).json({
             _id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role,
-            token: generateToken(user._id),
+            role: user.role
         });
     } else {
         res.status(400).json({ message: 'Invalid user data' });
     }
 };
 
-module.exports = { loginUser, registerUser };
+module.exports = { loginUser, registerUser, getMe, logoutUser };

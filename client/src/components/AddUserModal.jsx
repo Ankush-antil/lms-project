@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -49,11 +50,11 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             const payload = { ...formData, role: role === 'Student' ? 'Student' : 'Teacher' };
-            await axios.post('/api/users', payload, config);
+            await axios.post('/api/users', payload);
 
             setCreatedUser({ ...payload }); // Store to show success screen
             if (onSuccess) onSuccess(); // Refresh stats on dashboard
@@ -65,6 +66,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     };
 
     const copyToClipboard = () => {
+    const { user } = useAuth();
+    const userInfo = user;
         const text = `LMS Login Credentials:\nRole: ${role}\nEmail: ${createdUser.email}\nPassword: ${createdUser.password}`;
         navigator.clipboard.writeText(text);
         setCopied(true);

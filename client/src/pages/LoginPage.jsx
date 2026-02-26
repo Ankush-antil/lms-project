@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -10,6 +10,7 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -17,10 +18,7 @@ const LoginPage = () => {
         setError('');
 
         try {
-            const { data } = await axios.post('/api/auth/login', { email, password });
-
-            // Save Token & User Info
-            localStorage.setItem('userInfo', JSON.stringify(data));
+            const data = await login(email, password);
 
             // Redirect based on Role
             if (data.role === 'Admin') navigate('/admin');
@@ -70,7 +68,7 @@ const LoginPage = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="input-field pl-10"
-                                    placeholder="admin@lms.com"
+                                    placeholder="Enter your email"
                                     required
                                 />
                             </div>
@@ -85,7 +83,7 @@ const LoginPage = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="input-field pl-10 pr-10"
-                                    placeholder="••••••••"
+                                    placeholder="Enter your password"
                                     required
                                 />
                                 <button

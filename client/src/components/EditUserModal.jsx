@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Save, AlertCircle } from 'lucide-react';
@@ -56,8 +57,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         setLoading(true);
         setError('');
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             const payload = {
                 name: formData.name,
@@ -73,7 +74,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 payload.password = formData.password;
             }
 
-            await axios.put(`/api/users/${user._id}`, payload, config);
+            await axios.put(`/api/users/${user._id}`, payload);
 
             if (onSuccess) onSuccess();
             onClose();

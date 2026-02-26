@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -6,6 +7,8 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { ArrowLeft, Mail, BookOpen, GraduationCap, User, Lock, Save, Edit2, X, Check, Award, Camera } from 'lucide-react';
 
 const TeacherDetails = () => {
+    const { user: currentUser } = useAuth();
+    const userInfo = currentUser;
     const { id } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
@@ -29,13 +32,13 @@ const TeacherDetails = () => {
 
     const fetchData = async () => {
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             const [userRes, instRes, courseRes] = await Promise.all([
-                axios.get(`/api/users/${id}`, config),
-                axios.get('/api/setup/institutes', config),
-                axios.get('/api/setup/courses', config)
+                axios.get(`/api/users/${id}`),
+                axios.get('/api/setup/institutes'),
+                axios.get('/api/setup/courses')
             ]);
 
             const teacher = userRes.data;
@@ -81,13 +84,13 @@ const TeacherDetails = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             const payload = { ...formData };
             if (!payload.password) delete payload.password;
 
-            await axios.put(`/api/users/${id}`, payload, config);
+            await axios.put(`/api/users/${id}`, payload);
             setEditMode(false);
             toast.success('Teacher profile updated successfully');
             fetchData();

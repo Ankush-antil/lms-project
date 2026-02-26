@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { User, Mail, Lock, Save, Camera, ShieldCheck } from 'lucide-react';
@@ -5,6 +6,8 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../components/common/LoadingPlaceholder';
 
 const ProfilePage = () => {
+    const { user: currentUser } = useAuth();
+    const userInfo = currentUser;
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -18,14 +21,14 @@ const ProfilePage = () => {
         confirmPassword: ''
     });
 
-    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
     const role = userInfo?.role || 'User';
 
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                const { data } = await axios.get('/api/users/profile', config);
+                
+                const { data } = await axios.get('/api/users/profile');
                 setUser(data);
                 setFormData({
                     name: data.name,
@@ -60,13 +63,13 @@ const ProfilePage = () => {
 
         try {
             setSaving(true);
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+            
             const { data } = await axios.put('/api/users/profile', {
                 name: formData.name,
                 email: formData.email,
                 avatar: user.avatar, // Include the current/new avatar
                 password: formData.password
-            }, config);
+            });
 
             // Update local storage so the header updates immediately
             const updatedInfo = { ...userInfo, name: data.name, email: data.email, avatar: data.avatar };

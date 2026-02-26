@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -8,6 +9,8 @@ import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
 
 const InstitutesList = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const [searchTerm, setSearchTerm] = useState('');
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -19,10 +22,10 @@ const InstitutesList = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
             // Controller now returns courseCount and a slice of courses via aggregate
-            const { data } = await axios.get('/api/setup/institutes', config);
+            const { data } = await axios.get('/api/setup/institutes');
             setInstitutes(data);
             setLoading(false);
         } catch (error) {
@@ -39,9 +42,9 @@ const InstitutesList = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this institute? This may affect users and courses associated with it.')) {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                await axios.delete(`/api/setup/institutes/${id}`, config);
+
+                
+                await axios.delete(`/api/setup/institutes/${id}`);
                 setInstitutes(institutes.filter(i => i._id !== id));
                 toast.success('Institute deleted successfully');
             } catch (error) {

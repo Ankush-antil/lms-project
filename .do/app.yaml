@@ -11,18 +11,20 @@ services:
     environment_slug: node-js
     run_command: node server.js
     build_command: npm install
-    http_port: 5000
+    http_port: 8080
     instance_size_slug: basic-xxs
     instance_count: 1
+    routes:
+      - path: /api
     envs:
       - key: NODE_ENV
         value: "production"
         scope: RUN_AND_BUILD_TIME
       - key: PORT
-        value: "5000"
+        value: "8080"
         scope: RUN_TIME
       - key: MONGO_URI
-        value: "mongodb+srv://digitalstudy:digitalstudy%23%405555@digitalstudy.lzqs6z8.mongodb.net/digitalstudy?retryWrites=true&w=majority&appName=Digitalstudy"
+        value: "${MONGO_URI}"
         type: SECRET
         scope: RUN_TIME
       - key: JWT_SECRET
@@ -43,4 +45,5 @@ static_sites:
     output_dir: dist
     index_document: index.html
     error_document: index.html
-
+    routes:
+      - path: /

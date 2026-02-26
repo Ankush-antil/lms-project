@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -33,6 +34,8 @@ const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
 );
 
 const AdminDashboard = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [modalRole, setModalRole] = useState('Student');
@@ -45,9 +48,9 @@ const AdminDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-            const { data } = await axios.get('/api/dashboard/stats', config);
+
+            
+            const { data } = await axios.get('/api/dashboard/stats');
             setStats(data.stats);
             setActivities(data.activities);
             setLoading(false);

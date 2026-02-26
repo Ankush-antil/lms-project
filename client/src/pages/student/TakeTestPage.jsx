@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { GraduationCap, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertTriangle, Loader2, FileText, ArrowRight, CheckCircle, ClipboardCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const TakeTestPage = () => {
+    const { user, login } = useAuth();
+    const userInfo = user;
     const { id: testId } = useParams();
     const navigate = useNavigate();
+    
 
-    // Auth state
+    // Form state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -22,16 +26,14 @@ const TakeTestPage = () => {
 
     // If user is already logged in, check assignment immediately
     useEffect(() => {
-        const existing = localStorage.getItem('userInfo');
-        if (existing) {
-            const info = JSON.parse(existing);
-            checkTestAssignment(info);
+        if (user) {
+            checkTestAssignment(user);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [testId]);
+    }, [testId, user]);
 
     const checkTestAssignment = async (userInfo) => {
-        if (!userInfo?.token) return;
+        if (!userInfo) return;
 
         // Only students can take tests via shared link
         if (userInfo.role !== 'Student') {
@@ -41,21 +43,19 @@ const TakeTestPage = () => {
 
         setCheckState('checking');
         try {
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-
             // Fetch the test details
-            const testRes = await axios.get(`/api/tests/${testId}`, config);
+            const testRes = await axios.get(`/api/tests/${testId}`);
             const test = testRes.data;
             setTestTitle(test.title || 'Test');
 
             // Fetch the student's assigned tests
-            const testsRes = await axios.get('/api/tests', config);
+            const testsRes = await axios.get('/api/tests');
             const assignedTests = testsRes.data;
             const isAssigned = assignedTests.some(t => t._id === testId);
 
             if (isAssigned) {
                 // Check if already submitted
-                const subsRes = await axios.get('/api/submissions', config);
+                const subsRes = await axios.get('/api/submissions');
                 const alreadySubmitted = subsRes.data.some(s => {
                     const sid = s.test?._id || s.test;
                     return sid === testId;
@@ -90,8 +90,7 @@ const TakeTestPage = () => {
         setLoginLoading(true);
         setLoginError('');
         try {
-            const { data } = await axios.post('/api/auth/login', { email, password });
-            localStorage.setItem('userInfo', JSON.stringify(data));
+            const data = await login(email, password);
             await checkTestAssignment(data);
         } catch (err) {
             setLoginError(err.response?.data?.message || 'Login failed. Check your credentials.');
@@ -100,7 +99,7 @@ const TakeTestPage = () => {
         }
     };
 
-    const isLoggedIn = !!localStorage.getItem('userInfo');
+    const isLoggedIn = !!user;
 
     // ── Render States ────────────────────────────────────────────────────────
 
@@ -190,7 +189,7 @@ const TakeTestPage = () => {
     }
 
     if (checkState === 'not_student') {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+
         return (
             <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">

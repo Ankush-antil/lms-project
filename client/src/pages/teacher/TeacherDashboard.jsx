@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,8 @@ const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
 );
 
 const TeacherDashboard = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const [stats, setStats] = useState({ totalStudents: 0, pending: 0, completed: 0, courses: 0 });
     const [loading, setLoading] = useState(true);
@@ -36,13 +39,13 @@ const TeacherDashboard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
                 if (!userInfo) return navigate('/');
 
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+                
 
                 // 1. Fetch Students & their personal stats
-                const { data: studentsData } = await axios.get('/api/users/teacher-students', config);
+                const { data: studentsData } = await axios.get('/api/users/teacher-students');
 
                 // 2. Aggregate counts
                 const totalPending = studentsData.reduce((acc, s) => acc + (s.stats?.pending || 0), 0);

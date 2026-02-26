@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +7,8 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check } from 'lucide-react';
 
 const TestsList = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSubject, setFilterSubject] = useState('All');
@@ -34,14 +37,14 @@ const TestsList = () => {
     useEffect(() => {
         const fetchTests = async () => {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
                 if (!userInfo) {
                     navigate('/');
                     return;
                 }
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+                
                 console.log("[TestsList] Fetching tests...");
-                const res = await axios.get('/api/tests', config);
+                const res = await axios.get('/api/tests');
                 console.log("[TestsList] Received tests:", res.data);
                 setTests(Array.isArray(res.data) ? res.data : []);
                 setLoading(false);
@@ -56,9 +59,9 @@ const TestsList = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this test?')) return;
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-            await axios.delete(`/api/tests/${id}`, config);
+
+            
+            await axios.delete(`/api/tests/${id}`);
             setTests(tests.filter(t => t._id !== id));
             toast.success('Test deleted successfully');
         } catch (error) {

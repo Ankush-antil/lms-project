@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import React, { useEffect, useState } from 'react';
 import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin } from 'lucide-react';
 import axios from 'axios';
@@ -18,12 +19,12 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                     setUser(null); // Clear previous data
                     setError(null);
 
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+
                     if (!userInfo.token) {
                         throw new Error("No authentication token found");
                     }
 
-                    const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+                    
 
                     // Safely extract the ID. Handles string ID or User Object
                     let actualId = userId;
@@ -34,7 +35,7 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                     // Select the correct endpoint.
                     const endpoint = actualId ? `/api/users/view/${actualId}` : '/api/users/profile';
 
-                    const { data } = await axios.get(endpoint, config);
+                    const { data } = await axios.get(endpoint);
 
                     if (isMounted) {
                         setUser(data);

@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Building, MapPin, Hash, BookOpen, Clock, Calendar } from 'lucide-react';
@@ -14,10 +15,10 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
 
             try {
                 setLoading(true);
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
 
-                const { data } = await axios.get(`/api/setup/institutes/${instituteId}`, config);
+                
+
+                const { data } = await axios.get(`/api/setup/institutes/${instituteId}`);
                 setDetails(data);
                 setLoading(false);
             } catch (err) {

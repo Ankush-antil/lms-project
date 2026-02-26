@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { X, Info, ChevronDown, Plus } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
@@ -84,12 +85,12 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (isOpen) {
             const fetchData = async () => {
                 try {
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                    const config = userInfo ? { headers: { Authorization: `Bearer ${userInfo.token}` } } : {};
+
+                    
 
                     const [instRes, courseRes] = await Promise.all([
-                        axios.get('/api/setup/institutes', config),
-                        axios.get('/api/setup/courses', config)
+                        axios.get('/api/setup/institutes'),
+                        axios.get('/api/setup/courses')
                     ]);
 
                     setAllCourses(courseRes.data);

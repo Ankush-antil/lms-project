@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -25,10 +26,10 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
 
-            await axios.post('/api/setup/courses', formData, config);
+            
+
+            await axios.post('/api/setup/courses', formData);
 
             setLoading(false);
             onClose();

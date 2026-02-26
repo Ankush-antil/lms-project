@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -9,6 +10,8 @@ import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const StudentsList = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
@@ -24,12 +27,12 @@ const StudentsList = () => {
 
     const fetchData = async () => {
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
+            
 
             const [userRes, courseRes] = await Promise.all([
-                axios.get('/api/users?role=Student', config),
-                axios.get('/api/setup/courses', config)
+                axios.get('/api/users?role=Student'),
+                axios.get('/api/setup/courses')
             ]);
             setStudents(userRes.data);
             setCourses(courseRes.data);
@@ -47,9 +50,9 @@ const StudentsList = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this student?')) {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                await axios.delete(`/api/users/${id}`, config);
+
+                
+                await axios.delete(`/api/users/${id}`);
                 setStudents(students.filter(s => s._id !== id));
                 toast.success('Student deleted successfully');
             } catch (error) {

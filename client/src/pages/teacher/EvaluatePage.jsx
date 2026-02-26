@@ -9,10 +9,15 @@ import {
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
 
 const EvaluatePage = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const { id } = useParams();
+
+    const role = userInfo?.role || 'Teacher';
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(id || null);
@@ -20,24 +25,22 @@ const EvaluatePage = () => {
     const [feedback, setFeedback] = useState({}); // submissionId -> { qIdx -> feedback }
     const [saving, setSaving] = useState(null);
     const [showInfo, setShowInfo] = useState(false);
+    const [collapsedFeedback, setCollapsedFeedback] = useState({}); // subId-qi -> boolean
     const { openProfile } = useUserProfile();
-
-    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-    const role = userInfo?.role || 'Teacher';
 
     useEffect(() => {
         const fetchSubmissions = async () => {
+            if (!userInfo) return;
             setLoading(true);
             try {
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
                 if (id) {
                     console.log("Fetching single submission:", id);
-                    const res = await axios.get(`/api/submissions/${id}`, config);
+                    const res = await axios.get(`/api/submissions/${id}`);
                     setSubmissions([res.data]);
                     setExpandedId(id);
                 } else {
                     console.log("Fetching all submissions");
-                    const res = await axios.get('/api/submissions', config);
+                    const res = await axios.get('/api/submissions');
                     setSubmissions(res.data);
                 }
             } catch (err) {
@@ -67,7 +70,7 @@ const EvaluatePage = () => {
     const saveSingleFeedback = async (submission, qIdx) => {
         try {
             setSaving(`${submission._id}-${qIdx}`);
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
 
             const answersPayload = submission.answers.map((a, i) => ({
                 marks: i === qIdx ? parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0) : a.marks,
@@ -79,7 +82,7 @@ const EvaluatePage = () => {
             const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
                 answers: answersPayload,
                 totalMarks: total
-            }, config);
+            });
 
             setSubmissions(prev => prev.map(s => s._id === submission._id ? res.data : s));
 
@@ -100,7 +103,7 @@ const EvaluatePage = () => {
     const submitEvaluation = async (submission) => {
         try {
             setSaving(submission._id);
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
 
             const answersPayload = submission.answers.map((a, i) => ({
                 marks: parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0),
@@ -112,7 +115,7 @@ const EvaluatePage = () => {
             const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
                 answers: answersPayload,
                 totalMarks: total
-            }, config);
+            });
 
             // Update local state with fresh data from server
             setSubmissions(prev => prev.map(s =>
@@ -321,80 +324,96 @@ const EvaluatePage = () => {
                                                 {/* Conversation Thread Display */}
                                                 {(sub.status === 'evaluated' || marks[sub._id]?.[qi] || feedback[sub._id]?.[qi] || (ans.conversation && ans.conversation.length > 0)) ? (
                                                     <div className="mt-8 space-y-4">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <MessageSquare size={12} className="text-slate-400" />
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Feedback History</span>
+                                                        <div
+                                                            className="flex items-center justify-between mb-2 cursor-pointer group/toggle"
+                                                            onClick={() => setCollapsedFeedback(prev => ({ ...prev, [`${sub._id}-${qi}`]: !prev[`${sub._id}-${qi}`] }))}
+                                                        >
+                                                            <div className="flex items-center gap-2 text-slate-400 group-hover/toggle:text-indigo-600 transition-colors">
+                                                                <MessageSquare size={12} />
+                                                                <span className="text-[9px] font-black uppercase tracking-widest">Feedback History</span>
+                                                            </div>
+                                                            <div className="px-2 py-1 bg-slate-100 rounded-md text-[8px] font-bold text-slate-500 uppercase group-hover/toggle:bg-indigo-50 group-hover/toggle:text-indigo-600 transition-all flex items-center gap-1">
+                                                                {!collapsedFeedback[`${sub._id}-${qi}`] ? (
+                                                                    <><ChevronDown size={10} /> Show Conversation</>
+                                                                ) : (
+                                                                    <><ChevronUp size={10} /> Hide Conversation</>
+                                                                )}
+                                                            </div>
                                                         </div>
 
-                                                        {/* Conversation History */}
-                                                        {(ans.conversation || []).map((msg, mi) => (
-                                                            <div
-                                                                key={mi}
-                                                                className={`flex items-start gap-2 max-w-[90%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
-                                                            >
-                                                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
-                                                                    {msg.role === 'Teacher' ? 'T' : (sub.studentName?.[0]?.toUpperCase() || 'S')}
-                                                                </div>
-                                                                <div className={`p-3 rounded-xl shadow-sm border ${msg.role === 'Teacher'
-                                                                    ? 'bg-indigo-50 border-indigo-100 rounded-tl-none'
-                                                                    : 'bg-emerald-50 border-emerald-100 rounded-tr-none'
-                                                                    }`}>
-                                                                    <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
-                                                                        <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                                                                            {msg.role === 'Teacher' ? 'Teacher' : (sub.studentName || 'Student')}
-                                                                        </p>
-                                                                        <span className="text-[7px] text-slate-400 font-bold">
-                                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                        </span>
+                                                        {collapsedFeedback[`${sub._id}-${qi}`] && (
+                                                            <div className="space-y-4 animate-fade-in">
+                                                                {/* Conversation History */}
+                                                                {(ans.conversation || []).map((msg, mi) => (
+                                                                    <div
+                                                                        key={mi}
+                                                                        className={`flex items-start gap-2 max-w-[90%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
+                                                                    >
+                                                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                                                                            {msg.role === 'Teacher' ? 'T' : (sub.studentName?.[0]?.toUpperCase() || 'S')}
+                                                                        </div>
+                                                                        <div className={`p-3 rounded-xl shadow-sm border ${msg.role === 'Teacher'
+                                                                            ? 'bg-indigo-50 border-indigo-100 rounded-tl-none'
+                                                                            : 'bg-emerald-50 border-emerald-100 rounded-tr-none'
+                                                                            }`}>
+                                                                            <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
+                                                                                <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                                                                    {msg.role === 'Teacher' ? 'Teacher' : (sub.studentName || 'Student')}
+                                                                                </p>
+                                                                                <span className="text-[7px] text-slate-400 font-bold">
+                                                                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className={`text-xs text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
+                                                                                {msg.message}
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
-                                                                    <p className={`text-xs text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
-                                                                        {msg.message}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                                ))}
 
-                                                        {/* Teacher's Current Input Area */}
-                                                        <div className="flex items-start gap-3 max-w-[95%] pt-2">
-                                                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
-                                                                T
-                                                            </div>
-                                                            <div className="bg-white border border-slate-200 rounded-2xl p-4 w-full shadow-sm">
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Add Note / Adjust Marks</p>
-                                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                                    <div className="md:col-span-1 space-y-1">
-                                                                        <label className="text-[8px] font-bold text-slate-400 uppercase">Score</label>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
-                                                                            onChange={e => setMark(sub._id, qi, e.target.value)}
-                                                                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                                            placeholder="Marks"
-                                                                        />
+                                                                {/* Teacher's Current Input Area */}
+                                                                <div className="flex items-start gap-3 max-w-[95%] pt-2">
+                                                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
+                                                                        T
                                                                     </div>
-                                                                    <div className="md:col-span-3 space-y-1">
-                                                                        <label className="text-[8px] font-bold text-slate-400 uppercase">Next Feedback Note</label>
-                                                                        <div className="relative">
-                                                                            <input
-                                                                                type="text"
-                                                                                value={feedback[sub._id]?.[qi] ?? ''}
-                                                                                onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
-                                                                                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
-                                                                                placeholder="Type notes for student..."
-                                                                            />
-                                                                            <button
-                                                                                onClick={() => saveSingleFeedback(sub, qi)}
-                                                                                disabled={saving === `${sub._id}-${qi}` || (!feedback[sub._id]?.[qi]?.trim() && marks[sub._id]?.[qi] === undefined)}
-                                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
-                                                                            >
-                                                                                {saving === `${sub._id}-${qi}` ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
-                                                                            </button>
+                                                                    <div className="bg-white border border-slate-200 rounded-2xl p-4 w-full shadow-sm">
+                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Add Note / Adjust Marks</p>
+                                                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                            <div className="md:col-span-1 space-y-1">
+                                                                                <label className="text-[8px] font-bold text-slate-400 uppercase">Score</label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
+                                                                                    onChange={e => setMark(sub._id, qi, e.target.value)}
+                                                                                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                    placeholder="Marks"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="md:col-span-3 space-y-1">
+                                                                                <label className="text-[8px] font-bold text-slate-400 uppercase">Next Feedback Note</label>
+                                                                                <div className="relative">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={feedback[sub._id]?.[qi] ?? ''}
+                                                                                        onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
+                                                                                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
+                                                                                        placeholder="Type notes for student..."
+                                                                                    />
+                                                                                    <button
+                                                                                        onClick={() => saveSingleFeedback(sub, qi)}
+                                                                                        disabled={saving === `${sub._id}-${qi}` || (!feedback[sub._id]?.[qi]?.trim() && marks[sub._id]?.[qi] === undefined)}
+                                                                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                                                                                    >
+                                                                                        {saving === `${sub._id}-${qi}` ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     /* Initial Evaluation Input if nothing exists yet */
@@ -455,6 +474,15 @@ const EvaluatePage = () => {
                         </div>
                     ))}
             </div>
+            <style>{`
+                .animate-fade-in {
+                    animation: fadeIn 0.3s ease-out;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </DashboardLayout >
     );
 };

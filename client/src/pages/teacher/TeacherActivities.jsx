@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +11,8 @@ import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const TeacherActivities = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [selectedInbox, setSelectedInbox] = useState(null);
     const [selectedIndex, setSelectedIndex] = useState('All');
@@ -26,7 +29,7 @@ const TeacherActivities = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
         if (userInfo) {
             setTeacherInfo(userInfo);
             fetchStudents(userInfo.token);
@@ -38,8 +41,8 @@ const TeacherActivities = () => {
     const fetchStudents = async (token) => {
         try {
             setLoading(true);
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            const { data } = await axios.get('/api/users/teacher-students', config);
+
+            const { data } = await axios.get('/api/users/teacher-students');
             setStudents(data);
             setLoading(false);
         } catch (error) {
@@ -50,9 +53,9 @@ const TeacherActivities = () => {
 
     const fetchStudentSubmissions = async (studentId) => {
         try {
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-            const { data } = await axios.get('/api/submissions', config);
+
+            
+            const { data } = await axios.get('/api/submissions');
             const filtered = data.filter(s => (s.student?._id || s.student) === studentId);
             setStudentSubmissions(filtered);
             if (filtered.length > 0) {

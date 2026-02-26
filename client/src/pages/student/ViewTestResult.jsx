@@ -1,14 +1,17 @@
+import { useAuth } from '../../context/AuthContext';
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
     Info, FileText, CheckCircle, Clock, ChevronLeft,
-    Mic, Video, Star, MessageSquare, RefreshCw, User, Send
+    Mic, Video, Star, MessageSquare, RefreshCw, User, Send, ChevronDown, ChevronUp
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import toast from 'react-hot-toast';
 
 const ViewTestResult = () => {
+    const { user } = useAuth();
+    const userInfo = user;
     const navigate = useNavigate();
     const { id } = useParams();
     const [submission, setSubmission] = useState(null);
@@ -16,14 +19,15 @@ const ViewTestResult = () => {
     const [showInfo, setShowInfo] = useState(false);
     const [studentComments, setStudentComments] = useState({}); // idx -> comment
     const [savingComments, setSavingComments] = useState(false);
-    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+    const [collapsedFeedback, setCollapsedFeedback] = useState({}); // idx -> boolean
+
     const isTeacher = userInfo?.role === 'Teacher';
 
     useEffect(() => {
         const fetchSubmission = async () => {
             try {
-                const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
-                const res = await axios.get(`/api/submissions/${id}`, config);
+
+                const res = await axios.get(`/api/submissions/${id}`);
                 setSubmission(res.data);
                 setLoading(false);
             } catch (error) {
@@ -31,8 +35,8 @@ const ViewTestResult = () => {
                 setLoading(false);
             }
         };
-        if (id && userInfo?.token) fetchSubmission();
-    }, [id, userInfo?.token]);
+        if (id) fetchSubmission();
+    }, [id]);
 
     useEffect(() => {
         if (submission && Object.keys(studentComments).length === 0) {
@@ -47,7 +51,7 @@ const ViewTestResult = () => {
     const saveStudentComments = async (idx) => {
         try {
             setSavingComments(true);
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+
             const isGlobalSave = idx === undefined || idx === null || typeof idx !== 'number';
 
             // Send the updated comments to the backend
@@ -62,7 +66,7 @@ const ViewTestResult = () => {
             const hasNewComments = answersPayload.some(a => a.studentComment);
 
             if (hasNewComments) {
-                await axios.put(`/api/submissions/${id}/student-comment`, { answers: answersPayload }, config);
+                await axios.put(`/api/submissions/${id}/student-comment`, { answers: answersPayload });
             }
 
             toast.success(isGlobalSave ? 'All comments saved!' : 'Response sent!');
@@ -145,7 +149,7 @@ const ViewTestResult = () => {
                     >
                         <Info size={14} /> Relevant Information
                     </button>
-                    {JSON.parse(localStorage.getItem('userInfo'))?.role === 'Teacher' && (
+                    {isTeacher && (
                         <button
                             onClick={() => navigate(`/teacher/evaluate/${id}`)}
                             className="bg-amber-500 hover:bg-amber-600 px-4 py-1.5 rounded-full text-white font-black text-sm border-2 border-white shadow-sm flex items-center gap-2 transition-all active:scale-95"
@@ -153,7 +157,7 @@ const ViewTestResult = () => {
                             <RefreshCw size={14} /> {isEvaluated ? 'Re-evaluate Test' : 'Evaluate Test'}
                         </button>
                     )}
-                    {isEvaluated && userInfo?.role === 'Student' && (
+                    {isEvaluated && !isTeacher && (
                         <div className="bg-emerald-500 px-4 py-1.5 rounded-full text-white font-black text-sm border-2 border-white shadow-sm flex items-center gap-2">
                             <Star size={14} fill="white" /> {submission.totalMarks} Marks
                         </div>
@@ -263,71 +267,85 @@ const ViewTestResult = () => {
                                         {/* Conversation Thread */}
                                         {isEvaluated && (
                                             <div className="mt-8 pt-8 border-t border-slate-100">
-                                                <div className="flex items-center gap-2 mb-6 text-slate-400">
-                                                    <MessageSquare size={16} />
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Feedback Conversation</span>
-                                                </div>
-
-                                                <div className="space-y-6">
-                                                    {/* Conversation History */}
-                                                    {(ans.conversation || []).map((msg, mi) => (
-                                                        <div
-                                                            key={mi}
-                                                            className={`flex items-start gap-3 max-w-[85%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
-                                                        >
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-purple-600'}`}>
-                                                                {msg.role === 'Teacher' ? 'T' : (submission.studentName?.[0]?.toUpperCase() || 'S')}
-                                                            </div>
-                                                            <div className={`rounded-2xl p-4 shadow-sm ${msg.role === 'Teacher'
-                                                                ? 'bg-blue-50 border border-blue-100 rounded-tl-none'
-                                                                : 'bg-purple-50 border border-purple-100 rounded-tr-none'
-                                                                }`}>
-                                                                <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
-                                                                    <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                                                                        {msg.role === 'Teacher' ? 'Teacher' : (submission.studentName || 'Student')}
-                                                                    </p>
-                                                                    <span className="text-[8px] text-slate-400 font-bold italic">
-                                                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                    </span>
-                                                                </div>
-                                                                <p className={`text-sm text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
-                                                                    {msg.message}
-                                                                </p>
-                                                                {msg.role === 'Teacher' && mi === 0 && (
-                                                                    <div className="mt-2 flex items-center gap-1.5">
-                                                                        <Star size={10} className="text-amber-500" fill="currentColor" />
-                                                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Initial Score: {ans.marks ?? 0}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-
-                                                    {/* Dynamic Chat Input Box */}
-                                                    <div className={`flex items-start gap-3 max-w-[85%] ${!isTeacher ? 'flex-row-reverse ml-auto' : ''}`}>
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${isTeacher ? 'bg-indigo-600 text-white' : 'bg-purple-600 text-white'}`}>
-                                                            {isTeacher ? 'T' : (submission.studentName?.[0]?.toUpperCase() || 'S')}
-                                                        </div>
-                                                        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm w-full relative">
-                                                            <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${isTeacher ? 'text-blue-400' : 'text-slate-400 text-right'}`}>
-                                                                {isTeacher ? 'Add further feedback' : 'Send another response'}
-                                                            </p>
-                                                            <textarea
-                                                                className={`w-full bg-slate-50 border border-slate-50 rounded-xl p-3 pr-12 text-sm focus:ring-2 transition-all outline-none resize-none min-h-[60px] ${isTeacher ? 'focus:ring-blue-400' : 'focus:ring-indigo-400'}`}
-                                                                placeholder={isTeacher ? "Type further notes..." : "Type your response here..."}
-                                                                value={studentComments[idx] || ''}
-                                                                onChange={(e) => setStudentComments(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                            />
-                                                            <button
-                                                                onClick={() => saveStudentComments(idx)}
-                                                                disabled={savingComments || !studentComments[idx]?.trim()}
-                                                                className={`absolute bottom-6 right-6 p-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${isTeacher ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                                                            >
-                                                                {savingComments ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-                                                            </button>
-                                                        </div>
+                                                <div
+                                                    className="flex items-center justify-between mb-6 text-slate-400 cursor-pointer group/toggle"
+                                                    onClick={() => setCollapsedFeedback(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                >
+                                                    <div className="flex items-center gap-2 group-hover/toggle:text-indigo-600 transition-colors">
+                                                        <MessageSquare size={16} />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Feedback Conversation</span>
+                                                    </div>
+                                                    <div className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest group-hover/toggle:bg-indigo-100 group-hover/toggle:text-indigo-700 transition-all flex items-center gap-2">
+                                                        {!collapsedFeedback[idx] ? (
+                                                            <><ChevronDown size={12} /> Show Feedback</>
+                                                        ) : (
+                                                            <><ChevronUp size={12} /> Hide Feedback</>
+                                                        )}
                                                     </div>
                                                 </div>
+
+                                                {collapsedFeedback[idx] && (
+                                                    <div className="space-y-6 animate-fade-in">
+                                                        {/* Conversation History */}
+                                                        {(ans.conversation || []).map((msg, mi) => (
+                                                            <div
+                                                                key={mi}
+                                                                className={`flex items-start gap-3 max-w-[85%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
+                                                            >
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-purple-600'}`}>
+                                                                    {msg.role === 'Teacher' ? 'T' : (submission.studentName?.[0]?.toUpperCase() || 'S')}
+                                                                </div>
+                                                                <div className={`rounded-2xl p-4 shadow-sm ${msg.role === 'Teacher'
+                                                                    ? 'bg-blue-50 border border-blue-100 rounded-tl-none'
+                                                                    : 'bg-purple-50 border border-purple-100 rounded-tr-none'
+                                                                    }`}>
+                                                                    <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
+                                                                        <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                                                            {msg.role === 'Teacher' ? 'Teacher' : (submission.studentName || 'Student')}
+                                                                        </p>
+                                                                        <span className="text-[8px] text-slate-400 font-bold italic">
+                                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className={`text-sm text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
+                                                                        {msg.message}
+                                                                    </p>
+                                                                    {msg.role === 'Teacher' && mi === 0 && (
+                                                                        <div className="mt-2 flex items-center gap-1.5">
+                                                                            <Star size={10} className="text-amber-500" fill="currentColor" />
+                                                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Initial Score: {ans.marks ?? 0}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Dynamic Chat Input Box */}
+                                                        <div className={`flex items-start gap-3 max-w-[85%] ${!isTeacher ? 'flex-row-reverse ml-auto' : ''}`}>
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${isTeacher ? 'bg-indigo-600 text-white' : 'bg-purple-600 text-white'}`}>
+                                                                {isTeacher ? 'T' : (submission.studentName?.[0]?.toUpperCase() || 'S')}
+                                                            </div>
+                                                            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm w-full relative">
+                                                                <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${isTeacher ? 'text-blue-400' : 'text-slate-400 text-right'}`}>
+                                                                    {isTeacher ? 'Add further feedback' : 'Send another response'}
+                                                                </p>
+                                                                <textarea
+                                                                    className={`w-full bg-slate-50 border border-slate-50 rounded-xl p-3 pr-12 text-sm focus:ring-2 transition-all outline-none resize-none min-h-[60px] ${isTeacher ? 'focus:ring-blue-400' : 'focus:ring-indigo-400'}`}
+                                                                    placeholder={isTeacher ? "Type further notes..." : "Type your response here..."}
+                                                                    value={studentComments[idx] || ''}
+                                                                    onChange={(e) => setStudentComments(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                />
+                                                                <button
+                                                                    onClick={() => saveStudentComments(idx)}
+                                                                    disabled={savingComments || !studentComments[idx]?.trim()}
+                                                                    className={`absolute bottom-6 right-6 p-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${isTeacher ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                                                >
+                                                                    {savingComments ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 

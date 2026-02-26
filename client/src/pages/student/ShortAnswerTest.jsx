@@ -7,10 +7,12 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
+import { useAuth } from '../../context/AuthContext';
 
 const ShortAnswerTest = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const { user } = useAuth();
     const [test, setTest] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showInfo, setShowInfo] = useState(false);
@@ -42,10 +44,8 @@ const ShortAnswerTest = () => {
     useEffect(() => {
         const fetchTest = async () => {
             try {
-                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-                if (!userInfo) return;
-                const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-                const res = await axios.get(`/api/tests/${id}`, config);
+                if (!user) return;
+                const res = await axios.get(`/api/tests/${id}`);
                 setTest(res.data);
                 const initialAnswers = {};
                 res.data.questions.forEach((q, idx) => {
@@ -59,7 +59,7 @@ const ShortAnswerTest = () => {
             }
         };
         if (id) fetchTest();
-    }, [id]);
+    }, [id, user]);
 
     const handleTextChange = (idx, val) => {
         setAnswers(prev => ({ ...prev, [idx]: val }));
@@ -228,9 +228,7 @@ const ShortAnswerTest = () => {
 
         try {
             setSubmitting(true);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-            await axios.post('/api/submissions', { testId: id, answers: finalAnswers }, config);
+            await axios.post('/api/submissions', { testId: id, answers: finalAnswers });
             setSubmitted(true);
             toast.success('Test submitted successfully!');
         } catch (err) {

@@ -28,7 +28,7 @@ const StudentTests = () => {
             try {
 
                 if (!userInfo) return;
-                
+
 
                 // Fetch tests AND student's own submissions in parallel
                 const [testsRes, subsRes] = await Promise.all([
@@ -204,8 +204,8 @@ const StudentTests = () => {
 
 
                                 <div className={`grid gap-4 ${pendingTests.length === 1 ? 'grid-cols-1' :
-                                        pendingTests.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                                            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                                    pendingTests.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
                                     }`}>
                                     {pendingTests.length === 0 ? (
                                         <div className="col-span-3 py-16 text-center">
@@ -241,7 +241,7 @@ const StudentTests = () => {
                                                             }}
                                                             className="bg-[#FFE4E6] text-[#E11D48] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider hover:bg-[#FECDD3] transition-colors"
                                                         >
-                                                            Relevant Information
+                                                            Connect it
                                                         </button>
                                                     </div>
                                                 </div>
@@ -272,8 +272,8 @@ const StudentTests = () => {
                                     </div>
                                 ) : (
                                     <div className={`grid gap-4 ${completedSubmissions.length === 1 ? 'grid-cols-1' :
-                                            completedSubmissions.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                                                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                                        completedSubmissions.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                                            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
                                         }`}>
                                         {completedSubmissions.map(sub => {
                                             const isEvaluated = sub.status === 'evaluated';

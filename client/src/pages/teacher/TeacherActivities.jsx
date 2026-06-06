@@ -54,7 +54,7 @@ const TeacherActivities = () => {
     const fetchStudentSubmissions = async (studentId) => {
         try {
 
-            
+
             const { data } = await axios.get('/api/submissions');
             const filtered = data.filter(s => (s.student?._id || s.student) === studentId);
             setStudentSubmissions(filtered);
@@ -290,7 +290,7 @@ const TeacherActivities = () => {
                                                                         }}
                                                                         className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
                                                                     >
-                                                                        Relevant Information
+                                                                        Connect it
                                                                     </button>
                                                                     <button
                                                                         onClick={(e) => {

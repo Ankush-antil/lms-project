@@ -147,7 +147,7 @@ const ViewTestResult = () => {
                         onClick={() => setShowInfo(!showInfo)}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all shadow-sm ${showInfo ? 'bg-white text-indigo-600' : 'bg-white/20 text-white border border-white/30 hover:bg-white/30'}`}
                     >
-                        <Info size={14} /> Relevant Information
+                        <Info size={14} /> Connect it
                     </button>
                     {isTeacher && (
                         <button

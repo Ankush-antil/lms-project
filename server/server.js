@@ -72,7 +72,7 @@ const startServer = async () => {
         await connectDB();
         app.listen(PORT, () => {
             console.log(`=========================================`);
-            console.log(`Server running on port ${PORT}`);
+            console.log(`Server running on: http://localhost:${PORT}`);
             console.log(`LMS API v1.0.1 Started`);
             console.log(`MongoDB Connected successfully.`);
             console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

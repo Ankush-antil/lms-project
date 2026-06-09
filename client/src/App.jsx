@@ -22,6 +22,7 @@ import TeacherActivities from './pages/teacher/TeacherActivities';
 import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
+import PublicTestPage from './pages/student/PublicTestPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -176,6 +177,7 @@ function App() {
 
                         {/* Public: shared test link — handles auth internally */}
                         <Route path="/take-test/:id" element={<TakeTestPage />} />
+                        <Route path="/public-test/:id" element={<PublicTestPage />} />
 
                         {/* 404 – catch all unmatched routes */}
                         <Route path="*" element={<NotFoundPage />} />

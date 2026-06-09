@@ -41,6 +41,7 @@ app.use('/api/setup', require('./routes/setupRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/submissions', require('./routes/submissionRoutes'));
+app.use('/api/public-tests', require('./routes/publicTestRoutes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

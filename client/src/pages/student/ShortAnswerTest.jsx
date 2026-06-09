@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useAuth } from '../../context/AuthContext';
+import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
 
 const ShortAnswerTest = () => {
     const navigate = useNavigate();
@@ -406,89 +407,71 @@ const ShortAnswerTest = () => {
                                         )}
 
                                         {isVideo && (
-                                            <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 overflow-hidden">
-                                                {/* Live Camera Preview */}
-                                                <video
-                                                    ref={el => videoPreviewRef.current[idx] = el}
-                                                    className={`w-full h-auto max-h-[500px] object-contain bg-black rounded-t-2xl transition-all ${recordingStatus[idx] === 'recording' ? 'block' : 'hidden'}`}
-                                                    muted
-                                                    playsInline
-                                                />
-
-                                                <div className="p-10 flex flex-col items-center gap-4">
-                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-200' : 'bg-purple-100 text-purple-600'} ${submittedAnswers[idx] ? 'opacity-50' : ''}`}>
-                                                        <Video size={32} />
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="font-bold text-slate-700">{recordingStatus[idx] === 'recording' ? '🔴 Recording Video...' : recordedURLs[idx] ? '✅ Recording Saved' : 'Video Recording Question'}</p>
-                                                        <p className="text-xs text-slate-500 mt-1">Camera will activate to record your response</p>
-                                                    </div>
-
-                                                    {recordingStatus[idx] === 'recording' ? (
-                                                        <button onClick={() => stopRecording(idx)} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-red-700 transition-all">
-                                                            <Square size={18} fill="currentColor" /> Stop Capture
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            disabled={!!submittedAnswers[idx]}
-                                                            onClick={() => startRecording(idx, 'video')}
-                                                            className={`px-8 py-3 bg-purple-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-purple-700 transition-all ${submittedAnswers[idx] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                        >
-                                                            <Video size={18} /> Start Video Record
-                                                        </button>
-                                                    )}
-
-                                                    {/* Playback after stop */}
-                                                    {recordedURLs[idx]?.type === 'video' && (
-                                                        <div className="w-full mt-2 bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
-                                                            <p className="text-xs font-bold text-slate-500 mb-2">🎬 Your Recording</p>
-                                                            <video controls src={recordedURLs[idx].url} className="w-full rounded-lg h-auto max-h-[500px] object-contain bg-black" />
-                                                            {!submittedAnswers[idx] && (
-                                                                <button onClick={() => deleteRecording(idx)} className="mt-2 text-xs text-red-400 hover:text-red-600 font-semibold">✕ Delete & Re-record</button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <AdvancedVideoRecorder
+                                                question={q}
+                                                submittedAnswer={submittedAnswers[idx]}
+                                                onSubmitAnswer={(structuredData) => {
+                                                    setSubmittedAnswers(prev => ({
+                                                        ...prev,
+                                                        [idx]: {
+                                                            questionId: q.id || `q${idx}`,
+                                                            questionText: q.text || q.questionText || `Question ${idx + 1}`,
+                                                            questionType: q.type,
+                                                            textAnswer: answers[idx] || '',
+                                                            audioData: '',
+                                                            videoData: JSON.stringify(structuredData)
+                                                        }
+                                                    }));
+                                                }}
+                                                onReattempt={() => {
+                                                    setSubmittedAnswers(prev => {
+                                                        const n = { ...prev };
+                                                        delete n[idx];
+                                                        return n;
+                                                    });
+                                                }}
+                                            />
                                         )}
                                     </div>
 
                                     {/* Action bar */}
-                                    <div className="flex items-center justify-between border-t border-slate-100 pt-6">
-                                        <div className="flex gap-3">
-                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest self-center">{idx + 1} of {test.questions.length}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            {submittedAnswers[idx] ? (
-                                                <div className="flex gap-2">
-                                                    <span className="px-6 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-lg flex items-center gap-2">
-                                                        ✓ Answer Submitted
-                                                    </span>
+                                    {!isVideo && (
+                                        <div className="flex items-center justify-between border-t border-slate-100 pt-6">
+                                            <div className="flex gap-3">
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest self-center">{idx + 1} of {test.questions.length}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {submittedAnswers[idx] ? (
+                                                    <div className="flex gap-2">
+                                                        <span className="px-6 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-lg flex items-center gap-2">
+                                                            ✓ Answer Submitted
+                                                        </span>
+                                                        <button
+                                                            onClick={() => {
+                                                                setSubmittedAnswers(prev => {
+                                                                    const n = { ...prev };
+                                                                    delete n[idx];
+                                                                    return n;
+                                                                });
+                                                                toast.success('You can now edit your answer');
+                                                            }}
+                                                            className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition-all border border-slate-200"
+                                                        >
+                                                            Re-attempt
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <button
-                                                        onClick={() => {
-                                                            setSubmittedAnswers(prev => {
-                                                                const n = { ...prev };
-                                                                delete n[idx];
-                                                                return n;
-                                                            });
-                                                            toast.success('You can now edit your answer');
-                                                        }}
-                                                        className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition-all border border-slate-200"
+                                                        onClick={() => submitQuestion(idx, q)}
+                                                        disabled={recordingStatus[idx] === 'recording'}
+                                                        className="px-6 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2"
                                                     >
-                                                        Re-attempt
+                                                        Submit Answer
                                                     </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => submitQuestion(idx, q)}
-                                                    disabled={recordingStatus[idx] === 'recording'}
-                                                    className="px-6 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2"
-                                                >
-                                                    Submit Answer
-                                                </button>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         );

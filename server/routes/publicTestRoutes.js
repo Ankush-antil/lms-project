@@ -10,6 +10,7 @@ const {
     togglePublicTestStatus,
     updatePublicTestSettings,
     checkPublicTestEmail,
+    savePublicTestDraft,
     getPublicTestsDashboard,
     deletePublicSubmission
 } = require('../controllers/publicTestController');
@@ -28,6 +29,7 @@ router.get('/:id', getPublicTestById);
 router.post('/:id/verify-password', verifyPublicTestPassword);
 router.post('/:id/view', incrementPublicTestViews);
 router.post('/:id/submit', submitPublicTest);
+router.post('/:id/save-draft', savePublicTestDraft);
 router.post('/:id/check-email', checkPublicTestEmail);
 
 module.exports = router;

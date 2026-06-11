@@ -4,14 +4,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     Home, Settings, Eye, Send, BarChart2, Clock, Users,
     Search, Type, AlignLeft, CheckSquare, List,
-    ChevronDown, Upload, Star, Calendar, Image as ImageIcon,
+    ChevronDown, Upload, Download, Star, Calendar, Image as ImageIcon,
     MoreVertical, Plus, Wand2, ArrowLeft,
     FileText, Zap, Layout, Share2, History, MessageSquare,
     Play, PanelLeft, Bot, Palette, Link, Save, Hash, Check,
     FolderUp, CircleDot, File, Mic, Video, Monitor, Camera, Phone,
     PlaySquare, Box, Globe, Headphones, Brain, Trash2, X, Sparkles, CheckCircle2, AlertCircle, Copy, Info,
     Bold, Italic, Underline, Strikethrough, ArrowRightLeft, Activity, Code, Quote, Table, HelpCircle, Sliders, GitBranch, Smile, Heading, ListOrdered, GripVertical, AlertTriangle,
-    Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify
+    Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +23,25 @@ import ConnectItModal from '../../components/builder/ConnectItModal';
 import PublishOptionsModal from '../../components/builder/PublishOptionsModal';
 import PublishSuccessModal from '../../components/builder/PublishSuccessModal';
 
+// Helper to strip HTML tags from rich text content
+const stripHtml = (html) => {
+    if (!html) return '';
+    let text = html.replace(/<br\s*\/?>/gi, ' ');
+    text = text.replace(/<[^>]*>/g, '');
+    text = text.replace(/&nbsp;/gi, ' ')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&amp;/gi, '&');
+};
+
+const addonsList = [
+    { label: 'Translator it', icon: Languages },
+    { label: 'Help with AI', icon: Bot },
+    { label: 'Voice typing', icon: Mic },
+    { label: 'Timer', icon: Clock },
+    { label: 'Rich Text', icon: Type }
+];
+
 // Custom Widget for Multiple Choice, Checkboxes, Dropdown, File Upload, Rating, Date/Time
 const QuestionBuilderCard = ({
     element,
@@ -32,24 +51,196 @@ const QuestionBuilderCard = ({
     onUpdateText,
     onUpdateOptions,
     onUpdateField,
+    onApplyAddonToAll,
+    onRemoveAddon,
     onDragStartCustom,
     isDragged,
     isDragging
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
+    const [isFooterExpanded, setIsFooterExpanded] = useState(false);
     const [activeFooterTab, setActiveFooterTab] = useState(null); // null | 'assistive' | 'particulars' | 'logic' | 'textLogic' | 'validation' | 'scoring' | 'advanced'
     const [isRecording, setIsRecording] = useState(false);
     const [isCardDraggable, setIsCardDraggable] = useState(false);
     const [zoomScale, setZoomScale] = useState(100);
     const [showSettings, setShowSettings] = useState(false);
     const [openMenu, setOpenMenu] = useState(null); // null | 'align' | 'insert'
-    
+
+    // New overlay and sub-feature states for Short Answer element
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [activeImageTab, setActiveImageTab] = useState('Upload');
+    const [imageSearchQuery, setImageSearchQuery] = useState('');
+    const [imageByUrl, setImageByUrl] = useState('');
+    const [lightboxImage, setLightboxImage] = useState(null);
+    const [lightboxScale, setLightboxScale] = useState(100);
+    const handleAddInsertedImage = (imageUrl) => {
+        const currentImages = element.insertedImages || [];
+        if (currentImages.length >= 5) {
+            toast.error("Maximum of 5 images allowed!");
+            return;
+        }
+        onUpdateField('insertedImages', [...currentImages, imageUrl]);
+        setShowImageModal(false);
+        toast.success("Image added successfully!");
+    };
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [noteNameInput, setNoteNameInput] = useState('');
+    const [noteContentInput, setNoteContentInput] = useState('');
+    const [editingNoteId, setEditingNoteId] = useState(null);
+    const [showSwitcherMenu, setShowSwitcherMenu] = useState(false);
+    const [showUploadMenu, setShowUploadMenu] = useState(false);
+    const [showFilePreviewModal, setShowFilePreviewModal] = useState(false);
+    const [showAdvanceSettingsModal, setShowAdvanceSettingsModal] = useState(false);
+    const [draftParticulars, setDraftParticulars] = useState({});
+    const [showLogicalSettingsModal, setShowLogicalSettingsModal] = useState(false);
+    const [draftLogicalSettings, setDraftLogicalSettings] = useState({});
+    const [showValidationSettingsModal, setShowValidationSettingsModal] = useState(false);
+    const [draftValidationSettings, setDraftValidationSettings] = useState({});
+    const [showNoteDropdown, setShowNoteDropdown] = useState(false);
+    const [noteActiveFormat, setNoteActiveFormat] = useState({
+        bold: false,
+        italic: false,
+        underline: false,
+        strikeThrough: false,
+        subscript: false,
+        superscript: false,
+        justifyLeft: false,
+        justifyCenter: false,
+        justifyRight: false,
+        insertUnorderedList: false,
+        insertOrderedList: false
+    });
+
+    const updateNoteActiveFormat = () => {
+        setNoteActiveFormat({
+            bold: document.queryCommandState('bold'),
+            italic: document.queryCommandState('italic'),
+            underline: document.queryCommandState('underline'),
+            strikeThrough: document.queryCommandState('strikeThrough'),
+            subscript: document.queryCommandState('subscript'),
+            superscript: document.queryCommandState('superscript'),
+            justifyLeft: document.queryCommandState('justifyLeft'),
+            justifyCenter: document.queryCommandState('justifyCenter'),
+            justifyRight: document.queryCommandState('justifyRight'),
+            insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+            insertOrderedList: document.queryCommandState('insertOrderedList')
+        });
+    };
+
+    const handleNoteFormat = (command, value = null) => {
+        document.execCommand(command, false, value);
+        if (noteEditorRef.current) {
+            setNoteContentInput(noteEditorRef.current.innerHTML);
+        }
+        updateNoteActiveFormat();
+    };
+
+    const resourceFileInputRef = useRef(null);
     const recognitionRef = useRef(null);
     const editorRef = useRef(null);
     const fileInputRef = useRef(null);
+    const noteEditorRef = useRef(null);
+
+    useEffect(() => {
+        if (showNoteModal && noteEditorRef.current) {
+            noteEditorRef.current.innerHTML = noteContentInput || '';
+        }
+    }, [showNoteModal]);
+
+    const renderAddonsWindow = () => {
+        const currentAddons = element.addons || [];
+        return (
+            <div
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const addonData = e.dataTransfer.getData('addonType');
+                    if (addonData) {
+                        const addon = JSON.parse(addonData);
+                        const nextAddons = element.addons || [];
+                        if (nextAddons.includes(addon.label)) {
+                            toast.error(`${addon.label} is already added!`);
+                        } else if (nextAddons.length >= 5) {
+                            toast.error("Maximum of 5 addons allowed!");
+                        } else {
+                            onUpdateField('addons', [...nextAddons, addon.label]);
+                            toast.success(`${addon.label} added!`);
+                        }
+                    }
+                }}
+                className="bg-white rounded-2xl border border-slate-150 p-4 space-y-4 animate-fade-in shadow-inner w-full relative"
+            >
+                {/* Header Row */}
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2 select-none">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                        <PieChart size={14} className="text-purple-600 animate-pulse" /> Addons Window
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setActiveFooterTab(null)}
+                        className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+
+                {/* Dropped Addons list (inline badges in a single row with Apply to all button under each card) */}
+                <div className="flex flex-wrap items-center gap-4 py-3 min-h-[85px] border border-dashed border-slate-200 rounded-xl bg-slate-50/50 px-3.5 relative">
+                    {currentAddons.length > 0 ? (
+                        currentAddons.map((addonLabel) => {
+                            const addonObj = addonsList.find(a => a.label === addonLabel) || { icon: HelpCircle };
+                            const IconComponent = addonObj.icon;
+                            const isSyncing = (element.appliedToAllAddons || []).includes(addonLabel);
+                            return (
+                                <div key={addonLabel} className="flex flex-col items-center gap-1.5 shrink-0 animate-fade-in">
+                                    {/* Addon Card/Badge */}
+                                    <div className="relative flex items-center gap-2 bg-white border border-slate-200 rounded-xl pl-3 pr-8 py-2 shadow-sm hover:border-purple-400 transition-all text-xs font-bold text-slate-700 min-w-[140px]">
+                                        <div className="p-1 bg-purple-50 text-purple-600 rounded">
+                                            <IconComponent size={14} />
+                                        </div>
+                                        <span className="truncate max-w-[80px]">{addonLabel}</span>
+
+                                        {/* Cancel Cross inside the card */}
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemoveAddon(addonLabel)}
+                                            className="absolute right-2 text-slate-400 hover:text-red-500 hover:bg-red-50 p-0.5 rounded transition-all"
+                                            title="Remove Addon"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+
+                                    {/* Apply to all button under each card */}
+                                    <button
+                                        type="button"
+                                        onClick={() => onApplyAddonToAll(addonLabel, !isSyncing)}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all border w-full text-center ${isSyncing
+                                            ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                            }`}
+                                    >
+                                        {isSyncing ? 'Applied to all' : 'Apply to all'}
+                                    </button>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <span className="text-xs text-slate-400 font-semibold italic mx-auto select-none py-4">
+                            Drag and drop Addons here to activate them
+                        </span>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     const label = element.label || 'Short Answer';
-    
+
     const getElementIcon = (lbl) => {
         switch (lbl) {
             case 'Short Answer': return Type;
@@ -103,7 +294,17 @@ const QuestionBuilderCard = ({
         speechToText: false,
         translation: false,
         dyslexiaMode: false,
-        accessibility: false
+        accessibility: false,
+        relevantInformation: true,
+        myDrafts: true,
+        temporaryFill: true,
+        audioAnswer: true,
+        chatWithTeacher: true,
+        uploadAttachment: true,
+        exampleSection: true,
+        offlineWriting: true,
+        calculator: true,
+        accessibilityMode: true
     };
 
     const particulars = element.particulars || {
@@ -112,10 +313,43 @@ const QuestionBuilderCard = ({
         charLimit: '',
         wordLimit: '',
         fileSizeLimit: 10,
-        fileTypes: 'All'
+        fileTypes: 'All',
+        required: false,
+        singleLineMode: false,
+        minChars: '',
+        maxChars: '',
+        minWords: '',
+        maxWords: '',
+        placeholderText: 'Your answer',
+        defaultValue: '',
+        inputWidth: '100%',
+        validationRules: '',
+        answerMode: 'Text + Upload + Audio',
+        enableTextStyle: false,
+        style: {
+            fontSize: '14px',
+            fontWeight: 'normal',
+            textColor: '#334155',
+            bgColor: '#F8FAFC',
+            borderRadius: '16px',
+            borderStyle: 'solid',
+            borderColor: '#E2E8F0'
+        },
+        supportingResources: []
+    };
+
+    const textLogic = element.textLogic || {
+        keywordValidation: '',
+        regexValidation: '',
+        contains: '',
+        doesNotContain: '',
+        startsWith: '',
+        endsWith: '',
+        charLimits: ''
     };
 
     const videoSettings = element.videoSettings || {
+        allowRecording: true,
         allowWebcam: true,
         allowScreen: true,
         allowScreenWebcam: true,
@@ -128,6 +362,8 @@ const QuestionBuilderCard = ({
         recordingAttemptsLimit: 3,
         webcamRequired: false,
         microphoneRequired: false,
+        audioRequired: false,
+        screenSharingRequired: false,
         fullScreenRequired: false,
         tabSwitchingDetection: false,
         multipleFaceDetection: false,
@@ -296,18 +532,47 @@ const QuestionBuilderCard = ({
 
     return (
         <div
-            className={`bg-white rounded-xl border transition-all duration-300 font-sans shadow-sm hover:shadow-md ${
-                enabled ? 'border-slate-200 hover:border-purple-300' : 'border-slate-200 bg-slate-50/50 opacity-70'
-            } ${writeMode ? 'ring-2 ring-purple-100 border-purple-400' : ''} ${
-                isDragged ? 'opacity-40 border-purple-500 border-dashed scale-[0.99] bg-purple-50/30 shadow-inner' : ''
-            } overflow-hidden mb-2 ${isDragging ? 'pointer-events-none select-none' : ''}`}
+            className={`bg-white rounded-xl border transition-all duration-300 font-sans shadow-sm hover:shadow-md ${enabled ? 'border-slate-200 hover:border-purple-300' : 'border-slate-200 bg-slate-50/50 opacity-70'
+                } ${writeMode ? 'ring-2 ring-purple-100 border-purple-400' : ''} ${isDragged ? 'opacity-40 border-purple-500 border-dashed scale-[0.99] bg-purple-50/30 shadow-inner' : ''
+                } ${(showSwitcherMenu || showUploadMenu) ? 'overflow-visible' : 'overflow-hidden'} mb-2 ${isDragging ? 'pointer-events-none select-none' : ''}`}
         >
-            
+
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+            <input
+                type="file"
+                ref={resourceFileInputRef}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,.zip,.png,.jpg,.jpeg,.webp"
+                onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            onUpdateField('uploadedResource', {
+                                name: file.name,
+                                size: file.size,
+                                type: file.name.split('.').pop().toUpperCase(),
+                                url: reader.result
+                            });
+                        };
+                        reader.readAsDataURL(file);
+                        toast.success(`Attached resource: ${file.name}`);
+                    }
+                }}
+            />
 
             {/* HEADER SECTION */}
-            <div className="flex flex-wrap items-center justify-between py-1 px-3 border-b border-slate-100 bg-white gap-2 select-none">
+            <div className="flex flex-wrap items-center justify-between py-1.5 px-3 border-b border-slate-100 bg-white gap-2 select-none">
                 <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-[#6366F1] text-white rounded-lg flex items-center justify-center shadow-sm w-7.5 h-7.5">
+                        <WidgetIcon size={14} />
+                    </div>
+                    <span className="font-bold text-slate-800 text-sm">{label}</span>
+                    {!isExpanded && (
+                        <span className="text-xs text-slate-500 font-extrabold truncate max-w-[150px] sm:max-w-[250px] border-l border-slate-200 pl-2">
+                            {element.text ? element.text.replace(/<[^>]*>/g, '') : "Type your Text here"}
+                        </span>
+                    )}
                     <button
                         type="button"
                         onMouseDown={(e) => {
@@ -317,77 +582,314 @@ const QuestionBuilderCard = ({
                         onTouchStart={(e) => {
                             onDragStartCustom(e, index);
                         }}
-                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 transition-colors w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-lg shrink-0 pointer-events-auto"
+                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-655 transition-colors w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-lg shrink-0 pointer-events-auto"
                         title="Drag to reorder"
                     >
-                        <GripVertical size={16} />
+                        <Move size={16} />
                     </button>
-                    <div className="p-1.5 bg-[#6366F1] text-white rounded-lg flex items-center justify-center shadow-sm w-7.5 h-7.5">
-                        <WidgetIcon size={14} />
-                    </div>
-                    <span className="font-bold text-slate-800 text-sm">{label}</span>
                 </div>
 
-                {/* Header Action Buttons */}
-                <div className="flex items-center gap-1.5">
-                    {/* Make it using AI */}
-                    <button
-                        type="button"
-                        onClick={handleAiGenerate}
-                        className="p-1.5 bg-blue-50 text-[#0086F0] hover:bg-blue-100 rounded-lg transition-all"
-                        title="Generate Question content automatically using AI"
-                    >
-                        <Wand2 size={13} />
-                    </button>
+                {/* Action buttons */}
+                <div className="flex items-center gap-1.5 relative">
+                    {isExpanded && (
+                        <>
+                            {/* Make it using AI */}
+                            <button
+                                type="button"
+                                onClick={label === 'Short Answer' ? () => toast("Coming Soon", { icon: 'ℹ️' }) : handleAiGenerate}
+                                className="px-3 py-1.5 bg-[#0086F0] text-white hover:bg-blue-600 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                title="Generate Question content automatically using AI"
+                            >
+                                <Wand2 size={13} />
+                                <span>Make it using AI</span>
+                            </button>
 
-                    {/* Upload */}
-                    <button
-                        type="button"
-                        onClick={handleUploadClick}
-                        className="p-1.5 bg-indigo-50 text-[#5A5CD6] hover:bg-indigo-100 rounded-lg transition-all"
-                        title="Upload attachment for this question"
-                    >
-                        <Upload size={13} />
-                    </button>
+                            {/* Upload */}
+                            {label === 'Short Answer' ? (
+                                element.uploadedResource ? (
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowUploadMenu(!showUploadMenu)}
+                                            className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                            title="Manage uploaded resource"
+                                        >
+                                            <Upload size={13} />
+                                            <span>File 1 ▼</span>
+                                        </button>
+                                        {showUploadMenu && (
+                                            <div className="absolute right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[150px] text-xs font-semibold text-slate-700 animate-slide-up">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowUploadMenu(false);
+                                                        setShowFilePreviewModal(true);
+                                                    }}
+                                                    className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2"
+                                                >
+                                                    <span>Preview File</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowUploadMenu(false);
+                                                        resourceFileInputRef.current?.click();
+                                                    }}
+                                                    className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2"
+                                                >
+                                                    <span>Replace File</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowUploadMenu(false);
+                                                        onUpdateField('uploadedResource', null);
+                                                        toast.success("Attached resource removed");
+                                                    }}
+                                                    className="px-4 py-2 hover:bg-slate-50 text-left text-red-600 transition-colors flex items-center gap-2"
+                                                >
+                                                    <span>Remove File</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => resourceFileInputRef.current?.click()}
+                                        className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                        title="Upload supporting resources (PDF, DOC, etc.)"
+                                    >
+                                        <Upload size={13} />
+                                        <span>Upload</span>
+                                    </button>
+                                )
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleUploadClick}
+                                    className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                    title="Upload supporting resources (PDF, DOC, etc.)"
+                                >
+                                    <Upload size={13} />
+                                    <span>Upload</span>
+                                </button>
+                            )}
 
-                    {/* Write Mode (Format toolbar toggle) */}
-                    <button
-                        type="button"
-                        onClick={() => onUpdateField('writeMode', !writeMode)}
-                        className={`p-1.5 rounded-lg transition-all ${
-                            writeMode ? 'bg-[#5A5CD6] text-white' : 'bg-slate-100 text-slate-650 hover:bg-slate-200'
-                        }`}
-                        title="Toggle Advanced Rich Text Toolbar"
-                    >
-                        <Type size={13} />
-                    </button>
+                            {/* Write / Note 1 */}
+                            {label === 'Short Answer' ? (
+                                <div className="relative">
+                                    {element.noteContent ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNoteDropdown(!showNoteDropdown)}
+                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm animate-fade-in"
+                                                title="Note Options"
+                                            >
+                                                <FileText size={13} />
+                                                <span>Note 1</span>
+                                                <ChevronDown size={12} className={`transition-transform ${showNoteDropdown ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {showNoteDropdown && (
+                                                <div className="absolute right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-[100] flex flex-col gap-0.5 min-w-[130px] animate-fade-in">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setNoteContentInput(element.noteContent || '');
+                                                            setShowNoteModal(true);
+                                                            setShowNoteDropdown(false);
+                                                            setTimeout(updateNoteActiveFormat, 100);
+                                                        }}
+                                                        className="w-full px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700 transition-colors"
+                                                    >
+                                                        <Edit size={12} className="text-purple-650 shrink-0" />
+                                                        <span>Edit </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const win = window.open('', '_blank');
+                                                            win.document.write(`
+                                                                <!DOCTYPE html>
+                                                                <html>
+                                                                <head>
+                                                                    <title>Note Preview - ${element.noteContent.replace(/<[^>]*>/g, '').slice(0, 30) || 'Untitled'}</title>
+                                                                    <style>
+                                                                        body {
+                                                                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                                                            background-color: #f0f2f5;
+                                                                            margin: 0;
+                                                                            padding: 40px 20px;
+                                                                            display: flex;
+                                                                            justify-content: center;
+                                                                        }
+                                                                        .document-container {
+                                                                            background-color: #ffffff;
+                                                                            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+                                                                            border: 1px solid #e2e8f0;
+                                                                            border-radius: 8px;
+                                                                            width: 100%;
+                                                                            max-width: 800px;
+                                                                            min-height: 29.7cm;
+                                                                            padding: 60px 80px;
+                                                                            box-sizing: border-box;
+                                                                        }
+                                                                        .content {
+                                                                            font-size: 15px;
+                                                                            line-height: 1.6;
+                                                                            color: #1a202c;
+                                                                        }
+                                                                        p { margin-top: 0; margin-bottom: 1em; }
+                                                                    </style>
+                                                                </head>
+                                                                <body>
+                                                                    <div class="document-container">
+                                                                        <div class="content">
+                                                                            ${element.noteContent}
+                                                                        </div>
+                                                                    </div>
+                                                                </body>
+                                                                </html>
+                                                            `);
+                                                            win.document.close();
+                                                            setShowNoteDropdown(false);
+                                                        }}
+                                                        className="w-full px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700 transition-colors"
+                                                    >
+                                                        <Eye size={12} className="text-blue-500 shrink-0" />
+                                                        <span>Preview</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateField('noteContent', '');
+                                                            setShowNoteDropdown(false);
+                                                            toast.success("Note removed successfully!");
+                                                        }}
+                                                        className="w-full px-2.5 py-1.5 hover:bg-red-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-red-650 transition-colors"
+                                                    >
+                                                        <Trash2 size={12} className="text-red-500 shrink-0" />
+                                                        <span>Remove</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setNoteContentInput(element.noteContent || '');
+                                                setShowNoteModal(true);
+                                                setTimeout(updateNoteActiveFormat, 100);
+                                            }}
+                                            className="px-3 py-1.5 bg-black hover:bg-slate-900 text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                            title="Open Note Editor"
+                                        >
+                                            <Type size={13} />
+                                            <span>Write</span>
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const nextWriteMode = !writeMode;
+                                        onUpdateField('writeMode', nextWriteMode);
+                                        if (!nextWriteMode) {
+                                            onUpdateText(stripHtml(element.text || ''));
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm ${writeMode ? 'bg-[#5A5CD6] text-white' : 'bg-black hover:bg-slate-900 text-white'}`}
+                                    title="Toggle Advanced Rich Text Toolbar"
+                                >
+                                    <Type size={13} />
+                                    <span>Write</span>
+                                </button>
+                            )}
 
-                    {/* Media url button */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const url = prompt("Enter media URL (image, video, or audio file):");
-                            if (url) onUpdateField('mediaUrl', url);
-                        }}
-                        className={`p-1.5 rounded-lg transition-all ${
-                            element.mediaUrl ? 'bg-purple-100 text-purple-750' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        title="Attach media Link URL"
-                    >
-                        <ImageIcon size={14} />
-                    </button>
+                            {/* Image / Media URL */}
+                            {label === 'Short Answer' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowImageModal(true)}
+                                    className={`p-1.5 rounded-lg transition-all ${element.insertedImage ? 'bg-purple-100 text-purple-750' : 'bg-slate-100 text-slate-655 hover:bg-slate-200'}`}
+                                    title="Insert Image"
+                                >
+                                    <ImageIcon size={14} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const url = prompt("Enter media URL (image, video, or audio file):");
+                                        if (url) onUpdateField('mediaUrl', url);
+                                    }}
+                                    className={`p-1.5 rounded-lg transition-all ${element.mediaUrl ? 'bg-purple-100 text-purple-750' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                    title="Attach media Link URL"
+                                >
+                                    <ImageIcon size={14} />
+                                </button>
+                            )}
 
-                    {/* Duplicate */}
-                    <button
-                        type="button"
-                        onClick={onDuplicate}
-                        className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
-                        title="Duplicate Question"
-                    >
-                        <Copy size={13} />
-                    </button>
+                            {/* Duplicate */}
+                            {label !== 'Short Answer' && (
+                                <button
+                                    type="button"
+                                    onClick={onDuplicate}
+                                    className="p-1.5 bg-slate-100 text-slate-605 hover:bg-slate-200 rounded-lg transition-all"
+                                    title="Duplicate Question"
+                                >
+                                    <Copy size={13} />
+                                </button>
+                            )}
+                            {/* Switcher - visible only when expanded */}
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSwitcherMenu(!showSwitcherMenu)}
+                                    className={`p-1.5 rounded-lg transition-all ${showSwitcherMenu ? 'bg-slate-200 text-slate-800' : 'bg-slate-100 text-slate-655 hover:bg-slate-200'}`}
+                                    title="Quick Element Switcher"
+                                >
+                                    <ArrowRightLeft size={14} />
+                                </button>
+                                {showSwitcherMenu && (
+                                    <div className="absolute right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[170px] text-xs font-semibold text-slate-700 animate-slide-up">
+                                        {[
+                                            { label: 'Short Answer' },
+                                            { label: 'Paragraph' },
+                                            { label: 'Multiple Choice' },
+                                            { label: 'Checkboxes' },
+                                            { label: 'Dropdown' },
+                                            { label: 'File Upload' },
+                                            { label: 'Linear Scale' },
+                                            { label: 'Rating' },
+                                            { label: 'Multiple Choice Grid' },
+                                            { label: 'Checkbox Grid' }
+                                        ].map((item) => (
+                                            <button
+                                                key={item.label}
+                                                type="button"
+                                                onClick={() => {
+                                                    onUpdateField('label', item.label);
+                                                    onUpdateField('type', item.label);
+                                                    setShowSwitcherMenu(false);
+                                                    toast.success(`Converted to ${item.label}`);
+                                                }}
+                                                className="px-4 py-2 hover:bg-slate-55 text-left transition-colors flex items-center justify-between"
+                                            >
+                                                <span>{item.label}</span>
+                                                {label === item.label && <span className="w-1.5 h-1.5 rounded-full bg-indigo-650" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
 
-                    {/* Delete */}
+                    {/* Delete Question - always visible in header */}
                     <button
                         type="button"
                         onClick={onDelete}
@@ -401,9 +903,7 @@ const QuestionBuilderCard = ({
                     <button
                         type="button"
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className={`p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all ${
-                            isExpanded ? '' : 'rotate-180'
-                        }`}
+                        className={`p-1.5 text-slate-450 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all ${isExpanded ? '' : 'rotate-180'}`}
                         title={isExpanded ? "Collapse Question" : "Expand Question"}
                     >
                         <ChevronDown size={16} />
@@ -414,35 +914,35 @@ const QuestionBuilderCard = ({
             {/* EXPANDED CONTENT PANEL */}
             {isExpanded && (
                 <div className="p-2.5 bg-slate-50/15 space-y-2">
+
                     {/* Question Title & Description Area */}
                     <div className="space-y-1 relative">
                         <div className="flex items-center justify-between gap-3 relative">
-                            {writeMode ? (
+                            {(label === 'Short Answer' ? particulars.enableTextStyle : writeMode) ? (
                                 <div
                                     ref={editorRef}
                                     contentEditable
                                     dangerouslySetInnerHTML={{ __html: element.text || '' }}
                                     onBlur={(e) => onUpdateText(e.target.innerHTML)}
-                                    className="w-full font-bold text-slate-800 bg-transparent outline-none min-h-[32px] pr-12 placeholder:text-slate-400 rich-text-editor"
+                                    className="w-full font-bold text-slate-800 bg-transparent outline-none min-h-[32px] pr-12 placeholder:text-slate-400 rich-text-editor font-sans"
                                     placeholder="Type your Text here"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             ) : (
                                 <input
                                     type="text"
-                                    value={element.text || ''}
+                                    value={stripHtml(element.text || '')}
                                     onChange={(e) => onUpdateText(e.target.value)}
                                     placeholder="Type your Text here"
-                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none"
+                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none font-sans"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             )}
                             <button
                                 type="button"
                                 onClick={handleMicClick}
-                                className={`absolute right-1 top-0.5 p-1.5 rounded-full transition-all ${
-                                    isRecording ? 'text-red-500 bg-red-50 animate-pulse' : 'text-slate-700 hover:text-slate-900'
-                                }`}
+                                className={`absolute right-1 top-0.5 p-1.5 rounded-full transition-all ${isRecording ? 'text-red-500 bg-red-50 animate-pulse' : 'text-slate-700 hover:text-slate-900'
+                                    }`}
                                 title="Speech to Text"
                             >
                                 <Mic size={18} strokeWidth={2.5} />
@@ -455,26 +955,63 @@ const QuestionBuilderCard = ({
                     </div>
 
                     {/* Rich text editor toolbar (Write mode / Enable Text Style) */}
-                    {writeMode && (
-                        <div className="flex items-center gap-1 bg-white p-1 border border-slate-200 rounded-xl shadow-sm text-slate-550 select-none overflow-x-auto whitespace-nowrap scrollbar-none mb-2 text-xs w-full">
-                            {/* Text Style Group */}
-                            <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 font-bold" title="Bold"><Bold size={13} /></button>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('italic'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 italic" title="Italic"><Italic size={13} /></button>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('underline'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 underline" title="Underline"><Underline size={13} /></button>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('strikeThrough'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 line-through" title="Strikethrough"><Strikethrough size={13} /></button>
-                            </div>
+                    {((label === 'Short Answer' && particulars.enableTextStyle) || (label !== 'Short Answer' && writeMode)) && (
+                        label === 'Short Answer' ? (
+                            <div className="flex items-center gap-1 bg-white p-1 border border-slate-200 rounded-xl shadow-sm text-slate-550 select-none overflow-x-auto whitespace-nowrap scrollbar-none mb-2 text-xs w-full">
+                                {/* Text Style Group */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 font-bold" title="Bold"><Bold size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('italic'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 italic" title="Italic"><Italic size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('underline'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 underline" title="Underline"><Underline size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('strikeThrough'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 line-through" title="Strikethrough"><Strikethrough size={13} /></button>
+                                </div>
 
-                            {/* Subscript / Superscript / Clear Group */}
-                            <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('subscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Subscript">X<sub>1</sub></button>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('superscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Superscript">X<sup>1</sup></button>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('removeFormat'); }} className="p-1 hover:bg-slate-100 rounded text-red-500" title="Clear Formatting"><X size={13} /></button>
-                            </div>
+                                {/* Subscript / Superscript */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('subscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Subscript">X<sub>1</sub></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('superscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Superscript">X<sup>1</sup></button>
+                                </div>
 
-                            {/* Preset color pickers */}
-                            <div className="flex items-center gap-2 border-r border-slate-100 pr-1.5 ml-0.5 text-[9px] font-bold text-slate-500">
-                                <div className="flex items-center gap-0.5" title="Text Color">
+                                {/* Link */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('createLink', prompt('Link URL:')); }} className="p-1 hover:bg-slate-100 rounded text-slate-850" title="Hyperlink"><Link size={13} /></button>
+                                </div>
+
+                                {/* Zoom Group */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onClick={handleZoomIn} className="p-1 hover:bg-slate-150 rounded" title="Zoom In"><ZoomIn size={13} /></button>
+                                    <button type="button" onClick={handleZoomOut} className="p-1 hover:bg-slate-150 rounded" title="Zoom Out"><ZoomOut size={13} /></button>
+                                </div>
+
+                                {/* Unordered / Ordered Lists */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertUnorderedList'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850" title="Bulleted List"><List size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertOrderedList'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850" title="Numbered List"><ListOrdered size={13} /></button>
+                                </div>
+
+                                {/* Alignment Dropdown */}
+                                <div className="relative border-r border-slate-100 pr-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleMenu('align')}
+                                        className={`p-1 hover:bg-slate-100 rounded flex items-center gap-0.5 text-slate-700 ${openMenu === 'align' ? 'bg-slate-100' : ''}`}
+                                        title="Alignment"
+                                    >
+                                        <AlignLeft size={13} />
+                                        <ChevronDown size={10} className="text-slate-400" />
+                                    </button>
+                                    {openMenu === 'align' && (
+                                        <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[130px]">
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyLeft'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-55 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignLeft size={12} /> Align Left</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyCenter'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-55 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignCenter size={12} /> Align Center</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyRight'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-55 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignRight size={12} /> Align Right</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyFull'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-55 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignJustify size={12} /> Align Justify</button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Text Color */}
+                                <div className="flex items-center gap-1.5 border-r border-slate-100 pr-1.5 ml-0.5 text-[9px] font-bold text-slate-500" title="Text Color">
                                     <span>A</span>
                                     <input
                                         type="color"
@@ -482,103 +1019,150 @@ const QuestionBuilderCard = ({
                                         className="w-4.5 h-4.5 p-0 border-0 cursor-pointer rounded bg-transparent shrink-0"
                                     />
                                 </div>
-                                <div className="flex items-center gap-0.5" title="Highlight Color">
-                                    <span>BG</span>
-                                    <input
-                                        type="color"
-                                        onChange={(e) => handleFormat('backColor', e.target.value)}
-                                        className="w-4.5 h-4.5 p-0 border-0 cursor-pointer rounded bg-transparent shrink-0"
-                                        defaultValue="#fef08a"
-                                    />
+
+                                {/* Background Color - PURPLE BUTTON BLOCK */}
+                                <div className="flex items-center gap-1.5 border-r border-slate-100 pr-1.5" title="Background Color">
+                                    <label className="cursor-pointer bg-[#800080] text-white px-2 py-1 rounded font-bold text-[10px] hover:bg-purple-800 transition-colors shadow-sm flex items-center gap-1">
+                                        <span>Background Color</span>
+                                        <input
+                                            type="color"
+                                            onChange={(e) => handleFormat('backColor', e.target.value)}
+                                            className="w-0 h-0 p-0 border-0 opacity-0 absolute pointer-events-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Special Notes placeholder */}
+                                <button type="button" onClick={() => toast.success("Special Notes annotation added")} className="p-1 hover:bg-slate-100 rounded text-slate-850" title="Special Notes"><Sparkles size={13} /></button>
+
+                                {/* Remove Formatting */}
+                                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('removeFormat'); }} className="p-1 hover:bg-slate-100 rounded text-red-500 ml-auto" title="Clear Formatting"><X size={13} /></button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-1 bg-white p-1 border border-slate-200 rounded-xl shadow-sm text-slate-550 select-none overflow-x-auto whitespace-nowrap scrollbar-none mb-2 text-xs w-full">
+                                {/* Text Style Group */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 font-bold" title="Bold"><Bold size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('italic'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 italic" title="Italic"><Italic size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('underline'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 underline" title="Underline"><Underline size={13} /></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('strikeThrough'); }} className="p-1 hover:bg-slate-100 rounded text-slate-850 line-through" title="Strikethrough"><Strikethrough size={13} /></button>
+                                </div>
+
+                                {/* Subscript / Superscript / Clear Group */}
+                                <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('subscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Subscript">X<sub>1</sub></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('superscript'); }} className="px-1 py-0.5 hover:bg-slate-100 rounded text-slate-850 font-bold text-[10px]" title="Superscript">X<sup>1</sup></button>
+                                    <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('removeFormat'); }} className="p-1 hover:bg-slate-100 rounded text-red-500" title="Clear Formatting"><X size={13} /></button>
+                                </div>
+
+                                {/* Preset color pickers */}
+                                <div className="flex items-center gap-2 border-r border-slate-100 pr-1.5 ml-0.5 text-[9px] font-bold text-slate-500">
+                                    <div className="flex items-center gap-0.5" title="Text Color">
+                                        <span>A</span>
+                                        <input
+                                            type="color"
+                                            onChange={(e) => handleFormat('foreColor', e.target.value)}
+                                            className="w-4.5 h-4.5 p-0 border-0 cursor-pointer rounded bg-transparent shrink-0"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-0.5" title="Highlight Color">
+                                        <span>BG</span>
+                                        <input
+                                            type="color"
+                                            onChange={(e) => handleFormat('backColor', e.target.value)}
+                                            className="w-4.5 h-4.5 p-0 border-0 cursor-pointer rounded bg-transparent shrink-0"
+                                            defaultValue="#fef08a"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Alignment & Lists Dropdown */}
+                                <div className="relative border-r border-slate-100 pr-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleMenu('align')}
+                                        className={`p-1 hover:bg-slate-100 rounded flex items-center gap-0.5 text-slate-705 ${openMenu === 'align' ? 'bg-slate-100' : ''}`}
+                                        title="Alignment & Lists"
+                                    >
+                                        <AlignLeft size={13} />
+                                        <ChevronDown size={10} className="text-slate-400" />
+                                    </button>
+                                    {openMenu === 'align' && (
+                                        <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[130px]">
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyLeft'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><AlignLeft size={12} /> Align Left</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyCenter'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><AlignCenter size={12} /> Align Center</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyRight'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><AlignRight size={12} /> Align Right</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyFull'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><AlignJustify size={12} /> Align Justify</button>
+                                            <hr className="border-slate-100 my-0.5" />
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertUnorderedList'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><List size={12} /> Bulleted List</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertOrderedList'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><ListOrdered size={12} /> Numbered List</button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Insert Dropdown */}
+                                <div className="relative border-r border-slate-100 pr-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleMenu('insert')}
+                                        className={`px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-all ${openMenu === 'insert' ? 'bg-purple-100' : ''}`}
+                                        title="Insert media, tables or formulas"
+                                    >
+                                        <span>Insert</span>
+                                        <ChevronDown size={10} className="text-purple-400" />
+                                    </button>
+                                    {openMenu === 'insert' && (
+                                        <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[150px]">
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('createLink', prompt('Link URL:')); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Link size={12} /> Hyperlink</button>
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertImage', prompt('Enter Image URL:')); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><ImageIcon size={12} /> Image URL</button>
+                                            <button type="button" onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const audio = prompt('Enter Audio URL:');
+                                                if (audio) handleFormat('insertHTML', `<audio controls src="${audio}"></audio>`);
+                                                setOpenMenu(null);
+                                            }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Headphones size={12} /> Audio URL</button>
+                                            <button type="button" onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const video = prompt('Enter Video URL:');
+                                                if (video) handleFormat('insertHTML', `<video controls width="320" src="${video}"></video>`);
+                                                setOpenMenu(null);
+                                            }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Video size={12} /> Video URL</button>
+                                            <hr className="border-slate-100 my-0.5" />
+                                            <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertHTML', '😊'); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Smile size={12} /> Emoji 😊</button>
+                                            <button type="button" onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const eq = prompt("Enter LaTeX/Math Formula:");
+                                                if (eq) handleFormat('insertHTML', `<span class="italic font-serif bg-amber-50 px-1 border border-amber-200 rounded">${eq}</span>`);
+                                                setOpenMenu(null);
+                                            }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Code size={12} /> Formula Editor</button>
+                                            <button type="button" onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                handleFormat('insertHTML', `<table class="border border-slate-205 w-full text-xs text-left my-1"><tr class="bg-slate-50"><th class="p-1 border-b">H1</th><th class="p-1 border-b">H2</th></tr><tr><td class="p-1">C1</td><td class="p-1">C2</td></tr></table>`);
+                                                setOpenMenu(null);
+                                            }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Table size={12} /> Table Insert</button>
+                                            <button type="button" onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const code = prompt("Enter Code Block:");
+                                                if (code) handleFormat('insertHTML', `<pre class="bg-slate-800 text-slate-100 p-2 rounded font-mono text-[10px] my-1">${code}</pre>`);
+                                                setOpenMenu(null);
+                                            }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-707"><Code size={12} /> Code Block</button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Zoom level group */}
+                                <div className="flex items-center gap-1.5 ml-auto text-slate-655">
+                                    <button type="button" onClick={handleZoomOut} className="p-1 hover:bg-slate-150 rounded" title="Zoom Out"><ZoomOut size={13} /></button>
+                                    <span className="text-[10px] font-extrabold w-8 text-center">{zoomScale}%</span>
+                                    <button type="button" onClick={handleZoomIn} className="p-1 hover:bg-slate-150 rounded" title="Zoom In"><ZoomIn size={13} /></button>
                                 </div>
                             </div>
-
-                            {/* Alignment & Lists Dropdown */}
-                            <div className="relative border-r border-slate-100 pr-1">
-                                <button
-                                    type="button"
-                                    onClick={() => toggleMenu('align')}
-                                    className={`p-1 hover:bg-slate-100 rounded flex items-center gap-0.5 text-slate-700 ${openMenu === 'align' ? 'bg-slate-100' : ''}`}
-                                    title="Alignment & Lists"
-                                >
-                                    <AlignLeft size={13} />
-                                    <ChevronDown size={10} className="text-slate-400" />
-                                </button>
-                                {openMenu === 'align' && (
-                                    <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[130px]">
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyLeft'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignLeft size={12} /> Align Left</button>
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyCenter'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignCenter size={12} /> Align Center</button>
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyRight'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignRight size={12} /> Align Right</button>
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('justifyFull'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><AlignJustify size={12} /> Align Justify</button>
-                                        <hr className="border-slate-100 my-0.5" />
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertUnorderedList'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><List size={12} /> Bulleted List</button>
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertOrderedList'); setOpenMenu(null); }} className="px-2 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><ListOrdered size={12} /> Numbered List</button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Insert Dropdown */}
-                            <div className="relative border-r border-slate-100 pr-1">
-                                <button
-                                    type="button"
-                                    onClick={() => toggleMenu('insert')}
-                                    className={`px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-all ${openMenu === 'insert' ? 'bg-purple-100' : ''}`}
-                                    title="Insert media, tables or formulas"
-                                >
-                                    <span>Insert</span>
-                                    <ChevronDown size={10} className="text-purple-400" />
-                                </button>
-                                {openMenu === 'insert' && (
-                                    <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[150px]">
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('createLink', prompt('Link URL:')); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Link size={12} /> Hyperlink</button>
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertImage', prompt('Enter Image URL:')); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><ImageIcon size={12} /> Image URL</button>
-                                        <button type="button" onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            const audio = prompt('Enter Audio URL:');
-                                            if (audio) handleFormat('insertHTML', `<audio controls src="${audio}"></audio>`);
-                                            setOpenMenu(null);
-                                        }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Headphones size={12} /> Audio URL</button>
-                                        <button type="button" onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            const video = prompt('Enter Video URL:');
-                                            if (video) handleFormat('insertHTML', `<video controls width="320" src="${video}"></video>`);
-                                            setOpenMenu(null);
-                                        }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Video size={12} /> Video URL</button>
-                                        <hr className="border-slate-100 my-0.5" />
-                                        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('insertHTML', '😊'); setOpenMenu(null); }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Smile size={12} /> Emoji 😊</button>
-                                        <button type="button" onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            const eq = prompt("Enter LaTeX/Math Formula:");
-                                            if (eq) handleFormat('insertHTML', `<span class="italic font-serif bg-amber-50 px-1 border border-amber-200 rounded">${eq}</span>`);
-                                            setOpenMenu(null);
-                                        }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Code size={12} /> Formula Editor</button>
-                                        <button type="button" onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            handleFormat('insertHTML', `<table class="border border-slate-205 w-full text-xs text-left my-1"><tr class="bg-slate-50"><th class="p-1 border-b">H1</th><th class="p-1 border-b">H2</th></tr><tr><td class="p-1">C1</td><td class="p-1">C2</td></tr></table>`);
-                                            setOpenMenu(null);
-                                        }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Table size={12} /> Table Insert</button>
-                                        <button type="button" onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            const code = prompt("Enter Code Block:");
-                                            if (code) handleFormat('insertHTML', `<pre class="bg-slate-800 text-slate-100 p-2 rounded font-mono text-[10px] my-1">${code}</pre>`);
-                                            setOpenMenu(null);
-                                        }} className="px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700"><Code size={12} /> Code Block</button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Zoom level group */}
-                            <div className="flex items-center gap-1.5 ml-auto text-slate-600">
-                                <button type="button" onClick={handleZoomOut} className="p-1 hover:bg-slate-150 rounded" title="Zoom Out"><ZoomOut size={13} /></button>
-                                <span className="text-[10px] font-extrabold w-8 text-center">{zoomScale}%</span>
-                                <button type="button" onClick={handleZoomIn} className="p-1 hover:bg-slate-150 rounded" title="Zoom In"><ZoomIn size={13} /></button>
-                            </div>
-                        </div>
+                        )
                     )}
 
-                    {/* Secondary Description, Helper, Instructions grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pb-0.5">
-                        <div className="space-y-0.5">
+                    {/* Secondary Description */}
+                    {element.showDescription && (
+                        <div className="space-y-0.5 pb-0.5">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Question Description</label>
                             <input
                                 type="text"
@@ -588,27 +1172,7 @@ const QuestionBuilderCard = ({
                                 className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-all shadow-sm"
                             />
                         </div>
-                        <div className="space-y-0.5">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Helper Text</label>
-                            <input
-                                type="text"
-                                value={element.helperText || ''}
-                                onChange={(e) => onUpdateField('helperText', e.target.value)}
-                                placeholder="E.g., Avoid copying from search..."
-                                className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-all shadow-sm"
-                            />
-                        </div>
-                        <div className="space-y-0.5">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Instructions</label>
-                            <input
-                                type="text"
-                                value={element.instructions || ''}
-                                onChange={(e) => onUpdateField('instructions', e.target.value)}
-                                placeholder="E.g., Answer carefully..."
-                                className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-all shadow-sm"
-                            />
-                        </div>
-                    </div>
+                    )}
 
                     {/* Attached media url preview if any */}
                     {element.mediaUrl && (
@@ -647,33 +1211,189 @@ const QuestionBuilderCard = ({
 
                     {/* QUESTION BODY (ELEMENT SPECIFIC RENDER) */}
                     <div className="border-t border-slate-100 pt-2.5">
-                        
+
                         {/* 1. Short Answer */}
                         {label === 'Short Answer' && (
-                            <div className="flex items-center justify-between bg-white px-3 py-2 border border-slate-200 rounded-xl shadow-sm">
-                                <input
-                                    type="text"
-                                    placeholder="Type your Answer here"
-                                    disabled
-                                    className="bg-transparent outline-none flex-1 text-sm text-slate-400 cursor-not-allowed border-none font-bold"
-                                />
-                                <div className="flex items-center gap-3.5 ml-auto select-none border-l border-slate-150 pl-3">
-                                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Enable it</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
+                            <div className="space-y-3">
+
+
+
+
+                                {/* Unified Inserted Images Thumbnails */}
+                                {(() => {
+                                    const imagesToRender = [
+                                        ...(element.insertedImage?.url ? [element.insertedImage.url] : []),
+                                        ...(element.insertedImages || [])
+                                    ];
+                                    if (imagesToRender.length === 0) return null;
+                                    return (
+                                        <div className="flex flex-wrap gap-2.5 mb-3 p-2 bg-slate-100/40 border border-dashed border-slate-200 rounded-xl">
+                                            {imagesToRender.map((imgUrl, imgIdx) => (
+                                                <div
+                                                    key={imgIdx}
+                                                    className="relative group/thumb w-14 h-14 bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex items-center justify-center cursor-pointer hover:border-purple-500 transition-all"
+                                                >
+                                                    <img
+                                                        src={imgUrl}
+                                                        alt={`Inserted preview ${imgIdx + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                        onClick={() => {
+                                                            setLightboxImage(imgUrl);
+                                                            setLightboxScale(100);
+                                                        }}
+                                                    />
+                                                    {/* Delete button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (element.insertedImage?.url === imgUrl) {
+                                                                onUpdateField('insertedImage', null);
+                                                            } else {
+                                                                const updated = (element.insertedImages || []).filter(url => url !== imgUrl);
+                                                                onUpdateField('insertedImages', updated);
+                                                            }
+                                                            toast.success("Image removed");
+                                                        }}
+                                                        className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow"
+                                                        title="Delete Image"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Student Answer Box & Enable It Switch */}
+                                <div className="flex items-center justify-between bg-white px-3.5 py-3.5 border border-slate-200 rounded-xl shadow-sm">
+                                    {particulars.enableAnswerBox !== false ? (
                                         <input
-                                            type="checkbox"
-                                            checked={required}
-                                            onChange={(e) => onUpdateField('required', e.target.checked)}
-                                            className="sr-only peer"
+                                            type="text"
+                                            placeholder="Type your Answer here"
+                                            readOnly
+                                            tabIndex={-1}
+                                            className="bg-transparent outline-none flex-1 text-sm border-none font-sans pointer-events-none select-none cursor-default"
+                                            style={{
+                                                fontSize: particulars.enableTextStyle && particulars.style?.fontSize ? particulars.style.fontSize : '14px',
+                                                fontWeight: particulars.enableTextStyle && particulars.style?.fontWeight ? particulars.style.fontWeight : 'normal',
+                                                color: particulars.enableTextStyle && particulars.style?.textColor ? particulars.style.textColor : '#94a3b8',
+                                                backgroundColor: particulars.enableTextStyle && particulars.style?.bgColor ? particulars.style.bgColor : 'transparent',
+                                                borderRadius: particulars.enableTextStyle && particulars.style?.borderRadius ? particulars.style.borderRadius : '8px',
+                                                border: particulars.enableTextStyle && particulars.style?.borderStyle && particulars.style.borderStyle !== 'none' ? `1px ${particulars.style.borderStyle} ${particulars.style.borderColor || '#cbd5e1'}` : 'none',
+                                                pointerEvents: 'none',
+                                                userSelect: 'none'
+                                            }}
                                         />
-                                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-650"></div>
-                                    </label>
-                                    <ChevronDown
-                                        size={18}
-                                        className={`text-slate-400 cursor-pointer transition-transform ${isExpanded ? '' : 'rotate-180'}`}
-                                        onClick={() => setIsExpanded(!isExpanded)}
-                                    />
+                                    ) : (
+                                        <div className="text-slate-400 text-sm italic font-semibold">Student Answer Box Disabled</div>
+                                    )}
+                                    <div className="flex items-center gap-3.5 ml-auto select-none border-l border-slate-150 pl-3.5">
+                                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Enable it</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={particulars.enableAnswerBox !== false}
+                                                onChange={(e) => handleUpdateNestedField('particulars', 'enableAnswerBox', e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-650"></div>
+                                        </label>
+                                    </div>
                                 </div>
+
+                                {/* Supporting Resources Upload Section */}
+                                {element.showUploadResources && (
+                                    <div className="p-3 bg-purple-50/35 border border-purple-150 rounded-xl space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold text-purple-750 uppercase tracking-wider block">Supporting Resources (Max 4)</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const resources = particulars.supportingResources || [];
+                                                    if (resources.length >= 4) {
+                                                        toast.error("Maximum of 4 supporting resources allowed");
+                                                        return;
+                                                    }
+                                                    const nextIdx = resources.length + 1;
+                                                    const newRes = {
+                                                        id: `res-${Date.now()}`,
+                                                        name: `File ${nextIdx}`,
+                                                        note: `Note ${nextIdx}`,
+                                                        size: 1024 * 100, // mock size
+                                                        type: 'PDF'
+                                                    };
+                                                    handleUpdateNestedField('particulars', 'supportingResources', [...resources, newRes]);
+                                                }}
+                                                className="px-2 py-1 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded text-[10px] font-bold shadow-sm"
+                                            >
+                                                + Add Resource
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {(particulars.supportingResources || []).map((res, rIdx) => (
+                                                <div key={res.id || rIdx} className="bg-white p-3 rounded-lg border border-slate-200 space-y-2 text-xs relative">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-extrabold text-slate-700">Resource #{rIdx + 1}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const resources = particulars.supportingResources || [];
+                                                                handleUpdateNestedField('particulars', 'supportingResources', resources.filter((_, idx) => idx !== rIdx));
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-bold text-slate-400 block uppercase">File Name</label>
+                                                        <input
+                                                            type="text"
+                                                            value={res.name}
+                                                            onChange={(e) => {
+                                                                const resources = particulars.supportingResources || [];
+                                                                const updated = resources.map((item, idx) => idx === rIdx ? { ...item, name: e.target.value } : item);
+                                                                handleUpdateNestedField('particulars', 'supportingResources', updated);
+                                                            }}
+                                                            className="w-full border border-slate-200 rounded p-1 outline-none text-slate-705"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-bold text-slate-400 block uppercase">Notes / Instruction</label>
+                                                        <input
+                                                            type="text"
+                                                            value={res.note}
+                                                            onChange={(e) => {
+                                                                const resources = particulars.supportingResources || [];
+                                                                const updated = resources.map((item, idx) => idx === rIdx ? { ...item, note: e.target.value } : item);
+                                                                handleUpdateNestedField('particulars', 'supportingResources', updated);
+                                                            }}
+                                                            className="w-full border border-slate-200 rounded p-1 outline-none text-slate-705"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-[10px] text-slate-450 pt-1">
+                                                        <span>Allowed formats: PDF, ZIP, XLS, CSV etc.</span>
+                                                        <select
+                                                            value={res.type}
+                                                            onChange={(e) => {
+                                                                const resources = particulars.supportingResources || [];
+                                                                const updated = resources.map((item, idx) => idx === rIdx ? { ...item, type: e.target.value } : item);
+                                                                handleUpdateNestedField('particulars', 'supportingResources', updated);
+                                                            }}
+                                                            className="border rounded p-0.5 bg-white"
+                                                        >
+                                                            {['PDF', 'ZIP', 'XLS', 'CSV', 'DOC', 'PPT', 'TXT', 'Image', 'Audio', 'Video'].map(t => (
+                                                                <option key={t} value={t}>{t}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -860,11 +1580,10 @@ const QuestionBuilderCard = ({
                                                     ];
                                                     onUpdateOptions(newOpts);
                                                 }}
-                                                className={`p-2 rounded-xl border text-center text-sm font-bold transition-all ${
-                                                    isCorrect
-                                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm shadow-emerald-50'
-                                                        : 'bg-white border-slate-200 text-slate-700 hover:border-purple-300'
-                                                }`}
+                                                className={`p-2 rounded-xl border text-center text-sm font-bold transition-all ${isCorrect
+                                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm shadow-emerald-50'
+                                                    : 'bg-white border-slate-200 text-slate-700 hover:border-purple-300'
+                                                    }`}
                                             >
                                                 {tfValue} {isCorrect ? '✓ (Correct)' : ''}
                                             </button>
@@ -885,7 +1604,7 @@ const QuestionBuilderCard = ({
                                     ]).map((pair, pIdx) => (
                                         <div key={pIdx} className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white p-2 rounded-xl border border-slate-150 relative">
                                             <div className="space-y-1">
-                                                <span className="text-[9px] font-bold text-slate-400">Match Item {pIdx+1}</span>
+                                                <span className="text-[9px] font-bold text-slate-400">Match Item {pIdx + 1}</span>
                                                 <input
                                                     type="text"
                                                     value={pair.key || ''}
@@ -899,7 +1618,7 @@ const QuestionBuilderCard = ({
                                                 />
                                             </div>
                                             <div className="space-y-1 relative">
-                                                <span className="text-[9px] font-bold text-slate-400">Target Answer {pIdx+1}</span>
+                                                <span className="text-[9px] font-bold text-slate-400">Target Answer {pIdx + 1}</span>
                                                 <input
                                                     type="text"
                                                     value={pair.value || ''}
@@ -949,7 +1668,7 @@ const QuestionBuilderCard = ({
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Blank Answers list</span>
                                     {(element.blankAnswers || ["frontend"]).map((ans, bIdx) => (
                                         <div key={bIdx} className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-slate-500 w-16">Blank #{bIdx+1}:</span>
+                                            <span className="text-xs font-bold text-slate-500 w-16">Blank #{bIdx + 1}:</span>
                                             <input
                                                 type="text"
                                                 value={ans || ''}
@@ -958,7 +1677,7 @@ const QuestionBuilderCard = ({
                                                     copy[bIdx] = e.target.value;
                                                     onUpdateField('blankAnswers', copy);
                                                 }}
-                                                placeholder={`Correct answer for blank ${bIdx+1}`}
+                                                placeholder={`Correct answer for blank ${bIdx + 1}`}
                                                 className="flex-1 text-xs font-semibold bg-slate-50 border border-slate-150 rounded-lg px-2.5 py-1.5 outline-none focus:bg-white focus:border-purple-500"
                                             />
                                             <button
@@ -1454,570 +2173,2166 @@ const QuestionBuilderCard = ({
                             </div>
                         )}
 
-                                        {/* UNIFIED QUESTION FOOTER SECTIONS */}
-                    <div className="border-t border-slate-100 mt-2 bg-white/40 -mx-2.5 -mb-2.5 p-2.5">
-                        {/* Collapsible settings bar */}
-                        <button
-                            type="button"
-                            onClick={() => setShowSettings(!showSettings)}
-                            className="w-full flex items-center justify-between py-1 px-2.5 bg-slate-50/80 hover:bg-slate-100/50 rounded-lg text-xs font-bold text-slate-600 transition-colors select-none"
-                        >
-                            <span className="flex items-center gap-1.5">
-                                <Cog size={13} className={`text-slate-500 ${showSettings ? 'animate-spin-slow' : ''}`} />
-                                <span>⚙ Question Settings</span>
-                            </span>
-                            <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
-                        </button>
+                        {/* UNIFIED QUESTION FOOTER SECTIONS */}
+                        <div className="border-t border-slate-100 mt-2 bg-white/40 -mx-2.5 -mb-2.5 p-2.5">
+                            {label === 'Short Answer' ? (
+                                <div className="space-y-2">
+                                    {/* Collapsible header row — entire row is clickable */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsFooterExpanded(!isFooterExpanded)}
+                                        title={isFooterExpanded ? "Collapse Footer" : "Expand Footer"}
+                                        className="flex items-center justify-between w-full px-1.5 py-0.5 text-slate-400 select-none hover:bg-slate-100/60 rounded-lg transition-all cursor-pointer group"
+                                    >
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">Short Answer Settings</span>
+                                        <span className="p-1 text-slate-400 group-hover:text-slate-600 transition-colors ml-auto flex items-center justify-center">
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isFooterExpanded ? 'rotate-180' : ''}`} />
+                                        </span>
+                                    </button>
 
-                        {showSettings && (
-                            <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-2">
-                                {/* Toggles row */}
-                                <div className="flex items-center gap-4 text-[11px] font-bold text-slate-600 pb-1 border-b border-slate-100">
-                                    <div className="flex items-center gap-2 select-none">
-                                        <span>Required Question</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={required}
-                                                onChange={(e) => onUpdateField('required', e.target.checked)}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
-                                        </label>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 select-none">
-                                        <span>Enable Question</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={enabled}
-                                                onChange={(e) => onUpdateField('enabled', e.target.checked)}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {/* Settings drawers selector buttons */}
-                                <div className="flex flex-wrap gap-0.5">
-                                    {[
-                                        { key: 'assistive', label: 'Assistive Features', color: 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200' },
-                                        ...(label === 'Video Rec' ? [{ key: 'videoSettings', label: 'Video Settings', color: 'bg-violet-50 text-violet-750 hover:bg-violet-100 border border-violet-200' }] : []),
-                                        { key: 'particulars', label: 'Particular', color: 'bg-amber-50 text-amber-850 hover:bg-amber-100 border border-amber-200' },
-                                        { key: 'logic', label: 'Content Logic', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' },
-                                        { key: 'textLogic', label: 'Text Logic', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200' },
-                                        { key: 'validation', label: 'Validation', color: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200' },
-                                        { key: 'scoring', label: 'Scoring', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200' },
-                                        { key: 'advanced', label: 'Advanced Settings', color: 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200' }
-                                    ].map((tab) => (
-                                        <button
-                                            key={tab.key}
-                                            type="button"
-                                            onClick={() => setActiveFooterTab(activeFooterTab === tab.key ? null : tab.key)}
-                                            className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
-                                                activeFooterTab === tab.key
-                                                    ? 'bg-[#5A5CD6] text-white'
-                                                    : tab.color
-                                            }`}
-                                        >
-                                            {tab.label}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                                               {/* Active Drawer Render */}
-                                {activeFooterTab && (
-                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-[12px] animate-fade-in text-xs">
-                                        
-                                        {/* Video Settings Drawer */}
-                                        {activeFooterTab === 'videoSettings' && (
-                                            <div className="space-y-4">
-                                                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                                                    <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><Video size={12} /> Redesigned Video element Settings</span>
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-3.5 rounded-xl border border-slate-150">
-                                                     {/* 1. Recording Modes */}
-                                                     <div className="space-y-2">
-                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recording Modes</span>
-                                                         <div className="space-y-1.5">
-                                                             {[
-                                                                 { key: 'allowWebcam', label: 'Webcam Only' },
-                                                                 { key: 'allowScreen', label: 'Screen Only' },
-                                                                 { key: 'allowScreenWebcam', label: 'Screen + Webcam' },
-                                                                 { key: 'allowAudioOnly', label: 'Audio Only' },
-                                                                 { key: 'allowUpload', label: 'Upload Existing Video' }
-                                                             ].map(mode => (
-                                                                 <label key={mode.key} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
-                                                                     <input
-                                                                         type="checkbox"
-                                                                         checked={videoSettings[mode.key] !== false}
-                                                                         onChange={(e) => handleUpdateNestedField('videoSettings', mode.key, e.target.checked)}
-                                                                         className="rounded text-purple-605 w-3.5 h-3.5"
-                                                                     />
-                                                                     {mode.label}
-                                                                 </label>
-                                                             ))}
-                                                         </div>
-                                                     </div>
-
-                                                     {/* 2. Video Restrictions */}
-                                                     <div className="space-y-2">
-                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Video Restrictions</span>
-                                                         <div className="space-y-1.5">
-                                                             <div className="flex items-center justify-between gap-2">
-                                                                 <span className="text-xs text-slate-600">Min Duration (sec)</span>
-                                                                 <input
-                                                                     type="number"
-                                                                     value={videoSettings.minDuration || 30}
-                                                                     onChange={(e) => handleUpdateNestedField('videoSettings', 'minDuration', Number(e.target.value))}
-                                                                     className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
-                                                                 />
-                                                             </div>
-                                                             <div className="flex items-center justify-between gap-2">
-                                                                 <span className="text-xs text-slate-600">Max Duration (sec)</span>
-                                                                 <input
-                                                                     type="number"
-                                                                     value={videoSettings.maxDuration || 600}
-                                                                     onChange={(e) => handleUpdateNestedField('videoSettings', 'maxDuration', Number(e.target.value))}
-                                                                     className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
-                                                                 />
-                                                             </div>
-                                                             <div className="flex items-center justify-between gap-2">
-                                                                 <span className="text-xs text-slate-600">Max File Size (MB)</span>
-                                                                 <input
-                                                                     type="number"
-                                                                     value={videoSettings.maxFileSize || 100}
-                                                                     onChange={(e) => handleUpdateNestedField('videoSettings', 'maxFileSize', Number(e.target.value))}
-                                                                     className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
-                                                                 />
-                                                             </div>
-                                                             <div className="flex items-center justify-between gap-2">
-                                                                 <span className="text-xs text-slate-600">Attempts Limit</span>
-                                                                 <input
-                                                                     type="number"
-                                                                     value={videoSettings.recordingAttemptsLimit || 3}
-                                                                     onChange={(e) => handleUpdateNestedField('videoSettings', 'recordingAttemptsLimit', Number(e.target.value))}
-                                                                     className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
-                                                                 />
-                                                             </div>
-                                                         </div>
-                                                     </div>
-
-                                                     {/* 3. Exam Security & AI Options */}
-                                                     <div className="space-y-2">
-                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Exam Security & AI</span>
-                                                         <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
-                                                             {[
-                                                                 { key: 'webcamRequired', label: 'Webcam Required' },
-                                                                 { key: 'microphoneRequired', label: 'Microphone Required' },
-                                                                 { key: 'fullScreenRequired', label: 'Full Screen Required' },
-                                                                 { key: 'tabSwitchingDetection', label: 'Tab Switch Detection' },
-                                                                 { key: 'multipleFaceDetection', label: 'Multiple Face Alert' },
-                                                                 { key: 'faceMissingDetection', label: 'Face Missing Alert' },
-                                                                 { key: 'backgroundNoiseDetection', label: 'Noise Alert' },
-                                                                 { key: 'aiTranscriptEnabled', label: 'AI Transcript Features' },
-                                                                 { key: 'timestampFeedbackEnabled', label: 'Timestamp Feedback' }
-                                                             ].map(item => (
-                                                                 <label key={item.key} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
-                                                                     <input
-                                                                         type="checkbox"
-                                                                         checked={!!videoSettings[item.key]}
-                                                                         onChange={(e) => handleUpdateNestedField('videoSettings', item.key, e.target.checked)}
-                                                                         className="rounded text-purple-605 w-3.5 h-3.5"
-                                                                     />
-                                                                     {item.label}
-                                                                 </label>
-                                                             ))}
-                                                         </div>
-                                                     </div>
-                                                </div>
-                                             </div>
-                                         )}
-
-                                         {/* 1. Assistive Features */}
-                                         {activeFooterTab === 'assistive' && (
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><HelpCircle size={12} /> Assistive Accessibility Features</span>
-                                                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">Future Integration</span>
-                                                </div>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                                                    {Object.keys(assistive).map((key) => {
-                                                        const labelMap = {
-                                                            aiReader: "AI Reader Assist",
-                                                            textToSpeech: "Read Aloud (TTS)",
-                                                            speechToText: "Dictate Answers",
-                                                            translation: "Multi-Language",
-                                                            dyslexiaMode: "Dyslexia Font",
-                                                            accessibility: "Aria High Contrast"
-                                                        };
-                                                        return (
-                                                            <label key={key} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-150 text-[10px] font-bold text-slate-655 cursor-pointer select-none">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={assistive[key]}
-                                                                    onChange={(e) => handleUpdateNestedField('assistive', key, e.target.checked)}
-                                                                    className="rounded text-purple-650 w-3 h-3"
-                                                                />
-                                                                <span>{labelMap[key]}</span>
-                                                            </label>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* 2. Particular Settings */}
-                                        {activeFooterTab === 'particulars' && (
-                                            <div className="space-y-3">
-                                                <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><Sliders size={12} /> Element-Specific Settings</span>
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150">
-                                                    {/* MCQ Particulars */}
-                                                    {(label === 'Multiple Choice' || label === 'Checkboxes' || label === 'Dropdown' || label === 'Matching') && (
-                                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={particulars.shuffleOptions}
-                                                                onChange={(e) => handleUpdateNestedField('particulars', 'shuffleOptions', e.target.checked)}
-                                                                className="rounded text-purple-600 w-4 h-4"
-                                                            />
-                                                            Shuffle Choices list
-                                                        </label>
-                                                    )}
-                                                    
-                                                    {/* Word Limits particulars */}
-                                                    {(label === 'Short Answer' || label === 'Paragraph' || label === 'Voice Rec') && (
-                                                        <>
-                                                            <div className="space-y-1">
-                                                                <span className="text-[10px] font-bold text-slate-505">Maximum Word Limit</span>
-                                                                <input
-                                                                    type="number"
-                                                                    value={particulars.wordLimit}
-                                                                    onChange={(e) => handleUpdateNestedField('particulars', 'wordLimit', e.target.value)}
-                                                                    placeholder="No Limit"
-                                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <span className="text-[10px] font-bold text-slate-505">Character Limit</span>
-                                                                <input
-                                                                    type="number"
-                                                                    value={particulars.charLimit}
-                                                                    onChange={(e) => handleUpdateNestedField('particulars', 'charLimit', e.target.value)}
-                                                                    placeholder="No Limit"
-                                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                                />
-                                                            </div>
-                                                        </>
-                                                    )}
-
-                                                    {/* Upload limit particulars */}
-                                                    {label === 'File Upload' && (
-                                                        <>
-                                                            <div className="space-y-1">
-                                                                <span className="text-[10px] font-bold text-slate-505">Max File Size (MB)</span>
-                                                                <input
-                                                                    type="number"
-                                                                    value={particulars.fileSizeLimit}
-                                                                    onChange={(e) => handleUpdateNestedField('particulars', 'fileSizeLimit', e.target.value)}
-                                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <span className="text-[10px] font-bold text-slate-505">Allowed File Formats</span>
-                                                                <select
-                                                                    value={particulars.fileTypes}
-                                                                    onChange={(e) => handleUpdateNestedField('particulars', 'fileTypes', e.target.value)}
-                                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                                >
-                                                                    <option value="All">All Formats</option>
-                                                                    <option value="Images">Images only (.png, .jpg)</option>
-                                                                    <option value="Documents">PDF & Word only</option>
-                                                                    <option value="Media">Audio & Video only</option>
-                                                                </select>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    
-                                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
+                                    {/* Smooth collapsible container */}
+                                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isFooterExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                                        <div className="space-y-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200 w-full shadow-sm">
+                                                <div className="flex items-center gap-3.5 select-none">
+                                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Enable Text Style</span>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
                                                         <input
                                                             type="checkbox"
-                                                            checked={particulars.multipleAttempts}
-                                                            onChange={(e) => handleUpdateNestedField('particulars', 'multipleAttempts', e.target.checked)}
-                                                            className="rounded text-purple-650 w-4 h-4"
+                                                            checked={!!particulars.enableTextStyle}
+                                                            onChange={(e) => {
+                                                                const checked = e.target.checked;
+                                                                handleUpdateNestedField('particulars', 'enableTextStyle', checked);
+                                                                if (!checked) {
+                                                                    onUpdateText(stripHtml(element.text || ''));
+                                                                }
+                                                            }}
+                                                            className="sr-only peer"
                                                         />
-                                                        Allow Multiple Retakes
-                                                    </div>
+                                                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-650"></div>
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {/* Addons Container Button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveFooterTab(activeFooterTab === 'assistive' ? null : 'assistive')}
+                                                        onDragOver={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                        }}
+                                                        onDrop={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            const addonData = e.dataTransfer.getData('addonType');
+                                                            if (addonData) {
+                                                                const addon = JSON.parse(addonData);
+                                                                const currentAddons = element.addons || [];
+                                                                if (currentAddons.includes(addon.label)) {
+                                                                    toast.error(`${addon.label} is already added!`);
+                                                                } else if (currentAddons.length >= 5) {
+                                                                    toast.error("Maximum of 5 addons allowed!");
+                                                                } else {
+                                                                    onUpdateField('addons', [...currentAddons, addon.label]);
+                                                                    setActiveFooterTab('assistive');
+                                                                    toast.success(`${addon.label} added to Addons Container!`);
+                                                                }
+                                                            }
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'assistive'
+                                                            ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
+                                                            : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 shadow-sm'
+                                                            }`}
+                                                    >
+                                                        <Feather size={12} />
+                                                        <span>Addons</span>
+                                                    </button>
+
+                                                    {/* More Settings Container Button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveFooterTab(activeFooterTab === 'moreSettings' ? null : 'moreSettings')}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'moreSettings'
+                                                            ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
+                                                            : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 shadow-sm'
+                                                            }`}
+                                                    >
+                                                        <Settings size={12} />
+                                                        <span>Controls</span>
+                                                    </button>
+
+                                                    {/* Small style drawer icon (Tt) */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateField('showDescription', !element.showDescription);
+                                                        }}
+                                                        className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-all ${element.showDescription
+                                                            ? 'bg-slate-200 border-slate-300 text-slate-800'
+                                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                            }`}
+                                                        title="Toggle Description Inputs"
+                                                    >
+                                                        <span className="font-semibold text-[11px] leading-none">Tt</span>
+                                                    </button>
+                                                    {/* Copy icon */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={onDuplicate}
+                                                        className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 transition-all w-7 h-7 flex items-center justify-center"
+                                                        title="Duplicate question"
+                                                    >
+                                                        <Copy size={12} />
+                                                    </button>
+
+                                                    {/* Delete icon */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={onDelete}
+                                                        className="p-1.5 rounded-lg border bg-white border-slate-200 text-red-500 hover:bg-red-50 transition-all w-7 h-7 flex items-center justify-center"
+                                                        title="Delete question"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                    {/* Advance Settings button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDraftParticulars(element.particulars || {});
+                                                            setShowAdvanceSettingsModal(true);
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 bg-amber-50 text-amber-850 hover:bg-amber-100 border border-amber-200 shadow-sm`}
+                                                    >
+                                                        <Cog size={12} />
+                                                        <span>Advance</span>
+                                                    </button>
+
+                                                    {/* Logical Settings button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDraftLogicalSettings(element.logicalSettings || {});
+                                                            setShowLogicalSettingsModal(true);
+                                                        }}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 shadow-sm"
+                                                    >
+                                                        <GitBranch size={12} />
+                                                        <span>Logical</span>
+                                                    </button>
+
+                                                    {/* Validation Settings button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDraftValidationSettings(element.validationSettings || {});
+                                                            setShowValidationSettingsModal(true);
+                                                        }}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-sm"
+                                                    >
+                                                        <AlertCircle size={12} />
+                                                        <span>Validation</span>
+                                                    </button>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* 3. Content Logic */}
-                                        {activeFooterTab === 'logic' && (
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><GitBranch size={12} /> Conditional Display & Logic Routing</span>
-                                                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">Future Integration</span>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Show this question IF Question:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={logic.dependsOnQuestion}
-                                                            onChange={(e) => handleUpdateNestedField('logic', 'dependsOnQuestion', e.target.value)}
-                                                            placeholder="E.g., Question 1"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Equals Answer value:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={logic.dependsOnAnswer}
-                                                            onChange={(e) => handleUpdateNestedField('logic', 'dependsOnAnswer', e.target.value)}
-                                                            placeholder="E.g., Yes"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Section routing trigger:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={logic.scoreTrigger}
-                                                            onChange={(e) => handleUpdateNestedField('logic', 'scoreTrigger', e.target.value)}
-                                                            placeholder="E.g., Route to Sec 2 if score > 50%"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                                            {/* Active Drawer Render for Short Answer */}
+                                            {activeFooterTab && (
+                                                <div className="bg-slate-50 border border-slate-200 p-3 rounded-[12px] animate-fade-in text-xs mt-1.5">
+                                                    {activeFooterTab === 'particulars' && (
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-2xl border border-slate-150 p-6 space-y-2 animate-fade-in shadow-inner">
+                                                            <div className="p-2.5 bg-amber-50 text-amber-850 rounded-full">
+                                                                <Sliders size={20} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <span className="text-xs font-black text-slate-800 uppercase tracking-widest block">Particular settings</span>
+                                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-850 rounded text-[9px] font-black uppercase tracking-wider block w-fit mx-auto">Coming Soon</span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-400 max-w-sm">
+                                                                Define special limits, character constraints, default placeholders, and styling models for the student response box.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {activeFooterTab === 'assistive' && renderAddonsWindow()}
+                                                    {activeFooterTab === 'moreSettings' && (() => {
+                                                        const ms = element.moreSettings || {};
+                                                        return (
+                                                            <div className="bg-white rounded-2xl border border-slate-150 p-4 space-y-3 animate-fade-in shadow-inner">
+                                                                {/* Header */}
+                                                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                                    <span className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                                                                        <Settings size={13} className="text-teal-600" /> More Settings
+                                                                    </span>
+                                                                    <button type="button" onClick={() => setActiveFooterTab(null)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-50 rounded transition-all">
+                                                                        <X size={15} />
+                                                                    </button>
+                                                                </div>
 
-                                        {/* 4. Text Logic */}
-                                        {activeFooterTab === 'textLogic' && (
-                                            <div className="space-y-3">
-                                                <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Dynamic Text Placeholder Tokens</span>
-                                                <p className="text-[11px] text-slate-500 leading-normal">
-                                                    Insert placeholders into Title, Description, or Helper Text. Replaced dynamically on exam attempt:
-                                                </p>
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                                                {/* Toggle rows */}
+                                                                <div className="space-y-2.5">
+                                                                    {/* Upload toggle */}
+                                                                    <div className="flex items-center justify-between bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
+                                                                        <div className="space-y-0.5">
+                                                                            <span className="text-xs font-black text-slate-750 flex items-center gap-1.5">
+                                                                                <Paperclip size={12} className="text-teal-600" /> Allow Upload
+                                                                            </span>
+                                                                            <p className="text-[10px] text-slate-400 font-medium">Student can attach a file along with their written answer</p>
+                                                                        </div>
+                                                                        <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!ms.allowUpload}
+                                                                                onChange={(e) => onUpdateField('moreSettings', { ...ms, allowUpload: e.target.checked })}
+                                                                                className="sr-only peer"
+                                                                            />
+                                                                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                        </label>
+                                                                    </div>
+
+                                                                    {/* Audio Answer toggle */}
+                                                                    <div className="flex items-center justify-between bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
+                                                                        <div className="space-y-0.5">
+                                                                            <span className="text-xs font-black text-slate-750 flex items-center gap-1.5">
+                                                                                <Mic size={12} className="text-teal-600" /> Audio Answer
+                                                                            </span>
+                                                                            <p className="text-[10px] text-slate-400 font-medium">Student can record a voice note as their answer</p>
+                                                                        </div>
+                                                                        <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!ms.allowAudioAnswer}
+                                                                                onChange={(e) => onUpdateField('moreSettings', { ...ms, allowAudioAnswer: e.target.checked })}
+                                                                                className="sr-only peer"
+                                                                            />
+                                                                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                    {activeFooterTab === 'logic' && (
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-2xl border border-slate-150 p-6 space-y-2 animate-fade-in shadow-inner">
+                                                            <div className="p-2.5 bg-purple-50 text-purple-650 rounded-full">
+                                                                <GitBranch size={20} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <span className="text-xs font-black text-slate-800 uppercase tracking-widest block">Content logic rules</span>
+                                                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black uppercase tracking-wider block w-fit mx-auto">Coming Soon</span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-400 max-w-sm">
+                                                                Configure conditional rendering, redirect workflows, or route sections dynamically based on previous responses.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {activeFooterTab === 'textLogic' && (
+                                                        <div className="flex flex-col items-center justify-center py-6 text-center bg-white rounded-2xl border border-slate-150 p-6 space-y-2 animate-fade-in shadow-inner">
+                                                            <div className="p-2.5 bg-slate-100 text-slate-800 rounded-full">
+                                                                <GitBranch size={20} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <span className="text-xs font-black text-slate-800 uppercase tracking-widest block">Text logic rules</span>
+                                                                <span className="px-2 py-0.5 bg-slate-200 text-slate-850 rounded text-[9px] font-black uppercase tracking-wider block w-fit mx-auto">Coming Soon</span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-400 max-w-sm">
+                                                                Manage text logic, string matching keywords, custom regex parameters, and prefix-suffix validation controls.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Collapsible settings bar — entire row is clickable */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(!showSettings)}
+                                        title={showSettings ? "Collapse Footer" : "Expand Footer"}
+                                        className="flex items-center justify-between w-full px-1.5 py-0.5 text-slate-400 select-none hover:bg-slate-100/60 rounded-lg transition-all cursor-pointer group"
+                                    >
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">{label} Settings</span>
+                                        <span className="p-1 text-slate-400 group-hover:text-slate-600 transition-colors ml-auto flex items-center justify-center">
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${showSettings ? 'rotate-180' : ''}`} />
+                                        </span>
+                                    </button>
+
+                                    {showSettings && (
+                                        <div className="mt-1.5 space-y-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200 w-full shadow-sm">
+                                                {/* Toggles row */}
+                                                <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-600 select-none">
+                                                    <div className="flex items-center gap-2 select-none">
+                                                        <span>Required Question</span>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={required}
+                                                                onChange={(e) => onUpdateField('required', e.target.checked)}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
+                                                        </label>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 select-none">
+                                                        <span>Enable Question</span>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={enabled}
+                                                                onChange={(e) => onUpdateField('enabled', e.target.checked)}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Buttons row */}
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {/* Toggle Description (Tt) button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateField('showDescription', !element.showDescription);
+                                                        }}
+                                                        className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-all ${element.showDescription
+                                                            ? 'bg-slate-200 border-slate-300 text-slate-800'
+                                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                            }`}
+                                                        title="Toggle Description Inputs"
+                                                    >
+                                                        <span className="font-semibold text-[11px] leading-none">Tt</span>
+                                                    </button>
+                                                    {/* Copy icon */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={onDuplicate}
+                                                        className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-500 hover:bg-slate-50 transition-all w-7 h-7 flex items-center justify-center"
+                                                        title="Duplicate question"
+                                                    >
+                                                        <Copy size={12} />
+                                                    </button>
+
+                                                    {/* Delete icon */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={onDelete}
+                                                        className="p-1.5 rounded-lg border bg-white border-slate-200 text-red-500 hover:bg-red-50 transition-all w-7 h-7 flex items-center justify-center"
+                                                        title="Delete question"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
                                                     {[
-                                                        { token: "{Student Name}", desc: "Student's name" },
-                                                        { token: "{Institute Name}", desc: "Institute name" },
-                                                        { token: "{Course Name}", desc: "Course name" },
-                                                        { token: "{Subject Name}", desc: "Subject name" }
-                                                    ].map((t) => (
+                                                        { key: 'assistive', label: 'Addons Container', color: 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200' },
+                                                        ...(label === 'Video Rec' ? [{ key: 'videoSettings', label: 'Video Settings', color: 'bg-violet-50 text-violet-750 hover:bg-violet-100 border border-violet-200' }] : []),
+                                                        { key: 'particulars', label: 'Advance Settings', color: 'bg-amber-50 text-amber-850 hover:bg-amber-100 border border-amber-200' },
+                                                        { key: 'logic', label: 'Logical Settings', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' },
+                                                        { key: 'validation', label: 'Validation Settings', color: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200' },
+                                                        { key: 'scoring', label: 'Scoring', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200' },
+                                                        { key: 'advanced', label: 'Advanced Settings', color: 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200' }
+                                                    ].map((tab) => (
                                                         <button
-                                                            key={t.token}
+                                                            key={tab.key}
                                                             type="button"
                                                             onClick={() => {
-                                                                const currentText = element.text || '';
-                                                                onUpdateText(currentText + (currentText ? ' ' : '') + t.token);
-                                                                toast.success(`Inserted ${t.token}!`);
+                                                                if (tab.key === 'particulars') {
+                                                                    setDraftParticulars(element.particulars || {});
+                                                                    setShowAdvanceSettingsModal(true);
+                                                                } else if (tab.key === 'logic') {
+                                                                    setDraftLogicalSettings(element.logicalSettings || {});
+                                                                    setShowLogicalSettingsModal(true);
+                                                                } else if (tab.key === 'validation') {
+                                                                    setDraftValidationSettings(element.validationSettings || {});
+                                                                    setShowValidationSettingsModal(true);
+                                                                } else {
+                                                                    setActiveFooterTab(activeFooterTab === tab.key ? null : tab.key);
+                                                                }
                                                             }}
-                                                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] hover:border-purple-300 hover:text-purple-700 transition-all font-mono font-bold flex flex-col items-start"
+                                                            onDragOver={(e) => {
+                                                                if (tab.key === 'assistive') {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                }
+                                                            }}
+                                                            onDrop={(e) => {
+                                                                if (tab.key === 'assistive') {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    const addonData = e.dataTransfer.getData('addonType');
+                                                                    if (addonData) {
+                                                                        const addon = JSON.parse(addonData);
+                                                                        const currentAddons = element.addons || [];
+                                                                        if (currentAddons.includes(addon.label)) {
+                                                                            toast.error(`${addon.label} is already added!`);
+                                                                        } else if (currentAddons.length >= 5) {
+                                                                            toast.error("Maximum of 5 addons allowed!");
+                                                                        } else {
+                                                                            onUpdateField('addons', [...currentAddons, addon.label]);
+                                                                            setActiveFooterTab('assistive');
+                                                                            toast.success(`${addon.label} added to Addons Container!`);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === tab.key
+                                                                ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
+                                                                : `${tab.color} shadow-sm`
+                                                                }`}
                                                         >
-                                                            <span>{t.token}</span>
-                                                            <span className="text-[8px] text-slate-400 font-normal mt-0.5">{t.desc}</span>
+                                                            {tab.key === 'assistive' && <Feather size={12} />}
+                                                            {tab.label}
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
 
-                                        {/* 5. Validation panel */}
-                                        {activeFooterTab === 'validation' && (
-                                            <div className="space-y-3">
-                                                <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Answer Validation Rules</span>
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Min Length</span>
-                                                        <input
-                                                            type="number"
-                                                            value={validation.minLength}
-                                                            onChange={(e) => handleUpdateNestedField('validation', 'minLength', e.target.value)}
-                                                            placeholder="None"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Max Length</span>
-                                                        <input
-                                                            type="number"
-                                                            value={validation.maxLength}
-                                                            onChange={(e) => handleUpdateNestedField('validation', 'maxLength', e.target.value)}
-                                                            placeholder="None"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Format Constraints (Regex)</span>
-                                                        <input
-                                                            type="text"
-                                                            value={validation.regex}
-                                                            onChange={(e) => handleUpdateNestedField('validation', 'regex', e.target.value)}
-                                                            placeholder="E.g., ^[A-Z]{3}\d{3}$"
-                                                            className="w-full text-xs font-mono bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-655 pt-1">
-                                                    {['numericOnly', 'emailOnly', 'urlOnly'].map((key) => {
-                                                        const map = {
-                                                            numericOnly: "Numeric Digits only",
-                                                            emailOnly: "Valid Email structure",
-                                                            urlOnly: "Web Address URL structure"
-                                                        };
-                                                        return (
-                                                            <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={validation[key]}
-                                                                    onChange={(e) => handleUpdateNestedField('validation', key, e.target.checked)}
-                                                                    className="rounded text-purple-600 w-4 h-4"
-                                                                />
-                                                                <span>{map[key]}</span>
-                                                            </label>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
+                        {/* Active Drawer Render */}
+                        {activeFooterTab && label !== 'Short Answer' && (
+                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-[12px] animate-fade-in text-xs">
 
-                                        {/* 6. Scoring panel */}
-                                        {activeFooterTab === 'scoring' && (
-                                            <div className="space-y-3">
-                                                <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Scoring Profile & Grading Scheme</span>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Marks / Weight Points</span>
-                                                        <input
-                                                            type="number"
-                                                            value={marks}
-                                                            onChange={(e) => onUpdateField('marks', Number(e.target.value))}
-                                                            className="w-full text-xs font-bold bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Negative Marking Points</span>
-                                                        <input
-                                                            type="number"
-                                                            value={negativeMarks}
-                                                            onChange={(e) => onUpdateField('negativeMarks', Number(e.target.value))}
-                                                            className="w-full text-xs font-bold bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1 md:col-span-2 flex flex-col justify-end pb-2">
-                                                        <label className="flex items-center gap-2 cursor-pointer select-none font-bold text-slate-655">
+                                {/* Video Settings Drawer */}
+                                {activeFooterTab === 'videoSettings' && (
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                                            <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><Video size={12} /> Redesigned Video element Settings</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-3.5 rounded-xl border border-slate-150">
+                                            {/* 1. Recording Modes */}
+                                            <div className="space-y-2">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recording Modes</span>
+                                                <div className="space-y-1.5">
+                                                    {[
+                                                        { key: 'allowWebcam', label: 'Webcam Only' },
+                                                        { key: 'allowScreen', label: 'Screen Only' },
+                                                        { key: 'allowScreenWebcam', label: 'Screen + Webcam' },
+                                                        { key: 'allowAudioOnly', label: 'Audio Only' },
+                                                        { key: 'allowUpload', label: 'Upload Existing Video' }
+                                                    ].map(mode => (
+                                                        <label key={mode.key} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
                                                             <input
                                                                 type="checkbox"
-                                                                checked={partialMarks}
-                                                                onChange={(e) => onUpdateField('partialMarks', e.target.checked)}
-                                                                className="rounded text-purple-600 w-4 h-4"
+                                                                checked={videoSettings[mode.key] !== false}
+                                                                onChange={(e) => handleUpdateNestedField('videoSettings', mode.key, e.target.checked)}
+                                                                className="rounded text-purple-605 w-3.5 h-3.5"
                                                             />
-                                                            <span>Enable Partial Credit scoring</span>
+                                                            {mode.label}
                                                         </label>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-550">Evaluation Mode</span>
-                                                        <select
-                                                            value={evaluationMode}
-                                                            onChange={(e) => onUpdateField('evaluationMode', e.target.value)}
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5 font-bold text-slate-700"
-                                                        >
-                                                            <option value="auto">Auto Grading</option>
-                                                            <option value="manual">Teacher Review</option>
-                                                        </select>
-                                                    </div>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* 7. Advanced panel */}
-                                        {activeFooterTab === 'advanced' && (
-                                            <div className="space-y-3">
-                                                <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Advanced Taxonomy & Classifications</span>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Taxonomy tags</span>
+                                            {/* 2. Video Restrictions */}
+                                            <div className="space-y-2">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Video Restrictions</span>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-xs text-slate-600">Min Duration (sec)</span>
                                                         <input
-                                                            type="text"
-                                                            value={advanced.tags}
-                                                            onChange={(e) => handleUpdateNestedField('advanced', 'tags', e.target.value)}
-                                                            placeholder="E.g., CSS3, flexbox"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            type="number"
+                                                            value={videoSettings.minDuration || 30}
+                                                            onChange={(e) => handleUpdateNestedField('videoSettings', 'minDuration', Number(e.target.value))}
+                                                            className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
                                                         />
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Difficulty Level</span>
-                                                        <select
-                                                            value={advanced.difficulty}
-                                                            onChange={(e) => handleUpdateNestedField('advanced', 'difficulty', e.target.value)}
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        >
-                                                            <option value="Easy">Easy</option>
-                                                            <option value="Medium">Medium</option>
-                                                            <option value="Hard">Hard</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Bloom Taxonomy</span>
-                                                        <select
-                                                            value={advanced.bloomTaxonomy}
-                                                            onChange={(e) => handleUpdateNestedField('advanced', 'bloomTaxonomy', e.target.value)}
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
-                                                        >
-                                                            <option value="Remembering">Remembering (Recall info)</option>
-                                                            <option value="Understanding">Understanding (Explain ideas)</option>
-                                                            <option value="Applying">Applying (Use information)</option>
-                                                            <option value="Analyzing">Analyzing (Draw connections)</option>
-                                                            <option value="Evaluating">Evaluating (Justify stance)</option>
-                                                            <option value="Creating">Creating (Produce new work)</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Learning Outcome Code</span>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-xs text-slate-600">Max Duration (sec)</span>
                                                         <input
-                                                            type="text"
-                                                            value={element.learningOutcome || ''}
-                                                            onChange={(e) => onUpdateField('learningOutcome', e.target.value)}
-                                                            placeholder="E.g., LO-CS101"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            type="number"
+                                                            value={videoSettings.maxDuration || 600}
+                                                            onChange={(e) => handleUpdateNestedField('videoSettings', 'maxDuration', Number(e.target.value))}
+                                                            className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
                                                         />
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Subject Mapping</span>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-xs text-slate-600">Max File Size (MB)</span>
                                                         <input
-                                                            type="text"
-                                                            value={element.subjectMapping || ''}
-                                                            onChange={(e) => onUpdateField('subjectMapping', e.target.value)}
-                                                            placeholder="E.g., Computer Science"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            type="number"
+                                                            value={videoSettings.maxFileSize || 100}
+                                                            onChange={(e) => handleUpdateNestedField('videoSettings', 'maxFileSize', Number(e.target.value))}
+                                                            className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
                                                         />
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <span className="text-[10px] font-bold text-slate-505">Topic Mapping</span>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-xs text-slate-600">Attempts Limit</span>
                                                         <input
-                                                            type="text"
-                                                            value={element.topicMapping || ''}
-                                                            onChange={(e) => onUpdateField('topicMapping', e.target.value)}
-                                                            placeholder="E.g., React Hooks"
-                                                            className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            type="number"
+                                                            value={videoSettings.recordingAttemptsLimit || 3}
+                                                            onChange={(e) => handleUpdateNestedField('videoSettings', 'recordingAttemptsLimit', Number(e.target.value))}
+                                                            className="w-16 text-center text-xs bg-slate-50 border border-slate-200 rounded p-1"
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
 
+                                            {/* 3. Exam Security & AI Options */}
+                                            <div className="space-y-2">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Exam Security & AI</span>
+                                                <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                                                    {[
+                                                        { key: 'webcamRequired', label: 'Webcam Required' },
+                                                        { key: 'microphoneRequired', label: 'Microphone Required' },
+                                                        { key: 'fullScreenRequired', label: 'Full Screen Required' },
+                                                        { key: 'tabSwitchingDetection', label: 'Tab Switch Detection' },
+                                                        { key: 'multipleFaceDetection', label: 'Multiple Face Alert' },
+                                                        { key: 'faceMissingDetection', label: 'Face Missing Alert' },
+                                                        { key: 'backgroundNoiseDetection', label: 'Noise Alert' },
+                                                        { key: 'aiTranscriptEnabled', label: 'AI Transcript Features' },
+                                                        { key: 'timestampFeedbackEnabled', label: 'Timestamp Feedback' }
+                                                    ].map(item => (
+                                                        <label key={item.key} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={!!videoSettings[item.key]}
+                                                                onChange={(e) => handleUpdateNestedField('videoSettings', item.key, e.target.checked)}
+                                                                className="rounded text-purple-605 w-3.5 h-3.5"
+                                                            />
+                                                            {item.label}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
+
+                                {/* 1. Assistive Features */}
+                                {activeFooterTab === 'assistive' && renderAddonsWindow()}
+
+                                {/* 2. Particular Settings */}
+                                {activeFooterTab === 'particulars' && (
+                                    <div className="space-y-3">
+                                        <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><Sliders size={12} /> Element-Specific Settings</span>
+                                        {label === 'Short Answer' ? (
+                                            <div className="space-y-4">
+                                                {/* Section 1: Short Answer Settings */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-150 space-y-3">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Short Answer Configuration</span>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                                        <div className="flex items-center gap-2 select-none pt-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`req-sh-${index}`}
+                                                                checked={required}
+                                                                onChange={(e) => onUpdateField('required', e.target.checked)}
+                                                                className="rounded text-purple-600 w-4 h-4"
+                                                            />
+                                                            <label htmlFor={`req-sh-${index}`} className="font-semibold text-slate-700">Required Field</label>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 select-none pt-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`single-line-${index}`}
+                                                                checked={!!particulars.singleLineMode}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'singleLineMode', e.target.checked)}
+                                                                className="rounded text-purple-600 w-4 h-4"
+                                                            />
+                                                            <label htmlFor={`single-line-${index}`} className="font-semibold text-slate-700">Single Line Mode</label>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Min Characters</label>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.minChars || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'minChars', e.target.value)}
+                                                                placeholder="No Min"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Max Characters</label>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.maxChars || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'maxChars', e.target.value)}
+                                                                placeholder="No Max"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Min Words</label>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.minWords || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'minWords', e.target.value)}
+                                                                placeholder="No Min"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Max Words</label>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.maxWords || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'maxWords', e.target.value)}
+                                                                placeholder="No Max"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Placeholder Text</label>
+                                                            <input
+                                                                type="text"
+                                                                value={particulars.placeholderText || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'placeholderText', e.target.value)}
+                                                                placeholder="Your Answer"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Default Value</label>
+                                                            <input
+                                                                type="text"
+                                                                value={particulars.defaultValue || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'defaultValue', e.target.value)}
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Input Width</label>
+                                                            <input
+                                                                type="text"
+                                                                value={particulars.inputWidth || '100%'}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'inputWidth', e.target.value)}
+                                                                placeholder="100% or 50%"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500">Validation Rules</label>
+                                                            <select
+                                                                value={particulars.validationRules || 'none'}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'validationRules', e.target.value)}
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            >
+                                                                <option value="none">No Validation</option>
+                                                                <option value="regex">Regex pattern</option>
+                                                                <option value="keywords">Keywords list</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Section 2: Answer Type Settings */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-150 space-y-2">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Answer Mode Settings</span>
+                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-xs">
+                                                        <label className="font-semibold text-slate-600 shrink-0">Answer Type:</label>
+                                                        <select
+                                                            value={particulars.answerMode || 'Text + Upload + Audio'}
+                                                            onChange={(e) => handleUpdateNestedField('particulars', 'answerMode', e.target.value)}
+                                                            className="border rounded p-1.5 bg-slate-50 font-bold text-purple-700 outline-none"
+                                                        >
+                                                            <option value="Text Only">Text Only</option>
+                                                            <option value="Text + Upload">Text + Upload</option>
+                                                            <option value="Text + Audio">Text + Audio</option>
+                                                            <option value="Text + Upload + Audio">Text + Upload + Audio</option>
+                                                            <option value="Upload Only">Upload Only</option>
+                                                            <option value="Audio Only">Audio Only</option>
+                                                        </select>
+                                                        <span className="text-[11px] text-slate-450 italic">Determines which input fields and action buttons are visible to the student.</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Section 3: Question Particular Panel (Metadata, Tags, Difficulty, Scoring) */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-150 space-y-3">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Question Metadata & Particular Panel</span>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Question Metadata</span>
+                                                            <input
+                                                                type="text"
+                                                                value={particulars.metadata || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'metadata', e.target.value)}
+                                                                placeholder="Category, Chapter, Standard etc."
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Question Tags</span>
+                                                            <input
+                                                                type="text"
+                                                                value={particulars.tags || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'tags', e.target.value)}
+                                                                placeholder="comma-separated-tags"
+                                                                className="w-full border rounded p-1.5 bg-slate-55"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Difficulty Level</span>
+                                                            <select
+                                                                value={particulars.difficulty || 'Medium'}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'difficulty', e.target.value)}
+                                                                className="w-full border rounded p-1.5 bg-slate-55 font-bold"
+                                                            >
+                                                                <option value="Easy">Easy</option>
+                                                                <option value="Medium">Medium</option>
+                                                                <option value="Hard">Hard</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Scoring Model</span>
+                                                            <select
+                                                                value={particulars.scoring || 'manual'}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'scoring', e.target.value)}
+                                                                className="w-full border rounded p-1.5 bg-slate-55 font-bold"
+                                                            >
+                                                                <option value="auto">Auto Evaluation</option>
+                                                                <option value="manual">Teacher Review (Manual)</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Marks Weight</span>
+                                                            <input
+                                                                type="number"
+                                                                value={marks}
+                                                                onChange={(e) => onUpdateField('marks', Number(e.target.value))}
+                                                                className="w-full border rounded p-1.5 bg-slate-55 font-extrabold"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Negative Marks</span>
+                                                            <input
+                                                                type="number"
+                                                                value={negativeMarks}
+                                                                onChange={(e) => onUpdateField('negativeMarks', Number(e.target.value))}
+                                                                className="w-full border rounded p-1.5 bg-slate-55 font-extrabold"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1 sm:col-span-3">
+                                                            <span className="text-[10px] font-bold text-slate-550 block">Custom Settings JSON Placeholder</span>
+                                                            <textarea
+                                                                value={particulars.customSettings || ''}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'customSettings', e.target.value)}
+                                                                placeholder='{"allowCopyPaste": false, "scoringRubric": "Keyword matching"}'
+                                                                rows={2}
+                                                                className="w-full border rounded p-1.5 bg-slate-55 font-mono text-[10px]"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150">
+                                                {/* MCQ Particulars */}
+                                                {(label === 'Multiple Choice' || label === 'Checkboxes' || label === 'Dropdown' || label === 'Matching') && (
+                                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={particulars.shuffleOptions}
+                                                            onChange={(e) => handleUpdateNestedField('particulars', 'shuffleOptions', e.target.checked)}
+                                                            className="rounded text-purple-600 w-4 h-4"
+                                                        />
+                                                        Shuffle Choices list
+                                                    </label>
+                                                )}
+
+                                                {/* Word Limits particulars */}
+                                                {(label === 'Paragraph' || label === 'Voice Rec') && (
+                                                    <>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Maximum Word Limit</span>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.wordLimit}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'wordLimit', e.target.value)}
+                                                                placeholder="No Limit"
+                                                                className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Character Limit</span>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.charLimit}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'charLimit', e.target.value)}
+                                                                placeholder="No Limit"
+                                                                className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* Upload limit particulars */}
+                                                {label === 'File Upload' && (
+                                                    <>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Max File Size (MB)</span>
+                                                            <input
+                                                                type="number"
+                                                                value={particulars.fileSizeLimit}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'fileSizeLimit', e.target.value)}
+                                                                className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="text-[10px] font-bold text-slate-505">Allowed File Formats</span>
+                                                            <select
+                                                                value={particulars.fileTypes}
+                                                                onChange={(e) => handleUpdateNestedField('particulars', 'fileTypes', e.target.value)}
+                                                                className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                            >
+                                                                <option value="All">All Formats</option>
+                                                                <option value="Images">Images only (.png, .jpg)</option>
+                                                                <option value="Documents">PDF & Word only</option>
+                                                                <option value="Media">Audio & Video only</option>
+                                                            </select>
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                <div className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={particulars.multipleAttempts}
+                                                        onChange={(e) => handleUpdateNestedField('particulars', 'multipleAttempts', e.target.checked)}
+                                                        className="rounded text-purple-655 w-4 h-4"
+                                                    />
+                                                    Allow Multiple Retakes
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 3. Content Logic */}
+                                {activeFooterTab === 'logic' && (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest flex items-center gap-1"><GitBranch size={12} /> Conditional Display & Logic Routing</span>
+                                            <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">Future Integration</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Show this question IF Question:</span>
+                                                <input
+                                                    type="text"
+                                                    value={logic.dependsOnQuestion}
+                                                    onChange={(e) => handleUpdateNestedField('logic', 'dependsOnQuestion', e.target.value)}
+                                                    placeholder="E.g., Question 1"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Equals Answer value:</span>
+                                                <input
+                                                    type="text"
+                                                    value={logic.dependsOnAnswer}
+                                                    onChange={(e) => handleUpdateNestedField('logic', 'dependsOnAnswer', e.target.value)}
+                                                    placeholder="E.g., Yes"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Section routing trigger:</span>
+                                                <input
+                                                    type="text"
+                                                    value={logic.scoreTrigger}
+                                                    onChange={(e) => handleUpdateNestedField('logic', 'scoreTrigger', e.target.value)}
+                                                    placeholder="E.g., Route to Sec 2 if score > 50%"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 4. Text Logic */}
+                                {activeFooterTab === 'textLogic' && (
+                                    <div className="space-y-3">
+                                        <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Dynamic Text Placeholder Tokens</span>
+                                        <p className="text-[11px] text-slate-500 leading-normal">
+                                            Insert placeholders into Title, Description, or Helper Text. Replaced dynamically on exam attempt:
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {[
+                                                { token: "{Student Name}", desc: "Student's name" },
+                                                { token: "{Institute Name}", desc: "Institute name" },
+                                                { token: "{Course Name}", desc: "Course name" },
+                                                { token: "{Subject Name}", desc: "Subject name" }
+                                            ].map((t) => (
+                                                <button
+                                                    key={t.token}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentText = element.text || '';
+                                                        onUpdateText(currentText + (currentText ? ' ' : '') + t.token);
+                                                        toast.success(`Inserted ${t.token}!`);
+                                                    }}
+                                                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] hover:border-purple-300 hover:text-purple-700 transition-all font-mono font-bold flex flex-col items-start"
+                                                >
+                                                    <span>{t.token}</span>
+                                                    <span className="text-[8px] text-slate-400 font-normal mt-0.5">{t.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 5. Validation panel */}
+                                {activeFooterTab === 'validation' && (
+                                    <div className="space-y-3">
+                                        <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Answer Validation Rules</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Min Length</span>
+                                                <input
+                                                    type="number"
+                                                    value={validation.minLength}
+                                                    onChange={(e) => handleUpdateNestedField('validation', 'minLength', e.target.value)}
+                                                    placeholder="None"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Max Length</span>
+                                                <input
+                                                    type="number"
+                                                    value={validation.maxLength}
+                                                    onChange={(e) => handleUpdateNestedField('validation', 'maxLength', e.target.value)}
+                                                    placeholder="None"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Format Constraints (Regex)</span>
+                                                <input
+                                                    type="text"
+                                                    value={validation.regex}
+                                                    onChange={(e) => handleUpdateNestedField('validation', 'regex', e.target.value)}
+                                                    placeholder="E.g., ^[A-Z]{3}\d{3}$"
+                                                    className="w-full text-xs font-mono bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-655 pt-1">
+                                            {['numericOnly', 'emailOnly', 'urlOnly'].map((key) => {
+                                                const map = {
+                                                    numericOnly: "Numeric Digits only",
+                                                    emailOnly: "Valid Email structure",
+                                                    urlOnly: "Web Address URL structure"
+                                                };
+                                                return (
+                                                    <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={validation[key]}
+                                                            onChange={(e) => handleUpdateNestedField('validation', key, e.target.checked)}
+                                                            className="rounded text-purple-600 w-4 h-4"
+                                                        />
+                                                        <span>{map[key]}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 6. Scoring panel */}
+                                {activeFooterTab === 'scoring' && (
+                                    <div className="space-y-3">
+                                        <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Scoring Profile & Grading Scheme</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Marks / Weight Points</span>
+                                                <input
+                                                    type="number"
+                                                    value={marks}
+                                                    onChange={(e) => onUpdateField('marks', Number(e.target.value))}
+                                                    className="w-full text-xs font-bold bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Negative Marking Points</span>
+                                                <input
+                                                    type="number"
+                                                    value={negativeMarks}
+                                                    onChange={(e) => onUpdateField('negativeMarks', Number(e.target.value))}
+                                                    className="w-full text-xs font-bold bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1 md:col-span-2 flex flex-col justify-end pb-2">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none font-bold text-slate-655">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={partialMarks}
+                                                        onChange={(e) => onUpdateField('partialMarks', e.target.checked)}
+                                                        className="rounded text-purple-600 w-4 h-4"
+                                                    />
+                                                    <span>Enable Partial Credit scoring</span>
+                                                </label>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-550">Evaluation Mode</span>
+                                                <select
+                                                    value={evaluationMode}
+                                                    onChange={(e) => onUpdateField('evaluationMode', e.target.value)}
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5 font-bold text-slate-700"
+                                                >
+                                                    <option value="auto">Auto Grading</option>
+                                                    <option value="manual">Teacher Review</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 7. Advanced panel */}
+                                {activeFooterTab === 'advanced' && (
+                                    <div className="space-y-3">
+                                        <span className="text-[10px] font-black text-purple-750 uppercase tracking-widest block">Advanced Taxonomy & Classifications</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-150 text-xs">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Taxonomy tags</span>
+                                                <input
+                                                    type="text"
+                                                    value={advanced.tags}
+                                                    onChange={(e) => handleUpdateNestedField('advanced', 'tags', e.target.value)}
+                                                    placeholder="E.g., CSS3, flexbox"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Difficulty Level</span>
+                                                <select
+                                                    value={advanced.difficulty}
+                                                    onChange={(e) => handleUpdateNestedField('advanced', 'difficulty', e.target.value)}
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                >
+                                                    <option value="Easy">Easy</option>
+                                                    <option value="Medium">Medium</option>
+                                                    <option value="Hard">Hard</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Bloom Taxonomy</span>
+                                                <select
+                                                    value={advanced.bloomTaxonomy}
+                                                    onChange={(e) => handleUpdateNestedField('advanced', 'bloomTaxonomy', e.target.value)}
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                >
+                                                    <option value="Remembering">Remembering (Recall info)</option>
+                                                    <option value="Understanding">Understanding (Explain ideas)</option>
+                                                    <option value="Applying">Applying (Use information)</option>
+                                                    <option value="Analyzing">Analyzing (Draw connections)</option>
+                                                    <option value="Evaluating">Evaluating (Justify stance)</option>
+                                                    <option value="Creating">Creating (Produce new work)</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Learning Outcome Code</span>
+                                                <input
+                                                    type="text"
+                                                    value={element.learningOutcome || ''}
+                                                    onChange={(e) => onUpdateField('learningOutcome', e.target.value)}
+                                                    placeholder="E.g., LO-CS101"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Subject Mapping</span>
+                                                <input
+                                                    type="text"
+                                                    value={element.subjectMapping || ''}
+                                                    onChange={(e) => onUpdateField('subjectMapping', e.target.value)}
+                                                    placeholder="E.g., Computer Science"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-505">Topic Mapping</span>
+                                                <input
+                                                    type="text"
+                                                    value={element.topicMapping || ''}
+                                                    onChange={(e) => onUpdateField('topicMapping', e.target.value)}
+                                                    placeholder="E.g., React Hooks"
+                                                    className="w-full text-xs bg-slate-55 border border-slate-150 rounded-lg p-1.5"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                             </div>
                         )}
-                    </div>  </div>
+                    </div>
+
+                </div>
+
+            )
+
+            /* Short Answer Modal Overlays */}
+            {showAdvanceSettingsModal && (() => {
+                const ToggleSwitch = ({ checked, onChange }) => {
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => onChange(!checked)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${checked ? 'bg-[#5A5CD6]' : 'bg-slate-200'
+                                }`}
+                        >
+                            <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                            />
+                        </button>
+                    );
+                };
+                return (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-2">
+                        <div className="bg-white rounded-2xl max-w-[360px] w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white">
+                                <h3 className="text-sm font-extrabold text-slate-800 text-center w-full relative">
+                                    Advance Settings
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAdvanceSettingsModal(false)}
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </h3>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="px-5 py-3.5 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar select-none text-left">
+                                {/* 1. Time limit per question */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Time limit per question</span>
+                                    <input
+                                        type="number"
+                                        placeholder="Seconds"
+                                        value={draftParticulars.timeLimit || ''}
+                                        onChange={(e) => setDraftParticulars({ ...draftParticulars, timeLimit: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-24 text-right outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+
+                                {/* 2. Auto-save answer */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Auto-save answer</span>
+                                    <ToggleSwitch
+                                        checked={!!draftParticulars.autoSave}
+                                        onChange={(val) => setDraftParticulars({ ...draftParticulars, autoSave: val })}
+                                    />
+                                </div>
+
+                                {/* 3. Allow answer editing after submit */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Allow answer editing after submit</span>
+                                    <ToggleSwitch
+                                        checked={!!draftParticulars.allowEditing}
+                                        onChange={(val) => setDraftParticulars({ ...draftParticulars, allowEditing: val })}
+                                    />
+                                </div>
+
+                                {/* 4. Enable draft mode */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Enable draft mode</span>
+                                    <ToggleSwitch
+                                        checked={!!draftParticulars.enableDraftMode}
+                                        onChange={(val) => setDraftParticulars({ ...draftParticulars, enableDraftMode: val })}
+                                    />
+                                </div>
+
+                                {/* 5. Show word counter to student */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Show word counter to student</span>
+                                    <ToggleSwitch
+                                        checked={draftParticulars.showWordCounter !== false}
+                                        onChange={(val) => setDraftParticulars({ ...draftParticulars, showWordCounter: val })}
+                                    />
+                                </div>
+
+                                {/* 6. Rich text editor enable */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Rich text editor enable</span>
+                                    <ToggleSwitch
+                                        checked={!!draftParticulars.richTextEditor}
+                                        onChange={(val) => setDraftParticulars({ ...draftParticulars, richTextEditor: val })}
+                                    />
+                                </div>
+
+                                {/* 7. Answer language restriction */}
+                                <div className="flex items-center justify-between py-1">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Answer language restriction</span>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. English"
+                                        value={draftParticulars.languageRestriction || ''}
+                                        onChange={(e) => setDraftParticulars({ ...draftParticulars, languageRestriction: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-28 outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-2 px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdvanceSettingsModal(false)}
+                                    className="px-4 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg transition-all font-semibold text-[11px]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onUpdateField('particulars', draftParticulars);
+                                        setShowAdvanceSettingsModal(false);
+                                        toast.success('Advance settings saved!');
+                                    }}
+                                    className="px-4 py-1.5 bg-[#5A5CD6] hover:bg-[#494bb8] text-white rounded-lg shadow-sm transition-all font-semibold text-[11px]"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {showLogicalSettingsModal && (() => {
+                const ToggleSwitch = ({ checked, onChange }) => {
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => onChange(!checked)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${checked ? 'bg-[#5A5CD6]' : 'bg-slate-200'
+                                }`}
+                        >
+                            <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                            />
+                        </button>
+                    );
+                };
+                return (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-2">
+                        <div className="bg-white rounded-2xl max-w-[380px] w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white">
+                                <h3 className="text-sm font-extrabold text-slate-800 text-center w-full relative">
+                                    Logical Settings
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLogicalSettingsModal(false)}
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </h3>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="px-5 py-3.5 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar select-none text-left">
+                                {/* 1. Topic relevance check */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Topic relevance check</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.topicRelevance}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, topicRelevance: val })}
+                                    />
+                                </div>
+
+                                {/* 2. Logical flow required (Intro–Body–Conclusion) */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Logical flow required (Intro–Body–Conclusion)</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.logicalFlow}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, logicalFlow: val })}
+                                    />
+                                </div>
+
+                                {/* 3. Mandatory key points coverage */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Mandatory key points coverage</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Comma separated key"
+                                        value={draftLogicalSettings.mandatoryKeyPoints || ''}
+                                        onChange={(e) => setDraftLogicalSettings({ ...draftLogicalSettings, mandatoryKeyPoints: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-32 outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+
+                                {/* 4. Repeated content detection */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Repeated content detection</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.repeatedContent}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, repeatedContent: val })}
+                                    />
+                                </div>
+
+                                {/* 5. Contradictory statement detection */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Contradictory statement detection</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.contradictoryStatement}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, contradictoryStatement: val })}
+                                    />
+                                </div>
+
+                                {/* 6. Off-topic answer flag */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Off-topic answer flag</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.offTopicFlag}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, offTopicFlag: val })}
+                                    />
+                                </div>
+
+                                {/* 7. AI-based answer quality scoring */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">AI-based answer quality scoring</span>
+                                    <ToggleSwitch
+                                        checked={!!draftLogicalSettings.aiQualityScoring}
+                                        onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, aiQualityScoring: val })}
+                                    />
+                                </div>
+
+                                {/* 8. Depth of explanation level */}
+                                <div className="flex items-center justify-between py-1">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Depth of explanation level</span>
+                                    <select
+                                        value={draftLogicalSettings.depthExplanation || 'Low'}
+                                        onChange={(e) => setDraftLogicalSettings({ ...draftLogicalSettings, depthExplanation: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-28 bg-white outline-none focus:border-[#5A5CD6] transition-all"
+                                    >
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-2 px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLogicalSettingsModal(false)}
+                                    className="px-4 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg transition-all font-semibold text-[11px]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onUpdateField('logicalSettings', draftLogicalSettings);
+                                        setShowLogicalSettingsModal(false);
+                                        toast.success('Logical settings saved!');
+                                    }}
+                                    className="px-4 py-1.5 bg-[#5A5CD6] hover:bg-[#494bb8] text-white rounded-lg shadow-sm transition-all font-semibold text-[11px]"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {showValidationSettingsModal && (() => {
+                const ToggleSwitch = ({ checked, onChange }) => {
+                    return (
+                        <button
+                            type="button; "
+                            onClick={() => onChange(!checked)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${checked ? 'bg-[#5A5CD6]' : 'bg-slate-200'
+                                }`}
+                        >
+                            <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                            />
+                        </button>
+                    );
+                };
+                return (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-2">
+                        <div className="bg-white rounded-2xl max-w-[380px] w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white">
+                                <h3 className="text-sm font-extrabold text-slate-800 text-center w-full relative">
+                                    Validation Settings
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowValidationSettingsModal(false)}
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </h3>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="px-5 py-3.5 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar select-none text-left">
+                                {/* 1. Answer cannot be empty */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Answer cannot be empty</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.answerNotEmpty}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, answerNotEmpty: val })}
+                                    />
+                                </div>
+
+                                {/* 2. Minimum words required */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Minimum words required</span>
+                                    <input
+                                        type="number"
+                                        placeholder="None"
+                                        value={draftValidationSettings.minWords || ''}
+                                        onChange={(e) => setDraftValidationSettings({ ...draftValidationSettings, minWords: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-28 outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+
+                                {/* 3. Maximum words allowed */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Maximum words allowed</span>
+                                    <input
+                                        type="number"
+                                        placeholder="None"
+                                        value={draftValidationSettings.maxWords || ''}
+                                        onChange={(e) => setDraftValidationSettings({ ...draftValidationSettings, maxWords: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-28 outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+
+                                {/* 4. Special characters allowed */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Special characters allowed</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.specialChars}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, specialChars: val })}
+                                    />
+                                </div>
+
+                                {/* 5. Numeric values allowed */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Numeric values allowed</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.numericValues}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, numericValues: val })}
+                                    />
+                                </div>
+
+                                {/* 6. Plagiarism check */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Plagiarism check</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.plagiarismCheck}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, plagiarismCheck: val })}
+                                    />
+                                </div>
+
+                                {/* 7. Keyword presence required */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Keyword presence required</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Comma separated key"
+                                        value={draftValidationSettings.keywordPresence || ''}
+                                        onChange={(e) => setDraftValidationSettings({ ...draftValidationSettings, keywordPresence: e.target.value })}
+                                        className="border border-slate-200 rounded-lg px-2 py-1 text-[11px] w-32 outline-none focus:border-[#5A5CD6] transition-all"
+                                    />
+                                </div>
+
+                                {/* 8. Answer length warning before submit */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Answer length warning before submit</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.lengthWarning}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, lengthWarning: val })}
+                                    />
+                                </div>
+
+                                {/* 9. Grammar check enable */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Grammar check enable</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.grammarCheck}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, grammarCheck: val })}
+                                    />
+                                </div>
+
+                                {/* 10. Auto-reject very short answers */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Auto-reject very short answers</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.autoRejectShort}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, autoRejectShort: val })}
+                                    />
+                                </div>
+
+                                {/* 11. Copy paste Disabled */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Copy paste Disabled</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.copyPasteDisabled}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, copyPasteDisabled: val })}
+                                    />
+                                </div>
+
+                                {/* 12. Going on chrome new tab disabled */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Going on chrome new tab disabled</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.chromeNewTabDisabled}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, chromeNewTabDisabled: val })}
+                                    />
+                                </div>
+
+                                {/* 13. Include Characters */}
+                                <div className="flex items-center justify-between py-1">
+                                    <span className="text-[11px] font-bold text-slate-700 leading-tight">Include Characters</span>
+                                    <ToggleSwitch
+                                        checked={!!draftValidationSettings.includeCharacters}
+                                        onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, includeCharacters: val })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-2 px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowValidationSettingsModal(false)}
+                                    className="px-4 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg transition-all font-semibold text-[11px]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onUpdateField('validationSettings', draftValidationSettings);
+                                        setShowValidationSettingsModal(false);
+                                        toast.success('Validation settings saved!');
+                                    }}
+                                    className="px-4 py-1.5 bg-[#5A5CD6] hover:bg-[#494bb8] text-white rounded-lg shadow-sm transition-all font-semibold text-[11px]"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {showImageModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                            <h3 className="text-sm font-black text-slate-800">Insert image</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowImageModal(false)}
+                                className="p-1.5 text-slate-400 hover:text-slate-655 hover:bg-slate-100 rounded-full transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Tab Headers */}
+                        <div className="flex border-b border-slate-100 overflow-x-auto whitespace-nowrap bg-slate-50/30">
+                            {['Upload', 'Webcam', 'By URL', 'Photos', 'Google Drive', 'Google Images'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    onClick={() => setActiveImageTab(tab)}
+                                    className={`px-5 py-3 text-xs font-bold transition-all relative ${activeImageTab === tab ? 'text-purple-650' : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    {tab}
+                                    {activeImageTab === tab && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-650"></div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="flex-1 overflow-y-auto p-6 min-h-[300px]">
+                            {activeImageTab === 'Upload' && (
+                                <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-10 bg-slate-50/50 min-h-[250px] text-center">
+                                    <Upload size={32} className="text-slate-400 mb-3" />
+                                    <p className="text-xs font-bold text-slate-700 mb-1">Drag and drop your image here</p>
+                                    <p className="text-[10px] text-slate-400 mb-4">PNG, JPG, JPEG, WEBP up to 5MB</p>
+                                    <input
+                                        type="file"
+                                        id={`img-upload-input-${index}`}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                const file = e.target.files[0];
+                                                const reader = new FileReader();
+                                                reader.onload = () => {
+                                                    handleAddInsertedImage(reader.result);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => document.getElementById(`img-upload-input-${index}`).click()}
+                                        className="px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                                    >
+                                        Browse Files
+                                    </button>
+                                </div>
+                            )}
+
+                            {activeImageTab === 'Webcam' && (
+                                <div className="flex flex-col items-center justify-center border border-slate-150 bg-slate-50/20 rounded-2xl p-6 min-h-[250px] text-center">
+                                    <div className="aspect-video w-full max-w-md bg-slate-900 rounded-xl flex items-center justify-center text-xs text-slate-400 mb-4 font-semibold relative overflow-hidden">
+                                        <div className="text-center space-y-1">
+                                            <Camera size={24} className="text-slate-505 mb-2 block mx-auto animate-pulse" />
+                                            <span>Webcam Camera Feed Simulator</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            handleAddInsertedImage('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60');
+                                        }}
+                                        className="px-4 py-2 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                                    >
+                                        Take Snapshot
+                                    </button>
+                                </div>
+                            )}
+
+                            {activeImageTab === 'By URL' && (
+                                <div className="space-y-4 py-4 max-w-md mx-auto">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Paste image URL</label>
+                                        <input
+                                            type="text"
+                                            value={imageByUrl}
+                                            onChange={(e) => setImageByUrl(e.target.value)}
+                                            placeholder="https://example.com/image.jpg"
+                                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-purple-500"
+                                        />
+                                    </div>
+                                    {imageByUrl && (
+                                        <div className="border border-slate-200 rounded-xl p-2 bg-slate-50/50 flex justify-center">
+                                            <img
+                                                src={imageByUrl}
+                                                alt="Preview URL"
+                                                className="max-h-32 object-contain rounded"
+                                                onError={() => toast.error("Invalid image URL preview")}
+                                            />
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        disabled={!imageByUrl}
+                                        onClick={() => {
+                                            handleAddInsertedImage(imageByUrl);
+                                        }}
+                                        className="w-full py-2 bg-purple-655 hover:bg-purple-750 text-white rounded-xl text-xs font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Insert Image
+                                    </button>
+                                </div>
+                            )}
+
+                            {activeImageTab === 'Photos' && (
+                                <div className="space-y-3">
+                                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Select a photo</span>
+                                    <div className="grid grid-cols-3 gap-2.5">
+                                        {[
+                                            'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&auto=format&fit=crop&q=60',
+                                            'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300&auto=format&fit=crop&q=60',
+                                            'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=300&auto=format&fit=crop&q=60',
+                                            'https://images.unsplash.com/photo-1498243691581-b145c3f54a5c?w=300&auto=format&fit=crop&q=60',
+                                            'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&auto=format&fit=crop&q=60',
+                                            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&auto=format&fit=crop&q=60'
+                                        ].map((url, uIdx) => (
+                                            <button
+                                                key={uIdx}
+                                                type="button"
+                                                onClick={() => {
+                                                    handleAddInsertedImage(url);
+                                                }}
+                                                className="aspect-video rounded-xl overflow-hidden border border-slate-200 hover:border-purple-500 transition-all hover:scale-[1.02] shadow-sm relative group"
+                                            >
+                                                <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-purple-900/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeImageTab === 'Google Drive' && (
+                                <div className="flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-2xl min-h-[250px]">
+                                    <FolderUp size={32} className="text-slate-400 mb-2.5" />
+                                    <p className="text-xs font-bold text-slate-700">Google Drive Files</p>
+                                    <p className="text-[10px] text-slate-400 max-w-xs mt-1">Access your Drive directories to choose shared templates or files.</p>
+                                    <div className="grid grid-cols-2 gap-2 mt-4 w-full max-w-md">
+                                        {['Quiz_Diagram_A.png', 'LMS_Architecture_v2.jpg'].map((fName, fIdx) => (
+                                            <button
+                                                key={fIdx}
+                                                type="button"
+                                                onClick={() => {
+                                                    handleAddInsertedImage(fIdx === 0
+                                                        ? 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60'
+                                                        : 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop&q=60');
+                                                }}
+                                                className="p-3 bg-white border border-slate-200 rounded-xl text-left hover:border-purple-500 transition-all flex items-center gap-2 text-xs font-semibold text-slate-655"
+                                            >
+                                                <ImageIcon size={14} className="text-purple-650" />
+                                                <span className="truncate">{fName}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeImageTab === 'Google Images' && (
+                                <div className="space-y-4">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={imageSearchQuery}
+                                            onChange={(e) => setImageSearchQuery(e.target.value)}
+                                            placeholder="Search for images..."
+                                            className="flex-1 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:border-purple-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    toast.success(`Search results loaded for "${imageSearchQuery}"`);
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toast.success(`Search results loaded for "${imageSearchQuery}"`)}
+                                            className="px-4 bg-purple-650 hover:bg-purple-750 text-white font-bold rounded-xl text-xs shadow-sm transition-colors"
+                                        >
+                                            Search
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2.5">
+                                        {[
+                                            { tag: 'office', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&auto=format&fit=crop&q=60' },
+                                            { tag: 'meeting', url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=300&auto=format&fit=crop&q=60' },
+                                            { tag: 'success', url: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&auto=format&fit=crop&q=60' }
+                                        ].map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => {
+                                                    handleAddInsertedImage(item.url);
+                                                }}
+                                                className="aspect-video rounded-xl overflow-hidden border border-slate-200 hover:border-purple-500 transition-all hover:scale-[1.02] shadow-sm relative group"
+                                            >
+                                                <img src={item.url} alt={item.tag} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-x-0 bottom-0 bg-slate-900/50 p-1.5 text-[9px] text-white font-bold truncate">
+                                                    {item.tag} search result
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setShowImageModal(false)}
+                                className="px-4 py-2 text-slate-500 hover:bg-slate-100 font-bold rounded-xl text-xs transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {lightboxImage && (
+                <div
+                    className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 cursor-zoom-out"
+                    onClick={() => setLightboxImage(null)}
+                >
+                    <div className="relative max-w-4xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 border border-white/20 animate-scale-up" onClick={(e) => e.stopPropagation()}>
+                        <img src={lightboxImage} alt="Enlarged view" className="max-w-full max-h-[80vh] object-contain rounded-lg" />
+                        <button
+                            type="button"
+                            onClick={() => setLightboxImage(null)}
+                            className="absolute top-4 right-4 bg-slate-900/60 hover:bg-slate-950/80 text-white p-2 rounded-full transition-all shadow-md z-[110]"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {showNoteModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-5 border border-slate-100 flex flex-col gap-3">
+                        {/* The Toolbar (containing formatting + actions) */}
+                        <div className="flex items-center justify-between bg-slate-50 p-2 border border-slate-200 rounded-xl text-slate-550 select-none text-xs w-full">
+                            {/* Formatting tools */}
+                            <div className="flex items-center gap-1 flex-wrap">
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('bold');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.bold ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Bold"
+                                >
+                                    <Bold size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('italic');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.italic ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Italic"
+                                >
+                                    <Italic size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('underline');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.underline ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Underline"
+                                >
+                                    <Underline size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('strikeThrough');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.strikeThrough ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Strikethrough"
+                                >
+                                    <Strikethrough size={14} />
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                {/* Subscript / Superscript */}
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('subscript');
+                                    }}
+                                    className={`px-1 py-0.5 rounded transition-all text-[10px] font-bold ${noteActiveFormat.subscript ? 'bg-slate-200 text-slate-900' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Subscript"
+                                >
+                                    X<sub>1</sub>
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('superscript');
+                                    }}
+                                    className={`px-1 py-0.5 rounded transition-all text-[10px] font-bold ${noteActiveFormat.superscript ? 'bg-slate-200 text-slate-900' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Superscript"
+                                >
+                                    X<sup>1</sup>
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                {/* Link */}
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        const url = prompt('Link URL:');
+                                        if (url) handleNoteFormat('createLink', url);
+                                    }}
+                                    className="p-1.5 hover:bg-slate-200 rounded text-slate-700"
+                                    title="Hyperlink"
+                                >
+                                    <Link size={14} />
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                {/* Alignments */}
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('justifyLeft');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.justifyLeft ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Align Left"
+                                >
+                                    <AlignLeft size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('justifyCenter');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.justifyCenter ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Align Center"
+                                >
+                                    <AlignCenter size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('justifyRight');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.justifyRight ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Align Right"
+                                >
+                                    <AlignRight size={14} />
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('insertUnorderedList');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.insertUnorderedList ? 'bg-slate-200 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Bulleted List"
+                                >
+                                    <List size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('insertOrderedList');
+                                    }}
+                                    className={`p-1.5 rounded transition-all ${noteActiveFormat.insertOrderedList ? 'bg-slate-300 text-slate-900 font-bold' : 'hover:bg-slate-200 text-slate-700'}`}
+                                    title="Numbered List"
+                                >
+                                    <ListOrdered size={14} />
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 font-sans" title="Text Color">
+                                    <span className="text-xs font-semibold">A</span>
+                                    <input
+                                        type="color"
+                                        onChange={(e) => handleNoteFormat('foreColor', e.target.value)}
+                                        className="w-4 h-4 rounded cursor-pointer border border-slate-300 p-0 bg-transparent"
+                                    />
+                                </div>
+
+                                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleNoteFormat('removeFormat');
+                                    }}
+                                    className="p-1.5 hover:bg-red-50 text-red-500 rounded transition-colors"
+                                    title="Clear Formatting"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            {/* Action buttons (integrated inside the toolbar) */}
+                            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowNoteModal(false);
+                                        setNoteContentInput('');
+                                    }}
+                                    className="px-2.5 py-1 text-slate-500 hover:text-slate-850 hover:bg-slate-200 rounded-lg transition-colors font-bold text-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const finalHtml = noteEditorRef.current ? noteEditorRef.current.innerHTML : noteContentInput;
+                                        onUpdateField('noteContent', finalHtml);
+                                        setShowNoteModal(false);
+                                        setNoteContentInput('');
+                                        toast.success("Note saved successfully!");
+                                    }}
+                                    className="px-2.5 py-1 text-slate-500 hover:text-slate-850 hover:bg-slate-200 rounded-lg transition-colors font-bold text-xs"
+                                >
+                                    Save Note
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Note input field (contentEditable) */}
+                        <div
+                            ref={noteEditorRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => setNoteContentInput(e.target.innerHTML)}
+                            onKeyUp={updateNoteActiveFormat}
+                            onMouseUp={updateNoteActiveFormat}
+                            onInput={(e) => {
+                                setNoteContentInput(e.target.innerHTML);
+                                updateNoteActiveFormat();
+                            }}
+                            onFocus={updateNoteActiveFormat}
+                            className="w-full text-xs font-medium bg-slate-55 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none min-h-[180px] focus:bg-white focus:border-purple-500 transition-all shadow-sm rich-text-editor font-sans"
+                            placeholder="Write a note..."
+                            style={{ outline: 'none' }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {showFilePreviewModal && element.uploadedResource && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-indigo-50 text-[#5A5CD6] rounded-lg">
+                                    <FileText size={16} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-800 truncate max-w-[400px]">
+                                        {element.uploadedResource.name}
+                                    </h3>
+                                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                        {(element.uploadedResource.size / 1024).toFixed(1)} KB • {element.uploadedResource.type}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowFilePreviewModal(false)}
+                                className="p-1.5 text-slate-400 hover:text-slate-655 hover:bg-slate-100 rounded-full transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-slate-50/30 min-h-[300px]">
+                            {(() => {
+                                const type = element.uploadedResource.type?.toUpperCase();
+                                const url = element.uploadedResource.url;
+
+                                if (['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF'].includes(type)) {
+                                    return (
+                                        <img
+                                            src={url}
+                                            alt={element.uploadedResource.name}
+                                            className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-md border border-slate-200"
+                                        />
+                                    );
+                                }
+
+                                if (type === 'PDF') {
+                                    return (
+                                        <iframe
+                                            src={url}
+                                            className="w-full h-[55vh] rounded-xl border border-slate-200"
+                                            title="PDF Preview"
+                                        />
+                                    );
+                                }
+
+                                if (type === 'TXT') {
+                                    const getTxtContent = (dataUrl) => {
+                                        if (!dataUrl) return '';
+                                        if (dataUrl.startsWith('data:text/plain;base64,')) {
+                                            try {
+                                                const base64Content = dataUrl.split(',')[1];
+                                                return atob(base64Content);
+                                            } catch (e) {
+                                                return 'Error decoding text content.';
+                                            }
+                                        }
+                                        return 'Unsupported text format or failed to read content.';
+                                    };
+                                    return (
+                                        <pre className="w-full max-h-[55vh] p-4 bg-slate-900 text-slate-100 text-xs rounded-xl overflow-auto whitespace-pre-wrap font-mono leading-relaxed text-left">
+                                            {getTxtContent(url)}
+                                        </pre>
+                                    );
+                                }
+
+                                // Default fallback for other file types
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+                                        <div className="p-4 bg-indigo-50 text-[#5A5CD6] rounded-2xl">
+                                            <FileText size={40} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-800">Preview not available</p>
+                                            <p className="text-xs text-slate-550">Inline preview is not supported for {type} files.</p>
+                                        </div>
+                                        <a
+                                            href={url}
+                                            download={element.uploadedResource.name}
+                                            className="px-4 py-2 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white font-bold rounded-xl text-xs shadow-md transition-colors flex items-center gap-1.5"
+                                        >
+                                            <Download size={13} />
+                                            <span>Download File</span>
+                                        </a>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+                            {element.uploadedResource.url && (
+                                <a
+                                    href={element.uploadedResource.url}
+                                    download={element.uploadedResource.name}
+                                    className="px-4 py-2 bg-indigo-50 text-[#5A5CD6] hover:bg-indigo-100 font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5"
+                                >
+                                    <Download size={13} />
+                                    <span>Download</span>
+                                </a>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowFilePreviewModal(false)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-655 font-bold rounded-xl text-xs transition-colors"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
@@ -2028,10 +4343,11 @@ const TestBuilder = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('Edit');
-    const [sidebarTab, setSidebarTab] = useState('Widgets & Elements');
+    const [sidebarTab, setSidebarTab] = useState('Elements & Addons');
     const [searchQuery, setSearchQuery] = useState('');
     const [formElements, setFormElements] = useState([]);
     const [isMostCommonExpanded, setIsMostCommonExpanded] = useState(true);
+    const [isAnalyticalWidgetsExpanded, setIsAnalyticalWidgetsExpanded] = useState(true);
     const [draggedQuestionIndex, setDraggedQuestionIndex] = useState(null);
     const [placeholderIndex, setPlaceholderIndex] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -2085,7 +4401,7 @@ const TestBuilder = () => {
         }
     });
 
-    // Sidebar Widgets Configuration
+    // Sidebar Elements Configuration
     const sidebarElements = [
         { icon: Type, label: 'Short Answer', category: 'Basic Inputs' },
         { icon: AlignLeft, label: 'Paragraph', category: 'Basic Inputs' },
@@ -2196,6 +4512,9 @@ const TestBuilder = () => {
                                 fileSizeLimit: 10,
                                 fileTypes: 'All'
                             },
+                            logicalSettings: q.logicalSettings || {},
+                            validationSettings: q.validationSettings || {},
+                            insertedImages: q.insertedImages || [],
                             logic: q.logic || {
                                 dependsOnQuestion: '',
                                 dependsOnAnswer: '',
@@ -2216,6 +4535,9 @@ const TestBuilder = () => {
                             matchingPairs: q.matchingPairs || [],
                             blankAnswers: q.blankAnswers || [],
                             uploadedFiles: q.uploadedFiles || [],
+                            addons: q.addons || [],
+                            appliedToAllAddons: q.appliedToAllAddons || [],
+                            moreSettings: q.moreSettings || { allowUpload: false, allowAudioAnswer: false },
                             mediaUrl: q.mediaUrl || '',
                             writeMode: !!q.writeMode,
                             audioUrl: q.audioUrl || '',
@@ -2256,12 +4578,21 @@ const TestBuilder = () => {
         e.dataTransfer.setData('elementType', JSON.stringify(element));
     };
 
+    const handleAddonDragStart = (e, addon) => {
+        e.dataTransfer.setData('addonType', JSON.stringify(addon));
+    };
+
     const handleDragOver = (e) => {
         e.preventDefault();
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
+        const addonData = e.dataTransfer.getData('addonType');
+        if (addonData) {
+            toast.error("Acceptable only on Addons Container button or window");
+            return;
+        }
         const elementData = e.dataTransfer.getData('elementType');
         if (elementData) {
             const element = JSON.parse(elementData);
@@ -2442,6 +4773,9 @@ const TestBuilder = () => {
                 fileSizeLimit: 10,
                 fileTypes: 'All'
             },
+            logicalSettings: {},
+            validationSettings: {},
+            insertedImages: [],
             videoSettings: {
                 allowWebcam: true,
                 allowScreen: true,
@@ -2481,6 +4815,9 @@ const TestBuilder = () => {
                 topicMapping: ''
             },
             uploadedFiles: [],
+            addons: [],
+            appliedToAllAddons: [],
+            moreSettings: { allowUpload: false, allowAudioAnswer: false },
             mediaUrl: '',
             writeMode: false,
             audioUrl: '',
@@ -2515,6 +4852,64 @@ const TestBuilder = () => {
 
     const updateElementField = (index, field, value) => {
         setFormElements(prev => prev.map((el, i) => i === index ? { ...el, [field]: value } : el));
+    };
+
+    const handleApplyAddonToAll = (sourceIndex, addonLabel, isApplied) => {
+        setFormElements(prev => {
+            return prev.map((el) => {
+                const currentAddons = el.addons || [];
+                const currentApplied = el.appliedToAllAddons || [];
+
+                let nextAddons = [...currentAddons];
+                let nextApplied = [...currentApplied];
+
+                if (isApplied) {
+                    if (!nextAddons.includes(addonLabel)) {
+                        nextAddons.push(addonLabel);
+                    }
+                    if (!nextApplied.includes(addonLabel)) {
+                        nextApplied.push(addonLabel);
+                    }
+                } else {
+                    nextApplied = nextApplied.filter(a => a !== addonLabel);
+                }
+
+                return {
+                    ...el,
+                    addons: nextAddons,
+                    appliedToAllAddons: nextApplied
+                };
+            });
+        });
+        if (isApplied) {
+            toast.success(`Applied ${addonLabel} to all questions!`);
+        } else {
+            toast.info(`Disabled Apply to all for ${addonLabel}`);
+        }
+    };
+
+    const handleRemoveAddon = (sourceIndex, addonLabel) => {
+        setFormElements(prev => {
+            const isAppliedToAll = prev[sourceIndex].appliedToAllAddons?.includes(addonLabel);
+            return prev.map((el, idx) => {
+                let nextAddons = el.addons || [];
+                let nextApplied = el.appliedToAllAddons || [];
+
+                if (isAppliedToAll) {
+                    nextAddons = nextAddons.filter(a => a !== addonLabel);
+                    nextApplied = nextApplied.filter(a => a !== addonLabel);
+                } else if (idx === sourceIndex) {
+                    nextAddons = nextAddons.filter(a => a !== addonLabel);
+                    nextApplied = nextApplied.filter(a => a !== addonLabel);
+                }
+
+                return {
+                    ...el,
+                    addons: nextAddons,
+                    appliedToAllAddons: nextApplied
+                };
+            });
+        });
     };
 
     const handleConnectSave = (data) => {
@@ -2591,6 +4986,9 @@ const TestBuilder = () => {
                     validation: el.validation || {},
                     assistive: el.assistive || {},
                     particulars: el.particulars || {},
+                    logicalSettings: el.logicalSettings || {},
+                    validationSettings: el.validationSettings || {},
+                    insertedImages: el.insertedImages || [],
                     logic: el.logic || {},
                     textLogic: el.textLogic || {},
                     advanced: el.advanced || {},
@@ -2598,6 +4996,9 @@ const TestBuilder = () => {
                     matchingPairs: el.matchingPairs || [],
                     blankAnswers: el.blankAnswers || [],
                     uploadedFiles: el.uploadedFiles || [],
+                    addons: el.addons || [],
+                    appliedToAllAddons: el.appliedToAllAddons || [],
+                    moreSettings: el.moreSettings || { allowUpload: false, allowAudioAnswer: false },
                     mediaUrl: el.mediaUrl || '',
                     writeMode: !!el.writeMode,
                     audioUrl: el.audioUrl || '',
@@ -2660,6 +5061,11 @@ const TestBuilder = () => {
     const filteredElements = sidebarElements.filter(el =>
         el.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         el.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+
+    const filteredAddons = addonsList.filter(addon =>
+        addon.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     // Group elements by category
@@ -2769,19 +5175,19 @@ const TestBuilder = () => {
                         {/* Sidebar Header */}
                         <div className="p-4 border-b border-slate-100 space-y-4">
                             <div className="flex justify-between items-center">
-                                <h2 className="font-extrabold text-slate-800 text-base">Widgets & Elements</h2>
+                                <h2 className="font-extrabold text-slate-800 text-base">Elements & Addons</h2>
                             </div>
 
                             {/* Sidebar Tab Selector */}
                             <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
                                 <button
-                                    onClick={() => setSidebarTab('Widgets & Elements')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Widgets & Elements'
+                                    onClick={() => setSidebarTab('Elements & Addons')}
+                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements & Addons'
                                         ? 'bg-purple-600 text-white shadow-sm'
                                         : 'text-slate-500 hover:text-slate-800'
                                         }`}
                                 >
-                                    Widgets
+                                    Elements
                                 </button>
                                 <button
                                     onClick={() => setSidebarTab('Elements/Addons')}
@@ -2807,9 +5213,9 @@ const TestBuilder = () => {
                             </div>
                         </div>
 
-                        {/* Draggable Widgets List */}
+                        {/* Draggable Elements List */}
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                            {sidebarTab === 'Widgets & Elements' ? (
+                            {sidebarTab === 'Elements & Addons' ? (
                                 <div className="space-y-4">
                                     <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
                                         <button
@@ -2846,7 +5252,7 @@ const TestBuilder = () => {
                                                 ))}
                                                 {filteredElements.length === 0 && (
                                                     <div className="col-span-2 text-center py-6 text-xs text-slate-400 font-medium">
-                                                        No matching widgets found.
+                                                        No matching Elements found.
                                                     </div>
                                                 )}
                                             </div>
@@ -2854,22 +5260,49 @@ const TestBuilder = () => {
                                     </div>
                                 </div>
                             ) : (
-                                // Addons Tab Mockup
-                                <div className="space-y-4 text-center py-8 px-4">
-                                    <div className="p-4 bg-purple-50 text-purple-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                                        <Sparkles size={24} />
+                                // Addons Tab Render
+                                <div className="space-y-4">
+                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAnalyticalWidgetsExpanded(!isAnalyticalWidgetsExpanded)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-700 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-sm"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <PieChart size={16} className="text-purple-600" />
+                                                <span>Analytical Widgets</span>
+                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1 animate-pulse">
+                                                    {filteredAddons.length}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={16} className={`transition-transform duration-300 ${isAnalyticalWidgetsExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {isAnalyticalWidgetsExpanded && (
+                                            <div className="p-3 bg-white grid grid-cols-2 gap-2 max-h-[500px] overflow-y-auto custom-scrollbar animate-fade-in">
+                                                {filteredAddons.map((addon, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        draggable
+                                                        onDragStart={(e) => handleAddonDragStart(e, addon)}
+                                                        onClick={() => toast.success(`${addon.label} activated! Drag it to Addons Container.`)}
+                                                        className="flex flex-col items-center justify-center p-3.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                        title="Drag onto Addons Container or window"
+                                                    >
+                                                        <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                            <addon.icon size={18} />
+                                                        </div>
+                                                        <span className="text-[11px] font-bold text-slate-600 group-hover:text-purple-600 transition-colors leading-tight">{addon.label}</span>
+                                                    </div>
+                                                ))}
+                                                {filteredAddons.length === 0 && (
+                                                    <div className="col-span-2 text-center py-6 text-xs text-slate-400 font-medium">
+                                                        No matching Addons found.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <h4 className="font-bold text-slate-700 text-sm">Addons & Integrations</h4>
-                                    <p className="text-xs text-slate-400 leading-relaxed">
-                                        Extend your form with elements like signature, map location, live chat support, and calendars.
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => toast.success("Browsing addons directory...")}
-                                        className="mt-4 px-4 py-2 bg-purple-100 text-purple-700 text-xs font-bold rounded-xl hover:bg-purple-200 transition-all"
-                                    >
-                                        Browse Directory
-                                    </button>
                                 </div>
                             )}
                         </div>
@@ -2877,7 +5310,7 @@ const TestBuilder = () => {
                 )}
                 <div className="flex-1 flex flex-col">
                     {/* Secondary Toolbar */}
-                    <div className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between">         <div className="flex items-center gap-6">
+                    <div className="h-12 bg-white border-b border-slate-200 px-6 flex items-center justify-between">         <div className="flex items-center gap-6">
                         <button
                             onClick={() => toast("Purple Accent Theme active. More templates coming soon!", { icon: '🎨' })}
                             className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
@@ -2985,7 +5418,7 @@ const TestBuilder = () => {
                                                     <div
                                                         key={el.id || originalIndex}
                                                         id={`question-card-${originalIndex}`}
-                                                        className="animate-fade-in question-card"
+                                                        className="animate-fade-in question-card px-4 sm:px-6 md:px-8"
                                                     >
                                                         <QuestionBuilderCard
                                                             element={el}
@@ -3006,6 +5439,8 @@ const TestBuilder = () => {
                                                             onUpdateText={(text) => updateElementText(originalIndex, text)}
                                                             onUpdateOptions={(options) => updateElementOptions(originalIndex, options)}
                                                             onUpdateField={(field, val) => updateElementField(originalIndex, field, val)}
+                                                            onApplyAddonToAll={(addonLabel, isApplied) => handleApplyAddonToAll(originalIndex, addonLabel, isApplied)}
+                                                            onRemoveAddon={(addonLabel) => handleRemoveAddon(originalIndex, addonLabel)}
                                                             onDragStartCustom={(e) => handleCustomDragStart(e, originalIndex)}
                                                             isDragged={draggedQuestionIndex === originalIndex}
                                                             isDragging={isDragging}
@@ -3046,7 +5481,7 @@ const TestBuilder = () => {
 
                                         {formElements.length === 0 ? (
                                             <div className="text-center py-12 text-slate-400 text-sm font-medium">
-                                                No fields added to preview yet. Add some widgets in the editor!
+                                                No fields added to preview yet. Add some Elements in the editor!
                                             </div>
                                         ) : (
                                             <div className="space-y-6">
@@ -3573,7 +6008,7 @@ const TestBuilder = () => {
 
                         {/* Page/Logic Footer Bar (Only shown in Edit tab) */}
                         {activeTab === 'Edit' && (
-                            <div className="h-14 bg-white border-t border-slate-200 flex items-center justify-center gap-2 w-full z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.01)] shrink-0">
+                            <div className="h-12 bg-white border-t border-slate-200 flex items-center justify-center gap-2 w-full z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.01)] shrink-0">
                                 <button
                                     onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
                                     className="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-all"
@@ -3594,7 +6029,7 @@ const TestBuilder = () => {
                                         <span>Logic Rules</span>
                                     </button>
                                     <button
-                                        onClick={() => toast("Pick form widgets template design from database.")}
+                                        onClick={() => toast("Pick form Elements template design from database.")}
                                         className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all"
                                     >
                                         <Layout size={12} />
@@ -3607,7 +6042,7 @@ const TestBuilder = () => {
                         {/* Floating Counter Badge */}
                         <div className="absolute bottom-4 right-4 z-30">
                             <button
-                                onClick={() => toast(`Form is composed of ${formElements.length} custom widgets.`)}
+                                onClick={() => toast(`Form is composed of ${formElements.length} custom Elements.`)}
                                 className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full shadow-lg hover:shadow-xl font-bold text-xs flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                             >
                                 <Zap size={14} fill="currentColor" />

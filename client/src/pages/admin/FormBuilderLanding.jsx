@@ -63,7 +63,7 @@ const FormBuilderLanding = () => {
                         <button className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-50">T-Shirt Sign Up</button>
                     </div>
 
-                    {/* Dashboard Widgets */}
+                    {/* Dashboard Elements */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Create New Form */}
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">

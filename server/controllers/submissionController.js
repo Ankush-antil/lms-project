@@ -135,6 +135,9 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
         answers.forEach((a, i) => {
             if (submission.answers[i]) {
                 submission.answers[i].marks = a.marks ?? submission.answers[i].marks;
+                if (a.videoData !== undefined) {
+                    submission.answers[i].videoData = a.videoData;
+                }
                 // If teacher provided feedback, append it to the conversation
                 if (a.feedback) {
                     submission.answers[i].conversation.push({

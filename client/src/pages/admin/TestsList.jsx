@@ -10,7 +10,7 @@ import {
     CheckCircle2, X, Eye, Loader2, EyeOff, Info, ChevronLeft, ChevronRight, Printer, ArrowLeft, Trash,
     Video, MessageSquare, AlertTriangle
 } from 'lucide-react';
-
+import TeacherVideoReview from '../../components/teacher/TeacherVideoReview';
 const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -52,7 +52,7 @@ const TestsList = () => {
 
         const videoEl = videoRef.current;
         const time = videoEl ? Math.floor(videoEl.currentTime) : 0;
-        
+
         const formatDuration = (sec) => {
             const m = Math.floor(sec / 60);
             const s = Math.floor(sec % 60);
@@ -113,7 +113,7 @@ const TestsList = () => {
                         }
                         return a;
                     });
-                    
+
                     // Recalculate total score
                     const newTotalScore = updatedAnswers.reduce((sum, item) => sum + (item.marks || 0), 0);
                     return {
@@ -136,7 +136,7 @@ const TestsList = () => {
         const videoEl = videoRefs.current[evalKey];
         if (videoEl) {
             videoEl.currentTime = seconds;
-            videoEl.play().catch(() => {});
+            videoEl.play().catch(() => { });
         }
     };
 
@@ -166,6 +166,20 @@ const TestsList = () => {
             sendSubmissionNotification: true,
             sendScoreEmail: true,
             sendConfirmationEmail: true
+        },
+        assistiveFeatures: {
+            relevantInformation: false,
+            temporaryFill: false,
+            audioAnswer: false,
+            chatWithTeacher: false,
+            uploadAttachment: false,
+            exampleSection: false,
+            calculator: false,
+            aiReader: false,
+            textToSpeech: false,
+            speechToText: false,
+            translation: false,
+            accessibilityMode: false
         }
     });
 
@@ -263,6 +277,7 @@ const TestsList = () => {
     const handleOpenSettings = (test) => {
         setSelectedPublicTest(test);
         const settings = test.publicSettings || {};
+        const assist = settings.assistiveFeatures || {};
         setEditSettingsForm({
             allowMultiple: settings.allowMultiple !== false,
             startDate: settings.startDate ? new Date(settings.startDate).toISOString().split('T')[0] : '',
@@ -280,6 +295,20 @@ const TestsList = () => {
                 sendSubmissionNotification: settings.emailNotification?.sendSubmissionNotification !== false,
                 sendScoreEmail: settings.emailNotification?.sendScoreEmail !== false,
                 sendConfirmationEmail: settings.emailNotification?.sendConfirmationEmail !== false
+            },
+            assistiveFeatures: {
+                relevantInformation: !!assist.relevantInformation,
+                temporaryFill: !!assist.temporaryFill,
+                audioAnswer: !!assist.audioAnswer,
+                chatWithTeacher: !!assist.chatWithTeacher,
+                uploadAttachment: !!assist.uploadAttachment,
+                exampleSection: !!assist.exampleSection,
+                calculator: !!assist.calculator,
+                aiReader: !!assist.aiReader,
+                textToSpeech: !!assist.textToSpeech,
+                speechToText: !!assist.speechToText,
+                translation: !!assist.translation,
+                accessibilityMode: !!assist.accessibilityMode
             }
         });
         setShowSettingsModal(true);
@@ -378,9 +407,9 @@ const TestsList = () => {
         }
 
         const testName = selectedPublicTest?.title || 'test';
-        
+
         // Build rows with question answers
-        const qHeaders = fullTestData?.questions?.map((q, idx) => `Q${idx+1}: ${q.text}`) || [];
+        const qHeaders = fullTestData?.questions?.map((q, idx) => `Q${idx + 1}: ${q.text}`) || [];
         const headers = ['Name', 'Email', 'Phone', 'Organization', 'Score', 'IP Address', 'Device', 'Date', ...qHeaders];
         const rows = publicSubmissions.map(sub => {
             const qAnswers = fullTestData?.questions?.map(q => {
@@ -461,51 +490,51 @@ const TestsList = () => {
         if (!submission) return;
         const testName = selectedPublicTest?.title || 'Test';
         const printWindow = window.open('', '_blank');
-        
+
         const questionsHtml = fullTestData?.questions?.map((q, idx) => {
             const subAns = submission.answers?.find(a => a.questionId === q.id);
             const marksEarned = subAns?.marks || 0;
             const totalMarks = q.marks || 1;
-            
+
             let answerContent = '';
             if (q.type?.toLowerCase() === 'multiple choice' || q.type?.toLowerCase() === 'dropdown' || q.type?.toLowerCase() === 'checkboxes') {
                 answerContent = `
                     <ul style="list-style: none; padding-left: 0;">
                         ${q.options?.map(opt => {
-                            let isSelected = false;
-                            if (q.type?.toLowerCase() === 'checkboxes') {
-                                let textAnswers = [];
-                                if (Array.isArray(subAns?.textAnswer)) {
-                                    textAnswers = subAns.textAnswer;
-                                } else if (typeof subAns?.textAnswer === 'string') {
-                                    if (subAns.textAnswer.startsWith('[')) {
-                                        try { textAnswers = JSON.parse(subAns.textAnswer); } catch(e) { textAnswers = subAns.textAnswer.split(','); }
-                                    } else {
-                                        textAnswers = subAns.textAnswer.split(',');
-                                    }
-                                }
-                                isSelected = textAnswers.map(t => t?.trim()?.toLowerCase()).includes(opt.text?.trim()?.toLowerCase());
+                    let isSelected = false;
+                    if (q.type?.toLowerCase() === 'checkboxes') {
+                        let textAnswers = [];
+                        if (Array.isArray(subAns?.textAnswer)) {
+                            textAnswers = subAns.textAnswer;
+                        } else if (typeof subAns?.textAnswer === 'string') {
+                            if (subAns.textAnswer.startsWith('[')) {
+                                try { textAnswers = JSON.parse(subAns.textAnswer); } catch (e) { textAnswers = subAns.textAnswer.split(','); }
                             } else {
-                                isSelected = subAns?.textAnswer?.trim()?.toLowerCase() === opt.text?.trim()?.toLowerCase();
+                                textAnswers = subAns.textAnswer.split(',');
                             }
-                            const isCorrect = opt.isCorrect;
-                            
-                            let marker = '○';
-                            if (q.type?.toLowerCase() === 'checkboxes') marker = '□';
-                            
-                            let style = '';
-                            if (isSelected && isCorrect) {
-                                style = 'color: #16a34a; font-weight: bold;';
-                                marker = q.type?.toLowerCase() === 'checkboxes' ? '☑' : '●';
-                            } else if (isSelected && !isCorrect) {
-                                style = 'color: #dc2626; font-style: italic;';
-                                marker = q.type?.toLowerCase() === 'checkboxes' ? '☒' : '●';
-                            } else if (isCorrect) {
-                                style = 'color: #16a34a; font-weight: bold;';
-                            }
-                            
-                            return `<li style="margin-bottom: 5px; ${style}">${marker} ${opt.text} ${isSelected ? '<strong>(Selected)</strong>' : ''} ${isCorrect ? '<span style="font-size: 10px;">✓ Correct</span>' : ''}</li>`;
-                        }).join('')}
+                        }
+                        isSelected = textAnswers.map(t => t?.trim()?.toLowerCase()).includes(opt.text?.trim()?.toLowerCase());
+                    } else {
+                        isSelected = subAns?.textAnswer?.trim()?.toLowerCase() === opt.text?.trim()?.toLowerCase();
+                    }
+                    const isCorrect = opt.isCorrect;
+
+                    let marker = '○';
+                    if (q.type?.toLowerCase() === 'checkboxes') marker = '□';
+
+                    let style = '';
+                    if (isSelected && isCorrect) {
+                        style = 'color: #16a34a; font-weight: bold;';
+                        marker = q.type?.toLowerCase() === 'checkboxes' ? '☑' : '●';
+                    } else if (isSelected && !isCorrect) {
+                        style = 'color: #dc2626; font-style: italic;';
+                        marker = q.type?.toLowerCase() === 'checkboxes' ? '☒' : '●';
+                    } else if (isCorrect) {
+                        style = 'color: #16a34a; font-weight: bold;';
+                    }
+
+                    return `<li style="margin-bottom: 5px; ${style}">${marker} ${opt.text} ${isSelected ? '<strong>(Selected)</strong>' : ''} ${isCorrect ? '<span style="font-size: 10px;">✓ Correct</span>' : ''}</li>`;
+                }).join('')}
                     </ul>
                 `;
             } else {
@@ -517,11 +546,11 @@ const TestsList = () => {
                     answerContent = `<p style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; white-space: pre-wrap;">${subAns?.textAnswer || 'No answer submitted'}</p>`;
                 }
             }
-            
+
             return `
                 <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px;">
-                        <span>Q${idx+1}. ${q.text}</span>
+                        <span>Q${idx + 1}. ${q.text}</span>
                         <span style="font-size: 12px; color: #4f46e5;">[Score: ${marksEarned} / ${totalMarks} pts]</span>
                     </div>
                     <div>${answerContent}</div>
@@ -625,7 +654,7 @@ const TestsList = () => {
         const avgScore = filteredSubmissions.length > 0
             ? (filteredSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / filteredSubmissions.length).toFixed(1)
             : '0.0';
-            
+
         const passingMarks = fullTestData?.settings?.passingMarks || 0;
         const passThreshold = passingMarks || Math.round(totalMarks * 0.4);
         const passCount = filteredSubmissions.filter(s => (s.score || 0) >= passThreshold).length;
@@ -633,7 +662,7 @@ const TestsList = () => {
             ? Math.round((passCount / filteredSubmissions.length) * 100)
             : 0;
 
-        const pendingCount = filteredSubmissions.filter(s => 
+        const pendingCount = filteredSubmissions.filter(s =>
             s.answers?.some(a => ['short answer', 'long answer', 'audio', 'video'].includes(a.questionType?.toLowerCase()) && a.marks === 0)
         ).length;
 
@@ -659,7 +688,7 @@ const TestsList = () => {
                         const parsed = JSON.parse(ans.videoData);
                         dur = parsed.duration || 15;
                     }
-                } catch (e) {}
+                } catch (e) { }
                 totalDur += dur;
                 totalScore += ans.marks || 0;
             });
@@ -737,7 +766,7 @@ const TestsList = () => {
                                 <FileText size={14} className="text-emerald-100" />
                                 <span>View in Sheets</span>
                             </button>
-                            
+
                             {/* Excel Export */}
                             <button
                                 onClick={() => handleExport('excel')}
@@ -776,31 +805,28 @@ const TestsList = () => {
                     <div className="flex border-b border-slate-200 mb-6 bg-white rounded-t-2xl px-4 pt-2">
                         <button
                             onClick={() => setResponsesTab('summary')}
-                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${
-                                responsesTab === 'summary'
+                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'summary'
                                     ? 'border-indigo-600 text-indigo-650'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                            }`}
+                                }`}
                         >
                             Summary
                         </button>
                         <button
                             onClick={() => setResponsesTab('question')}
-                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${
-                                responsesTab === 'question'
+                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'question'
                                     ? 'border-indigo-600 text-indigo-650'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                            }`}
+                                }`}
                         >
                             Question
                         </button>
                         <button
                             onClick={() => setResponsesTab('individual')}
-                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${
-                                responsesTab === 'individual'
+                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'individual'
                                     ? 'border-indigo-600 text-indigo-650'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
-                            }`}
+                                }`}
                         >
                             Individual
                         </button>
@@ -821,7 +847,7 @@ const TestsList = () => {
                                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-indigo-500 transition-all font-medium text-slate-700"
                             />
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
                                 <span className="text-[10px] font-bold text-slate-500">From</span>
@@ -1030,7 +1056,7 @@ const TestsList = () => {
                                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Submission Trend</h4>
                                                 <p className="text-xs text-slate-400 font-medium mb-4">Timeline of student submissions count per day</p>
                                             </div>
-                                            
+
                                             {dateList.length > 0 ? (
                                                 <div className="w-full">
                                                     <svg viewBox="0 0 500 150" className="w-full overflow-visible">
@@ -1043,10 +1069,10 @@ const TestsList = () => {
                                                         <line x1="30" y1="30" x2="470" y2="30" stroke="#f1f5f9" strokeWidth="1" />
                                                         <line x1="30" y1="75" x2="470" y2="75" stroke="#f1f5f9" strokeWidth="1" />
                                                         <line x1="30" y1="120" x2="470" y2="120" stroke="#cbd5e1" strokeWidth="1.5" />
-                                                        
+
                                                         {points.length > 1 && (
                                                             <path
-                                                                d={`M ${points[0].x} 120 ` + points.map(p => `L ${p.x} ${p.y}`).join(' ') + ` L ${points[points.length-1].x} 120 Z`}
+                                                                d={`M ${points[0].x} 120 ` + points.map(p => `L ${p.x} ${p.y}`).join(' ') + ` L ${points[points.length - 1].x} 120 Z`}
                                                                 fill="url(#trendGradient)"
                                                             />
                                                         )}
@@ -1084,7 +1110,7 @@ const TestsList = () => {
                                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Score Distribution</h4>
                                                 <p className="text-xs text-slate-400 font-medium mb-4">Histogram of candidate scores categorized in ranges</p>
                                             </div>
-                                            
+
                                             {filteredSubmissions.length > 0 ? (
                                                 <div className="space-y-3">
                                                     {bins.map((bin, idx) => {
@@ -1114,7 +1140,7 @@ const TestsList = () => {
                                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Performance by Question</h4>
                                                 <p className="text-xs text-slate-400 font-medium mb-4">Correct response rate for each question in the test</p>
                                             </div>
-                                            
+
                                             {filteredSubmissions.length > 0 && fullTestData?.questions?.length > 0 ? (
                                                 <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                                                     {fullTestData.questions.map((q, idx) => {
@@ -1123,7 +1149,7 @@ const TestsList = () => {
                                                             return ans && ans.marks > 0;
                                                         }).length;
                                                         const successPct = Math.round((correctCount / filteredSubmissions.length) * 100);
-                                                        
+
                                                         let barColor = 'bg-emerald-500';
                                                         let textColor = 'text-emerald-700';
                                                         if (successPct < 40) {
@@ -1133,12 +1159,12 @@ const TestsList = () => {
                                                             barColor = 'bg-amber-500';
                                                             textColor = 'text-amber-700';
                                                         }
-                                                        
+
                                                         return (
                                                             <div key={q.id} className="space-y-1">
                                                                 <div className="flex justify-between items-start text-xs font-bold">
                                                                     <span className="text-slate-700 truncate max-w-[300px]" title={q.text}>
-                                                                        Q{idx+1}. {q.text}
+                                                                        Q{idx + 1}. {q.text}
                                                                     </span>
                                                                     <span className={`${textColor}`}>{successPct}% Correct</span>
                                                                 </div>
@@ -1161,7 +1187,7 @@ const TestsList = () => {
                                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Device Breakdown</h4>
                                                 <p className="text-xs text-slate-400 font-medium mb-4">Platform distribution of student submissions</p>
                                             </div>
-                                            
+
                                             {filteredSubmissions.length > 0 ? (
                                                 <div className="space-y-4">
                                                     {['Desktop', 'Mobile', 'Tablet'].map(type => {
@@ -1175,7 +1201,7 @@ const TestsList = () => {
                                                             return dev === type;
                                                         }).length;
                                                         const pct = Math.round((count / filteredSubmissions.length) * 100);
-                                                        
+
                                                         return (
                                                             <div key={type} className="space-y-1">
                                                                 <div className="flex justify-between text-xs font-bold text-slate-655 font-mono">
@@ -1205,7 +1231,7 @@ const TestsList = () => {
                                     {fullTestData?.questions?.map((q, idx) => {
                                         const qType = q.type || 'Multiple Choice';
                                         const isChoice = ['multiple choice', 'dropdown', 'checkboxes'].includes(qType.toLowerCase());
-                                        
+
                                         const answersForQ = filteredSubmissions.map(sub => {
                                             const ans = sub.answers?.find(a => a.questionId === q.id);
                                             return {
@@ -1218,13 +1244,13 @@ const TestsList = () => {
                                                 marks: ans?.marks || 0
                                             };
                                         }).filter(a => a.textAnswer || a.audioData || a.videoData);
-                                        
+
                                         return (
                                             <div key={q.id} className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
                                                         <h4 className="text-sm font-bold text-slate-800">
-                                                            <span className="text-indigo-650 mr-1.5 font-extrabold">Question {idx+1}:</span> {q.text}
+                                                            <span className="text-indigo-650 mr-1.5 font-extrabold">Question {idx + 1}:</span> {q.text}
                                                         </h4>
                                                         <span className="inline-block mt-2 px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
                                                             {qType}
@@ -1234,7 +1260,7 @@ const TestsList = () => {
                                                         {q.marks || 1} pts
                                                     </span>
                                                 </div>
-                                                
+
                                                 {isChoice ? (
                                                     <div className="space-y-3 pt-2">
                                                         {q.options?.map((opt, oIdx) => {
@@ -1247,7 +1273,7 @@ const TestsList = () => {
                                                                         textAnswers = ans.textAnswer;
                                                                     } else if (typeof ans.textAnswer === 'string') {
                                                                         if (ans.textAnswer.startsWith('[')) {
-                                                                            try { textAnswers = JSON.parse(ans.textAnswer); } catch(e) { textAnswers = ans.textAnswer.split(','); }
+                                                                            try { textAnswers = JSON.parse(ans.textAnswer); } catch (e) { textAnswers = ans.textAnswer.split(','); }
                                                                         } else {
                                                                             textAnswers = ans.textAnswer.split(',');
                                                                         }
@@ -1259,14 +1285,13 @@ const TestsList = () => {
                                                             }).length;
                                                             const pct = filteredSubmissions.length > 0 ? Math.round((chosenCount / filteredSubmissions.length) * 100) : 0;
                                                             const isCorrect = opt.isCorrect;
-                                                            
+
                                                             return (
                                                                 <div key={oIdx} className="space-y-1">
                                                                     <div className="flex justify-between text-xs items-center font-semibold text-slate-700">
                                                                         <div className="flex items-center gap-2">
-                                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                                                                isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-655'
-                                                                            }`}>
+                                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-655'
+                                                                                }`}>
                                                                                 {isCorrect ? '✓' : oIdx + 1}
                                                                             </span>
                                                                             <span className={isCorrect ? 'text-emerald-705 font-bold' : 'text-slate-700'}>
@@ -1279,9 +1304,8 @@ const TestsList = () => {
                                                                         <span className="text-slate-500 font-bold">{chosenCount} responses ({pct}%)</span>
                                                                     </div>
                                                                     <div className="w-full bg-slate-50 h-3 rounded-lg overflow-hidden border border-slate-100">
-                                                                        <div className={`h-full rounded-lg transition-all ${
-                                                                            isCorrect ? 'bg-emerald-550' : 'bg-indigo-455'
-                                                                        }`} style={{ width: `${pct}%` }} />
+                                                                        <div className={`h-full rounded-lg transition-all ${isCorrect ? 'bg-emerald-550' : 'bg-indigo-455'
+                                                                            }`} style={{ width: `${pct}%` }} />
                                                                     </div>
                                                                 </div>
                                                             );
@@ -1341,11 +1365,11 @@ const TestsList = () => {
                                                 >
                                                     <ChevronLeft size={16} /> Previous
                                                 </button>
-                                                
+
                                                 <span className="text-xs font-bold text-slate-705">
                                                     Response <span className="text-indigo-650 font-black">{individualIndex + 1}</span> of <span className="text-slate-500 font-bold">{totalCount}</span>
                                                 </span>
-                                                
+
                                                 <button
                                                     disabled={individualIndex === totalCount - 1}
                                                     onClick={() => setIndividualIndex(prev => Math.min(totalCount - 1, prev + 1))}
@@ -1381,7 +1405,7 @@ const TestsList = () => {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-semibold text-slate-600">
                                                     <div>
                                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email Address</span>
@@ -1398,7 +1422,7 @@ const TestsList = () => {
                                                     <div>
                                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">IP & Device</span>
                                                         <span className="text-slate-800 truncate block" title={activeSubmission?.deviceInfo}>
-                                                            {activeSubmission?.ipAddress} ({activeSubmission?.deviceInfo ? activeSubmission.deviceInfo.split(')')[0].replace('Mozilla/5.0 (', '') : 'N/A'})
+                                                            {activeSubmission?.ipAddress} ({activeSubmission?.deviceInfo ? activeSubmission.deviceInfo.split()[0].replace('Mozilla/5.0 (', '') : 'N/A'})
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1412,36 +1436,34 @@ const TestsList = () => {
                                                     const marksEarned = ans?.marks || 0;
                                                     const totalMarks = q.marks || 1;
                                                     const isCorrect = marksEarned > 0;
-                                                    
+
                                                     return (
-                                                        <div key={q.id} className={`bg-white p-6 border rounded-2xl shadow-sm space-y-4 transition-all ${
-                                                            isChoice
+                                                        <div key={q.id} className={`bg-white p-6 border rounded-2xl shadow-sm space-y-4 transition-all ${isChoice
                                                                 ? isCorrect
                                                                     ? 'border-emerald-200 bg-emerald-50/10'
                                                                     : 'border-rose-200 bg-rose-50/10'
                                                                 : 'border-slate-200'
-                                                        }`}>
+                                                            }`}>
                                                             <div className="flex justify-between items-start gap-4">
                                                                 <div>
                                                                     <h4 className="text-sm font-bold text-slate-800">
-                                                                        <span className="text-slate-555 mr-1 font-extrabold">Q{idx+1}.</span> {q.text}
+                                                                        <span className="text-slate-555 mr-1 font-extrabold">Q{idx + 1}.</span> {q.text}
                                                                     </h4>
                                                                     <span className="inline-block mt-2 px-2.5 py-0.5 bg-slate-100 text-slate-605 rounded-full text-[10px] font-bold uppercase tracking-wider">
                                                                         {qType}
                                                                     </span>
                                                                 </div>
-                                                                
+
                                                                 <div className="text-right">
-                                                                    <span className={`px-2.5 py-1 rounded text-xs font-black border ${
-                                                                        isCorrect
+                                                                    <span className={`px-2.5 py-1 rounded text-xs font-black border ${isCorrect
                                                                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                                                             : 'bg-rose-50 border-rose-200 text-rose-700'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {marksEarned} / {totalMarks} pts
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            
+
                                                             {isChoice ? (
                                                                 <div className="space-y-2 pt-2">
                                                                     {q.options?.map((opt, oIdx) => {
@@ -1452,7 +1474,7 @@ const TestsList = () => {
                                                                                 textAnswers = ans.textAnswer;
                                                                             } else if (typeof ans?.textAnswer === 'string') {
                                                                                 if (ans.textAnswer.startsWith('[')) {
-                                                                                    try { textAnswers = JSON.parse(ans.textAnswer); } catch(e) { textAnswers = ans.textAnswer.split(','); }
+                                                                                    try { textAnswers = JSON.parse(ans.textAnswer); } catch (e) { textAnswers = ans.textAnswer.split(','); }
                                                                                 } else {
                                                                                     textAnswers = ans.textAnswer.split(',');
                                                                                 }
@@ -1461,12 +1483,12 @@ const TestsList = () => {
                                                                         } else {
                                                                             isSelected = ans?.textAnswer?.trim()?.toLowerCase() === opt.text?.trim()?.toLowerCase();
                                                                         }
-                                                                        
+
                                                                         const optCorrect = opt.isCorrect;
-                                                                        
+
                                                                         let containerClass = 'border-slate-200 bg-slate-50 text-slate-700';
                                                                         let icon = <div className="w-4 h-4 rounded-full border border-slate-350" />;
-                                                                        
+
                                                                         if (isSelected && optCorrect) {
                                                                             containerClass = 'border-emerald-300 bg-emerald-50 text-emerald-955';
                                                                             icon = (
@@ -1489,7 +1511,7 @@ const TestsList = () => {
                                                                                 </div>
                                                                             );
                                                                         }
-                                                                        
+
                                                                         return (
                                                                             <div key={oIdx} className={`flex items-center gap-3 p-3 border rounded-xl text-xs font-semibold ${containerClass}`}>
                                                                                 {icon}
@@ -1516,7 +1538,7 @@ const TestsList = () => {
                                                                             } catch (e) {
                                                                                 videoDataObj = { url: ans.videoData };
                                                                             }
-                                                                            
+
                                                                             const evalKey = `${activeSubmission?._id}_${q.id}`;
                                                                             const currentEval = evalState[evalKey] || {
                                                                                 comments: videoDataObj.captions || [],
@@ -1553,7 +1575,7 @@ const TestsList = () => {
                                                                                                     }}
                                                                                                 />
                                                                                             </div>
-                                                                                            
+
                                                                                             {/* Playback speed controls */}
                                                                                             <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
                                                                                                 <span>Playback Speed</span>
@@ -1568,11 +1590,10 @@ const TestsList = () => {
                                                                                                                     setPlaybackSpeeds(prev => ({ ...prev, [evalKey]: speed }));
                                                                                                                 }
                                                                                                             }}
-                                                                                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
-                                                                                                                (playbackSpeeds[evalKey] || 1) === speed
+                                                                                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${(playbackSpeeds[evalKey] || 1) === speed
                                                                                                                     ? 'bg-purple-600 text-white shadow-sm'
                                                                                                                     : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
-                                                                                                            }`}
+                                                                                                                }`}
                                                                                                         >
                                                                                                             {speed}x
                                                                                                         </button>
@@ -1701,7 +1722,7 @@ const TestsList = () => {
                                                                                 </div>
                                                                             );
                                                                         })()
-                                                                ) : (
+                                                                    ) : (
                                                                         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                                                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Written Response</span>
                                                                             <p className="text-xs font-semibold text-slate-700 whitespace-pre-wrap leading-relaxed">
@@ -1728,7 +1749,7 @@ const TestsList = () => {
 
     return (
         <DashboardLayout role="Admin">
-            
+
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
@@ -1747,21 +1768,19 @@ const TestsList = () => {
             <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">
                 <button
                     onClick={() => setActiveTab('lms')}
-                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        activeTab === 'lms'
+                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
                             ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
                             : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                        }`}
                 >
                     LMS Connected Tests
                 </button>
                 <button
                     onClick={() => setActiveTab('public')}
-                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        activeTab === 'public'
+                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
                             ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
                             : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                        }`}
                 >
                     Public Web Tests
                 </button>
@@ -1866,7 +1885,7 @@ const TestsList = () => {
                                                     className={`p-1.5 rounded-lg border transition-all ${copiedId === test._id
                                                         ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
                                                         : 'text-slate-405 border-slate-200 hover:text-indigo-600 hover:bg-indigo-50/50 hover:border-indigo-200'
-                                                    }`}
+                                                        }`}
                                                     title="Copy shareable link"
                                                 >
                                                     {copiedId === test._id ? <Check size={15} /> : <Link2 size={15} />}
@@ -1938,11 +1957,10 @@ const TestsList = () => {
                                                     <div className="flex items-center justify-center gap-1.5">
                                                         <button
                                                             onClick={() => handleCopyUrl(test._id, 'public')}
-                                                            className={`p-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 ${
-                                                                copiedId === test._id
+                                                            className={`p-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 ${copiedId === test._id
                                                                     ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                                                                     : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {copiedId === test._id ? <Check size={14} /> : <Copy size={13} />}
                                                             <span>Copy</span>
@@ -1980,11 +1998,10 @@ const TestsList = () => {
                                                 <td className="p-4 whitespace-nowrap text-center">
                                                     <button
                                                         onClick={() => handleToggleStatus(test._id, test.status)}
-                                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                                            isEnabled
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${isEnabled
                                                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                                                 : 'bg-rose-50 border-rose-200 text-rose-700'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {isEnabled ? 'Enabled' : 'Disabled'}
                                                     </button>
@@ -2027,14 +2044,57 @@ const TestsList = () => {
                                 <X size={20} />
                             </button>
                         </div>
-
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                
+                            {/* Dates & Limits Row */}
+                            <div className="p-4 border border-slate-200 rounded-2xl space-y-4 animate-fade-in">
+                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12} className="text-indigo-650" /> Schedule & Limits</h5>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-600">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={editSettingsForm.startDate}
+                                            onChange={(e) => setEditSettingsForm(prev => ({ ...prev, startDate: e.target.value }))}
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-600">End Date</label>
+                                        <input
+                                            type="date"
+                                            value={editSettingsForm.endDate}
+                                            onChange={(e) => setEditSettingsForm(prev => ({ ...prev, endDate: e.target.value }))}
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-600">Expiry Date</label>
+                                        <input
+                                            type="date"
+                                            value={editSettingsForm.expiryDate}
+                                            onChange={(e) => setEditSettingsForm(prev => ({ ...prev, expiryDate: e.target.value }))}
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-600">Max Attempts (Capacity)</label>
+                                        <input
+                                            type="number"
+                                            value={editSettingsForm.maxResponses}
+                                            onChange={(e) => setEditSettingsForm(prev => ({ ...prev, maxResponses: e.target.value }))}
+                                            placeholder="No capacity limit"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+
                                 {/* Security */}
                                 <div className="p-4 border border-slate-200 rounded-2xl space-y-4">
                                     <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Lock size={12} className="text-indigo-650" /> Access Controls</h5>
-                                    
+
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-600">Access Password</label>
                                         <input
@@ -2056,21 +2116,21 @@ const TestsList = () => {
                                         One Response Per Email
                                     </label>
 
-                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-650 cursor-pointer select-none">
+                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
                                         <input
                                             type="checkbox"
                                             checked={editSettingsForm.antiSpam}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, antiSpam: e.target.checked }))}
                                             className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                                         />
-                                        Enable reCAPTCHA
+                                        Enable reCAPTCHA & Rate Limiting
                                     </label>
                                 </div>
 
                                 {/* Timer & Flow */}
                                 <div className="p-4 border border-slate-200 rounded-2xl space-y-4">
                                     <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Clock size={12} className="text-indigo-650" /> assessment rules</h5>
-                                    
+
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-600">Time Limit (Minutes)</label>
                                         <input
@@ -2082,7 +2142,7 @@ const TestsList = () => {
                                     </div>
 
                                     <div className="flex flex-col gap-2 pt-1 border-t border-slate-100">
-                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-650 cursor-pointer select-none">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
                                             <input
                                                 type="checkbox"
                                                 checked={editSettingsForm.randomizeQuestions}
@@ -2091,7 +2151,7 @@ const TestsList = () => {
                                             />
                                             Randomize Questions
                                         </label>
-                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-650 cursor-pointer select-none">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-655 cursor-pointer select-none">
                                             <input
                                                 type="checkbox"
                                                 checked={editSettingsForm.showScoreAfterSubmission}
@@ -2110,6 +2170,46 @@ const TestsList = () => {
                                             Show Correct Answers
                                         </label>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Assistive Features Checklist */}
+                            <div className="p-4 border border-slate-200 rounded-2xl space-y-4 animate-fade-in">
+                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Settings size={12} className="text-indigo-650" /> Assistive Accessibility Features (OFF by default)</h5>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {[
+                                        { key: 'relevantInformation', label: 'Relevant Information' },
+                                        { key: 'temporaryFill', label: 'Temporary Fill' },
+                                        { key: 'audioAnswer', label: 'Audio Answer' },
+                                        { key: 'chatWithTeacher', label: 'Chat with Teacher' },
+                                        { key: 'uploadAttachment', label: 'Upload Attachment' },
+                                        { key: 'exampleSection', label: 'Example Section' },
+                                        { key: 'calculator', label: 'Calculator' },
+                                        { key: 'aiReader', label: 'AI Reader' },
+                                        { key: 'textToSpeech', label: 'Text To Speech' },
+                                        { key: 'speechToText', label: 'Speech To Text' },
+                                        { key: 'translation', label: 'Translation' },
+                                        { key: 'accessibilityMode', label: 'Accessibility Mode' }
+                                    ].map((feat) => (
+                                        <label key={feat.key} className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={editSettingsForm.assistiveFeatures[feat.key]}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setEditSettingsForm(prev => ({
+                                                        ...prev,
+                                                        assistiveFeatures: {
+                                                            ...prev.assistiveFeatures,
+                                                            [feat.key]: checked
+                                                        }
+                                                    }));
+                                                }}
+                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                            />
+                                            <span>{feat.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
 

@@ -10,6 +10,7 @@ import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import TeacherVideoReview from '../../components/teacher/TeacherVideoReview';
 
 const EvaluatePage = () => {
     const { user } = useAuth();
@@ -23,10 +24,26 @@ const EvaluatePage = () => {
     const [expandedId, setExpandedId] = useState(id || null);
     const [marks, setMarks] = useState({});     // submissionId -> { qIdx -> marks }
     const [feedback, setFeedback] = useState({}); // submissionId -> { qIdx -> feedback }
+    const [updatedVideoData, setUpdatedVideoData] = useState({}); // submissionId -> { qIdx -> videoDataJSON }
     const [saving, setSaving] = useState(null);
     const [showInfo, setShowInfo] = useState(false);
     const [collapsedFeedback, setCollapsedFeedback] = useState({}); // subId-qi -> boolean
     const { openProfile } = useUserProfile();
+
+    const handleVideoReviewChange = (subId, qIdx, newMarks, newFeedback, newVideoData) => {
+        setMarks(prev => ({
+            ...prev,
+            [subId]: { ...(prev[subId] || {}), [qIdx]: newMarks }
+        }));
+        setFeedback(prev => ({
+            ...prev,
+            [subId]: { ...(prev[subId] || {}), [qIdx]: newFeedback }
+        }));
+        setUpdatedVideoData(prev => ({
+            ...prev,
+            [subId]: { ...(prev[subId] || {}), [qIdx]: newVideoData }
+        }));
+    };
 
     useEffect(() => {
         const fetchSubmissions = async () => {
@@ -74,7 +91,8 @@ const EvaluatePage = () => {
 
             const answersPayload = submission.answers.map((a, i) => ({
                 marks: i === qIdx ? parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0) : a.marks,
-                feedback: i === qIdx ? (feedback[submission._id]?.[i] ?? '') : ''
+                feedback: i === qIdx ? (feedback[submission._id]?.[i] ?? '') : '',
+                videoData: i === qIdx ? (updatedVideoData[submission._id]?.[i] ?? a.videoData) : a.videoData
             }));
 
             const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
@@ -107,7 +125,8 @@ const EvaluatePage = () => {
 
             const answersPayload = submission.answers.map((a, i) => ({
                 marks: parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0),
-                feedback: feedback[submission._id]?.[i] ?? a.feedback ?? ''
+                feedback: feedback[submission._id]?.[i] ?? a.feedback ?? '',
+                videoData: updatedVideoData[submission._id]?.[i] ?? a.videoData
             }));
 
             const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
@@ -306,12 +325,22 @@ const EvaluatePage = () => {
 
                                                 {/* Video Answer */}
                                                 {ans.videoData && (
-                                                    <div className="p-5 bg-purple-50/30 rounded-2xl border border-purple-100/50">
-                                                        <div className="flex items-center gap-2 mb-3">
-                                                            <Video size={14} className="text-purple-600" />
-                                                            <span className="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Video Capture</span>
-                                                        </div>
-                                                        <video controls src={ans.videoData} className="w-full rounded-xl max-h-72 shadow-lg" />
+                                                    <div className="space-y-3">
+                                                        {(() => {
+                                                            const q = sub.test?.questions?.find(item => item.id === ans.questionId) || {};
+                                                            const maxMarks = q.marks || 10;
+                                                            return (
+                                                                <TeacherVideoReview
+                                                                    videoData={updatedVideoData[sub._id]?.[qi] ?? ans.videoData}
+                                                                    maxMarks={maxMarks}
+                                                                    initialMarks={marks[sub._id]?.[qi] ?? ans.marks ?? 0}
+                                                                    initialFeedback={feedback[sub._id]?.[qi] ?? ans.feedback ?? ''}
+                                                                    onEvaluationChange={(newMarks, newFeedback, newVideoData) => 
+                                                                        handleVideoReviewChange(sub._id, qi, newMarks, newFeedback, newVideoData)
+                                                                    }
+                                                                />
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
 

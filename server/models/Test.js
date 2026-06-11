@@ -40,10 +40,13 @@ const testSchema = new mongoose.Schema({
         partialMarks: { type: Boolean, default: false },
         evaluationMode: { type: String, default: 'auto' },
         validation: { type: mongoose.Schema.Types.Mixed },
+        validationSettings: { type: mongoose.Schema.Types.Mixed },
         assistive: { type: mongoose.Schema.Types.Mixed },
         particulars: { type: mongoose.Schema.Types.Mixed },
+        logicalSettings: { type: mongoose.Schema.Types.Mixed },
         logic: { type: mongoose.Schema.Types.Mixed },
         textLogic: { type: mongoose.Schema.Types.Mixed },
+        videoSettings: { type: mongoose.Schema.Types.Mixed },
         advanced: { type: mongoose.Schema.Types.Mixed },
         options: [{
             text: String,
@@ -78,7 +81,14 @@ const testSchema = new mongoose.Schema({
         voicePersona: String,
         scriptScenario: String,
         activityType: String,
-        activityRules: String
+        activityRules: String,
+        addons: [String],
+        appliedToAllAddons: [String],
+        moreSettings: {
+            allowUpload: { type: Boolean, default: false },
+            allowAudioAnswer: { type: Boolean, default: false }
+        },
+        insertedImages: [String]
     }],
     settings: {
         duration: Number,
@@ -117,6 +127,20 @@ const testSchema = new mongoose.Schema({
             sendSubmissionNotification: { type: Boolean, default: true },
             sendScoreEmail: { type: Boolean, default: true },
             sendConfirmationEmail: { type: Boolean, default: true }
+        },
+        assistiveFeatures: {
+            relevantInformation: { type: Boolean, default: false },
+            temporaryFill: { type: Boolean, default: false },
+            audioAnswer: { type: Boolean, default: false },
+            chatWithTeacher: { type: Boolean, default: false },
+            uploadAttachment: { type: Boolean, default: false },
+            exampleSection: { type: Boolean, default: false },
+            calculator: { type: Boolean, default: false },
+            aiReader: { type: Boolean, default: false },
+            textToSpeech: { type: Boolean, default: false },
+            speechToText: { type: Boolean, default: false },
+            translation: { type: Boolean, default: false },
+            accessibilityMode: { type: Boolean, default: false }
         }
     },
     createdBy: {

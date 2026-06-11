@@ -69,7 +69,8 @@ const getPublicTestById = asyncHandler(async (req, res) => {
             timeLimit: test.publicSettings?.timeLimit || 0,
             showScoreAfterSubmission: test.publicSettings?.showScoreAfterSubmission !== false,
             showCorrectAnswers: !!test.publicSettings?.showCorrectAnswers,
-            antiSpam: !!test.publicSettings?.antiSpam
+            antiSpam: !!test.publicSettings?.antiSpam,
+            assistiveFeatures: test.publicSettings?.assistiveFeatures || {}
         }
     });
 });
@@ -143,7 +144,7 @@ const submitPublicTest = asyncHandler(async (req, res) => {
     // Duplicate submission check (One Response Per Email)
     const allowMultiple = test.publicSettings?.allowMultiple || false;
     if (!allowMultiple) {
-        const existing = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase() });
+        const existing = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase(), completedStatus: 'Completed' });
         if (existing) {
             return res.status(400).json({ message: 'You have already submitted this test.' });
         }
@@ -209,18 +210,39 @@ const submitPublicTest = asyncHandler(async (req, res) => {
 
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
 
-    const submission = await PublicSubmission.create({
+    // Promote an existing incomplete draft, or create a new completed submission
+    let submission = await PublicSubmission.findOne({
         test: test._id,
-        name,
         email: email.toLowerCase(),
-        phone: phone || '',
-        organization: organization || '',
-        ipAddress,
-        deviceInfo: deviceInfo || 'Unknown Device',
-        answers: gradedAnswers,
-        score: totalScore,
-        completedStatus: 'Completed'
+        completedStatus: 'Incomplete'
     });
+
+    if (submission) {
+        submission.name = name;
+        submission.phone = phone || submission.phone;
+        submission.organization = organization || submission.organization;
+        submission.answers = gradedAnswers;
+        submission.score = totalScore;
+        submission.completedStatus = 'Completed';
+        submission.ipAddress = ipAddress;
+        submission.deviceInfo = deviceInfo || submission.deviceInfo;
+        submission.submittedAt = new Date();
+        await submission.save();
+    } else {
+        submission = await PublicSubmission.create({
+            test: test._id,
+            name,
+            email: email.toLowerCase(),
+            phone: phone || '',
+            organization: organization || '',
+            ipAddress,
+            deviceInfo: deviceInfo || 'Unknown Device',
+            answers: gradedAnswers,
+            score: totalScore,
+            completedStatus: 'Completed',
+            submittedAt: new Date()
+        });
+    }
 
     // Simulate Emails in Backend console logs
     console.log(`\n================ SIMULATED EMAILS FOR PUBLIC TEST SUBMISSION ================`);
@@ -366,7 +388,7 @@ const updatePublicTestSettings = asyncHandler(async (req, res) => {
     res.json({ success: true, test });
 });
 
-// @desc    Check duplicate email for a public test
+// @desc    Check duplicate email or resume draft for a public test
 // @route   POST /api/public-tests/:id/check-email
 // @access  Public
 const checkPublicTestEmail = asyncHandler(async (req, res) => {
@@ -375,14 +397,104 @@ const checkPublicTestEmail = asyncHandler(async (req, res) => {
     if (!test) {
         return res.status(404).json({ message: 'Test not found' });
     }
+
+    // First check if there is an incomplete draft they can resume
+    const draft = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase(), completedStatus: 'Incomplete' });
+    if (draft) {
+        return res.json({
+            exists: false,
+            isDraft: true,
+            draftSubmissionId: draft._id,
+            draftAnswers: draft.answers,
+            draftName: draft.name,
+            draftPhone: draft.phone,
+            draftOrg: draft.organization
+        });
+    }
+
     const allowMultiple = test.publicSettings?.allowMultiple || false;
     if (!allowMultiple) {
-        const existing = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase() });
+        const existing = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase(), completedStatus: 'Completed' });
         if (existing) {
             return res.json({ exists: true });
         }
     }
     res.json({ exists: false });
+});
+
+// @desc    Save public test draft
+// @route   POST /api/public-tests/:id/save-draft
+// @access  Public
+const savePublicTestDraft = asyncHandler(async (req, res) => {
+    const { name, email, phone, organization, answers } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email is required to save a draft.' });
+    }
+
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+        return res.status(404).json({ message: 'Test not found.' });
+    }
+
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+
+    const formattedAnswers = answers.map(ans => ({
+        questionId: ans.questionId,
+        questionText: ans.questionText || '',
+        questionType: ans.questionType || '',
+        textAnswer: typeof ans.textAnswer === 'object' ? JSON.stringify(ans.textAnswer) : (ans.textAnswer || ''),
+        audioData: ans.audioData || '',
+        videoData: ans.videoData || '',
+        marks: 0
+    }));
+
+    let submission = await PublicSubmission.findOne({
+        test: test._id,
+        email: email.toLowerCase(),
+        completedStatus: 'Incomplete'
+    });
+
+    if (submission) {
+        submission.name = name || submission.name;
+        submission.phone = phone !== undefined ? phone : submission.phone;
+        submission.organization = organization !== undefined ? organization : submission.organization;
+        submission.answers = formattedAnswers;
+        submission.ipAddress = ipAddress;
+        submission.deviceInfo = deviceInfo;
+        await submission.save();
+    } else {
+        const allowMultiple = test.publicSettings?.allowMultiple || false;
+        if (!allowMultiple) {
+            const completed = await PublicSubmission.findOne({
+                test: test._id,
+                email: email.toLowerCase(),
+                completedStatus: 'Completed'
+            });
+            if (completed) {
+                return res.status(400).json({ message: 'You have already submitted this test.' });
+            }
+        }
+
+        submission = await PublicSubmission.create({
+            test: test._id,
+            name: name || 'Guest User',
+            email: email.toLowerCase(),
+            phone: phone || '',
+            organization: organization || '',
+            answers: formattedAnswers,
+            completedStatus: 'Incomplete',
+            ipAddress,
+            deviceInfo
+        });
+    }
+
+    res.json({
+        success: true,
+        message: 'Draft saved successfully.',
+        submissionId: submission._id
+    });
 });
 
 // @desc    Delete guest submission (Admin only)
@@ -407,6 +519,7 @@ module.exports = {
     togglePublicTestStatus,
     updatePublicTestSettings,
     checkPublicTestEmail,
+    savePublicTestDraft,
     getPublicTestsDashboard,
     deletePublicSubmission
 };

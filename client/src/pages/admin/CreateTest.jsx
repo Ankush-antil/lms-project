@@ -6,7 +6,7 @@ import axios from 'axios';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // Import styles
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Save, Plus, Trash2, Clock, Upload, CheckSquare, AlignLeft, Calendar } from 'lucide-react';
+import { Save, Plus, Trash2, Clock, Upload, CheckSquare, AlignLeft, Calendar, MessageSquare } from 'lucide-react';
 
 const CreateTest = () => {
     const { user } = useAuth();
@@ -14,6 +14,8 @@ const CreateTest = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
+    const [discussionActivity, setDiscussionActivity] = useState({ activityName: '', activityLink: '' });
 
     // Step 1: Basic Info
     const [testDetails, setTestDetails] = useState({
@@ -27,7 +29,6 @@ const CreateTest = () => {
 
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
-
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -93,10 +94,17 @@ const CreateTest = () => {
     const handleSave = async () => {
         try {
 
-            
+
 
             setLoading(true);
-            await axios.post('/api/tests', { testDetails, settings, questions });
+            await axios.post('/api/tests', {
+                testDetails: {
+                    ...testDetails,
+                    discussionActivity
+                },
+                settings,
+                questions
+            });
             setLoading(false);
 
             toast.success('Test Created and Published Successfully!');
@@ -352,10 +360,90 @@ const CreateTest = () => {
                     </div>
 
                     <div className="flex justify-between pt-8">
-                        <button className="px-6 py-2 text-slate-600 hover:text-slate-800" onClick={() => setStep(2)}>Back</button>
+                        <div className="flex items-center gap-3">
+                            <button className="px-6 py-2 text-slate-600 hover:text-slate-800" onClick={() => setStep(2)}>Back</button>
+                            <button
+                                type="button"
+                                onClick={() => setIsDiscussionModalOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl shadow-sm transition-all"
+                            >
+                                <MessageSquare size={14} className="text-purple-600" />
+                                <span>Decide Activity</span>
+                            </button>
+                        </div>
                         <button className="btn-primary flex items-center gap-2" onClick={handleSave}>
                             <Save size={18} /> Publish Test
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {isDiscussionModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsDiscussionModalOpen(false)}>
+                    <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-scale-up" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                <MessageSquare size={20} className="text-purple-600" />
+                                <span>Decide Activity</span>
+                            </h3>
+                            <button
+                                onClick={() => setIsDiscussionModalOpen(false)}
+                                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="py-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Activity Name</label>
+                                <input
+                                    type="text"
+                                    value={discussionActivity?.activityName || ''}
+                                    onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityName: e.target.value }))}
+                                    placeholder="Enter activity name (e.g. Discuss on Slack)"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Activity Link (URL)</label>
+                                <input
+                                    type="url"
+                                    value={discussionActivity?.activityLink || ''}
+                                    onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityLink: e.target.value }))}
+                                    placeholder="https://example.com/discussion"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsDiscussionModalOpen(false)}
+                                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!discussionActivity?.activityName?.trim()) {
+                                        toast.error("Please enter an activity name.");
+                                        return;
+                                    }
+                                    if (!discussionActivity?.activityLink?.trim()) {
+                                        toast.error("Please enter a valid link.");
+                                        return;
+                                    }
+                                    setIsDiscussionModalOpen(false);
+                                    toast.success("Decide Activity settings configured!");
+                                }}
+                                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-purple-500/15"
+                            >
+                                Save Activity
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

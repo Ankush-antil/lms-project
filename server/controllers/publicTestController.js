@@ -64,6 +64,7 @@ const getPublicTestById = asyncHandler(async (req, res) => {
         description: test.description,
         subject: test.subject,
         activity: test.activity,
+        discussionActivity: test.discussionActivity,
         questions: sanitizedQuestions,
         publicSettings: {
             timeLimit: test.publicSettings?.timeLimit || 0,

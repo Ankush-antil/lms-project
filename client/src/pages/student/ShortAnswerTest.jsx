@@ -4,7 +4,7 @@ import {
     Info, ClipboardList, Clock, MoreVertical,
     ChevronUp, Mic, Languages, Bot, Volume2, ToggleLeft, ChevronDown, Video, Square, Play,
     FileText, Sliders, Globe, Settings, Send, Paperclip, MessageSquare, Sparkles, Loader2, CheckCircle2,
-    Pause, RotateCcw, Trash2
+    Pause, RotateCcw, Trash2, X, BookOpen
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -51,10 +51,12 @@ const ShortAnswerTest = () => {
     const mediaStreamRef = useRef({});
     const chunksRef = useRef({});
     const videoPreviewRef = useRef({});
-    const blobsRef = useRef({}); // idx -> Blob (for base64 conversion on submit)
+    const blobsRef = useRef({});
+    const recognitionRef = useRef(null); // idx -> Blob (for base64 conversion on submit)
 
     // New states for Short Answer advanced tools
     const [showAudioRecorder, setShowAudioRecorder] = useState({});
+    const [showVideoRecorder, setShowVideoRecorder] = useState({});
     const [audioTimer, setAudioTimer] = useState({});
     const [audioTimerId, setAudioTimerId] = useState({});
     const [countdownVal, setCountdownVal] = useState({});
@@ -63,6 +65,8 @@ const ShortAnswerTest = () => {
     const [isUploading, setIsUploading] = useState({});
     const [autoSaveStatus, setAutoSaveStatus] = useState("Saved");
     const [questionTimes, setQuestionTimes] = useState({});
+    const [showUploadMenu, setShowUploadMenu] = useState({});
+    const [previewFile, setPreviewFile] = useState(null);
 
     // Collapsed questions tracker (index -> boolean)
     const [collapsedQuestions, setCollapsedQuestions] = useState({});
@@ -74,6 +78,7 @@ const ShortAnswerTest = () => {
     const [calculatorVal, setCalculatorVal] = useState('');
     const [chatMessages, setChatMessages] = useState({}); // qIdx -> array of messages
     const [chatInput, setChatInput] = useState({}); // qIdx -> input text
+    const [showGlobalChat, setShowGlobalChat] = useState(null); // qIdx or null
     const [translateLang, setTranslateLang] = useState({}); // qIdx -> lang string
     const [isAccessibilityActive, setIsAccessibilityActive] = useState(false); // High Contrast / Large Text
     const [offlineWriting, setOfflineWriting] = useState(false);
@@ -86,15 +91,7 @@ const ShortAnswerTest = () => {
     const [board, setBoard] = useState(Array(9).fill(''));
     const [xIsNext, setXIsNext] = useState(true);
 
-    // Speech Recognition setup
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
-    if (recognition) {
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-    }
 
     useEffect(() => {
         const fetchTest = async () => {
@@ -213,46 +210,148 @@ const ShortAnswerTest = () => {
     }, [answers, id, test]);
 
     const handleTextChange = (idx, val) => {
+        setAutoSaveStatus("Saving...");
         setAnswers(prev => ({ ...prev, [idx]: val }));
     };
 
+    const handleCopyPasteBlock = (e, q) => {
+        if (q.validationSettings?.copyPasteDisabled) {
+            e.preventDefault();
+            toast.error("Copy and paste is disabled for this question!");
+        }
+    };
+
+    const validateQuestionInput = (idx, q) => {
+        const qValSettings = q.validationSettings || {};
+        const textAnswer = (answers[idx] || '').replace(/<[^>]*>/g, '').trim();
+
+        if (qValSettings.answerNotEmpty && !textAnswer) {
+            toast.error(`Question ${idx + 1} cannot be left empty.`);
+            return false;
+        }
+
+        if (textAnswer) {
+            if (qValSettings.minWords && Number(qValSettings.minWords) > 0) {
+                const wordCount = textAnswer.split(/\s+/).filter(Boolean).length;
+                if (wordCount < Number(qValSettings.minWords)) {
+                    toast.error(`Question ${idx + 1} requires a minimum of ${qValSettings.minWords} words.`);
+                    return false;
+                }
+            }
+
+            if (qValSettings.maxWords && Number(qValSettings.maxWords) > 0) {
+                const wordCount = textAnswer.split(/\s+/).filter(Boolean).length;
+                if (wordCount > Number(qValSettings.maxWords)) {
+                    toast.error(`Question ${idx + 1} can have a maximum of ${qValSettings.maxWords} words.`);
+                    return false;
+                }
+            }
+
+            if (qValSettings.specialChars === false) {
+                const specialCharsRegex = /[^a-zA-Z0-9\s]/;
+                if (specialCharsRegex.test(textAnswer)) {
+                    toast.error(`Question ${idx + 1} cannot contain special characters.`);
+                    return false;
+                }
+            }
+
+            if (qValSettings.numericValues === false) {
+                const numericRegex = /[0-9]/;
+                if (numericRegex.test(textAnswer)) {
+                    toast.error(`Question ${idx + 1} cannot contain numeric values.`);
+                    return false;
+                }
+            }
+
+            if (qValSettings.keywordPresence && qValSettings.keywordPresence.trim()) {
+                const keywords = qValSettings.keywordPresence.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+                const missingKeywords = keywords.filter(k => !textAnswer.toLowerCase().includes(k));
+                if (missingKeywords.length > 0) {
+                    toast.error(`Question ${idx + 1} must contain the following keywords: ${missingKeywords.join(', ')}.`);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    useEffect(() => {
+        if (!test || !test.questions) return;
+        const hasTabRestriction = test.questions.some(q => q.validationSettings?.chromeNewTabDisabled);
+        if (!hasTabRestriction) return;
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                toast.error("Warning: Tab switching is disabled! This event has been logged.");
+            }
+        };
+
+        const handleWindowBlur = () => {
+            toast.error("Warning: Please stay on the test window!");
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("blur", handleWindowBlur);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("blur", handleWindowBlur);
+        };
+    }, [test]);
+
     const toggleVoiceTyping = (idx) => {
-        if (!recognition) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             toast.error("Speech recognition is not supported in this browser.");
             return;
         }
 
         if (isListening === idx) {
-            recognition.stop();
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
             setIsListening(null);
         } else {
-            if (isListening !== null) recognition.stop();
+            if (isListening !== null && recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
 
             setIsListening(idx);
-            recognition.start();
 
-            recognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+            const rec = new SpeechRecognition();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = 'en-US';
+
+            const baseText = (answers[idx] || "").trim();
+
+            rec.onresult = (event) => {
+                let sessionTranscript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    sessionTranscript += event.results[i][0].transcript;
                 }
+                const combined = baseText ? (baseText + " " + sessionTranscript.trim()) : sessionTranscript.trim();
                 setAnswers(prev => ({
                     ...prev,
-                    [idx]: (prev[idx] || "") + " " + transcript
+                    [idx]: combined
                 }));
             };
 
-            recognition.onerror = (event) => {
+            rec.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
-                recognition.stop();
+                rec.stop();
                 setIsListening(null);
             };
 
-            recognition.onend = () => {
+            rec.onend = () => {
                 setIsListening(null);
             };
+
+            recognitionRef.current = rec;
+            rec.start();
         }
-    };
+    };;
 
     // ─── MediaRecorder Recording ─────────────────────────────────────
     const startRecording = async (idx, type) => {
@@ -527,19 +626,24 @@ const ShortAnswerTest = () => {
 
     const handleFileUploadSimulated = (idx, files) => {
         if (!files || files.length === 0) return;
-        
+
         setIsUploading(prev => ({ ...prev, [idx]: true }));
         setUploadProgress(prev => ({ ...prev, [idx]: 0 }));
-        
+
         let progress = 0;
         const interval = setInterval(() => {
             progress += 20;
             setUploadProgress(prev => ({ ...prev, [idx]: progress }));
-            
+
             if (progress >= 100) {
                 clearInterval(interval);
                 setIsUploading(prev => ({ ...prev, [idx]: false }));
-                const fileList = Array.from(files).map(f => ({ name: f.name, size: f.size }));
+                const fileList = Array.from(files).map(f => ({
+                    name: f.name,
+                    size: f.size,
+                    type: f.type,
+                    url: URL.createObjectURL(f)
+                }));
                 setAttachedFiles(prev => ({ ...prev, [idx]: fileList }));
                 toast.success(`Attached ${files.length} file(s) successfully.`);
             }
@@ -586,6 +690,10 @@ const ShortAnswerTest = () => {
                 return;
             }
 
+            if (!validateQuestionInput(idx, question)) {
+                return;
+            }
+
             const type = question.type?.toLowerCase();
             const isAudio = type?.includes('voice') || type?.includes('audio') || type?.includes('mic');
             const isVideo = type?.includes('video') || type?.includes('cam');
@@ -621,12 +729,15 @@ const ShortAnswerTest = () => {
     const submitAll = async () => {
         if (!test) return;
 
-        // Check language restriction for all questions
+        // Check language restriction and validation rules for all questions
         for (let idx = 0; idx < test.questions.length; idx++) {
             const q = test.questions[idx];
             const qParticulars = q.particulars || {};
             if (qParticulars.languageRestriction && !validateLanguage(answers[idx] || '', qParticulars.languageRestriction)) {
                 toast.error(`Please write your answer for Question ${idx + 1} in ${qParticulars.languageRestriction}!`);
+                return;
+            }
+            if (!validateQuestionInput(idx, q)) {
                 return;
             }
         }
@@ -704,32 +815,134 @@ const ShortAnswerTest = () => {
 
     return (
         <div className={`min-h-screen bg-[#e9ecef] flex flex-col font-sans transition-all duration-300 ${isAccessibilityActive ? 'text-lg contrast-125' : ''}`}>
-            {/* Timer & Meta Header */}
-            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between shadow-md z-10 sticky top-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-black">P</div>
-                    <h2 className="text-white font-bold text-base truncate max-w-md">{test.title}</h2>
-                </div>
-
-                {timeLeft !== null && (
-                    <div className={`px-4 py-2 border rounded-xl flex items-center gap-2 text-sm font-bold transition-colors shadow-inner ${
-                        timeLeft < 60
-                            ? 'bg-red-500/20 border-red-500 text-red-500 animate-pulse'
-                            : 'bg-slate-800 border-slate-700 text-slate-200'
-                    }`}>
-                        <Clock size={16} />
-                        <span>{(() => {
-                            const h = Math.floor(timeLeft / 3600);
-                            const m = Math.floor((timeLeft % 3600) / 60);
-                            const s = timeLeft % 60;
-                            return `${h > 0 ? h + ':' : ''}${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
-                        })()}</span>
+            {/* White Test Page Header */}
+            <div
+                className="bg-white border-b border-slate-300 px-4 py-2.5 z-10 sticky top-0 text-slate-700 select-none text-xs transition-all duration-500 ease-[cubic-bezier(0.25,1,0.35,1)] shadow-sm"
+                style={{ marginRight: showGlobalChat !== null ? '340px' : '0px' }}
+            >
+                <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 w-full">
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <h2 className="text-slate-800 font-black text-xs sm:text-sm tracking-wide truncate max-w-xs sm:max-w-md">{test.title}</h2>
+                            {autoSaveStatus && (
+                                <span className="text-[9px] text-emerald-600 font-bold block leading-none mt-0.5">
+                                    ✓ {autoSaveStatus}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                )}
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Countdown Timer */}
+                        {timeLeft !== null && (
+                            <div className={`px-2.5 py-1 border rounded-lg flex items-center gap-1.5 text-[11px] font-bold transition-colors shadow-inner ${timeLeft < 60
+                                ? 'bg-red-500/20 border-red-500 text-red-500 animate-pulse'
+                                : 'bg-slate-100 border-slate-200 text-slate-700'
+                                }`}>
+                                <Clock size={12} />
+                                <span>{(() => {
+                                    const h = Math.floor(timeLeft / 3600);
+                                    const m = Math.floor((timeLeft % 3600) / 60);
+                                    const s = timeLeft % 60;
+                                    return `${h > 0 ? h + ':' : ''}${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+                                })()}</span>
+                            </div>
+                        )}
+
+                        {/* Relevant Information Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const helperTexts = test.questions
+                                    ?.map((q, i) => q.helperText ? `Q${i + 1}: ${q.helperText}` : null)
+                                    ?.filter(Boolean) || [];
+                                if (helperTexts.length > 0) {
+                                    toast(helperTexts.join("\n"), {
+                                        icon: 'ℹ️',
+                                        style: { background: '#334155', color: '#fff', fontSize: '11px' }
+                                    });
+                                } else {
+                                    toast.info("No relevant info provided.", { style: { fontSize: '11px' } });
+                                }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
+                        >
+                            <Info size={11} /> Relevant Info
+                        </button>
+
+                        {/* My Drafts Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                toast(`Draft status: Saved. Last updated at: ${new Date().toLocaleTimeString()}`, { icon: '📝', style: { fontSize: '11px' } });
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-[#28a745] hover:bg-[#218838] text-white text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
+                        >
+                            <FileText size={11} /> My Drafts
+                        </button>
+
+                        {/* Temporary Fill Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                test.questions?.forEach((q, qIdx) => {
+                                    if (!answers[qIdx]) {
+                                        handleTemporaryFill(qIdx, q.type);
+                                    }
+                                });
+                                toast.success("Questions filled with temporary placeholders.", { style: { fontSize: '11px' } });
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-[#ffc107] hover:bg-[#e0a800] text-slate-900 text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
+                        >
+                            <Clock size={11} /> Temporary Fill
+                        </button>
+
+                        {/* More Menu */}
+                        <div className="relative group/menu shrink-0">
+                            <button type="button" className="w-7 h-7 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-800 hover:bg-slate-100 transition-colors">
+                                <MoreVertical size={14} />
+                            </button>
+                            <div className="absolute right-0 top-8 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-35 hidden group-hover/menu:block text-slate-700 text-[11px]">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        test.questions?.forEach((_, qIdx) => handleTextChange(qIdx, ''));
+                                        toast.success("All answers cleared.");
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 font-semibold"
+                                >
+                                    Clear All Answers
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        test.questions?.forEach((q, qIdx) => handleTemporaryFill(qIdx, q.type));
+                                        toast.success("All placeholders filled.");
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-55 font-semibold"
+                                >
+                                    Fill All Placeholders
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => toast.success("Issue reported to host.")}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 font-semibold text-red-600"
+                                >
+                                    Report Issue
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Student Profile avatar */}
+                        <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-slate-200 shadow-sm cursor-pointer text-[11px] shrink-0">
+                            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'ST'}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Test Canvas */}
-            <div className="flex-1 p-6 space-y-8 pb-28 max-w-4xl mx-auto w-full">
+            <div className={`flex-1 p-6 space-y-8 pb-28 w-full transition-[padding,max-width,margin] duration-500 ease-[cubic-bezier(0.25,1,0.35,1)] ${showGlobalChat !== null ? 'pr-[356px]' : 'max-w-4xl mx-auto'}`}>
                 {test.questions.map((q, idx) => {
                     const type = q.type?.toLowerCase();
                     const isShortAnswer = type === 'short answer';
@@ -748,7 +961,7 @@ const ShortAnswerTest = () => {
                     const isCollapsed = collapsedQuestions[idx];
 
                     // Read question-level config or default to test-level publicSettings
-                    const qAssistive = q.assistive || test?.publicSettings?.assistiveFeatures || {
+                    const qAssistiveBase = q.assistive || test?.publicSettings?.assistiveFeatures || {
                         relevantInformation: true,
                         myDrafts: true,
                         temporaryFill: true,
@@ -762,6 +975,19 @@ const ShortAnswerTest = () => {
                         speechToText: true,
                         translation: true,
                         accessibilityMode: true
+                    };
+
+                    const questionAddons = q.addons || [];
+                    const globalAppliedAddons = q.appliedToAllAddons || [];
+                    const hasAddon = (label) => questionAddons.includes(label) || globalAppliedAddons.includes(label);
+
+                    const qAssistive = {
+                        ...qAssistiveBase,
+                        translation: q.addons ? hasAddon('Translator it') : qAssistiveBase.translation,
+                        speechToText: q.addons ? hasAddon('Voice typing') : qAssistiveBase.speechToText,
+                        calculator: q.addons ? hasAddon('Timer') : qAssistiveBase.calculator,
+                        relevantInformation: q.addons ? (hasAddon('Help with AI') || qAssistiveBase.relevantInformation) : qAssistiveBase.relevantInformation,
+                        temporaryFill: q.addons ? (hasAddon('Help with AI') || qAssistiveBase.temporaryFill) : qAssistiveBase.temporaryFill
                     };
 
                     const qParticulars = q.particulars || {
@@ -792,106 +1018,11 @@ const ShortAnswerTest = () => {
                     const isEditable = questionTimes[idx] !== 0 && !(submittedAnswers[idx] && !qParticulars.allowEditing);
 
                     return (
-                        <div key={idx} className="space-y-0.5 rounded-2xl overflow-hidden shadow-md">
-                            
-                            {/* 🟣 PURPLE QUESTION HEADER */}
-                            <div className="bg-[#6F42C1] px-4 py-3 flex flex-wrap items-center justify-between text-white gap-3 select-none">
-                                <div className="flex items-center gap-3">
-                                    <span className="font-extrabold text-sm">{idx + 1}. {q.type || 'Short Answer Question'}</span>
-                                    {autoSaveStatus && qParticulars.autoSave !== false && (
-                                        <span className="text-[10px] bg-emerald-600 px-2 py-0.5 rounded-full font-bold text-white flex items-center gap-1">
-                                            ✓ {autoSaveStatus}
-                                        </span>
-                                    )}
-                                    {questionTimes[idx] !== undefined && (
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold text-white flex items-center gap-1 ${questionTimes[idx] > 0 ? 'bg-amber-600 animate-pulse' : 'bg-red-600'}`}>
-                                            <Clock size={10} />
-                                            {questionTimes[idx] > 0 ? `${questionTimes[idx]}s left` : 'Time Up'}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Relevant Information Button */}
-                                    {qAssistive.relevantInformation && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                toast(q.helperText || "Provide a clear and concise response.", {
-                                                    icon: 'ℹ️',
-                                                    style: { background: '#334155', color: '#fff' }
-                                                });
-                                            }}
-                                            className="flex items-center gap-1.5 px-3 py-1 bg-[#007bff] hover:bg-[#0069d9] text-white text-[11px] font-bold rounded-full transition-all shadow-sm"
-                                        >
-                                            <Info size={11} /> Relevant Information
-                                        </button>
-                                    )}
-
-                                    {/* My Drafts Button */}
-                                    {(qParticulars.enableDraftMode || qAssistive.myDrafts) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                toast(`Draft status: Saved. Last updated at: ${new Date().toLocaleTimeString()}`, { icon: '📝' });
-                                            }}
-                                            className="flex items-center gap-1.5 px-3 py-1 bg-[#28a745] hover:bg-[#218838] text-white text-[11px] font-bold rounded-full transition-all shadow-sm"
-                                        >
-                                            <FileText size={11} /> My Drafts
-                                        </button>
-                                    )}
-
-                                    {/* Temporary Fill Button */}
-                                    {qAssistive.temporaryFill && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleTemporaryFill(idx, q.type)}
-                                            className="flex items-center gap-1.5 px-3 py-1 bg-[#ffc107] hover:bg-[#e0a800] text-slate-900 text-[11px] font-bold rounded-full transition-all shadow-sm"
-                                        >
-                                            <Clock size={11} /> Temporary Fill
-                                        </button>
-                                    )}
-
-                                    {/* More Menu */}
-                                    <div className="relative group/menu">
-                                        <button type="button" className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-800 hover:bg-slate-100 transition-colors">
-                                            <MoreVertical size={16} />
-                                        </button>
-                                        <div className="absolute right-0 top-9 w-40 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-35 hidden group-hover/menu:block text-slate-700 text-xs">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleTextChange(idx, '')}
-                                                className="w-full text-left px-4 py-2 hover:bg-slate-55 font-semibold"
-                                            >
-                                                Clear Answer
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleTemporaryFill(idx, q.type)}
-                                                className="w-full text-left px-4 py-2 hover:bg-slate-55 font-semibold"
-                                            >
-                                                Fill Placeholders
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => toast.success("Issue reported to host.")}
-                                                className="w-full text-left px-4 py-2 hover:bg-slate-55 font-semibold text-red-600"
-                                            >
-                                                Report Issue
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Student Avatar */}
-                                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-sm cursor-pointer">
-                                        {test.studentName?.[0] || 'S'}
-                                    </div>
-                                </div>
-                            </div>
+                        <div key={idx} className="rounded-2xl shadow-md bg-white">
 
                             {/* ⚪ QUESTION CARD BODY */}
-                            <div className="bg-white p-6 border-x border-b border-slate-200 space-y-6">
-                                
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
+
                                 {/* Inserted Images Thumbnails */}
                                 {(() => {
                                     const imagesToRender = [
@@ -941,18 +1072,17 @@ const ShortAnswerTest = () => {
                                     <div className="space-y-6">
                                         {/* Answer Inputs based on Question Type */}
                                         <div className="answer-input-zone">
-                                            
+
                                             {/* MCQ Options */}
                                             {isMcq && q.options && (
                                                 <div className="space-y-2.5">
                                                     {q.options.map((opt, optIdx) => (
                                                         <label
                                                             key={optIdx}
-                                                            className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${
-                                                                answers[idx] === opt.text
-                                                                    ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                    : 'border-slate-200 bg-white'
-                                                            } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
+                                                            className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
+                                                                ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                : 'border-slate-200 bg-white'
+                                                                } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
                                                         >
                                                             <input
                                                                 type="radio"
@@ -976,11 +1106,10 @@ const ShortAnswerTest = () => {
                                                         return (
                                                             <label
                                                                 key={optIdx}
-                                                                className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${
-                                                                    isChecked
-                                                                        ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                        : 'border-slate-200 bg-white'
-                                                                } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
+                                                                className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${isChecked
+                                                                    ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                    : 'border-slate-200 bg-white'
+                                                                    } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
                                                             >
                                                                 <input
                                                                     type="checkbox"
@@ -1013,11 +1142,10 @@ const ShortAnswerTest = () => {
                                                     {['True', 'False'].map((val) => (
                                                         <label
                                                             key={val}
-                                                            className={`flex-1 flex items-center gap-3 p-3.5 border rounded-2xl transition-all justify-center ${
-                                                                answers[idx] === val
-                                                                    ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                    : 'border-slate-200 bg-white'
-                                                            } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
+                                                            className={`flex-1 flex items-center gap-3 p-3.5 border rounded-2xl transition-all justify-center ${answers[idx] === val
+                                                                ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                : 'border-slate-200 bg-white'
+                                                                } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
                                                         >
                                                             <input
                                                                 type="radio"
@@ -1052,7 +1180,7 @@ const ShortAnswerTest = () => {
                                             {isMatching && (
                                                 <div className="space-y-3">
                                                     <span className="text-xs text-slate-400 font-bold block">Match the pairs correctly:</span>
-                                                    {(q.matchingPairs || [{key: 'Computer', value: 'Machine'}, {key: 'Software', value: 'Instructions'}]).map((pair, pIdx) => {
+                                                    {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((pair, pIdx) => {
                                                         const val = answers[idx]?.[pair.key] || "";
                                                         return (
                                                             <div key={pIdx} className="flex items-center justify-between gap-4 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
@@ -1070,7 +1198,7 @@ const ShortAnswerTest = () => {
                                                                     className={`border border-slate-200 rounded-lg p-1.5 text-xs outline-none focus:border-[#6F42C1] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
                                                                 >
                                                                     <option value="">Select Match...</option>
-                                                                    {(q.matchingPairs || [{key: 'Computer', value: 'Machine'}, {key: 'Software', value: 'Instructions'}]).map((item, iIdx) => (
+                                                                    {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((item, iIdx) => (
                                                                         <option key={iIdx} value={item.value}>{item.value}</option>
                                                                     ))}
                                                                 </select>
@@ -1100,189 +1228,208 @@ const ShortAnswerTest = () => {
                                                         </div>
                                                     )}
 
-                                                     {/* Text field if Text Mode is allowed */}
-                                                     {(!qParticulars.answerMode || qParticulars.answerMode.includes('Text')) && qParticulars.enableAnswerBox !== false && (() => {
-                                                         return (
-                                                             <div className="relative group">
-                                                                 {qParticulars.richTextEditor ? (
-                                                                     <div className="space-y-1">
-                                                                         <div className="flex gap-1.5 p-1.5 bg-slate-100 border border-slate-200 border-b-0 rounded-t-2xl">
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('bold', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs font-bold w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Bold"
-                                                                             >
-                                                                                 B
-                                                                             </button>
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('italic', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs italic w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Italic"
-                                                                             >
-                                                                                 I
-                                                                             </button>
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('underline', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs underline w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Underline"
-                                                                             >
-                                                                                 U
-                                                                             </button>
-                                                                         </div>
-                                                                         <div
-                                                                             contentEditable={isEditable}
-                                                                             suppressContentEditableWarning
-                                                                             onBlur={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
-                                                                             onInput={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
-                                                                             dangerouslySetInnerHTML={{ __html: answers[idx] || '' }}
-                                                                             className={`w-full p-4 border border-slate-200 rounded-b-2xl bg-white focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] outline-none transition-all font-medium text-slate-700 min-h-[120px] text-left ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                             placeholder={qParticulars.placeholderText || "Your answer..."}
-                                                                             style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                                 fontSize: qParticulars.style.fontSize,
-                                                                                 fontWeight: qParticulars.style.fontWeight,
-                                                                                 color: qParticulars.style.textColor,
-                                                                                 backgroundColor: qParticulars.style.bgColor,
-                                                                                 borderStyle: qParticulars.style.borderStyle,
-                                                                                 borderColor: qParticulars.style.borderColor,
-                                                                                 borderWidth: '2px',
-                                                                                 width: qParticulars.inputWidth || '100%',
-                                                                             } : {}}
-                                                                         />
-                                                                     </div>
-                                                                 ) : qParticulars.singleLineMode ? (
-                                                                     <input
-                                                                         type="text"
-                                                                         disabled={!isEditable}
-                                                                         value={answers[idx] || ""}
-                                                                         onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                                         style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                             fontSize: qParticulars.style.fontSize,
-                                                                             fontWeight: qParticulars.style.fontWeight,
-                                                                             color: qParticulars.style.textColor,
-                                                                             backgroundColor: qParticulars.style.bgColor,
-                                                                             borderRadius: qParticulars.style.borderRadius,
-                                                                             borderStyle: qParticulars.style.borderStyle,
-                                                                             borderColor: qParticulars.style.borderColor,
-                                                                             borderWidth: '2px',
-                                                                             width: qParticulars.inputWidth || '100%',
-                                                                             padding: '12px 16px'
-                                                                         } : {}}
-                                                                         className={`w-full p-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                         placeholder={qParticulars.placeholderText || "Your answer"}
-                                                                     />
-                                                                 ) : (
-                                                                     <textarea
-                                                                         disabled={!isEditable}
-                                                                         value={answers[idx] || ""}
-                                                                         onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                                         style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                             fontSize: qParticulars.style.fontSize,
-                                                                             fontWeight: qParticulars.style.fontWeight,
-                                                                             color: qParticulars.style.textColor,
-                                                                             backgroundColor: qParticulars.style.bgColor,
-                                                                             borderRadius: qParticulars.style.borderRadius,
-                                                                             borderStyle: qParticulars.style.borderStyle,
-                                                                             borderColor: qParticulars.style.borderColor,
-                                                                             borderWidth: '2px',
-                                                                             width: qParticulars.inputWidth || '100%',
-                                                                             padding: '16px'
-                                                                         } : {}}
-                                                                         className={`w-full p-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 h-20 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                         placeholder={qParticulars.placeholderText || "Your answer"}
-                                                                     />
-                                                                 )}
+                                                    {/* Text field if Text Mode is allowed */}
+                                                    {(!qParticulars.answerMode || qParticulars.answerMode.includes('Text')) && qParticulars.enableAnswerBox !== false && (() => {
+                                                        return (
+                                                            <div className="relative group">
+                                                                {qParticulars.richTextEditor ? (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex gap-1.5 p-1.5 bg-slate-100 border border-slate-200 border-b-0 rounded-t-2xl">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('bold', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs font-bold w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Bold"
+                                                                            >
+                                                                                B
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('italic', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs italic w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Italic"
+                                                                            >
+                                                                                I
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('underline', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs underline w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Underline"
+                                                                            >
+                                                                                U
+                                                                            </button>
+                                                                        </div>
+                                                                        <div
+                                                                            contentEditable={isEditable}
+                                                                            suppressContentEditableWarning
+                                                                            onBlur={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
+                                                                            onInput={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
+                                                                            onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                            onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                            onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                            dangerouslySetInnerHTML={{ __html: answers[idx] || '' }}
+                                                                            className={`w-full p-4 border border-slate-200 rounded-b-2xl bg-white focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] outline-none transition-all font-medium text-slate-700 min-h-[120px] text-left ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                            placeholder={qParticulars.placeholderText || "Your answer..."}
+                                                                            style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                                fontSize: qParticulars.style.fontSize,
+                                                                                fontWeight: qParticulars.style.fontWeight,
+                                                                                color: qParticulars.style.textColor,
+                                                                                backgroundColor: qParticulars.style.bgColor,
+                                                                                borderStyle: qParticulars.style.borderStyle,
+                                                                                borderColor: qParticulars.style.borderColor,
+                                                                                borderWidth: '2px',
+                                                                                width: qParticulars.inputWidth || '100%',
+                                                                            } : {}}
+                                                                        />
+                                                                    </div>
+                                                                ) : qParticulars.singleLineMode ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        disabled={!isEditable}
+                                                                        value={answers[idx] || ""}
+                                                                        onChange={(e) => handleTextChange(idx, e.target.value)}
+                                                                        onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                        style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                            fontSize: qParticulars.style.fontSize,
+                                                                            fontWeight: qParticulars.style.fontWeight,
+                                                                            color: qParticulars.style.textColor,
+                                                                            backgroundColor: qParticulars.style.bgColor,
+                                                                            borderRadius: qParticulars.style.borderRadius,
+                                                                            borderStyle: qParticulars.style.borderStyle,
+                                                                            borderColor: qParticulars.style.borderColor,
+                                                                            borderWidth: '2px',
+                                                                            width: qParticulars.inputWidth || '100%',
+                                                                            padding: '12px 16px'
+                                                                        } : {}}
+                                                                        className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                        placeholder={qParticulars.placeholderText || "Your answer"}
+                                                                    />
+                                                                ) : (
+                                                                    <textarea rows={1}
+                                                                        disabled={!isEditable}
+                                                                        value={answers[idx] || ""}
+                                                                        onChange={(e) => {
+                                                                            handleTextChange(idx, e.target.value);
+                                                                            e.target.style.height = 'auto';
+                                                                            e.target.style.height = `${e.target.scrollHeight}px`;
+                                                                        }}
+                                                                        ref={(el) => {
+                                                                            if (el) {
+                                                                                el.style.height = 'auto';
+                                                                                el.style.height = `${el.scrollHeight}px`;
+                                                                            }
+                                                                        }}
+                                                                        onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                        style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                            fontSize: qParticulars.style.fontSize,
+                                                                            fontWeight: qParticulars.style.fontWeight,
+                                                                            color: qParticulars.style.textColor,
+                                                                            backgroundColor: qParticulars.style.bgColor,
+                                                                            borderRadius: qParticulars.style.borderRadius,
+                                                                            borderStyle: qParticulars.style.borderStyle,
+                                                                            borderColor: qParticulars.style.borderColor,
+                                                                            borderWidth: '2px',
+                                                                            width: qParticulars.inputWidth || '100%',
+                                                                            padding: '16px'
+                                                                        } : {}}
+                                                                        className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                        placeholder={qParticulars.placeholderText || "Your answer"}
+                                                                    />
+                                                                )}
 
-                                                                 {qParticulars.languageRestriction && !validateLanguage(answers[idx] || '', qParticulars.languageRestriction) && (
-                                                                     <span className="text-[10px] text-red-500 font-bold block mt-1 text-left">
-                                                                         ⚠ Answer must be in {qParticulars.languageRestriction}
-                                                                     </span>
-                                                                 )}
+                                                                {qParticulars.languageRestriction && !validateLanguage(answers[idx] || '', qParticulars.languageRestriction) && (
+                                                                    <span className="text-[10px] text-red-500 font-bold block mt-1 text-left">
+                                                                        ⚠ Answer must be in {qParticulars.languageRestriction}
+                                                                    </span>
+                                                                )}
 
-                                                                 {/* Live character, word counters and text logic validation status */}
-                                                                 <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-1 text-[11px] font-bold text-slate-500">
-                                                                     {qParticulars.showWordCounter !== false && (
-                                                                         <div className="flex gap-4">
-                                                                             <span>Chars: {(answers[idx] || '').replace(/<[^>]*>/g, '').length} {qParticulars.maxChars && `/ ${qParticulars.maxChars}`}</span>
-                                                                             <span>Words: {(answers[idx] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length} {qParticulars.maxWords && `/ ${qParticulars.maxWords}`}</span>
-                                                                         </div>
-                                                                     )}
+                                                                {/* Live character, word counters and text logic validation status */}
+                                                                <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-1 text-[11px] font-bold text-slate-500">
+                                                                    {qParticulars.showWordCounter !== false && (
+                                                                        <div className="flex gap-4">
+                                                                            <span>Chars: {(answers[idx] || '').replace(/<[^>]*>/g, '').length} {qParticulars.maxChars && `/ ${qParticulars.maxChars}`}</span>
+                                                                            <span>Words: {(answers[idx] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length} {qParticulars.maxWords && `/ ${qParticulars.maxWords}`}</span>
+                                                                        </div>
+                                                                    )}
 
-                                                                {/* Real-time Text Logic Indicators */}
-                                                                {(() => {
-                                                                    const textVal = answers[idx] || '';
-                                                                    const logicMatches = [];
-                                                                    const tLogic = q.textLogic || {};
-                                                                    
-                                                                    if (tLogic.contains && tLogic.contains.trim()) {
-                                                                        const ok = textVal.includes(tLogic.contains.trim());
-                                                                        logicMatches.push(
-                                                                            <span key="contains" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                {ok ? "✓" : "✗"} Contains "{tLogic.contains}"
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    if (tLogic.doesNotContain && tLogic.doesNotContain.trim()) {
-                                                                        const ok = !textVal.includes(tLogic.doesNotContain.trim());
-                                                                        logicMatches.push(
-                                                                            <span key="notcontain" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                {ok ? "✓" : "✗"} No "{tLogic.doesNotContain}"
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    if (tLogic.startsWith && tLogic.startsWith.trim()) {
-                                                                        const ok = textVal.startsWith(tLogic.startsWith.trim());
-                                                                        logicMatches.push(
-                                                                            <span key="starts" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                {ok ? "✓" : "✗"} Starts with "{tLogic.startsWith}"
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    if (tLogic.endsWith && tLogic.endsWith.trim()) {
-                                                                        const ok = textVal.endsWith(tLogic.endsWith.trim());
-                                                                        logicMatches.push(
-                                                                            <span key="ends" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                {ok ? "✓" : "✗"} Ends with "{tLogic.endsWith}"
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    if (tLogic.regexValidation && tLogic.regexValidation.trim()) {
-                                                                        let ok = false;
-                                                                        try {
-                                                                            const reg = new RegExp(tLogic.regexValidation);
-                                                                            ok = reg.test(textVal);
-                                                                        } catch(e) {}
-                                                                        logicMatches.push(
-                                                                            <span key="regex" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                {ok ? "✓" : "✗"} Regex Match
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    if (logicMatches.length === 0) return null;
-                                                                    return <div className="flex gap-3 flex-wrap">{logicMatches}</div>;
-                                                                })()}
+                                                                    {/* Real-time Text Logic Indicators */}
+                                                                    {(() => {
+                                                                        const textVal = answers[idx] || '';
+                                                                        const logicMatches = [];
+                                                                        const tLogic = q.textLogic || {};
+
+                                                                        if (tLogic.contains && tLogic.contains.trim()) {
+                                                                            const ok = textVal.includes(tLogic.contains.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="contains" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Contains "{tLogic.contains}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.doesNotContain && tLogic.doesNotContain.trim()) {
+                                                                            const ok = !textVal.includes(tLogic.doesNotContain.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="notcontain" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} No "{tLogic.doesNotContain}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.startsWith && tLogic.startsWith.trim()) {
+                                                                            const ok = textVal.startsWith(tLogic.startsWith.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="starts" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Starts with "{tLogic.startsWith}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.endsWith && tLogic.endsWith.trim()) {
+                                                                            const ok = textVal.endsWith(tLogic.endsWith.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="ends" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Ends with "{tLogic.endsWith}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.regexValidation && tLogic.regexValidation.trim()) {
+                                                                            let ok = false;
+                                                                            try {
+                                                                                const reg = new RegExp(tLogic.regexValidation);
+                                                                                ok = reg.test(textVal);
+                                                                            } catch (e) { }
+                                                                            logicMatches.push(
+                                                                                <span key="regex" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Regex Match
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (logicMatches.length === 0) return null;
+                                                                        return <div className="flex gap-3 flex-wrap">{logicMatches}</div>;
+                                                                    })()}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })()}
+                                                        );
+                                                    })()}
 
                                                     {/* Professional Audio Recording Panel */}
                                                     {showAudioRecorder[idx] && (
                                                         <div className="p-5 border-2 border-[#6F42C1] rounded-2xl bg-[#6F42C1]/5 space-y-4 animate-fade-in">
                                                             <div className="flex items-center justify-between border-b border-purple-150 pb-2">
                                                                 <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                                    <Mic size={14} className="text-[#6F42C1]" /> Audio Answer Recorder
+                                                                    <Mic size={14} className="text-[#6F42C1]" /> Audio Recording
                                                                 </span>
                                                                 <div className="flex items-center gap-2 text-xs">
                                                                     <span className="font-bold text-slate-500">Countdown:</span>
@@ -1326,7 +1473,7 @@ const ShortAnswerTest = () => {
                                                                                 PAUSED
                                                                             </div>
                                                                         )}
-                                                                        
+
                                                                         {/* Timer display */}
                                                                         {(recordingStatus[idx] === 'recording' || recordingStatus[idx] === 'paused') && (
                                                                             <span className="font-mono text-base font-black text-slate-800 tracking-wide">
@@ -1436,22 +1583,32 @@ const ShortAnswerTest = () => {
                                                         <textarea
                                                             disabled={!isEditable}
                                                             value={answers[idx] || ""}
-                                                            onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                            className={`w-full p-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 h-20 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                            onChange={(e) => {
+                                                                handleTextChange(idx, e.target.value);
+                                                                e.target.style.height = 'auto';
+                                                                e.target.style.height = `${e.target.scrollHeight}px`;
+                                                            }}
+                                                            ref={(el) => {
+                                                                if (el) {
+                                                                    el.style.height = 'auto';
+                                                                    el.style.height = `${el.scrollHeight}px`;
+                                                                }
+                                                            }}
+                                                            rows={1} className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
                                                             placeholder="Your answer"
                                                         />
                                                     </div>
                                                 )
                                             )}
 
-                                            {/* Audio answer zone */}
+                                            {/* Recording zone */}
                                             {isAudio && (
                                                 <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
                                                     <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150' : 'bg-purple-100 text-[#6F42C1]'}`}>
                                                         <Mic size={24} />
                                                     </div>
                                                     <p className="text-xs font-bold text-slate-700">{recordingStatus[idx] === 'recording' ? '🔴 Recording...' : recordedURLs[idx] ? '✅ Response Saved' : 'Voice Answer'}</p>
-                                                    
+
                                                     {recordingStatus[idx] === 'recording' ? (
                                                         <button onClick={() => stopRecording(idx)} className="px-6 py-2 bg-red-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                                                             <Square size={14} fill="currentColor" /> Stop Recording
@@ -1478,7 +1635,7 @@ const ShortAnswerTest = () => {
                                             )}
 
                                             {/* Video recording block */}
-                                            {isVideo && (
+                                            {(isVideo || showVideoRecorder[idx]) && (
                                                 <AdvancedVideoRecorder
                                                     question={q}
                                                     submittedAnswer={submittedAnswers[idx]}
@@ -1506,420 +1663,547 @@ const ShortAnswerTest = () => {
                                             )}
                                         </div>
 
-                                        {/* 🔲 DOUBLE PANE + ACTION ROW — collapsible extras */}
-                                        {!collapsedExtras[idx] ? (
                                         <div className="space-y-2">
 
-                                        {/* 🔲 DOUBLE PANE EXAMPLES & ASSISTIVE GRID */}
-                                        <div className="border border-slate-900 rounded-xl overflow-hidden grid grid-cols-2 text-center text-xs text-slate-500 font-bold select-none">
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'example' ? null : 'example' }))}
-                                                className={`py-3.5 transition-colors ${activeQuestionTab[idx] === 'example' ? 'bg-slate-100 text-slate-800' : 'bg-white hover:bg-slate-50'} border-r border-slate-900`}
-                                            >
-                                                Example Section
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'assistive' ? null : 'assistive' }))}
-                                                className={`py-3.5 transition-colors ${activeQuestionTab[idx] === 'assistive' ? 'bg-slate-100 text-slate-800' : 'bg-white hover:bg-slate-50'}`}
-                                            >
-                                                Assistive feather Section
-                                            </button>
-                                        </div>
+                                            {/* 🔵 ACTION BUTTONS ROW (Upload, Recording, Chat, Submit & Finish, Reattempt) */}
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 flex flex-wrap items-center justify-between gap-2 border border-slate-200 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+                                                    <div className="flex flex-wrap items-center gap-2">
 
-                                        {/* 🔵 ACTION BUTTONS ROW (Upload, Audio Answer, Chat, Submit & Finish, Reattempt) */}
-                                        <div className="flex flex-wrap items-center justify-between gap-2 border border-slate-200 rounded-xl bg-white px-3 py-2.5 shadow-sm">
-                                            <div className="flex flex-wrap items-center gap-2">
-
-                                                {/* Upload Button */}
-                                                {(() => {
-                                                    const uploadEnabled = q.moreSettings?.allowUpload !== false && q.moreSettings?.allowUpload === true;
-                                                    return (
-                                                        <label
-                                                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${
-                                                                !isEditable
-                                                                    ? 'bg-[#0d6efd]/40 text-white/70 cursor-not-allowed'
-                                                                    : (uploadEnabled
-                                                                        ? 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-sm cursor-pointer'
-                                                                        : 'bg-[#0d6efd]/60 text-white cursor-pointer')
-                                                            }`}
-                                                            onClick={(e) => {
-                                                                if (!isEditable) {
-                                                                    e.preventDefault();
-                                                                    if (questionTimes[idx] === 0) {
-                                                                        toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                    } else {
-                                                                        toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                    }
-                                                                } else if (!uploadEnabled) {
-                                                                    e.preventDefault();
-                                                                    toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
-                                                                }
-                                                            }}
-                                                        >
-                                                            {uploadEnabled && isEditable && (
-                                                                <input
-                                                                    type="file"
-                                                                    multiple
-                                                                    className="hidden"
-                                                                    onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                />
-                                                            )}
-                                                            <Paperclip size={12} /> Upload
-                                                        </label>
-                                                    );
-                                                })()}
-
-                                                {/* Audio Answer Button */}
-                                                {(() => {
-                                                    const audioEnabled = q.moreSettings?.allowAudioAnswer === true;
-                                                    return (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (!isEditable) {
-                                                                    if (questionTimes[idx] === 0) {
-                                                                        toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                    } else {
-                                                                        toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                    }
-                                                                    return;
-                                                                }
-                                                                if (!audioEnabled) {
-                                                                    toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
-                                                                    return;
-                                                                }
-                                                                setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                                            }}
-                                                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${
-                                                                !isEditable
-                                                                    ? 'bg-slate-800/40 text-white/70 cursor-not-allowed'
-                                                                    : (audioEnabled
-                                                                        ? (showAudioRecorder[idx]
-                                                                            ? 'bg-[#6F42C1] text-white shadow-sm'
-                                                                            : 'bg-slate-800 hover:bg-slate-700 text-white shadow-sm')
-                                                                        : 'bg-slate-800/60 text-white cursor-pointer')
-                                                            }`}
-                                                        >
-                                                            <Mic size={12} /> Audio Answer
-                                                        </button>
-                                                    );
-                                                })()}
-
-                                                {/* Chat with Teacher Button */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'chat' ? null : 'chat' }))}
-                                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all shadow-sm select-none ${activeQuestionTab[idx] === 'chat'
-                                                        ? 'bg-[#6F42C1] text-white'
-                                                        : 'bg-slate-700 hover:bg-slate-600 text-white'
-                                                    }`}
-                                                >
-                                                    <MessageSquare size={12} /> Chat with teacher
-                                                </button>
-
-                                                {/* Submit & Finish Button */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => submitQuestion(idx, q)}
-                                                    disabled={!isEditable}
-                                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#DC3545] hover:bg-[#c82333] text-white rounded-lg text-xs font-black transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed select-none"
-                                                >
-                                                    <Send size={12} /> Submit &amp; Finish
-                                                </button>
-                                            </div>
-
-                                            {/* Right: Reattempt + Collapse (collapses extras) */}
-                                            <div className="flex items-center gap-2 ml-auto">
-                                                {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSubmittedAnswers(prev => {
-                                                                const n = { ...prev };
-                                                                delete n[idx];
-                                                                return n;
-                                                            });
-                                                            toast.success("Reattempting question...");
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#28A745] hover:bg-[#218838] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
-                                                    >
-                                                        <RotateCcw size={12} /> Reattempt
-                                                    </button>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCollapsedExtras(prev => ({ ...prev, [idx]: true }))}
-                                                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all"
-                                                    title="Collapse extra sections"
-                                                >
-                                                    <ChevronUp size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        </div>
-                                        ) : (
-                                        /* When extras collapsed — show a small expand strip */
-                                        <div className="flex items-center justify-between gap-2 border border-slate-200 rounded-xl bg-white px-3 py-2 shadow-sm">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sections hidden</span>
-                                            <div className="flex items-center gap-2 ml-auto">
-                                                {submittedAnswers[idx] && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSubmittedAnswers(prev => { const n = { ...prev }; delete n[idx]; return n; });
-                                                            toast.success("Reattempting question...");
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#28A745] hover:bg-[#218838] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
-                                                    >
-                                                        <RotateCcw size={12} /> Reattempt
-                                                    </button>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCollapsedExtras(prev => ({ ...prev, [idx]: false }))}
-                                                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all"
-                                                    title="Expand sections"
-                                                >
-                                                    <ChevronUp size={14} className="rotate-180" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        )}
-
-
-
-                                        {/* Expandable Tabs details — hidden when extras collapsed */}
-                                        {!collapsedExtras[idx] && activeQuestionTab[idx] === 'example' && (
-                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-2 animate-fade-in text-slate-700">
-                                                 <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Example Response Guide</span>
-                                                 <p className="leading-relaxed font-semibold italic">
-                                                     {q.helperText || "A complete computer explanation details that hardware runs program operations and OS acts as system interfaces for standard processes."}
-                                                 </p>
-                                             </div>
-                                        )}
-
-                                        {!collapsedExtras[idx] && activeQuestionTab[idx] === 'assistive' && (
-                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-4 animate-fade-in text-slate-700">
-                                                <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Student Assistive Utilities</span>
-                                                
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                                    {/* Text to speech */}
-                                                    {qAssistive.textToSpeech && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleTTS(q.text)}
-                                                            className="p-2.5 bg-white border border-slate-200 rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold"
-                                                        >
-                                                            <Volume2 size={13} className="text-[#6F42C1]" />
-                                                            <span>Read Aloud</span>
-                                                        </button>
-                                                    )}
-
-                                                    {/* Speech to text */}
-                                                    {qAssistive.speechToText && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleVoiceTyping(idx)}
-                                                            className={`p-2.5 bg-white border rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold ${isListening === idx ? 'border-red-500 bg-red-50/20 text-red-650' : 'border-slate-200'}`}
-                                                        >
-                                                            <Mic size={13} className={isListening === idx ? 'text-red-500 animate-pulse' : 'text-[#6F42C1]'} />
-                                                            <span>{isListening === idx ? 'Listening...' : 'Dictate'}</span>
-                                                        </button>
-                                                    )}
-
-                                                    {/* Calculator */}
-                                                    {qAssistive.calculator && (
-                                                        <div className="relative group/calc">
-                                                            <button
-                                                                type="button"
-                                                                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold"
-                                                            >
-                                                                <Sliders size={13} className="text-[#6F42C1]" />
-                                                                <span>Calculator</span>
-                                                            </button>
-                                                            <div className="absolute left-0 bottom-11 bg-white border border-slate-200 rounded-xl p-3 shadow-xl z-20 hidden group-hover/calc:block w-48 text-center space-y-2">
-                                                                <input
-                                                                    type="text"
-                                                                    readOnly
-                                                                    value={calculatorVal}
-                                                                    className="w-full border border-slate-200 rounded-lg p-1.5 text-right font-mono font-bold text-slate-800"
-                                                                />
-                                                                <div className="grid grid-cols-4 gap-1.5">
-                                                                    {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'C', '+'].map(c => (
+                                                        {/* Upload Button */}
+                                                        {q.moreSettings?.allowUpload === true && (() => {
+                                                            const uploadEnabled = q.moreSettings?.allowUpload === true;
+                                                            const hasFiles = attachedFiles[idx] && attachedFiles[idx].length > 0;
+                                                            if (hasFiles) {
+                                                                return (
+                                                                    <div className="relative">
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => pressCalc(c)}
-                                                                            key={c}
-                                                                            className="p-1 bg-slate-50 border hover:bg-slate-100 rounded text-xs font-bold"
+                                                                            disabled={!isEditable}
+                                                                            onClick={() => setShowUploadMenu(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
                                                                         >
-                                                                            {c}
+                                                                            <Paperclip size={15} /> Upload {attachedFiles[idx].length} ▼
                                                                         </button>
-                                                                    ))}
-                                                                </div>
+                                                                        {showUploadMenu[idx] && (
+                                                                            <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[150px] text-xs font-semibold text-slate-700">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                        setPreviewFile(attachedFiles[idx][0]);
+                                                                                    }}
+                                                                                    className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                >
+                                                                                    <span>Preview File</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                        document.getElementById(`file-replace-main-${idx}`).click();
+                                                                                    }}
+                                                                                    className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                >
+                                                                                    <span>Replace File</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                        setAttachedFiles(prev => ({ ...prev, [idx]: [] }));
+                                                                                        toast.success("Attachment removed");
+                                                                                    }}
+                                                                                    className="px-4 py-2 hover:bg-slate-55 text-left text-red-600 transition-colors flex items-center gap-2 font-bold"
+                                                                                >
+                                                                                    <span>Remove File</span>
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                        <input
+                                                                            type="file"
+                                                                            id={`file-replace-main-${idx}`}
+                                                                            multiple
+                                                                            className="hidden"
+                                                                            onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                        />
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <label
+                                                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
+                                                                        ? 'bg-[#0d6efd]/40 text-white/70 cursor-not-allowed'
+                                                                        : (uploadEnabled
+                                                                            ? 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-sm cursor-pointer'
+                                                                            : 'bg-[#0d6efd]/60 text-white cursor-pointer')
+                                                                        }`}
+                                                                    onClick={(e) => {
+                                                                        if (!isEditable) {
+                                                                            e.preventDefault();
+                                                                            if (questionTimes[idx] === 0) {
+                                                                                toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                            } else {
+                                                                                toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                            }
+                                                                        } else if (!uploadEnabled) {
+                                                                            e.preventDefault();
+                                                                            toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {uploadEnabled && isEditable && (
+                                                                        <input
+                                                                            type="file"
+                                                                            multiple
+                                                                            className="hidden"
+                                                                            onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                        />
+                                                                    )}
+                                                                    <Paperclip size={15} /> Upload
+                                                                </label>
+                                                            );
+                                                        })()}
+
+                                                        {/* Recording Button */}
+                                                        {q.moreSettings?.allowAudioAnswer === true && (() => {
+                                                            const audioEnabled = q.moreSettings?.allowAudioAnswer === true;
+                                                            return (
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => pressCalc('=')}
-                                                                    className="w-full py-1.5 bg-[#6F42C1] text-white rounded-lg font-bold text-xs"
+                                                                    onClick={() => {
+                                                                        if (!isEditable) {
+                                                                            if (questionTimes[idx] === 0) {
+                                                                                toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                            } else {
+                                                                                toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                            }
+                                                                            return;
+                                                                        }
+                                                                        if (!audioEnabled) {
+                                                                            toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
+                                                                            return;
+                                                                        }
+                                                                        setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                                                    }}
+                                                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
+                                                                        ? 'bg-slate-800/40 text-white/70 cursor-not-allowed'
+                                                                        : (audioEnabled
+                                                                            ? (showAudioRecorder[idx]
+                                                                                ? 'bg-[#6F42C1] text-white shadow-sm'
+                                                                                : 'bg-slate-800 hover:bg-slate-700 text-white shadow-sm')
+                                                                            : 'bg-slate-800/60 text-white cursor-pointer')
+                                                                        }`}
                                                                 >
-                                                                    =
+                                                                    <Mic size={15} /> Calling
                                                                 </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                            );
+                                                        })()}
 
-                                                    {/* Translation */}
-                                                    {qAssistive.translation && (
-                                                        <div className="relative group/trans">
+                                                        {/* Video Recording Button */}
+                                                        {q.moreSettings?.allowVideo === true && (() => {
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (!isEditable) {
+                                                                            if (questionTimes[idx] === 0) {
+                                                                                toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                            } else {
+                                                                                toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                            }
+                                                                            return;
+                                                                        }
+                                                                        setShowVideoRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                                                    }}
+                                                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
+                                                                        ? 'bg-slate-800/40 text-white/70 cursor-not-allowed'
+                                                                        : (showVideoRecorder[idx]
+                                                                            ? 'bg-[#6F42C1] text-white shadow-sm'
+                                                                            : 'bg-slate-800 hover:bg-slate-700 text-white shadow-sm')
+                                                                        }`}
+                                                                >
+                                                                    <Video size={15} /> Recording
+                                                                </button>
+                                                            );
+                                                        })()}
+
+                                                        {/* Chat with Teacher Button */}
+                                                        {q.moreSettings?.allowChat === true && (
                                                             <button
                                                                 type="button"
-                                                                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold"
+                                                                onClick={() => {
+                                                                    const willOpen = showGlobalChat !== idx;
+                                                                    setShowGlobalChat(willOpen ? idx : null);
+                                                                    if (willOpen) {
+                                                                        // Pre-fill question text in chat input
+                                                                        const qText = q.text ? q.text.replace(/<[^>]*>/g, '').trim() : '';
+                                                                        if (qText && !(chatInput[idx])) {
+                                                                            setChatInput(prev => ({ ...prev, [idx]: `Q: ${qText}` }));
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all shadow-sm select-none ${showGlobalChat === idx
+                                                                    ? 'bg-[#6F42C1] text-white'
+                                                                    : 'bg-slate-700 hover:bg-slate-600 text-white'
+                                                                    }`}
                                                             >
-                                                                <Globe size={13} className="text-[#6F42C1]" />
-                                                                <span>Translate</span>
+                                                                <MessageSquare size={15} /> Chat with teacher
                                                             </button>
-                                                            <div className="absolute left-0 bottom-11 bg-white border border-slate-200 rounded-xl shadow-xl z-20 hidden group-hover/trans:block w-36 text-left py-1 text-xs">
-                                                                <button onClick={() => handleTranslate(idx, 'es', q.text)} className="w-full px-4 py-2 hover:bg-slate-50 text-left font-semibold">Spanish</button>
-                                                                <button onClick={() => handleTranslate(idx, 'fr', q.text)} className="w-full px-4 py-2 hover:bg-slate-50 text-left font-semibold">French</button>
-                                                                <button onClick={() => handleTranslate(idx, 'hi', q.text)} className="w-full px-4 py-2 hover:bg-slate-50 text-left font-semibold">Hindi</button>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                        )}
 
-                                                    {/* Accessibility Mode */}
-                                                    {qAssistive.accessibilityMode && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setIsAccessibilityActive(!isAccessibilityActive)}
-                                                            className={`p-2.5 bg-white border rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold ${isAccessibilityActive ? 'border-amber-500 bg-amber-50/10' : 'border-slate-200'}`}
-                                                        >
-                                                            <Settings size={13} className="text-[#6F42C1]" />
-                                                            <span>Accessibility</span>
-                                                        </button>
-                                                    )}
+                                                        {!q.moreSettings?.allowUpload &&
+                                                            !q.moreSettings?.allowAudioAnswer &&
+                                                            !q.moreSettings?.allowVideo &&
+                                                            !q.moreSettings?.allowChat && (
+                                                                <span className="text-xs text-slate-400 italic font-medium">(No widget assigned)</span>
+                                                            )}
 
-                                                    {/* Chat with Teacher */}
-                                                    {qAssistive.chatWithTeacher && (
-                                                        <div className="relative group/chat">
+                                                    </div>
+
+                                                    {/* Right: Reattempt */}
+                                                    <div className="flex items-center gap-2 ml-auto">
+                                                        {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
                                                             <button
                                                                 type="button"
-                                                                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold"
+                                                                onClick={() => {
+                                                                    setSubmittedAnswers(prev => {
+                                                                        const n = { ...prev };
+                                                                        delete n[idx];
+                                                                        return n;
+                                                                    });
+                                                                    toast.success("Reattempting question...");
+                                                                }}
+                                                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#28A745] hover:bg-[#218838] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
                                                             >
-                                                                <MessageSquare size={13} className="text-[#6F42C1]" />
-                                                                <span>Chat Support</span>
+                                                                <RotateCcw size={15} /> Reattempt
                                                             </button>
-                                                            <div className="absolute right-0 bottom-11 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-40 hidden group-hover/chat:block w-72 text-left space-y-3">
-                                                                <span className="font-bold text-slate-800 text-[10px] uppercase tracking-widest block border-b pb-1.5">Chat with Teacher</span>
-                                                                <div className="h-40 overflow-y-auto space-y-2.5 pr-1 text-xs">
-                                                                    {(chatMessages[idx] || []).length === 0 && (
-                                                                        <span className="text-slate-400 italic font-medium block text-center pt-8">No messages yet. Ask for help!</span>
-                                                                    )}
-                                                                    {(chatMessages[idx] || []).map((msg, mIdx) => (
-                                                                        <div key={mIdx} className={`p-2 rounded-xl max-w-[85%] font-medium ${msg.sender === 'student' ? 'bg-[#6F42C1]/10 text-slate-800 ml-auto' : 'bg-slate-100 text-slate-700 mr-auto'}`}>
-                                                                            {msg.text}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                                <div className="flex gap-1 border-t pt-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={chatInput[idx] || ''}
-                                                                        onChange={(e) => {
-                                                                            const val = e.target.value;
-                                                                            setChatInput(prev => ({ ...prev, [idx]: val }));
-                                                                        }}
-                                                                        onKeyDown={(e) => e.key === 'Enter' && sendChatMessage(idx)}
-                                                                        placeholder="Ask a question..."
-                                                                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-[#6F42C1]"
-                                                                    />
-                                                                    <button onClick={() => sendChatMessage(idx)} className="p-1 bg-[#6F42C1] text-white rounded-lg hover:bg-[#5a32a3]">
-                                                                        <Send size={12} />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Upload Attachment */}
-                                                    {qAssistive.uploadAttachment && (
-                                                        <div className="relative">
-                                                            <input
-                                                                type="file"
-                                                                id={`file-upload-${idx}`}
-                                                                disabled={!!submittedAnswers[idx] || isUploading[idx]}
-                                                                multiple
-                                                                onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                className="hidden"
-                                                            />
-                                                            <label
-                                                                htmlFor={`file-upload-${idx}`}
-                                                                className={`w-full p-2.5 bg-white border border-slate-200 rounded-xl hover:border-[#6F42C1] transition-all flex items-center justify-center gap-1.5 font-bold cursor-pointer ${(submittedAnswers[idx] || isUploading[idx]) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            >
-                                                                {isUploading[idx] ? (
-                                                                    <>
-                                                                        <Loader2 size={13} className="text-[#6F42C1] animate-spin" />
-                                                                        <span>Uploading ({uploadProgress[idx]}%)</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Paperclip size={13} className="text-[#6F42C1]" />
-                                                                        <span>Add Files</span>
-                                                                    </>
-                                                                )}
-                                                            </label>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Audio Answer toggle */}
-                                                    {qAssistive.audioAnswer && (
-                                                        <button
-                                                            type="button"
-                                                            disabled={!!submittedAnswers[idx]}
-                                                            onClick={() => setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                                            className={`p-2.5 bg-white border rounded-xl hover:border-[#6F42C1] transition-all flex items-center gap-1.5 font-bold ${showAudioRecorder[idx] ? 'border-[#6F42C1] bg-[#6F42C1]/5 text-[#6F42C1]' : 'border-slate-200'}`}
-                                                        >
-                                                            <Mic size={13} className="text-[#6F42C1]" />
-                                                            <span>Audio Answer</span>
-                                                        </button>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Translate Mode translated text preview */}
+                                                {/* Sleek Collapse/Expand Symbol Button directly next to it */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const isCollapsed = collapsedExtras[idx] !== false;
+                                                        setCollapsedExtras(prev => ({ ...prev, [idx]: !isCollapsed }));
+                                                        if (isCollapsed) {
+                                                            const defaultTab = null;
+                                                            setActiveQuestionTab(prev => ({ ...prev, [idx]: defaultTab }));
+                                                        }
+                                                    }}
+                                                    className="p-2.5 bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95 flex-shrink-0 flex items-center justify-center"
+                                                    title={collapsedExtras[idx] === false ? "Collapse" : "Expand"}
+                                                >
+                                                    {collapsedExtras[idx] === false ? (
+                                                        <ChevronUp size={16} className="stroke-[2.5]" />
+                                                    ) : (
+                                                        <ChevronDown size={16} className="stroke-[2.5]" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                            {/* 🔲 THREE-PART REFERENCE & ASSISTIVE BAR (single line) */}
+                                            {collapsedExtras[idx] === false && (() => {
+                                                const hasAddon = qAssistive.translation || qAssistive.relevantInformation || qAssistive.temporaryFill || qAssistive.textToSpeech || qAssistive.speechToText || qAssistive.calculator;
+                                                return (
+                                                    <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white text-xs select-none h-9">
+
+                                                        {/* ── EXAMPLE (20%) ── */}
+                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0" style={{ width: '20%' }}>
+                                                            {q.uploadedResource ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (q.uploadedResource?.url) {
+                                                                            const dataUrl = q.uploadedResource.url;
+                                                                            if (dataUrl.startsWith('data:')) {
+                                                                                try {
+                                                                                    const parts = dataUrl.split(',');
+                                                                                    const mime = parts[0].match(/:(.*?);/)[1];
+                                                                                    const bstr = atob(parts[1]);
+                                                                                    let n = bstr.length;
+                                                                                    const u8arr = new Uint8Array(n);
+                                                                                    while (n--) {
+                                                                                        u8arr[n] = bstr.charCodeAt(n);
+                                                                                    }
+                                                                                    const blob = new Blob([u8arr], { type: mime });
+                                                                                    const blobUrl = URL.createObjectURL(blob);
+                                                                                    window.open(blobUrl, '_blank');
+                                                                                } catch (e) {
+                                                                                    const newWindow = window.open();
+                                                                                    if (newWindow) {
+                                                                                        newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                    }
+                                                                                }
+                                                                            } else {
+                                                                                window.open(dataUrl, '_blank');
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-[#6F42C1]/15 hover:bg-[#6F42C1]/30 text-[#6F42C1]"
+                                                                    title={q.uploadedResource?.name || 'Uploaded File'}
+                                                                >
+                                                                    File 1 ↗
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No file</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* ── NOTE (20%) ── */}
+                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '20%' }}>
+                                                            {q.helperText ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const win = window.open('', '_blank');
+                                                                        win.document.write(`
+                                                                            <!DOCTYPE html>
+                                                                            <html>
+                                                                            <head>
+                                                                                <title>Note Preview - ${q.helperText.replace(/<[^>]*>/g, '').slice(0, 30) || 'Untitled'}</title>
+                                                                                <style>
+                                                                                    body {
+                                                                                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                                                                        background-color: #f0f2f5;
+                                                                                        margin: 0;
+                                                                                        padding: 40px 20px;
+                                                                                        display: flex;
+                                                                                        justify-content: center;
+                                                                                    }
+                                                                                    .document-container {
+                                                                                        background-color: #ffffff;
+                                                                                        box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+                                                                                        border: 1px solid #e2e8f0;
+                                                                                        border-radius: 8px;
+                                                                                        width: 100%;
+                                                                                        max-width: 800px;
+                                                                                        min-height: 29.7cm;
+                                                                                        padding: 60px 80px;
+                                                                                        box-sizing: border-box;
+                                                                                    }
+                                                                                    .content {
+                                                                                        font-size: 15px;
+                                                                                        line-height: 1.6;
+                                                                                        color: #1a202c;
+                                                                                    }
+                                                                                    p { margin-top: 0; margin-bottom: 1em; }
+                                                                                </style>
+                                                                            </head>
+                                                                            <body>
+                                                                                <div class="document-container">
+                                                                                    <div class="content">
+                                                                                        ${q.helperText}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </body>
+                                                                            </html>
+                                                                        `);
+                                                                        win.document.close();
+                                                                    }}
+                                                                    className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-600"
+                                                                    title="Helping Notes Section"
+                                                                >
+                                                                    Note 1 ↗
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No notes</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* ── ADDON (60%, right-aligned) ── */}
+                                                        <div className="flex items-center flex-1 px-2 h-full bg-slate-50/60">
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
+                                                                <Sliders size={12} /> Addon
+                                                            </span>
+                                                            <div className="flex items-center gap-1 ml-auto">
+                                                                {hasAddon ? (
+                                                                    <>
+                                                                        {qAssistive.translation && (
+                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'translation' ? null : 'translation' }))} className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold font-sans transition-all border ${activeQuestionTab[idx] === 'translation' ? 'bg-[#007BFF] text-white border-[#007BFF]' : 'bg-white hover:bg-slate-100 text-[#007BFF] border-slate-200'}`} title="Translate">अ</button>
+                                                                        )}
+                                                                        {(qAssistive.relevantInformation || qAssistive.temporaryFill) && (
+                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'relevantInfo' ? null : 'relevantInfo' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'relevantInfo' ? 'bg-[#0056b3] text-white' : 'bg-[#007BFF] text-white hover:bg-[#0056b3]'}`} title="Relevant Info"><ClipboardList size={11} /></button>
+                                                                        )}
+                                                                        {qAssistive.textToSpeech && (
+                                                                            <button type="button" onClick={() => handleTTS(q.text)} className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6F42C1] hover:bg-[#5a32a3] text-white transition-all text-[10px]" title="Read Aloud">🔤</button>
+                                                                        )}
+                                                                        {qAssistive.speechToText && (
+                                                                            <button type="button" onClick={() => toggleVoiceTyping(idx)} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title={isListening === idx ? 'Listening...' : 'Dictate'}><Mic size={11} /></button>
+                                                                        )}
+                                                                        {qAssistive.calculator && (
+                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'calculator' ? null : 'calculator' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'calculator' ? 'bg-[#138496] text-white' : 'bg-[#17A2B8] hover:bg-[#138496] text-white'}`} title="Calculator"><Sliders size={11} /></button>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-[9px] text-slate-400 italic">No addon</span>
+                                                                )}
+
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* Expandable Tabs details */}
+
+
+
+
+                                        {collapsedExtras[idx] === false && activeQuestionTab[idx] === 'translation' && (
+                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-2 animate-fade-in text-slate-700">
+                                                <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
+                                                    <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Translation Assistant</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: null }))}
+                                                        className="text-slate-400 hover:text-slate-600 font-bold flex items-center gap-1 transition-colors text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Collapse ✕
+                                                    </button>
+                                                </div>
+                                                <div className="flex gap-2.5">
+                                                    <button type="button" onClick={() => handleTranslate(idx, 'es', q.text)} className="px-3 py-1.5 bg-white border border-slate-200 hover:border-[#6F42C1] rounded-lg font-bold">Spanish</button>
+                                                    <button type="button" onClick={() => handleTranslate(idx, 'fr', q.text)} className="px-3 py-1.5 bg-white border border-slate-200 hover:border-[#6F42C1] rounded-lg font-bold">French</button>
+                                                    <button type="button" onClick={() => handleTranslate(idx, 'hi', q.text)} className="px-3 py-1.5 bg-white border border-slate-200 hover:border-[#6F42C1] rounded-lg font-bold">Hindi</button>
+                                                </div>
                                                 {translateLang[idx] && (
-                                                    <div className="border border-[#6F42C1]/20 bg-[#6F42C1]/5 p-3.5 rounded-xl space-y-1">
-                                                        <span className="font-bold text-[9px] uppercase tracking-wider text-[#6F42C1]">Translated Question text ({translateLang[idx].toUpperCase()})</span>
+                                                    <div className="border border-[#6F42C1]/20 bg-[#6F42C1]/5 p-3.5 rounded-xl mt-2">
+                                                        <span className="font-bold text-[9px] uppercase tracking-wider text-[#6F42C1] block mb-1">Translated Question text ({translateLang[idx].toUpperCase()})</span>
                                                         <p className="font-bold text-slate-800 leading-snug">
                                                             {translateLang[idx] === 'es' ? '¿Qué es una computadora?' : translateLang[idx] === 'fr' ? "Qu'est-ce qu'un ordinateur?" : 'कंप्यूटर क्या है?'}
                                                         </p>
                                                     </div>
                                                 )}
+                                            </div>
+                                        )}
 
-                                                {/* Upload list preview */}
-                                                {attachedFiles[idx] && attachedFiles[idx].length > 0 && (
-                                                    <div className="space-y-1.5 mt-2 bg-white p-3 border border-slate-200 rounded-xl">
-                                                        <span className="font-bold text-[10px] text-slate-400 uppercase tracking-widest block">Attached Documents</span>
-                                                        {attachedFiles[idx].map((file, fIdx) => (
-                                                            <div key={fIdx} className="flex items-center justify-between text-xs py-1 border-b last:border-b-0 font-semibold text-slate-700">
-                                                                <span className="truncate max-w-[80%]">{file.name} ({(file.size/1024).toFixed(1)} KB)</span>
-                                                                {!submittedAnswers[idx] && (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setAttachedFiles(prev => {
-                                                                                const n = { ...prev };
-                                                                                n[idx] = n[idx].filter((_, i) => i !== fIdx);
-                                                                                return n;
-                                                                            });
-                                                                        }}
-                                                                        className="text-red-500 hover:text-red-700 font-bold"
-                                                                    >
-                                                                        Remove
-                                                                    </button>
-                                                                )}
+                                        {collapsedExtras[idx] === false && activeQuestionTab[idx] === 'relevantInfo' && (
+                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-2 animate-fade-in text-slate-700">
+                                                <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
+                                                    <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Relevant Info / Template</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: null }))}
+                                                        className="text-slate-400 hover:text-slate-600 font-bold flex items-center gap-1 transition-colors text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Collapse ✕
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {qAssistive.relevantInformation && (
+                                                        <div>
+                                                            <span className="font-bold text-[9px] uppercase tracking-wider text-slate-400 block">Relevant Information</span>
+                                                            <p className="leading-relaxed font-semibold italic text-slate-700">
+                                                                {q.helperText || "Provide a clear and concise response."}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {qAssistive.temporaryFill && (
+                                                        <div>
+                                                            <span className="font-bold text-[9px] uppercase tracking-wider text-slate-400 block">Template Fill Tool</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTemporaryFill(idx, q.type)}
+                                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-[10px] mt-1 transition-colors shadow-xs"
+                                                            >
+                                                                Apply Template / Answer Placeholder
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {collapsedExtras[idx] === false && activeQuestionTab[idx] === 'calculator' && (
+                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-2 animate-fade-in text-slate-700">
+                                                <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
+                                                    <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Calculator</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: null }))}
+                                                        className="text-slate-400 hover:text-slate-600 font-bold flex items-center gap-1 transition-colors text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Collapse ✕
+                                                    </button>
+                                                </div>
+                                                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm w-48 mx-auto text-center space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={calculatorVal}
+                                                        className="w-full border border-slate-200 rounded-lg p-1.5 text-right font-mono font-bold text-slate-800"
+                                                    />
+                                                    <div className="grid grid-cols-4 gap-1.5">
+                                                        {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'C', '+'].map(c => (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => pressCalc(c)}
+                                                                key={c}
+                                                                className="p-1.5 bg-slate-50 border hover:bg-slate-100 rounded text-xs font-bold"
+                                                            >
+                                                                {c}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => pressCalc('=')}
+                                                        className="w-full py-1.5 bg-[#6F42C1] text-white rounded-lg font-bold text-xs"
+                                                    >
+                                                        =
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {collapsedExtras[idx] === false && activeQuestionTab[idx] === 'chat' && (
+                                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-xs space-y-2 animate-fade-in text-slate-700">
+                                                <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
+                                                    <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-widest text-[#6F42C1]">Chat with Teacher</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: null }))}
+                                                        className="text-slate-400 hover:text-slate-600 font-bold flex items-center gap-1 transition-colors text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Collapse ✕
+                                                    </button>
+                                                </div>
+                                                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-3 max-w-lg mx-auto">
+                                                    <div className="h-40 overflow-y-auto space-y-2.5 pr-1 text-xs text-left">
+                                                        {(chatMessages[idx] || []).length === 0 && (
+                                                            <span className="text-slate-400 italic font-medium block text-center pt-8">No messages yet. Ask for help!</span>
+                                                        )}
+                                                        {(chatMessages[idx] || []).map((msg, mIdx) => (
+                                                            <div key={mIdx} className={`p-2 rounded-xl max-w-[85%] font-medium ${msg.sender === 'student' ? 'bg-[#6F42C1]/10 text-slate-800 ml-auto' : 'bg-slate-100 text-slate-700 mr-auto'}`}>
+                                                                {msg.text}
                                                             </div>
                                                         ))}
                                                     </div>
-                                                )}
+                                                    <div className="flex gap-1 border-t pt-2">
+                                                        <input
+                                                            type="text"
+                                                            value={chatInput[idx] || ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setChatInput(prev => ({ ...prev, [idx]: val }));
+                                                            }}
+                                                            onKeyDown={(e) => e.key === 'Enter' && sendChatMessage(idx)}
+                                                            placeholder="Ask a question..."
+                                                            className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#6F42C1] font-semibold text-slate-750"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => sendChatMessage(idx)}
+                                                            className="px-3 py-1.5 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold rounded-lg transition-colors"
+                                                        >
+                                                            Send
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -1930,25 +2214,122 @@ const ShortAnswerTest = () => {
                 })}
             </div>
 
-            {/* Bottom sticky control bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-[#e9ecef] border-t border-slate-350 p-4 shadow-2xl z-50 transition-all select-none">
-                <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-                    
-                    {/* Play Game & Offline Toggle */}
-                    <div className="border-2 border-black p-1.5 flex items-center gap-4 bg-white rounded-xl select-none flex-wrap w-full sm:w-auto">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setBoard(Array(9).fill(''));
-                                setXIsNext(true);
-                                setShowGameModal(true);
-                            }}
-                            className="px-4 py-2 bg-black hover:bg-slate-900 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition-colors"
-                        >
-                            Play game till start
-                        </button>
+            {/* ── 💬 GLOBAL MESSENGER CHAT SIDEBAR ── */}
+            {showGlobalChat !== null && (() => {
+                const cIdx = showGlobalChat;
+                const cQuestion = test?.questions?.[cIdx];
+                const qTitle = cQuestion?.text ? cQuestion.text.replace(/<[^>]*>/g, '').trim() : `Question ${cIdx + 1}`;
+                const msgs = chatMessages[cIdx] || [];
+                return (
+                    <div className="fixed top-0 right-0 h-full w-[340px] bg-white shadow-2xl z-[200] flex flex-col border-l border-slate-200 animate-slide-in-right">
+                        {/* Chat Header */}
+                        <div className="bg-[#6F42C1] px-4 py-3 flex items-center gap-3 shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                <MessageSquare size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-white font-black text-sm leading-tight truncate">Teacher Chat</p>
+                                <p className="text-purple-200 text-[10px] font-semibold truncate">Q{cIdx + 1}: {qTitle.slice(0, 40)}{qTitle.length > 40 ? '...' : ''}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowGlobalChat(null)}
+                                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors shrink-0"
+                            >
+                                <X size={15} />
+                            </button>
+                        </div>
 
-                        <div className="flex items-center gap-2 font-bold text-xs text-slate-800">
+                        {/* Question context pill */}
+                        <div className="px-3 py-2 bg-purple-50 border-b border-purple-100 shrink-0">
+                            <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-0.5">Asking about</p>
+                            <p className="text-xs text-slate-700 font-semibold line-clamp-2">{qTitle}</p>
+                        </div>
+
+                        {/* Messages area */}
+                        <div
+                            className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 bg-slate-50"
+                            ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}
+                        >
+                            {msgs.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-full text-center py-10 space-y-2">
+                                    <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center">
+                                        <MessageSquare size={26} className="text-[#6F42C1]" />
+                                    </div>
+                                    <p className="text-slate-500 text-xs font-semibold">No messages yet</p>
+                                    <p className="text-slate-400 text-[10px]">Ask your teacher for help!</p>
+                                </div>
+                            )}
+                            {msgs.map((msg, mIdx) => (
+                                <div key={mIdx} className={`flex gap-2 ${msg.sender === 'student' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${msg.sender === 'student' ? 'bg-orange-500' : 'bg-[#6F42C1]'}`}>
+                                        {msg.sender === 'student' ? (user?.name?.slice(0, 2).toUpperCase() || 'ST') : 'T'}
+                                    </div>
+                                    <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'student'
+                                        ? 'bg-[#6F42C1] text-white rounded-tr-sm'
+                                        : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm'
+                                        }`}>
+                                        {msg.text}
+                                        <div className={`text-[9px] mt-0.5 ${msg.sender === 'student' ? 'text-purple-200 text-right' : 'text-slate-400'}`}>
+                                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Input area */}
+                        <div className="border-t border-slate-200 bg-white px-3 py-3 shrink-0">
+                            <div className="flex items-end gap-2">
+                                <textarea
+                                    rows={2}
+                                    value={chatInput[cIdx] || ''}
+                                    onChange={(e) => setChatInput(prev => ({ ...prev, [cIdx]: e.target.value }))}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            sendChatMessage(cIdx);
+                                        }
+                                    }}
+                                    placeholder="Type your message..."
+                                    className="flex-1 resize-none border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[#6F42C1] focus:ring-2 focus:ring-[#6F42C1]/20 transition-all leading-relaxed"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => sendChatMessage(cIdx)}
+                                    className="w-9 h-9 rounded-full bg-[#6F42C1] hover:bg-[#5a32a3] flex items-center justify-center text-white transition-all shadow-md active:scale-90 shrink-0"
+                                >
+                                    <Send size={14} />
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-slate-400 mt-1.5 font-medium">Enter to send · Shift+Enter for new line</p>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Bottom sticky control bar */}
+            <div
+                className="fixed bottom-0 left-0 bg-white border-t border-slate-300 px-4 py-2.5 shadow-2xl z-50 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.35,1)] select-none"
+                style={{ right: showGlobalChat !== null ? '340px' : '0px' }}
+            >
+                <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
+
+                    {/* Activity & Offline Toggle */}
+                    <div className="border-2 border-slate-200 px-3 py-1.5 flex items-center gap-3 bg-slate-50 rounded-xl select-none flex-wrap">
+                        {test?.discussionActivity?.activityName && test?.discussionActivity?.activityLink ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    window.open(test.discussionActivity.activityLink, '_blank');
+                                }}
+                                className="px-3 py-1.5 bg-black hover:bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-lg transition-colors"
+                            >
+                                {test.discussionActivity.activityName}
+                            </button>
+                        ) : null}
+
+                        <div className="flex items-center gap-2 font-bold text-[11px] text-slate-700">
                             <span>Offline Writing</span>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -1964,20 +2345,20 @@ const ShortAnswerTest = () => {
                                     }}
                                     className="sr-only peer"
                                 />
-                                <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                <div className="relative w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                             </label>
                         </div>
                     </div>
 
                     {/* Action Buttons (Right) */}
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <button
                             type="button"
                             onClick={submitAll}
                             disabled={submitting}
-                            className="flex-1 sm:flex-none px-8 py-3 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="px-6 py-2 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
-                            {submitting ? <Loader2 size={14} className="animate-spin" /> : "Submit"}
+                            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Submit"}
                         </button>
 
                         <button
@@ -1985,7 +2366,7 @@ const ShortAnswerTest = () => {
                             onClick={() => {
                                 toast.success("Draft saved successfully!");
                             }}
-                            className="flex-1 sm:flex-none px-6 py-3 bg-[#28A745] hover:bg-[#218838] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+                            className="px-5 py-2 bg-[#28A745] hover:bg-[#218838] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
                         >
                             Save as Draft
                         </button>
@@ -1998,7 +2379,7 @@ const ShortAnswerTest = () => {
                                     duration: 4000
                                 });
                             }}
-                            className="px-5 py-3 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+                            className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
                         >
                             Report
                         </button>
@@ -2014,7 +2395,7 @@ const ShortAnswerTest = () => {
                             🎮 Tic-Tac-Toe Game
                         </h4>
                         <p className="text-xs text-slate-400 font-semibold">Play a quick game while waiting for the test window to start!</p>
-                        
+
                         <div className="grid grid-cols-3 gap-2 w-48 h-48 mx-auto">
                             {board.map((cell, cIdx) => (
                                 <button
@@ -2067,6 +2448,95 @@ const ShortAnswerTest = () => {
                         >
                             <X size={20} />
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {previewFile && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-indigo-50 text-[#6F42C1] rounded-lg">
+                                    <FileText size={16} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-sm font-black text-slate-800 truncate max-w-[400px]">
+                                        {previewFile.name}
+                                    </h3>
+                                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                        ${(previewFile.size / 1024).toFixed(1)} KB
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewFile(null)}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-slate-50/30 min-h-[300px]">
+                            {(() => {
+                                const type = previewFile.type?.toUpperCase() || '';
+                                const url = previewFile.url;
+
+                                if (type.includes('IMAGE') || ['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF'].some(ext => previewFile.name.toUpperCase().endsWith(ext))) {
+                                    return (
+                                        <img
+                                            src={url}
+                                            alt={previewFile.name}
+                                            className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-md border border-slate-200"
+                                        />
+                                    );
+                                }
+
+                                if (type.includes('PDF') || previewFile.name.toUpperCase().endsWith('PDF')) {
+                                    return (
+                                        <iframe
+                                            src={url}
+                                            className="w-full h-[55vh] rounded-xl border border-slate-200"
+                                            title="PDF Preview"
+                                        />
+                                    );
+                                }
+
+                                // Default fallback for other file types
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+                                        <div className="p-4 bg-indigo-50 text-[#6F42C1] rounded-2xl">
+                                            <FileText size={40} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-800">Preview not available</p>
+                                            <p className="text-xs text-slate-500 font-semibold">Inline preview is not supported for this file type.</p>
+                                        </div>
+                                        <a
+                                            href={url}
+                                            download={previewFile.name}
+                                            className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold rounded-xl text-xs shadow-md transition-colors flex items-center gap-1.5"
+                                        >
+                                            <span>Download File</span>
+                                        </a>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setPreviewFile(null)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

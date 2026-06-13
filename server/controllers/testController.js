@@ -132,6 +132,7 @@ const updateTest = asyncHandler(async (req, res) => {
         if (testDetails.publishMode !== undefined) test.publishMode = testDetails.publishMode;
         if (testDetails.publicSettings !== undefined) test.publicSettings = testDetails.publicSettings;
         if (testDetails.status !== undefined) test.status = testDetails.status;
+        if (testDetails.discussionActivity !== undefined) test.discussionActivity = testDetails.discussionActivity;
 
         if (settings !== undefined) test.settings = settings;
         if (questions !== undefined) test.questions = questions;

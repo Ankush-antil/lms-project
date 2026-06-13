@@ -25,7 +25,7 @@ const ToolsPage = () => {
         { title: 'Screen Recorder', icon: Video, color: 'bg-emerald-600', action: () => toast('Screen Recorder Coming Soon', { icon: '📹' }) },
         { title: 'Voice Recorder', icon: Mic, color: 'bg-blue-600', action: () => toast('Voice Recorder Coming Soon', { icon: '🎙️' }) },
         { title: 'Video Recorder', icon: MonitorPlay, color: 'bg-purple-600', action: () => toast('Video Recorder Coming Soon', { icon: '🎥' }) },
-        { title: 'Web-Calling Tool', icon: Phone, color: 'bg-pink-600', action: () => toast('Web-Calling Tool Coming Soon', { icon: '📞' }) },
+        { title: 'Web-Recording 1 Tool', icon: Phone, color: 'bg-pink-600', action: () => toast('Web-Recording 1 Tool Coming Soon', { icon: '📞' }) },
         { title: 'Form Builder Tool', icon: FileSignature, color: 'bg-orange-600', action: () => navigate('/admin/tests/builder') },
     ];
 

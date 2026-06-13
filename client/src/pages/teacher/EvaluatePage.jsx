@@ -312,7 +312,7 @@ const EvaluatePage = () => {
                                                     </div>
                                                 )}
 
-                                                {/* Audio Answer */}
+                                                {/* Recording */}
                                                 {ans.audioData && (
                                                     <div className="p-5 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
                                                         <div className="flex items-center gap-2 mb-3">
@@ -323,7 +323,7 @@ const EvaluatePage = () => {
                                                     </div>
                                                 )}
 
-                                                {/* Video Answer */}
+                                                {/* Recording 1 */}
                                                 {ans.videoData && (
                                                     <div className="space-y-3">
                                                         {(() => {
@@ -335,7 +335,7 @@ const EvaluatePage = () => {
                                                                     maxMarks={maxMarks}
                                                                     initialMarks={marks[sub._id]?.[qi] ?? ans.marks ?? 0}
                                                                     initialFeedback={feedback[sub._id]?.[qi] ?? ans.feedback ?? ''}
-                                                                    onEvaluationChange={(newMarks, newFeedback, newVideoData) => 
+                                                                    onEvaluationChange={(newMarks, newFeedback, newVideoData) =>
                                                                         handleVideoReviewChange(sub._id, qi, newMarks, newFeedback, newVideoData)
                                                                     }
                                                                 />

@@ -26,6 +26,10 @@ const testSchema = new mongoose.Schema({
     activity: {
         type: String
     },
+    discussionActivity: {
+        activityName: String,
+        activityLink: String
+    },
     questions: [{
         id: String,
         text: String,
@@ -61,6 +65,12 @@ const testSchema = new mongoose.Schema({
             name: String,
             size: Number
         }],
+        uploadedResource: {
+            name: String,
+            size: Number,
+            type: { type: String },
+            url: String
+        },
         mediaUrl: String,
         writeMode: { type: Boolean, default: false },
         audioUrl: String,
@@ -84,9 +94,12 @@ const testSchema = new mongoose.Schema({
         activityRules: String,
         addons: [String],
         appliedToAllAddons: [String],
+        appliedToAllMoreSettings: [String],
         moreSettings: {
             allowUpload: { type: Boolean, default: false },
-            allowAudioAnswer: { type: Boolean, default: false }
+            allowAudioAnswer: { type: Boolean, default: false },
+            allowChat: { type: Boolean, default: false },
+            allowVideo: { type: Boolean, default: false }
         },
         insertedImages: [String]
     }],

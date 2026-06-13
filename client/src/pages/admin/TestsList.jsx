@@ -346,7 +346,7 @@ const TestsList = () => {
     };
 
     // Open Google Forms Style Responses Dashboard
-    const handleOpenResponses = async (test) => {
+    const handleOpenResponses = async (test, type = 'public') => {
         setSelectedPublicTest(test);
         setViewMode('responses');
         setResponsesTab('summary');
@@ -364,14 +364,34 @@ const TestsList = () => {
         setFilterStatus('All');
 
         try {
-            const [statsRes, subsRes, testRes] = await Promise.all([
-                axios.get(`/api/public-tests/admin/${test._id}/stats`),
-                axios.get(`/api/public-tests/admin/${test._id}/submissions`),
-                axios.get(`/api/tests/${test._id}`)
-            ]);
-            setPublicStats(statsRes.data);
-            setPublicSubmissions(subsRes.data);
-            setFullTestData(testRes.data);
+            if (type === 'public') {
+                const [statsRes, subsRes, testRes] = await Promise.all([
+                    axios.get(`/api/public-tests/admin/${test._id}/stats`),
+                    axios.get(`/api/public-tests/admin/${test._id}/submissions`),
+                    axios.get(`/api/tests/${test._id}`)
+                ]);
+                setPublicStats(statsRes.data);
+                setPublicSubmissions(subsRes.data);
+                setFullTestData(testRes.data);
+            } else {
+                const [subsRes, testRes] = await Promise.all([
+                    axios.get(`/api/submissions/test/${test._id}`),
+                    axios.get(`/api/tests/${test._id}`)
+                ]);
+
+                const formattedSubmissions = subsRes.data.map(sub => ({
+                    ...sub,
+                    name: sub.student?.name || sub.studentName || 'Student',
+                    email: sub.student?.email || 'N/A',
+                    phone: sub.phone || 'N/A',
+                    organization: sub.organization || 'LMS Course: ' + (test.course || 'N/A'),
+                    score: sub.totalMarks || sub.answers?.reduce((sum, a) => sum + (a.marks || 0), 0) || 0,
+                    completedStatus: sub.status === 'evaluated' ? 'Completed' : 'Incomplete'
+                }));
+
+                setPublicSubmissions(formattedSubmissions);
+                setFullTestData(testRes.data);
+            }
         } catch (error) {
             console.error("Error fetching statistics:", error);
             toast.error("Failed to load statistics/submissions.");
@@ -414,7 +434,7 @@ const TestsList = () => {
         const rows = publicSubmissions.map(sub => {
             const qAnswers = fullTestData?.questions?.map(q => {
                 const ans = sub.answers?.find(a => a.questionId === q.id);
-                return ans?.textAnswer || (ans?.audioData ? '[Audio Answer]' : ans?.videoData ? '[Video Answer]' : '');
+                return ans?.textAnswer || (ans?.audioData ? '[Recording]' : ans?.videoData ? '[Recording 1]' : '');
             }) || [];
             return [
                 sub.name,
@@ -806,8 +826,8 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('summary')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'summary'
-                                    ? 'border-indigo-600 text-indigo-650'
-                                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                                ? 'border-indigo-600 text-indigo-650'
+                                : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
                             Summary
@@ -815,8 +835,8 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('question')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'question'
-                                    ? 'border-indigo-600 text-indigo-650'
-                                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                                ? 'border-indigo-600 text-indigo-650'
+                                : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
                             Question
@@ -824,8 +844,8 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('individual')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'individual'
-                                    ? 'border-indigo-600 text-indigo-650'
-                                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                                ? 'border-indigo-600 text-indigo-650'
+                                : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
                             Individual
@@ -1396,13 +1416,15 @@ const TestsList = () => {
                                                         >
                                                             <Printer size={16} />
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleDeleteSubmission(activeSubmission?._id)}
-                                                            className="p-2 text-rose-500 hover:text-rose-700 border border-rose-200 rounded-xl hover:bg-rose-50 transition-colors"
-                                                            title="Delete Response"
-                                                        >
-                                                            <Trash size={16} />
-                                                        </button>
+                                                        {selectedPublicTest?.publishMode === 'public' && (
+                                                            <button
+                                                                onClick={() => handleDeleteSubmission(activeSubmission?._id)}
+                                                                className="p-2 text-rose-500 hover:text-rose-700 border border-rose-200 rounded-xl hover:bg-rose-50 transition-colors"
+                                                                title="Delete Response"
+                                                            >
+                                                                <Trash size={16} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -1439,10 +1461,10 @@ const TestsList = () => {
 
                                                     return (
                                                         <div key={q.id} className={`bg-white p-6 border rounded-2xl shadow-sm space-y-4 transition-all ${isChoice
-                                                                ? isCorrect
-                                                                    ? 'border-emerald-200 bg-emerald-50/10'
-                                                                    : 'border-rose-200 bg-rose-50/10'
-                                                                : 'border-slate-200'
+                                                            ? isCorrect
+                                                                ? 'border-emerald-200 bg-emerald-50/10'
+                                                                : 'border-rose-200 bg-rose-50/10'
+                                                            : 'border-slate-200'
                                                             }`}>
                                                             <div className="flex justify-between items-start gap-4">
                                                                 <div>
@@ -1456,8 +1478,8 @@ const TestsList = () => {
 
                                                                 <div className="text-right">
                                                                     <span className={`px-2.5 py-1 rounded text-xs font-black border ${isCorrect
-                                                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                                                                            : 'bg-rose-50 border-rose-200 text-rose-700'
+                                                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                                                        : 'bg-rose-50 border-rose-200 text-rose-700'
                                                                         }`}>
                                                                         {marksEarned} / {totalMarks} pts
                                                                     </span>
@@ -1591,8 +1613,8 @@ const TestsList = () => {
                                                                                                                 }
                                                                                                             }}
                                                                                                             className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${(playbackSpeeds[evalKey] || 1) === speed
-                                                                                                                    ? 'bg-purple-600 text-white shadow-sm'
-                                                                                                                    : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
+                                                                                                                ? 'bg-purple-600 text-white shadow-sm'
+                                                                                                                : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
                                                                                                                 }`}
                                                                                                         >
                                                                                                             {speed}x
@@ -1769,8 +1791,8 @@ const TestsList = () => {
                 <button
                     onClick={() => setActiveTab('lms')}
                     className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
-                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                        : 'text-slate-500 hover:text-slate-800'
                         }`}
                 >
                     LMS Connected Tests
@@ -1778,8 +1800,8 @@ const TestsList = () => {
                 <button
                     onClick={() => setActiveTab('public')}
                     className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
-                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                        : 'text-slate-500 hover:text-slate-800'
                         }`}
                 >
                     Public Web Tests
@@ -1842,6 +1864,7 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Test Index</th>
+                                        <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
                                     </tr>
                                 </thead>
@@ -1878,6 +1901,14 @@ const TestsList = () => {
                                                 ) : (
                                                     <span className="text-slate-400 italic text-xs">No Index</span>
                                                 )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenResponses(test, 'connected')}
+                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 text-indigo-755 text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+                                                >
+                                                    <span>Responses</span>
+                                                </button>
                                             </td>
                                             <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                 <button
@@ -1935,7 +1966,6 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Total Views</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Total Responses</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Completion Rate</th>
-                                        <th className="p-4 font-extrabold whitespace-nowrap text-center">Average Score</th>
                                         <th className="p-4 font-extrabold text-center whitespace-nowrap">Status</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
                                     </tr>
@@ -1958,8 +1988,8 @@ const TestsList = () => {
                                                         <button
                                                             onClick={() => handleCopyUrl(test._id, 'public')}
                                                             className={`p-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 ${copiedId === test._id
-                                                                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                                                    : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800'
+                                                                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                                                : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800'
                                                                 }`}
                                                         >
                                                             {copiedId === test._id ? <Check size={14} /> : <Copy size={13} />}
@@ -1984,7 +2014,7 @@ const TestsList = () => {
                                                         className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 text-indigo-755 text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
                                                     >
                                                         <span>Responses</span>
-                                                        <span className="bg-indigo-650 text-white px-1.5 py-0.2 rounded-full text-[10px] font-black">{test.totalResponses}</span>
+                                                        <span className="bg-indigo-650 text-black px-1.5 py-0.2 rounded-full text-[10px] font-black">{test.totalResponses}</span>
                                                     </button>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-center">
@@ -1992,15 +2022,12 @@ const TestsList = () => {
                                                         {test.completionRate}%
                                                     </span>
                                                 </td>
-                                                <td className="p-4 whitespace-nowrap text-center text-xs font-mono font-bold text-indigo-600">
-                                                    {test.averageScore} pts
-                                                </td>
                                                 <td className="p-4 whitespace-nowrap text-center">
                                                     <button
                                                         onClick={() => handleToggleStatus(test._id, test.status)}
                                                         className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${isEnabled
-                                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                                                                : 'bg-rose-50 border-rose-200 text-rose-700'
+                                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                                            : 'bg-rose-50 border-rose-200 text-rose-700'
                                                             }`}
                                                     >
                                                         {isEnabled ? 'Enabled' : 'Disabled'}
@@ -2008,8 +2035,15 @@ const TestsList = () => {
                                                 </td>
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                     <button
+                                                        onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
+                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 rounded-lg transition-colors"
+                                                        title="Edit Test"
+                                                    >
+                                                        <Edit size={15} />
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleOpenSettings(test)}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-655 hover:bg-indigo-50 hover:border-indigo-250 rounded-lg transition-colors"
+                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-655 hover:bg-indigo-50 hover:border-indigo-250 rounded-lg transition-colors ml-1.5"
                                                         title="Public Settings"
                                                     >
                                                         <Settings size={15} />
@@ -2180,7 +2214,7 @@ const TestsList = () => {
                                     {[
                                         { key: 'relevantInformation', label: 'Relevant Information' },
                                         { key: 'temporaryFill', label: 'Temporary Fill' },
-                                        { key: 'audioAnswer', label: 'Audio Answer' },
+                                        { key: 'audioAnswer', label: 'Recording' },
                                         { key: 'chatWithTeacher', label: 'Chat with Teacher' },
                                         { key: 'uploadAttachment', label: 'Upload Attachment' },
                                         { key: 'exampleSection', label: 'Example Section' },

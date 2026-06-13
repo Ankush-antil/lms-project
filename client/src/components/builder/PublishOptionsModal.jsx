@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Globe, Link2, Info, Lock, Clock, Calendar, ShieldCheck, Mail, CheckCircle2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isConnected, onOpenConnect }) => {
+const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isConnected, onOpenConnect, initialMode }) => {
     const [publishMode, setPublishMode] = useState('connected'); // 'connected' | 'public'
     const [settings, setSettings] = useState({
         allowMultiple: false,
@@ -37,6 +37,12 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
             }));
         }
     }, [initialSettings]);
+
+    useEffect(() => {
+        if (initialMode) {
+            setPublishMode(initialMode);
+        }
+    }, [initialMode, isOpen]);
 
     if (!isOpen) return null;
 

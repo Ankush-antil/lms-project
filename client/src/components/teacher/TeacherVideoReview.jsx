@@ -175,7 +175,7 @@ const TeacherVideoReview = ({
     // Mock AI generator based on question/captions
     const generateMockAI = (existingCaptions = []) => {
         let transcriptText = "In this response, I explain that computer systems operate on a combination of hardware and software components. The CPU acts as the primary brain of the system, processing information retrieved from volatile random-access memory (RAM). Secondary storage devices such as solid-state drives store persistent operating system and user file data. Users interact with the computer using key input devices like keyboard and mouse, while output peripherals like monitor displays deliver processed audio-visual feedback loops.";
-        
+
         if (existingCaptions.length > 0) {
             transcriptText = existingCaptions.map(c => c.text).join(' ');
         }
@@ -235,7 +235,7 @@ const TeacherVideoReview = ({
 
     return (
         <div className="bg-slate-900 text-slate-100 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl font-sans grid grid-cols-1 lg:grid-cols-3">
-            
+
             {/* Left/Middle Column - Video Workspace (2/3 width) */}
             <div className="lg:col-span-2 flex flex-col border-r border-slate-800">
                 {/* Visual Player container */}
@@ -252,7 +252,7 @@ const TeacherVideoReview = ({
                     ) : (
                         <div className="flex flex-col items-center gap-2 text-slate-500">
                             <Video size={40} className="animate-pulse" />
-                            <span className="text-xs font-bold">No student video answer loaded</span>
+                            <span className="text-xs font-bold">No student Recording 1 loaded</span>
                         </div>
                     )}
 
@@ -342,7 +342,7 @@ const TeacherVideoReview = ({
                             >
                                 {isMuted ? <VolumeX size={14} className="text-rose-400" /> : <Volume2 size={14} />}
                             </button>
-                            
+
                             <div className="w-px h-5 bg-slate-800 mx-1" />
 
                             {/* Subtitles caption toggle */}
@@ -396,8 +396,8 @@ const TeacherVideoReview = ({
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[#B282FF] block mb-1">Click a sentence to seek video</span>
                                 <div className="space-y-2">
                                     {parsedData.aiTranscript.sentences.map((sentence, sIdx) => {
-                                        const isSentenceActive = currentTime >= sentence.timeSeconds && 
-                                            (sIdx === parsedData.aiTranscript.sentences.length - 1 || currentTime < parsedData.aiTranscript.sentences[sIdx+1].timeSeconds);
+                                        const isSentenceActive = currentTime >= sentence.timeSeconds &&
+                                            (sIdx === parsedData.aiTranscript.sentences.length - 1 || currentTime < parsedData.aiTranscript.sentences[sIdx + 1].timeSeconds);
                                         return (
                                             <div
                                                 key={sIdx}
@@ -481,7 +481,7 @@ const TeacherVideoReview = ({
 
             {/* Right Column - Review / Grading workspace (1/3 width) */}
             <div className="flex flex-col h-full bg-slate-950 p-5 space-y-6">
-                
+
                 {/* 1. Timeline Comments Section */}
                 <div className="flex flex-col flex-1 h-[280px]">
                     <div className="flex items-center justify-between mb-3">
@@ -575,7 +575,7 @@ const TeacherVideoReview = ({
                 </div>
 
             </div>
-            
+
             <style>{`
                 .animate-fade-in {
                     animation: fadeIn 0.25s ease-out;

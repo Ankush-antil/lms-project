@@ -247,7 +247,7 @@ const ViewTestResult = () => {
                                                 <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
                                                     <div className="flex items-center gap-2 mb-3">
                                                         <Mic size={14} className="text-indigo-600" />
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Audio Answer</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Recording</span>
                                                     </div>
                                                     <audio controls src={ans.audioData} className="w-full" />
                                                 </div>
@@ -257,7 +257,7 @@ const ViewTestResult = () => {
                                                 <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
                                                     <div className="flex items-center gap-2 mb-3">
                                                         <Video size={14} className="text-indigo-600" />
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Video Answer</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Recording 1</span>
                                                     </div>
                                                     <video controls src={ans.videoData} className="w-full rounded-lg max-h-64" />
                                                 </div>

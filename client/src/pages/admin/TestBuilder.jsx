@@ -28,7 +28,7 @@ const stripHtml = (html) => {
     if (!html) return '';
     let text = html.replace(/<br\s*\/?>/gi, ' ');
     text = text.replace(/<[^>]*>/g, '');
-    text = text.replace(/&nbsp;/gi, ' ')
+    return text.replace(/&nbsp;/gi, ' ')
         .replace(/&lt;/gi, '<')
         .replace(/&gt;/gi, '>')
         .replace(/&amp;/gi, '&');
@@ -52,10 +52,12 @@ const QuestionBuilderCard = ({
     onUpdateOptions,
     onUpdateField,
     onApplyAddonToAll,
+    onApplyMoreSettingToAll,
     onRemoveAddon,
     onDragStartCustom,
     isDragged,
-    isDragging
+    isDragging,
+    onAddonClick
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isFooterExpanded, setIsFooterExpanded] = useState(false);
@@ -623,7 +625,33 @@ const QuestionBuilderCard = ({
                                                     type="button"
                                                     onClick={() => {
                                                         setShowUploadMenu(false);
-                                                        setShowFilePreviewModal(true);
+                                                        if (element.uploadedResource?.url) {
+                                                            const dataUrl = element.uploadedResource.url;
+                                                            if (dataUrl.startsWith('data:')) {
+                                                                try {
+                                                                    const parts = dataUrl.split(',');
+                                                                    const mime = parts[0].match(/:(.*?);/)[1];
+                                                                    const bstr = atob(parts[1]);
+                                                                    let n = bstr.length;
+                                                                    const u8arr = new Uint8Array(n);
+                                                                    while (n--) {
+                                                                        u8arr[n] = bstr.charCodeAt(n);
+                                                                    }
+                                                                    const blob = new Blob([u8arr], { type: mime });
+                                                                    const blobUrl = URL.createObjectURL(blob);
+                                                                    window.open(blobUrl, '_blank');
+                                                                } catch (e) {
+                                                                    const newWindow = window.open();
+                                                                    if (newWindow) {
+                                                                        newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                window.open(dataUrl, '_blank');
+                                                            }
+                                                        } else {
+                                                            toast.error("No file to preview");
+                                                        }
                                                     }}
                                                     className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2"
                                                 >
@@ -2217,7 +2245,10 @@ const QuestionBuilderCard = ({
                                                     {/* Addons Container Button */}
                                                     <button
                                                         type="button"
-                                                        onClick={() => setActiveFooterTab(activeFooterTab === 'assistive' ? null : 'assistive')}
+                                                        onClick={() => {
+                                                            setActiveFooterTab(activeFooterTab === 'assistive' ? null : 'assistive');
+                                                            if (onAddonClick) onAddonClick();
+                                                        }}
                                                         onDragOver={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
@@ -2356,6 +2387,10 @@ const QuestionBuilderCard = ({
                                                     {activeFooterTab === 'assistive' && renderAddonsWindow()}
                                                     {activeFooterTab === 'moreSettings' && (() => {
                                                         const ms = element.moreSettings || {};
+                                                        const isUploadSynced = (element.appliedToAllMoreSettings || []).includes('allowUpload');
+                                                        const isAudioSynced = (element.appliedToAllMoreSettings || []).includes('allowAudioAnswer');
+                                                        const isChatSynced = (element.appliedToAllMoreSettings || []).includes('allowChat');
+                                                        const isVideoSynced = (element.appliedToAllMoreSettings || []).includes('allowVideo');
                                                         return (
                                                             <div className="bg-white rounded-2xl border border-slate-150 p-4 space-y-3 animate-fade-in shadow-inner">
                                                                 {/* Header */}
@@ -2368,44 +2403,118 @@ const QuestionBuilderCard = ({
                                                                     </button>
                                                                 </div>
 
-                                                                {/* Toggle rows */}
-                                                                <div className="space-y-2.5">
+                                                                {/* Toggle rows in a single line (4 elements with Apply to All) */}
+                                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
                                                                     {/* Upload toggle */}
-                                                                    <div className="flex items-center justify-between bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
-                                                                        <div className="space-y-0.5">
-                                                                            <span className="text-xs font-black text-slate-750 flex items-center gap-1.5">
-                                                                                <Paperclip size={12} className="text-teal-600" /> Allow Upload
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
+                                                                            <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
+                                                                                <Paperclip size={11} className="text-teal-600 shrink-0" /> Allow Upload
                                                                             </span>
-                                                                            <p className="text-[10px] text-slate-400 font-medium">Student can attach a file along with their written answer</p>
+                                                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={!!ms.allowUpload}
+                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowUpload: e.target.checked })}
+                                                                                    className="sr-only peer"
+                                                                                />
+                                                                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                            </label>
                                                                         </div>
-                                                                        <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!ms.allowUpload}
-                                                                                onChange={(e) => onUpdateField('moreSettings', { ...ms, allowUpload: e.target.checked })}
-                                                                                className="sr-only peer"
-                                                                            />
-                                                                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
-                                                                        </label>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => onApplyMoreSettingToAll('allowUpload', !isUploadSynced)}
+                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isUploadSynced
+                                                                                ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                                                }`}
+                                                                        >
+                                                                            {isUploadSynced ? 'Applied to all' : 'Apply to all'}
+                                                                        </button>
                                                                     </div>
 
-                                                                    {/* Audio Answer toggle */}
-                                                                    <div className="flex items-center justify-between bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
-                                                                        <div className="space-y-0.5">
-                                                                            <span className="text-xs font-black text-slate-750 flex items-center gap-1.5">
-                                                                                <Mic size={12} className="text-teal-600" /> Audio Answer
+                                                                    {/* Recording toggle */}
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
+                                                                            <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
+                                                                                <Mic size={11} className="text-teal-600 shrink-0" /> Recording
                                                                             </span>
-                                                                            <p className="text-[10px] text-slate-400 font-medium">Student can record a voice note as their answer</p>
+                                                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={!!ms.allowAudioAnswer}
+                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowAudioAnswer: e.target.checked })}
+                                                                                    className="sr-only peer"
+                                                                                />
+                                                                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                            </label>
                                                                         </div>
-                                                                        <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!ms.allowAudioAnswer}
-                                                                                onChange={(e) => onUpdateField('moreSettings', { ...ms, allowAudioAnswer: e.target.checked })}
-                                                                                className="sr-only peer"
-                                                                            />
-                                                                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
-                                                                        </label>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => onApplyMoreSettingToAll('allowAudioAnswer', !isAudioSynced)}
+                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isAudioSynced
+                                                                                ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                                                }`}
+                                                                        >
+                                                                            {isAudioSynced ? 'Applied to all' : 'Apply to all'}
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {/* Chat with Teacher toggle */}
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
+                                                                            <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
+                                                                                <MessageSquare size={11} className="text-teal-600 shrink-0" /> Chat with Teacher
+                                                                            </span>
+                                                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={!!ms.allowChat}
+                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowChat: e.target.checked })}
+                                                                                    className="sr-only peer"
+                                                                                />
+                                                                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                            </label>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => onApplyMoreSettingToAll('allowChat', !isChatSynced)}
+                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isChatSynced
+                                                                                ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                                                }`}
+                                                                        >
+                                                                            {isChatSynced ? 'Applied to all' : 'Apply to all'}
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {/* Video Recording toggle */}
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
+                                                                            <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
+                                                                                <Video size={11} className="text-teal-600 shrink-0" /> Video Recording
+                                                                            </span>
+                                                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={!!ms.allowVideo}
+                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowVideo: e.target.checked })}
+                                                                                    className="sr-only peer"
+                                                                                />
+                                                                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                                                                            </label>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => onApplyMoreSettingToAll('allowVideo', !isVideoSynced)}
+                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isVideoSynced
+                                                                                ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                                                }`}
+                                                                        >
+                                                                            {isVideoSynced ? 'Applied to all' : 'Apply to all'}
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2549,6 +2658,9 @@ const QuestionBuilderCard = ({
                                                                     setShowValidationSettingsModal(true);
                                                                 } else {
                                                                     setActiveFooterTab(activeFooterTab === tab.key ? null : tab.key);
+                                                                    if (tab.key === 'assistive' && onAddonClick) {
+                                                                        onAddonClick();
+                                                                    }
                                                                 }
                                                             }}
                                                             onDragOver={(e) => {
@@ -2611,7 +2723,7 @@ const QuestionBuilderCard = ({
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recording Modes</span>
                                                 <div className="space-y-1.5">
                                                     {[
-                                                        { key: 'allowWebcam', label: 'Webcam Only' },
+                                                        { key: 'allowWebcam', label: 'Camera' },
                                                         { key: 'allowScreen', label: 'Screen Only' },
                                                         { key: 'allowScreenWebcam', label: 'Screen + Webcam' },
                                                         { key: 'allowAudioOnly', label: 'Audio Only' },
@@ -4364,6 +4476,8 @@ const TestBuilder = () => {
     // Connect Metadata
     const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
+    const [discussionActivity, setDiscussionActivity] = useState({ activityName: '', activityLink: '' });
     const [connectData, setConnectData] = useState({
         name: 'Untitled Form',
         institute: '',
@@ -4452,6 +4566,12 @@ const TestBuilder = () => {
                         activity: test.activity || 'Quiz'
                     });
                     setIsConnected(true);
+                    if (test.discussionActivity) {
+                        setDiscussionActivity({
+                            activityName: test.discussionActivity.activityName || '',
+                            activityLink: test.discussionActivity.activityLink || ''
+                        });
+                    }
 
                     if (test.publishMode) {
                         setPublishModeSelected(test.publishMode);
@@ -4481,6 +4601,8 @@ const TestBuilder = () => {
                             options: q.options || [],
                             description: q.description || '',
                             helperText: q.helperText || '',
+                            noteContent: q.helperText || '',
+                            uploadedResource: q.uploadedResource || null,
                             instructions: q.instructions || '',
                             required: !!q.required,
                             enabled: q.enabled !== false,
@@ -4537,7 +4659,8 @@ const TestBuilder = () => {
                             uploadedFiles: q.uploadedFiles || [],
                             addons: q.addons || [],
                             appliedToAllAddons: q.appliedToAllAddons || [],
-                            moreSettings: q.moreSettings || { allowUpload: false, allowAudioAnswer: false },
+                            appliedToAllMoreSettings: q.appliedToAllMoreSettings || [],
+                            moreSettings: q.moreSettings || { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
                             mediaUrl: q.mediaUrl || '',
                             writeMode: !!q.writeMode,
                             audioUrl: q.audioUrl || '',
@@ -4815,9 +4938,11 @@ const TestBuilder = () => {
                 topicMapping: ''
             },
             uploadedFiles: [],
+            uploadedResource: null,
             addons: [],
             appliedToAllAddons: [],
-            moreSettings: { allowUpload: false, allowAudioAnswer: false },
+            appliedToAllMoreSettings: [],
+            moreSettings: { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
             mediaUrl: '',
             writeMode: false,
             audioUrl: '',
@@ -4851,7 +4976,37 @@ const TestBuilder = () => {
     };
 
     const updateElementField = (index, field, value) => {
-        setFormElements(prev => prev.map((el, i) => i === index ? { ...el, [field]: value } : el));
+        setFormElements(prev => {
+            if (field === 'moreSettings') {
+                const prevSettings = prev[index]?.moreSettings || {};
+                const nextSettings = value || {};
+                const keys = ['allowUpload', 'allowAudioAnswer', 'allowChat', 'allowVideo'];
+                let changedKey = null;
+                for (const key of keys) {
+                    if (prevSettings[key] !== nextSettings[key]) {
+                        changedKey = key;
+                        break;
+                    }
+                }
+                if (changedKey) {
+                    const isSynced = (prev[index]?.appliedToAllMoreSettings || []).includes(changedKey);
+                    if (isSynced) {
+                        const newValue = nextSettings[changedKey];
+                        return prev.map((el) => {
+                            const ms = el.moreSettings || {};
+                            return {
+                                ...el,
+                                moreSettings: {
+                                    ...ms,
+                                    [changedKey]: newValue
+                                }
+                            };
+                        });
+                    }
+                }
+            }
+            return prev.map((el, i) => i === index ? { ...el, [field]: value } : el);
+        });
     };
 
     const handleApplyAddonToAll = (sourceIndex, addonLabel, isApplied) => {
@@ -4885,6 +5040,41 @@ const TestBuilder = () => {
             toast.success(`Applied ${addonLabel} to all questions!`);
         } else {
             toast.info(`Disabled Apply to all for ${addonLabel}`);
+        }
+    };
+
+    const handleApplyMoreSettingToAll = (sourceIndex, settingKey, isApplied) => {
+        setFormElements(prev => {
+            const currentValue = prev[sourceIndex]?.moreSettings?.[settingKey] || false;
+            return prev.map((el) => {
+                const currentSettings = el.moreSettings || {};
+                const currentApplied = el.appliedToAllMoreSettings || [];
+
+                let nextApplied = [...currentApplied];
+                if (isApplied) {
+                    if (!nextApplied.includes(settingKey)) {
+                        nextApplied.push(settingKey);
+                    }
+                } else {
+                    nextApplied = nextApplied.filter(a => a !== settingKey);
+                }
+
+                const nextSettings = {
+                    ...currentSettings,
+                    [settingKey]: isApplied ? currentValue : (currentSettings[settingKey] || false)
+                };
+
+                return {
+                    ...el,
+                    moreSettings: nextSettings,
+                    appliedToAllMoreSettings: nextApplied
+                };
+            });
+        });
+        if (isApplied) {
+            toast.success(`Applied setting to all questions!`);
+        } else {
+            toast.info(`Disabled Apply to all for this setting`);
         }
     };
 
@@ -4968,7 +5158,8 @@ const TestBuilder = () => {
                     index: mode === 'connected' ? (connectData?.index || 'Index 1') : 'Public Index',
                     activity: mode === 'connected' ? (connectData?.activity || 'Quiz') : 'Quiz',
                     publishMode: mode,
-                    publicSettings: mode === 'public' ? (settingsObj || publicSettings) : {}
+                    publicSettings: mode === 'public' ? (settingsObj || publicSettings) : {},
+                    discussionActivity: discussionActivity
                 },
                 questions: formElements.map((el, index) => ({
                     id: `q${index}`,
@@ -4976,7 +5167,8 @@ const TestBuilder = () => {
                     type: el.label,
                     marks: el.marks !== undefined ? el.marks : 1,
                     description: el.description || '',
-                    helperText: el.helperText || '',
+                    helperText: el.noteContent || el.helperText || '',
+                    uploadedResource: el.uploadedResource || null,
                     instructions: el.instructions || '',
                     required: !!el.required,
                     enabled: el.enabled !== false,
@@ -4998,7 +5190,8 @@ const TestBuilder = () => {
                     uploadedFiles: el.uploadedFiles || [],
                     addons: el.addons || [],
                     appliedToAllAddons: el.appliedToAllAddons || [],
-                    moreSettings: el.moreSettings || { allowUpload: false, allowAudioAnswer: false },
+                    appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
+                    moreSettings: el.moreSettings || { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
                     mediaUrl: el.mediaUrl || '',
                     writeMode: !!el.writeMode,
                     audioUrl: el.audioUrl || '',
@@ -5440,10 +5633,12 @@ const TestBuilder = () => {
                                                             onUpdateOptions={(options) => updateElementOptions(originalIndex, options)}
                                                             onUpdateField={(field, val) => updateElementField(originalIndex, field, val)}
                                                             onApplyAddonToAll={(addonLabel, isApplied) => handleApplyAddonToAll(originalIndex, addonLabel, isApplied)}
+                                                            onApplyMoreSettingToAll={(settingKey, isApplied) => handleApplyMoreSettingToAll(originalIndex, settingKey, isApplied)}
                                                             onRemoveAddon={(addonLabel) => handleRemoveAddon(originalIndex, addonLabel)}
                                                             onDragStartCustom={(e) => handleCustomDragStart(e, originalIndex)}
                                                             isDragged={draggedQuestionIndex === originalIndex}
                                                             isDragging={isDragging}
+                                                            onAddonClick={() => setSidebarTab('Elements/Addons')}
                                                         />
                                                     </div>
                                                 ));
@@ -6008,33 +6203,45 @@ const TestBuilder = () => {
 
                         {/* Page/Logic Footer Bar (Only shown in Edit tab) */}
                         {activeTab === 'Edit' && (
-                            <div className="h-12 bg-white border-t border-slate-200 flex items-center justify-center gap-2 w-full z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.01)] shrink-0">
-                                <button
-                                    onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
-                                    className="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-all"
-                                >
-                                    <Plus size={16} />
-                                    <span>Add Page</span>
-                                </button>
-                                <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
-                                    <button className="px-3.5 py-1.5 bg-white shadow-sm rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                                        <Settings size={12} className="text-purple-600" />
-                                        <span>Page 1</span>
-                                    </button>
+                            <div className="h-12 bg-white border-t border-slate-200 flex items-center justify-center px-6 w-full z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.01)] shrink-0 relative">
+                                <div className="absolute left-6 flex items-center">
                                     <button
-                                        onClick={() => toast("Conditional Logic: configure rules to jump to pages.")}
-                                        className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all"
+                                        type="button"
+                                        onClick={() => setIsDiscussionModalOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl shadow-sm transition-all whitespace-nowrap"
                                     >
-                                        <Hash size={12} />
-                                        <span>Logic Rules</span>
+                                        <MessageSquare size={14} className="text-purple-600" />
+                                        <span>Decide Activity</span>
                                     </button>
+                                </div>
+                                <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => toast("Pick form Elements template design from database.")}
-                                        className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all"
+                                        onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
+                                        className="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
                                     >
-                                        <Layout size={12} />
-                                        <span>Templates</span>
+                                        <Plus size={16} />
+                                        <span>Add Page</span>
                                     </button>
+                                    <div className="bg-slate-100 p-1 rounded-xl flex gap-1 items-center">
+                                        <button className="px-3.5 py-1.5 bg-white shadow-sm rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 whitespace-nowrap">
+                                            <Settings size={12} className="text-purple-600" />
+                                            <span>Page 1</span>
+                                        </button>
+                                        <button
+                                            onClick={() => toast("Conditional Logic: configure rules to jump to pages.")}
+                                            className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
+                                        >
+                                            <Hash size={12} />
+                                            <span>Logic Rules</span>
+                                        </button>
+                                        <button
+                                            onClick={() => toast("Pick form Elements template design from database.")}
+                                            className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
+                                        >
+                                            <Layout size={12} />
+                                            <span>Templates</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -6115,6 +6322,7 @@ const TestBuilder = () => {
                     onPublish={handlePublish}
                     initialSettings={publicSettings}
                     isConnected={isConnected}
+                    initialMode={publishModeSelected}
                     onOpenConnect={() => {
                         setIsPublishOptionsModalOpen(false);
                         setIsConnectModalOpen(true);
@@ -6131,6 +6339,77 @@ const TestBuilder = () => {
                     testTitle={publishSuccessInfo?.testTitle}
                     publishMode={publishSuccessInfo?.publishMode}
                 />
+
+                {isDiscussionModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsDiscussionModalOpen(false)}>
+                        <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-scale-up" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                                <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                    <MessageSquare size={20} className="text-purple-600" />
+                                    <span>Decide Activity</span>
+                                </h3>
+                                <button
+                                    onClick={() => setIsDiscussionModalOpen(false)}
+                                    className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="py-6 space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Activity Name</label>
+                                    <input
+                                        type="text"
+                                        value={discussionActivity?.activityName || ''}
+                                        onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityName: e.target.value }))}
+                                        placeholder="Enter activity name (e.g. Discuss on Slack)"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Activity Link (URL)</label>
+                                    <input
+                                        type="url"
+                                        value={discussionActivity?.activityLink || ''}
+                                        onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityLink: e.target.value }))}
+                                        placeholder="https://example.com/discussion"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDiscussionModalOpen(false)}
+                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!discussionActivity?.activityName?.trim()) {
+                                            toast.error("Please enter an activity name.");
+                                            return;
+                                        }
+                                        if (!discussionActivity?.activityLink?.trim()) {
+                                            toast.error("Please enter a valid link.");
+                                            return;
+                                        }
+                                        setIsDiscussionModalOpen(false);
+                                        toast.success("Decide Activity settings configured!");
+                                    }}
+                                    className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-purple-500/15"
+                                >
+                                    Save Activity
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
     );

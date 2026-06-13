@@ -82,7 +82,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
     useEffect(() => {
         const getDevices = async () => {
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: true }).catch(() => {});
+                await navigator.mediaDevices.getUserMedia({ audio: true, video: true }).catch(() => { });
                 const allDevices = await navigator.mediaDevices.enumerateDevices();
                 const videoInputs = allDevices.filter(d => d.kind === 'videoinput');
                 const audioInputs = allDevices.filter(d => d.kind === 'audioinput');
@@ -170,7 +170,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                     if (previewVideoRef.current) {
                         previewVideoRef.current.srcObject = activeStream;
                         previewVideoRef.current.muted = true;
-                        previewVideoRef.current.play().catch(() => {});
+                        previewVideoRef.current.play().catch(() => { });
                     }
                 } else if (activeMode === 'audio') {
                     activeStream = await navigator.mediaDevices.getUserMedia({
@@ -425,11 +425,11 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                     const ctx = canvas.getContext('2d');
                     const screenVideo = document.createElement('video');
                     screenVideo.srcObject = screenStream;
-                    screenVideo.play().catch(() => {});
-                    
+                    screenVideo.play().catch(() => { });
+
                     const camVideo = document.createElement('video');
                     camVideo.srcObject = videoStream;
-                    camVideo.play().catch(() => {});
+                    camVideo.play().catch(() => { });
 
                     const drawOverlay = () => {
                         if (screenStream.active) {
@@ -457,7 +457,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
             if (previewVideoRef.current && activeMode !== 'audio') {
                 previewVideoRef.current.srcObject = combinedStream;
                 previewVideoRef.current.muted = true;
-                previewVideoRef.current.play().catch(() => {});
+                previewVideoRef.current.play().catch(() => { });
             }
 
             const options = { mimeType: activeMode === 'audio' ? 'audio/webm' : 'video/webm;codecs=vp8,opus' };
@@ -643,7 +643,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 className="text-emerald-500" size={20} />
-                        <span className="text-sm font-bold text-slate-800">Video Answer Saved & Submitted</span>
+                        <span className="text-sm font-bold text-slate-800">Recording 1 Saved & Submitted</span>
                     </div>
                     {onReattempt && (
                         <button
@@ -659,7 +659,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                     <video
                         src={answerData.url}
                         controls
-                        className="w-full h-auto max-h-[360px] object-contain"
+                        className="w-full h-auto max-h-[185px] object-contain"
                     />
                 </div>
 
@@ -679,9 +679,9 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
 
     return (
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col font-sans mb-4">
-            
+
             {/* Header & Modes Selector */}
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-150 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-150 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <span className="p-1.5 bg-[#6F42C1] text-white rounded-lg"><Video size={16} /></span>
                     <span className="font-bold text-slate-800 text-sm">Advanced Recording System</span>
@@ -695,7 +695,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                                 onClick={() => setActiveMode('webcam')}
                                 className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${activeMode === 'webcam' ? 'bg-white text-[#6F42C1] shadow-sm' : 'text-slate-550 hover:text-slate-800'}`}
                             >
-                                <Video size={13} /> Webcam Only
+                                <Video size={13} /> Camera
                             </button>
                         )}
                         {config.allowScreen && (
@@ -735,7 +735,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
             </div>
 
             {/* Main Preview/Capture viewport */}
-            <div className="relative bg-slate-950 min-h-[360px] max-h-[500px] flex items-center justify-center overflow-hidden">
+            <div className="relative bg-slate-950 min-h-[180px] max-h-[260px] flex items-center justify-center overflow-hidden">
                 {/* Countdown overlay */}
                 {recordingState === 'countdown' && (
                     <div className="absolute inset-0 z-30 bg-slate-900/90 flex flex-col items-center justify-center text-white select-none animate-pulse">
@@ -761,7 +761,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                 {activeMode !== 'upload' && (
                     <video
                         ref={previewVideoRef}
-                        className={`w-full h-full max-h-[450px] object-contain bg-black ${recordingState === 'stopped' ? 'hidden' : 'block'}`}
+                        className={`w-full h-full max-h-[240px] object-contain bg-black ${recordingState === 'stopped' ? 'hidden' : 'block'}`}
                         muted
                         playsInline
                     />
@@ -772,7 +772,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                     <video
                         src={recordedUrl}
                         controls
-                        className="w-full h-full max-h-[450px] object-contain bg-black"
+                        className="w-full h-full max-h-[240px] object-contain bg-black"
                     />
                 )}
 
@@ -782,7 +782,7 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
                         <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-400">
                             <Upload size={28} />
                         </div>
-                        <h4 className="text-sm font-bold text-slate-300">Upload Video Answer File</h4>
+                        <h4 className="text-sm font-bold text-slate-300">Upload Recording 1 File</h4>
                         <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
                             Support MP4, WebM, or MOV formats up to {config.maxFileSize}MB. Maximum attempt limits apply.
                         </p>
@@ -981,8 +981,8 @@ const AdvancedVideoRecorder = ({ question, onSubmitAnswer, submittedAnswer, onRe
             )}
 
             {/* Bottom device selector and recorder controls */}
-            <div className="bg-slate-50 border-t border-slate-150 px-5 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                
+            <div className="bg-slate-50 border-t border-slate-150 px-4 py-2 flex flex-col md:flex-row items-center justify-between gap-4">
+
                 {/* 1. Device selectors */}
                 {recordingState === 'idle' && activeMode !== 'upload' && (
                     <div className="flex flex-wrap items-center gap-3 text-xs">

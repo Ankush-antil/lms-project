@@ -1852,12 +1852,17 @@ const ShortAnswerTest = () => {
                                                             </button>
                                                         )}
 
-                                                        {!q.moreSettings?.allowUpload &&
-                                                            !q.moreSettings?.allowAudioAnswer &&
-                                                            !q.moreSettings?.allowVideo &&
-                                                            !q.moreSettings?.allowChat && (
-                                                                <span className="text-xs text-slate-400 italic font-medium">(No widget assigned)</span>
-                                                            )}
+                                                        {/* Submit & Finish Button */}
+                                                        {q.moreSettings?.allowSubmitFinish === true && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={submitting}
+                                                                onClick={submitAll}
+                                                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#DC3545] hover:bg-[#c82333] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
+                                                            >
+                                                                <CheckCircle2 size={15} /> Submit & Finish
+                                                            </button>
+                                                        )}
 
                                                     </div>
 
@@ -1903,14 +1908,15 @@ const ShortAnswerTest = () => {
                                                     )}
                                                 </button>
                                             </div>
-                                            {/* 🔲 THREE-PART REFERENCE & ASSISTIVE BAR (single line) */}
+                                            {/* 🔲 FOUR-PART REFERENCE & ASSISTIVE BAR (single line) */}
                                             {collapsedExtras[idx] === false && (() => {
                                                 const hasAddon = qAssistive.translation || qAssistive.relevantInformation || qAssistive.temporaryFill || qAssistive.textToSpeech || qAssistive.speechToText || qAssistive.calculator;
+                                                const hasWidget = q.moreSettings?.allowUpload || q.moreSettings?.allowAudioAnswer || q.moreSettings?.allowVideo || q.moreSettings?.allowChat || q.moreSettings?.allowSubmitFinish;
                                                 return (
                                                     <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white text-xs select-none h-9">
 
-                                                        {/* ── EXAMPLE (20%) ── */}
-                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0" style={{ width: '20%' }}>
+                                                        {/* ── EXAMPLE (15%) ── */}
+                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0" style={{ width: '15%' }}>
                                                             {q.uploadedResource ? (
                                                                 <button
                                                                     type="button"
@@ -1951,8 +1957,8 @@ const ShortAnswerTest = () => {
                                                             )}
                                                         </div>
 
-                                                        {/* ── NOTE (20%) ── */}
-                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '20%' }}>
+                                                        {/* ── NOTE (15%) ── */}
+                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '15%' }}>
                                                             {q.helperText ? (
                                                                 <button
                                                                     type="button"
@@ -2012,8 +2018,43 @@ const ShortAnswerTest = () => {
                                                             )}
                                                         </div>
 
-                                                        {/* ── ADDON (60%, right-aligned) ── */}
-                                                        <div className="flex items-center flex-1 px-2 h-full bg-slate-50/60">
+                                                        {/* ── WIDGET ASSIGNED (15%) ── */}
+                                                        <div className="flex items-center gap-1.5 justify-center px-3 h-full border-r border-slate-200 bg-sky-50/60 shrink-0" style={{ width: '15%' }}>
+                                                            {hasWidget ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {q.moreSettings?.allowUpload && (
+                                                                        <span className="p-1 bg-blue-100 text-blue-600 rounded-md" title="Upload Widget">
+                                                                            <Paperclip size={11} />
+                                                                        </span>
+                                                                    )}
+                                                                    {q.moreSettings?.allowAudioAnswer && (
+                                                                        <span className="p-1 bg-purple-100 text-[#6F42C1] rounded-md" title="Audio Response Widget">
+                                                                            <Mic size={11} />
+                                                                        </span>
+                                                                    )}
+                                                                    {q.moreSettings?.allowVideo && (
+                                                                        <span className="p-1 bg-pink-100 text-pink-600 rounded-md" title="Video Response Widget">
+                                                                            <Video size={11} />
+                                                                        </span>
+                                                                    )}
+                                                                    {q.moreSettings?.allowChat && (
+                                                                        <span className="p-1 bg-emerald-100 text-emerald-600 rounded-md" title="Chat Widget">
+                                                                            <MessageSquare size={11} />
+                                                                        </span>
+                                                                    )}
+                                                                    {q.moreSettings?.allowSubmitFinish && (
+                                                                        <span className="p-1 bg-red-100 text-red-600 rounded-md" title="Submit & Finish Widget">
+                                                                            <CheckCircle2 size={11} />
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No widget</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* ── ADDON (55%, right-aligned) ── */}
+                                                        <div className="flex items-center px-2 h-full bg-slate-50/60 shrink-0" style={{ width: '55%' }}>
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
                                                                 <Sliders size={12} /> Addon
                                                             </span>

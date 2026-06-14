@@ -2388,9 +2388,8 @@ const QuestionBuilderCard = ({
                                                     {activeFooterTab === 'moreSettings' && (() => {
                                                         const ms = element.moreSettings || {};
                                                         const isUploadSynced = (element.appliedToAllMoreSettings || []).includes('allowUpload');
-                                                        const isAudioSynced = (element.appliedToAllMoreSettings || []).includes('allowAudioAnswer');
                                                         const isChatSynced = (element.appliedToAllMoreSettings || []).includes('allowChat');
-                                                        const isVideoSynced = (element.appliedToAllMoreSettings || []).includes('allowVideo');
+                                                        const isSubmitFinishSynced = (element.appliedToAllMoreSettings || []).includes('allowSubmitFinish');
                                                         return (
                                                             <div className="bg-white rounded-2xl border border-slate-150 p-4 space-y-3 animate-fade-in shadow-inner">
                                                                 {/* Header */}
@@ -2403,8 +2402,8 @@ const QuestionBuilderCard = ({
                                                                     </button>
                                                                 </div>
 
-                                                                {/* Toggle rows in a single line (4 elements with Apply to All) */}
-                                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+                                                                {/* Toggle rows in a single line (3 elements with Apply to All) */}
+                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                                                                     {/* Upload toggle */}
                                                                     <div className="flex flex-col gap-1">
                                                                         <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
@@ -2430,34 +2429,6 @@ const QuestionBuilderCard = ({
                                                                                 }`}
                                                                         >
                                                                             {isUploadSynced ? 'Applied to all' : 'Apply to all'}
-                                                                        </button>
-                                                                    </div>
-
-                                                                    {/* Recording toggle */}
-                                                                    <div className="flex flex-col gap-1">
-                                                                        <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
-                                                                            <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
-                                                                                <Mic size={11} className="text-teal-600 shrink-0" /> Recording
-                                                                            </span>
-                                                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={!!ms.allowAudioAnswer}
-                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowAudioAnswer: e.target.checked })}
-                                                                                    className="sr-only peer"
-                                                                                />
-                                                                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
-                                                                            </label>
-                                                                        </div>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => onApplyMoreSettingToAll('allowAudioAnswer', !isAudioSynced)}
-                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isAudioSynced
-                                                                                ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
-                                                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                                                                }`}
-                                                                        >
-                                                                            {isAudioSynced ? 'Applied to all' : 'Apply to all'}
                                                                         </button>
                                                                     </div>
 
@@ -2489,17 +2460,17 @@ const QuestionBuilderCard = ({
                                                                         </button>
                                                                     </div>
 
-                                                                    {/* Video Recording toggle */}
+                                                                    {/* Submit & Finish toggle */}
                                                                     <div className="flex flex-col gap-1">
                                                                         <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 w-full">
                                                                             <span className="text-[10px] font-black text-slate-750 flex items-center gap-1 whitespace-nowrap">
-                                                                                <Video size={11} className="text-teal-600 shrink-0" /> Video Recording
+                                                                                <CheckCircle2 size={11} className="text-teal-600 shrink-0" /> Submit & Finish
                                                                             </span>
                                                                             <label className="relative inline-flex items-center cursor-pointer shrink-0">
                                                                                 <input
                                                                                     type="checkbox"
-                                                                                    checked={!!ms.allowVideo}
-                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowVideo: e.target.checked })}
+                                                                                    checked={!!ms.allowSubmitFinish}
+                                                                                    onChange={(e) => onUpdateField('moreSettings', { ...ms, allowSubmitFinish: e.target.checked })}
                                                                                     className="sr-only peer"
                                                                                 />
                                                                                 <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
@@ -2507,13 +2478,13 @@ const QuestionBuilderCard = ({
                                                                         </div>
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => onApplyMoreSettingToAll('allowVideo', !isVideoSynced)}
-                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isVideoSynced
+                                                                            onClick={() => onApplyMoreSettingToAll('allowSubmitFinish', !isSubmitFinishSynced)}
+                                                                            className={`px-2 py-0.5 rounded transition-all border w-full text-center text-[9px] font-black ${isSubmitFinishSynced
                                                                                 ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
                                                                                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                                                                                 }`}
                                                                         >
-                                                                            {isVideoSynced ? 'Applied to all' : 'Apply to all'}
+                                                                            {isSubmitFinishSynced ? 'Applied to all' : 'Apply to all'}
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -4660,7 +4631,7 @@ const TestBuilder = () => {
                             addons: q.addons || [],
                             appliedToAllAddons: q.appliedToAllAddons || [],
                             appliedToAllMoreSettings: q.appliedToAllMoreSettings || [],
-                            moreSettings: q.moreSettings || { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
+                            moreSettings: q.moreSettings || { allowUpload: false, allowChat: false, allowSubmitFinish: false },
                             mediaUrl: q.mediaUrl || '',
                             writeMode: !!q.writeMode,
                             audioUrl: q.audioUrl || '',
@@ -4903,7 +4874,6 @@ const TestBuilder = () => {
                 allowWebcam: true,
                 allowScreen: true,
                 allowScreenWebcam: true,
-                allowAudioOnly: true,
                 allowUpload: true,
                 minDuration: 30,
                 maxDuration: 600,
@@ -4942,7 +4912,7 @@ const TestBuilder = () => {
             addons: [],
             appliedToAllAddons: [],
             appliedToAllMoreSettings: [],
-            moreSettings: { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
+            moreSettings: { allowUpload: false, allowChat: false, allowSubmitFinish: false },
             mediaUrl: '',
             writeMode: false,
             audioUrl: '',
@@ -4980,7 +4950,7 @@ const TestBuilder = () => {
             if (field === 'moreSettings') {
                 const prevSettings = prev[index]?.moreSettings || {};
                 const nextSettings = value || {};
-                const keys = ['allowUpload', 'allowAudioAnswer', 'allowChat', 'allowVideo'];
+                const keys = ['allowUpload', 'allowChat', 'allowSubmitFinish'];
                 let changedKey = null;
                 for (const key of keys) {
                     if (prevSettings[key] !== nextSettings[key]) {
@@ -5191,7 +5161,7 @@ const TestBuilder = () => {
                     addons: el.addons || [],
                     appliedToAllAddons: el.appliedToAllAddons || [],
                     appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
-                    moreSettings: el.moreSettings || { allowUpload: false, allowAudioAnswer: false, allowChat: false, allowVideo: false },
+                    moreSettings: el.moreSettings || { allowUpload: false, allowChat: false, allowSubmitFinish: false },
                     mediaUrl: el.mediaUrl || '',
                     writeMode: !!el.writeMode,
                     audioUrl: el.audioUrl || '',

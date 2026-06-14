@@ -1418,6 +1418,14 @@ const PublicTestPage = () => {
                             supportingResources: []
                         };
                         const isEditable = questionTimes[idx] !== 0 && !(submittedAnswers[idx] && !qParticulars.allowEditing);
+                        const hasAnyAction = !!(
+                            q.moreSettings?.allowUpload === true ||
+                            q.moreSettings?.allowAudioAnswer === true ||
+                            q.moreSettings?.allowVideo === true ||
+                            q.moreSettings?.allowChat === true ||
+                            q.moreSettings?.allowSubmitFinish === true ||
+                            (submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0)
+                        );
 
                         return (
                             <div key={idx} className="rounded-2xl shadow-md bg-white">
@@ -2062,431 +2070,420 @@ const PublicTestPage = () => {
                                                         }}
                                                     />
                                                 )}
-
                                             </div>
 
                                             {/* 🔲 ACTION ROW + DOUBLE PANE */}
                                             <div className="space-y-2">
 
-                                                {/* 🔵 ACTION BUTTONS ROW (Upload, Recording, Chat, Submit & Finish, Reattempt) */}
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 flex flex-wrap items-center justify-between gap-2 border border-slate-200 rounded-xl bg-white px-3 py-2.5 shadow-sm">
-                                                        <div className="flex flex-wrap items-center gap-2">
-
-                                                            {/* Upload Button */}
-                                                            {q.moreSettings?.allowUpload === true && (() => {
-                                                                const uploadEnabled = q.moreSettings?.allowUpload !== false && q.moreSettings?.allowUpload === true;
-                                                                const hasFiles = attachedFiles[idx] && attachedFiles[idx].length > 0;
-                                                                if (hasFiles) {
-                                                                    return (
-                                                                        <div className="relative">
+                                                {/* 🔲 FOUR-PART REFERENCE & ASSISTIVE BAR (single line) */}
+                                                {(() => {
+                                                    const hasAddon = qAssistive.translation || qAssistive.relevantInformation || qAssistive.temporaryFill || qAssistive.textToSpeech || qAssistive.speechToText || qAssistive.calculator;
+                                                    const hasWidget = q.moreSettings?.allowUpload || q.moreSettings?.allowAudioAnswer || q.moreSettings?.allowVideo || q.moreSettings?.allowChat || q.moreSettings?.allowSubmitFinish || (submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0);
+                                                    return (
+                                                        <div className="flex items-center border border-slate-200 rounded-xl bg-white text-xs select-none h-9 relative">
+                                                            {collapsedExtras[idx] === false ? (
+                                                                <div className="flex-1 flex items-center h-full">
+                                                                    {/* ── EXAMPLE (15%) ── */}
+                                                                    <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0 rounded-l-xl" style={{ width: '15%' }}>
+                                                                        {q.uploadedResource ? (
                                                                             <button
                                                                                 type="button"
-                                                                                disabled={!isEditable}
-                                                                                onClick={() => setShowUploadMenu(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                                                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
-                                                                            >
-                                                                                <Paperclip size={15} /> Upload {attachedFiles[idx].length} ▼
-                                                                            </button>
-                                                                            {showUploadMenu[idx] && (
-                                                                                <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[150px] text-xs font-semibold text-slate-700">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => {
-                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                            setPreviewFile(attachedFiles[idx][0]);
-                                                                                        }}
-                                                                                        className="px-4 py-2 hover:bg-slate-55 text-left transition-colors flex items-center gap-2 font-bold"
-                                                                                    >
-                                                                                        <span>Preview File</span>
-                                                                                    </button>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => {
-                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                            document.getElementById(`file-replace-main-public-${idx}`).click();
-                                                                                        }}
-                                                                                        className="px-4 py-2 hover:bg-slate-55 text-left transition-colors flex items-center gap-2 font-bold"
-                                                                                    >
-                                                                                        <span>Replace File</span>
-                                                                                    </button>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => {
-                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                            setAttachedFiles(prev => ({ ...prev, [idx]: [] }));
-                                                                                            toast.success("Attachment removed");
-                                                                                        }}
-                                                                                        className="px-4 py-2 hover:bg-slate-55 text-left text-red-600 transition-colors flex items-center gap-2 font-bold"
-                                                                                    >
-                                                                                        <span>Remove File</span>
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
-                                                                            <input
-                                                                                type="file"
-                                                                                id={`file-replace-main-public-${idx}`}
-                                                                                multiple
-                                                                                className="hidden"
-                                                                                onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                            />
-                                                                        </div>
-                                                                    );
-                                                                }
-                                                                return (
-                                                                    <label
-                                                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
-                                                                            ? 'bg-[#0d6efd]/40 text-white/70 cursor-not-allowed'
-                                                                            : (uploadEnabled
-                                                                                ? 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-sm cursor-pointer'
-                                                                                : 'bg-[#0d6efd]/60 text-white cursor-pointer')
-                                                                            }`}
-                                                                        onClick={(e) => {
-                                                                            if (!isEditable) {
-                                                                                e.preventDefault();
-                                                                                if (questionTimes[idx] === 0) {
-                                                                                    toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                                } else {
-                                                                                    toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                                }
-                                                                            } else if (!uploadEnabled) {
-                                                                                e.preventDefault();
-                                                                                toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        {uploadEnabled && isEditable && (
-                                                                            <input
-                                                                                type="file"
-                                                                                multiple
-                                                                                className="hidden"
-                                                                                onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                            />
-                                                                        )}
-                                                                        <Paperclip size={15} /> Upload
-                                                                    </label>
-                                                                );
-                                                            })()}
-
-                                                            {/* Recording Button */}
-                                                            {q.moreSettings?.allowAudioAnswer === true && (() => {
-                                                                const audioEnabled = q.moreSettings?.allowAudioAnswer === true;
-                                                                return (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            if (!isEditable) {
-                                                                                if (questionTimes[idx] === 0) {
-                                                                                    toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                                } else {
-                                                                                    toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                                }
-                                                                                return;
-                                                                            }
-                                                                            if (!audioEnabled) {
-                                                                                toast.error("⛔ This feature is disabled by teacher", { duration: 3000 });
-                                                                                return;
-                                                                            }
-                                                                            setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                                                        }}
-                                                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
-                                                                            ? 'bg-slate-800/40 text-white/70 cursor-not-allowed'
-                                                                            : (audioEnabled
-                                                                                ? (showAudioRecorder[idx]
-                                                                                    ? 'bg-[#6F42C1] text-white shadow-sm'
-                                                                                    : 'bg-slate-800 hover:bg-slate-700 text-white shadow-sm')
-                                                                                : 'bg-slate-800/60 text-white cursor-pointer')
-                                                                            }`}
-                                                                    >
-                                                                        <Mic size={15} /> Calling
-                                                                    </button>
-                                                                );
-                                                            })()}
-
-                                                            {/* Video Recording Button */}
-                                                            {q.moreSettings?.allowVideo === true && (() => {
-                                                                return (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            if (!isEditable) {
-                                                                                if (questionTimes[idx] === 0) {
-                                                                                    toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                                } else {
-                                                                                    toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                                }
-                                                                                return;
-                                                                            }
-                                                                            setShowVideoRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                                                        }}
-                                                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all select-none ${!isEditable
-                                                                            ? 'bg-slate-800/40 text-white/70 cursor-not-allowed'
-                                                                            : (showVideoRecorder[idx]
-                                                                                ? 'bg-[#6F42C1] text-white shadow-sm'
-                                                                                : 'bg-slate-800 hover:bg-slate-700 text-white shadow-sm')
-                                                                            }`}
-                                                                    >
-                                                                        <Video size={15} /> Recording
-                                                                    </button>
-                                                                );
-                                                            })()}
-
-                                                            {/* Chat with Teacher Button */}
-                                                            {q.moreSettings?.allowChat === true && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const willOpen = showGlobalChat !== idx;
-                                                                        setShowGlobalChat(willOpen ? idx : null);
-                                                                        if (willOpen) {
-                                                                            const qText = q.text ? q.text.replace(/<[^>]*>/g, '').trim() : '';
-                                                                            if (qText && !(chatInput[idx])) {
-                                                                                setChatInput(prev => ({ ...prev, [idx]: `Q: ${qText}` }));
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all shadow-sm select-none ${showGlobalChat === idx
-                                                                        ? 'bg-[#6F42C1] text-white'
-                                                                        : 'bg-slate-700 hover:bg-slate-600 text-white'
-                                                                        }`}
-                                                                >
-                                                                    <MessageSquare size={15} /> Chat with teacher
-                                                                </button>
-                                                            )}
-
-                                                            {/* Submit & Finish Button */}
-                                                            {q.moreSettings?.allowSubmitFinish === true && (
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={submitting}
-                                                                    onClick={() => submitAllResponses(false)}
-                                                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#DC3545] hover:bg-[#c82333] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
-                                                                >
-                                                                    <CheckCircle2 size={15} /> Submit & Finish
-                                                                </button>
-                                                            )}
-
-                                                        </div>
-
-                                                        {/* Right: Reattempt */}
-                                                        <div className="flex items-center gap-2 ml-auto">
-                                                            {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setSubmittedAnswers(prev => {
-                                                                            const n = { ...prev };
-                                                                            delete n[idx];
-                                                                            return n;
-                                                                        });
-                                                                        toast.success("Reattempting question...");
-                                                                    }}
-                                                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#28A745] hover:bg-[#218838] text-white rounded-lg text-xs font-black transition-all shadow-sm select-none"
-                                                                >
-                                                                    <RotateCcw size={15} /> Reattempt
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Sleek Collapse/Expand Symbol Button directly next to it */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const isCollapsed = collapsedExtras[idx] !== false;
-                                                            setCollapsedExtras(prev => ({ ...prev, [idx]: !isCollapsed }));
-                                                            if (isCollapsed) {
-                                                                const defaultTab = null;
-                                                                setActiveQuestionTab(prev => ({ ...prev, [idx]: defaultTab }));
-                                                            }
-                                                        }}
-                                                        className="p-2.5 bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95 flex-shrink-0 flex items-center justify-center"
-                                                        title={collapsedExtras[idx] === false ? "Collapse" : "Expand"}
-                                                    >
-                                                        {collapsedExtras[idx] === false ? (
-                                                            <ChevronUp size={16} className="stroke-[2.5]" />
-                                                        ) : (
-                                                            <ChevronDown size={16} className="stroke-[2.5]" />
-                                                        )}
-                                                    </button>
-                                                </div>
-
-                                                {/* 🔲 FOUR-PART REFERENCE & ASSISTIVE BAR (single line) */}
-                                                {collapsedExtras[idx] === false && (() => {
-                                                    const hasAddon = qAssistive.translation || qAssistive.relevantInformation || qAssistive.temporaryFill || qAssistive.textToSpeech || qAssistive.speechToText || qAssistive.calculator;
-                                                    const hasWidget = q.moreSettings?.allowUpload || q.moreSettings?.allowAudioAnswer || q.moreSettings?.allowVideo || q.moreSettings?.allowChat || q.moreSettings?.allowSubmitFinish;
-                                                    return (
-                                                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white text-xs select-none h-9">
-
-                                                            {/* ── EXAMPLE (15%) ── */}
-                                                            <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0" style={{ width: '15%' }}>
-                                                                {q.uploadedResource ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            if (q.uploadedResource?.url) {
-                                                                                const dataUrl = q.uploadedResource.url;
-                                                                                if (dataUrl.startsWith('data:')) {
-                                                                                    try {
-                                                                                        const parts = dataUrl.split(',');
-                                                                                        const mime = parts[0].match(/:(.*?);/)[1];
-                                                                                        const bstr = atob(parts[1]);
-                                                                                        let n = bstr.length;
-                                                                                        const u8arr = new Uint8Array(n);
-                                                                                        while (n--) {
-                                                                                            u8arr[n] = bstr.charCodeAt(n);
-                                                                                        }
-                                                                                        const blob = new Blob([u8arr], { type: mime });
-                                                                                        const blobUrl = URL.createObjectURL(blob);
-                                                                                        window.open(blobUrl, '_blank');
-                                                                                    } catch (e) {
-                                                                                        const newWindow = window.open();
-                                                                                        if (newWindow) {
-                                                                                            newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                onClick={() => {
+                                                                                    if (q.uploadedResource?.url) {
+                                                                                        const dataUrl = q.uploadedResource.url;
+                                                                                        if (dataUrl.startsWith('data:')) {
+                                                                                            try {
+                                                                                                const parts = dataUrl.split(',');
+                                                                                                const mime = parts[0].match(/:(.*?);/)[1];
+                                                                                                const bstr = atob(parts[1]);
+                                                                                                let n = bstr.length;
+                                                                                                const u8arr = new Uint8Array(n);
+                                                                                                while (n--) {
+                                                                                                    u8arr[n] = bstr.charCodeAt(n);
+                                                                                                }
+                                                                                                const blob = new Blob([u8arr], { type: mime });
+                                                                                                const blobUrl = URL.createObjectURL(blob);
+                                                                                                window.open(blobUrl, '_blank');
+                                                                                            } catch (e) {
+                                                                                                const newWindow = window.open();
+                                                                                                if (newWindow) {
+                                                                                                    newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                                }
+                                                                                            }
+                                                                                        } else {
+                                                                                            window.open(dataUrl, '_blank');
                                                                                         }
                                                                                     }
-                                                                                } else {
-                                                                                    window.open(dataUrl, '_blank');
-                                                                                }
-                                                                            }
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-[#6F42C1]/15 hover:bg-[#6F42C1]/30 text-[#6F42C1]"
-                                                                        title={q.uploadedResource?.name || 'Uploaded File'}
-                                                                    >
-                                                                        File 1 ↗
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="text-[9px] text-slate-400 italic truncate font-bold">No file</span>
-                                                                )}
-                                                            </div>
-
-                                                            {/* ── NOTE (15%) ── */}
-                                                            <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '15%' }}>
-                                                                {q.helperText ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const win = window.open('', '_blank');
-                                                                            win.document.write(`
-                                                                                <!DOCTYPE html>
-                                                                                <html>
-                                                                                <head>
-                                                                                    <title>Note Preview - ${q.helperText.replace(/<[^>]*>/g, '').slice(0, 30) || 'Untitled'}</title>
-                                                                                    <style>
-                                                                                        body {
-                                                                                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                                                                                            background-color: #f0f2f5;
-                                                                                            margin: 0;
-                                                                                            padding: 40px 20px;
-                                                                                            display: flex;
-                                                                                            justify-content: center;
-                                                                                        }
-                                                                                        .document-container {
-                                                                                            background-color: #ffffff;
-                                                                                            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
-                                                                                            border: 1px solid #e2e8f0;
-                                                                                            border-radius: 8px;
-                                                                                            width: 100%;
-                                                                                            max-width: 800px;
-                                                                                            min-height: 29.7cm;
-                                                                                            padding: 60px 80px;
-                                                                                            box-sizing: border-box;
-                                                                                        }
-                                                                                        .content {
-                                                                                            font-size: 15px;
-                                                                                            line-height: 1.6;
-                                                                                            color: #1a202c;
-                                                                                        }
-                                                                                        p { margin-top: 0; margin-bottom: 1em; }
-                                                                                    </style>
-                                                                                </head>
-                                                                                <body>
-                                                                                    <div class="document-container">
-                                                                                        <div class="content">
-                                                                                            ${q.helperText}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </body>
-                                                                                </html>
-                                                                            `);
-                                                                            win.document.close();
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-600"
-                                                                        title="Helping Notes Section"
-                                                                    >
-                                                                        Note 1 ↗
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="text-[9px] text-slate-400 italic truncate font-bold">No notes</span>
-                                                                )}
-                                                            </div>
-
-                                                            {/* ── WIDGET ASSIGNED (15%) ── */}
-                                                            <div className="flex items-center gap-1.5 justify-center px-3 h-full border-r border-slate-200 bg-sky-50/60 shrink-0" style={{ width: '15%' }}>
-                                                                {hasWidget ? (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        {q.moreSettings?.allowUpload && (
-                                                                            <span className="p-1 bg-blue-100 text-blue-600 rounded-md" title="Upload Widget">
-                                                                                <Paperclip size={11} />
-                                                                            </span>
-                                                                        )}
-                                                                        {q.moreSettings?.allowAudioAnswer && (
-                                                                            <span className="p-1 bg-purple-100 text-[#6F42C1] rounded-md" title="Audio Response Widget">
-                                                                                <Mic size={11} />
-                                                                            </span>
-                                                                        )}
-                                                                        {q.moreSettings?.allowVideo && (
-                                                                            <span className="p-1 bg-pink-100 text-pink-600 rounded-md" title="Video Response Widget">
-                                                                                <Video size={11} />
-                                                                            </span>
-                                                                        )}
-                                                                        {q.moreSettings?.allowChat && (
-                                                                            <span className="p-1 bg-emerald-100 text-emerald-600 rounded-md" title="Chat Widget">
-                                                                                <MessageSquare size={11} />
-                                                                            </span>
-                                                                        )}
-                                                                        {q.moreSettings?.allowSubmitFinish && (
-                                                                            <span className="p-1 bg-red-100 text-red-600 rounded-md" title="Submit & Finish Widget">
-                                                                                <CheckCircle2 size={11} />
-                                                                            </span>
+                                                                                }}
+                                                                                className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-[#6F42C1]/15 hover:bg-[#6F42C1]/30 text-[#6F42C1]"
+                                                                                title={q.uploadedResource?.name || 'Uploaded File'}
+                                                                            >
+                                                                                File 1 ↗
+                                                                            </button>
+                                                                        ) : (
+                                                                            <span className="text-[9px] text-slate-400 italic truncate font-bold">No file</span>
                                                                         )}
                                                                     </div>
-                                                                ) : (
-                                                                    <span className="text-[9px] text-slate-400 italic truncate font-bold">No widget</span>
-                                                                )}
-                                                            </div>
 
-                                                            {/* ── ADDON (55%, right-aligned) ── */}
-                                                            <div className="flex items-center px-2 h-full bg-slate-50/60 shrink-0" style={{ width: '55%' }}>
-                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
-                                                                    <Sliders size={12} /> Addon
-                                                                </span>
-                                                                <div className="flex items-center gap-1 ml-auto">
-                                                                    {hasAddon ? (
-                                                                        <>
-                                                                            {qAssistive.translation && (
-                                                                                <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'translation' ? null : 'translation' }))} className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold font-sans transition-all border ${activeQuestionTab[idx] === 'translation' ? 'bg-[#007BFF] text-white border-[#007BFF]' : 'bg-white hover:bg-slate-100 text-[#007BFF] border-slate-200'}`} title="Translate">अ</button>
-                                                                            )}
-                                                                            {(qAssistive.relevantInformation || qAssistive.temporaryFill) && (
-                                                                                <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'relevantInfo' ? null : 'relevantInfo' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'relevantInfo' ? 'bg-[#0056b3] text-white' : 'bg-[#007BFF] text-white hover:bg-[#0056b3]'}`} title="Relevant Info"><ClipboardList size={11} /></button>
-                                                                            )}
-                                                                            {qAssistive.textToSpeech && (
-                                                                                <button type="button" onClick={() => handleTTS(q.text)} className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6F42C1] hover:bg-[#5a32a3] text-white transition-all text-[10px]" title="Read Aloud">🔤</button>
-                                                                            )}
-                                                                            {qAssistive.speechToText && (
-                                                                                <button type="button" onClick={() => toggleVoiceTyping(idx)} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title={isListening === idx ? 'Listening...' : 'Dictate'}><Mic size={11} /></button>
-                                                                            )}
-                                                                            {qAssistive.calculator && (
-                                                                                <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'calculator' ? null : 'calculator' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'calculator' ? 'bg-[#138496] text-white' : 'bg-[#17A2B8] hover:bg-[#138496] text-white'}`} title="Calculator"><Sliders size={11} /></button>
-                                                                            )}
-                                                                        </>
-                                                                    ) : (
-                                                                        <span className="text-[9px] text-slate-400 italic">No addon</span>
-                                                                    )}
+                                                                    {/* ── NOTE (15%) ── */}
+                                                                    <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '15%' }}>
+                                                                        {q.helperText ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const win = window.open('', '_blank');
+                                                                                    win.document.write(`
+                                                                                        <!DOCTYPE html>
+                                                                                        <html>
+                                                                                        <head>
+                                                                                            <title>Note Preview - ${q.helperText.replace(/<[^>]*>/g, '').slice(0, 30) || 'Untitled'}</title>
+                                                                                            <style>
+                                                                                                body {
+                                                                                                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                                                                                    background-color: #f0f2f5;
+                                                                                                    margin: 0;
+                                                                                                    padding: 40px 20px;
+                                                                                                    display: flex;
+                                                                                                    justify-content: center;
+                                                                                                    }
+                                                                                                .document-container {
+                                                                                                    background-color: #ffffff;
+                                                                                                    box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+                                                                                                    border: 1px solid #e2e8f0;
+                                                                                                    border-radius: 8px;
+                                                                                                    width: 100%;
+                                                                                                    max-width: 800px;
+                                                                                                    min-height: 29.7cm;
+                                                                                                    padding: 60px 80px;
+                                                                                                    box-sizing: border-box;
+                                                                                                }
+                                                                                                .content {
+                                                                                                    font-size: 15px;
+                                                                                                    line-height: 1.6;
+                                                                                                    color: #1a202c;
+                                                                                                }
+                                                                                                p { margin-top: 0; margin-bottom: 1em; }
+                                                                                            </style>
+                                                                                        </head>
+                                                                                        <body>
+                                                                                            <div class="document-container">
+                                                                                                <div class="content">
+                                                                                                    ${q.helperText}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </body>
+                                                                                        </html>
+                                                                                    `);
+                                                                                    win.document.close();
+                                                                                }}
+                                                                                className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-600"
+                                                                                title="Helping Notes Section"
+                                                                            >
+                                                                                Note 1 ↗
+                                                                            </button>
+                                                                        ) : (
+                                                                            <span className="text-[9px] text-slate-400 italic truncate font-bold">No notes</span>
+                                                                        )}
+                                                                    </div>
 
+                                                                    {/* ── WIDGET ASSIGNED (15%) ── */}
+                                                                    <div className="flex items-center gap-1.5 justify-center px-3 h-full border-r border-slate-200 bg-sky-50/60 shrink-0" style={{ width: '15%' }}>
+                                                                        {hasWidget ? (
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                {/* Upload Button */}
+                                                                                {q.moreSettings?.allowUpload === true && (() => {
+                                                                                    const uploadEnabled = q.moreSettings?.allowUpload === true;
+                                                                                    const hasFiles = attachedFiles[idx] && attachedFiles[idx].length > 0;
+                                                                                    if (hasFiles) {
+                                                                                        return (
+                                                                                            <div className="relative">
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    disabled={!isEditable}
+                                                                                                    onClick={() => setShowUploadMenu(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                                                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-all text-xs"
+                                                                                                    title="Uploaded file(s). Click to manage."
+                                                                                                >
+                                                                                                    <Paperclip size={12} />
+                                                                                                </button>
+                                                                                                {showUploadMenu[idx] && (
+                                                                                                    <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[150px] text-xs font-semibold text-slate-700">
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => {
+                                                                                                                setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                                const file = attachedFiles[idx] && attachedFiles[idx][0];
+                                                                                                                if (file && file.url) {
+                                                                                                                    const dataUrl = file.url;
+                                                                                                                    if (dataUrl.startsWith('data:')) {
+                                                                                                                        try {
+                                                                                                                            const parts = dataUrl.split(',');
+                                                                                                                            const mime = parts[0].match(/:(.*?);/)[1];
+                                                                                                                            const bstr = atob(parts[1]);
+                                                                                                                            let n = bstr.length;
+                                                                                                                            const u8arr = new Uint8Array(n);
+                                                                                                                            while (n--) {
+                                                                                                                                u8arr[n] = bstr.charCodeAt(n);
+                                                                                                                            }
+                                                                                                                            const blob = new Blob([u8arr], { type: mime });
+                                                                                                                            const blobUrl = URL.createObjectURL(blob);
+                                                                                                                            window.open(blobUrl, '_blank');
+                                                                                                                        } catch (e) {
+                                                                                                                            const newWindow = window.open();
+                                                                                                                            if (newWindow) {
+                                                                                                                                newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    } else {
+                                                                                                                        window.open(dataUrl, '_blank');
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }}
+                                                                                                            className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                                        >
+                                                                                                            <span>Preview File</span>
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => {
+                                                                                                                setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                                document.getElementById(`file-replace-main-public-${idx}`).click();
+                                                                                                            }}
+                                                                                                            className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                                        >
+                                                                                                            <span>Replace File</span>
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => {
+                                                                                                                setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                                setAttachedFiles(prev => ({ ...prev, [idx]: [] }));
+                                                                                                                toast.success("Attachment removed");
+                                                                                                            }}
+                                                                                                            className="px-4 py-2 hover:bg-slate-50 text-left text-red-600 transition-colors flex items-center gap-2 font-bold"
+                                                                                                        >
+                                                                                                            <span>Remove File</span>
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                <input
+                                                                                                    type="file"
+                                                                                                    id={`file-replace-main-public-${idx}`}
+                                                                                                    multiple
+                                                                                                    className="hidden"
+                                                                                                    onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                                                />
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                    return (
+                                                                                        <div className="relative">
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                disabled={!isEditable}
+                                                                                                onClick={() => {
+                                                                                                    if (!isEditable) {
+                                                                                                        if (questionTimes[idx] === 0) {
+                                                                                                            toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                                                        } else {
+                                                                                                            toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                                                        }
+                                                                                                        return;
+                                                                                                    }
+                                                                                                    document.getElementById(`file-upload-main-public-${idx}`).click();
+                                                                                                }}
+                                                                                                className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
+                                                                                                    ? 'bg-blue-100/40 text-blue-400/70 cursor-not-allowed'
+                                                                                                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                                                                                    }`}
+                                                                                                title="Upload File"
+                                                                                            >
+                                                                                                <Paperclip size={12} />
+                                                                                            </button>
+                                                                                            <input
+                                                                                                type="file"
+                                                                                                id={`file-upload-main-public-${idx}`}
+                                                                                                multiple
+                                                                                                className="hidden"
+                                                                                                onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                                            />
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+
+                                                                                {/* Audio Recording Mic Button */}
+                                                                                {q.moreSettings?.allowAudioAnswer === true && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            if (!isEditable) {
+                                                                                                if (questionTimes[idx] === 0) {
+                                                                                                    toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                                                } else {
+                                                                                                    toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                                                }
+                                                                                                return;
+                                                                                            }
+                                                                                            setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                                                                        }}
+                                                                                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
+                                                                                            ? 'bg-purple-100/40 text-[#6F42C1]/50 cursor-not-allowed'
+                                                                                            : (showAudioRecorder[idx]
+                                                                                                ? 'bg-[#6F42C1] text-white'
+                                                                                                : 'bg-purple-100 text-[#6F42C1] hover:bg-purple-200')
+                                                                                            }`}
+                                                                                        title="Audio Response"
+                                                                                    >
+                                                                                        <Mic size={12} />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Video Recording Button */}
+                                                                                {q.moreSettings?.allowVideo === true && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            if (!isEditable) {
+                                                                                                if (questionTimes[idx] === 0) {
+                                                                                                    toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                                                } else {
+                                                                                                    toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                                                }
+                                                                                                return;
+                                                                                            }
+                                                                                            setShowVideoRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                                                                        }}
+                                                                                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
+                                                                                            ? 'bg-pink-100/40 text-pink-400/50 cursor-not-allowed'
+                                                                                            : (showVideoRecorder[idx]
+                                                                                                ? 'bg-pink-600 text-white'
+                                                                                                : 'bg-pink-100 text-pink-600 hover:bg-pink-200')
+                                                                                            }`}
+                                                                                        title="Video Response"
+                                                                                    >
+                                                                                        <Video size={12} />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Chat Button */}
+                                                                                {q.moreSettings?.allowChat === true && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            const willOpen = showGlobalChat !== idx;
+                                                                                            setShowGlobalChat(willOpen ? idx : null);
+                                                                                            if (willOpen) {
+                                                                                                const qText = q.text ? q.text.replace(/<[^>]*>/g, '').trim() : '';
+                                                                                                if (qText && !(chatInput[idx])) {
+                                                                                                    setChatInput(prev => ({ ...prev, [idx]: `Q: ${qText}` }));
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${showGlobalChat === idx
+                                                                                            ? 'bg-emerald-600 text-white'
+                                                                                            : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                                                                            }`}
+                                                                                        title="Chat with Teacher"
+                                                                                    >
+                                                                                        <MessageSquare size={12} />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Submit & Finish Button */}
+                                                                                {q.moreSettings?.allowSubmitFinish === true && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        disabled={submitting}
+                                                                                        onClick={() => submitAllResponses(false)}
+                                                                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                                                                                        title="Submit & Finish"
+                                                                                    >
+                                                                                        <CheckCircle2 size={12} />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Reattempt Button */}
+                                                                                {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setSubmittedAnswers(prev => {
+                                                                                                const n = { ...prev };
+                                                                                                delete n[idx];
+                                                                                                return n;
+                                                                                            });
+                                                                                            toast.success("Reattempting question...");
+                                                                                        }}
+                                                                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-green-100 text-[#28A745] hover:bg-green-200 transition-all animate-bounce"
+                                                                                        title="Reattempt Question"
+                                                                                    >
+                                                                                        <RotateCcw size={12} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-[9px] text-slate-400 italic truncate font-bold">No widget</span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* ── ADDON (55%, right-aligned) ── */}
+                                                                    <div className="flex items-center px-2 h-full bg-slate-50/60 shrink-0" style={{ width: '55%' }}>
+                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
+                                                                            <Sliders size={12} /> Addon
+                                                                        </span>
+                                                                        <div className="flex items-center gap-1 ml-auto">
+                                                                            {hasAddon ? (
+                                                                                <>
+                                                                                    {qAssistive.translation && (
+                                                                                        <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'translation' ? null : 'translation' }))} className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold font-sans transition-all border ${activeQuestionTab[idx] === 'translation' ? 'bg-[#007BFF] text-white border-[#007BFF]' : 'bg-white hover:bg-slate-100 text-[#007BFF] border-slate-200'}`} title="Translate">अ</button>
+                                                                                    )}
+                                                                                    {(qAssistive.relevantInformation || qAssistive.temporaryFill) && (
+                                                                                        <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'relevantInfo' ? null : 'relevantInfo' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'relevantInfo' ? 'bg-[#0056b3] text-white' : 'bg-[#007BFF] text-white hover:bg-[#0056b3]'}`} title="Relevant Info"><ClipboardList size={11} /></button>
+                                                                                    )}
+                                                                                    {qAssistive.textToSpeech && (
+                                                                                        <button type="button" onClick={() => handleTTS(q.text)} className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6F42C1] hover:bg-[#5a32a3] text-white transition-all text-[10px]" title="Read Aloud">🔤</button>
+                                                                                    )}
+                                                                                    {qAssistive.speechToText && (
+                                                                                        <button type="button" onClick={() => toggleVoiceTyping(idx)} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title={isListening === idx ? 'Listening...' : 'Dictate'}><Mic size={11} /></button>
+                                                                                    )}
+                                                                                    {qAssistive.calculator && (
+                                                                                        <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'calculator' ? null : 'calculator' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'calculator' ? 'bg-[#138496] text-white' : 'bg-[#17A2B8] hover:bg-[#138496] text-white'}`} title="Calculator"><Sliders size={11} /></button>
+                                                                                    )}
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="text-[9px] text-slate-400 italic">No addon</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
+                                                            ) : (
+                                                                /* Centered placeholder when collapsed */
+                                                                <div className="flex-1 flex items-center justify-center text-slate-400 font-semibold gap-1.5 px-3 italic">
+                                                                    <Sliders size={12} className="animate-pulse text-slate-350" />
+                                                                    <span>Click on collapse button to see Assistive features</span>
+                                                                </div>
+                                                            )}
 
+                                                            {/* Collapse/Expand button right next to it inside the bar */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const isCollapsed = collapsedExtras[idx] !== false;
+                                                                    setCollapsedExtras(prev => ({ ...prev, [idx]: !isCollapsed }));
+                                                                    if (isCollapsed) {
+                                                                        const defaultTab = null;
+                                                                        setActiveQuestionTab(prev => ({ ...prev, [idx]: defaultTab }));
+                                                                    }
+                                                                }}
+                                                                className="h-full w-10 bg-white hover:bg-slate-50 text-slate-500 border-l border-slate-200 transition-all flex items-center justify-center shrink-0 rounded-r-xl"
+                                                                title={collapsedExtras[idx] === false ? "Collapse" : "Expand"}
+                                                            >
+                                                                {collapsedExtras[idx] === false ? (
+                                                                    <ChevronUp size={16} className="stroke-[2.5]" />
+                                                                ) : (
+                                                                    <ChevronDown size={16} className="stroke-[2.5]" />
+                                                                )}
+                                                            </button>
                                                         </div>
                                                     );
                                                 })()}

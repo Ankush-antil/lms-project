@@ -1,29 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const {
-    submitTest,
-    getSubmissions,
-    getSubmissionsByTest,
-    getSubmissionById,
-    evaluateSubmission,
-    updateStudentComment
-} = require('../controllers/submissionController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
-router.route('/')
-    .get(protect, getSubmissions)
-    .post(protect, submitTest);
+const teacherEvaluationRoutes = require('./teacher/evaluationRoutes');
+const studentSubmissionRoutes = require('./student/submissionRoutes');
 
-router.route('/test/:testId')
-    .get(protect, getSubmissionsByTest);
-
-router.route('/:id')
-    .get(protect, getSubmissionById);
-
-router.route('/:id/evaluate')
-    .put(protect, evaluateSubmission);
-
-router.route('/:id/student-comment')
-    .put(protect, updateStudentComment);
+// Gateway router that forwards requests dynamically based on user role
+router.use((req, res, next) => {
+    protect(req, res, () => {
+        if (req.user && req.user.role === 'Student') {
+            studentSubmissionRoutes(req, res, next);
+        } else {
+            teacherEvaluationRoutes(req, res, next);
+        }
+    });
+});
 
 module.exports = router;

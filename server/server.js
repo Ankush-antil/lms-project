@@ -35,10 +35,12 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/setup', require('./routes/setupRoutes'));
-app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/auth', require('./routes/common/authRoutes'));
+app.use('/api/users/profile', require('./routes/common/profileRoutes'));
+app.use('/api/users/teacher-students', require('./routes/teacher/teacherRoutes'));
+app.use('/api/users', require('./routes/admin/userRoutes'));
+app.use('/api/setup', require('./routes/admin/setupRoutes'));
+app.use('/api/dashboard', require('./routes/admin/dashboardRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/submissions', require('./routes/submissionRoutes'));
 app.use('/api/public-tests', require('./routes/publicTestRoutes'));

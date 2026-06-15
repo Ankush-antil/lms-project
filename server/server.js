@@ -6,6 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 
+
 const app = express();
 const path = require('path');
 
@@ -33,6 +34,8 @@ app.get('/api/health', async (req, res) => {
     const status = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
     res.json({ server: 'Running', database: status, time: new Date() });
 });
+
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));

@@ -122,3 +122,13 @@
 .card-premium {
   @apply bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300;
 }
+
+.plyr {
+    max-height: 250px;
+}
+
+.plyr video {
+    max-height: 250px;
+    object-fit: contain;
+    border-radius: 10px;
+}

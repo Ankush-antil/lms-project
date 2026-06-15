@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {Plyr} from "plyr-react";
 import toast from 'react-hot-toast';
 import {
     GraduationCap, Mail, Lock, Eye, EyeOff, ShieldCheck,
@@ -40,6 +41,7 @@ const getYouTubeId = (url) => {
 const PublicTestPage = () => {
     const { id: testId } = useParams();
     const navigate = useNavigate();
+    const videoRef = useRef(null);
 
     // Loading & state
     const [loading, setLoading] = useState(true);
@@ -1518,17 +1520,60 @@ const PublicTestPage = () => {
                                                 </div>
                                             )}
 
-                                            {q.videoUrl && (
-                                                <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
-                                                    <video
-                                                        src={q.videoUrl}
-                                                        controls
-                                                        autoPlay={!!q.autoplay}
-                                                        loop={!!q.loop}
-                                                        className="w-full max-h-60 rounded-lg object-contain bg-black"
-                                                    />
-                                                </div>
-                                            )}
+{q.videoUrl && (
+    <div className="space-y-4">
+<Plyr
+    source={{
+        type: "video",
+        sources: [
+            {
+                src: `http://localhost:5000${q.videoUrl}`,
+                type: "video/mp4",
+            },
+        ],
+    }}
+    options={{
+        controls: [
+            "play-large",
+            "restart",
+            "rewind",
+            "play",
+            "fast-forward",
+            "progress",
+            "current-time",
+            "duration",
+            "mute",
+            "volume",
+            "settings",
+            "pip",
+            "airplay",
+            "fullscreen",
+        ],
+
+        settings: ["speed"],
+
+        speed: {
+            selected: 1,
+            options: [0.5, 0.75, 1, 1.25, 1.5, 2],
+        },
+
+        disableContextMenu: true,
+    }}
+/>
+
+        {q.particulars?.enableAnswerBox !== false && (
+            <textarea
+    value={answers[idx] || ""}
+    onChange={(e) =>
+        handleTextChange(idx, e.target.value)
+    }
+    placeholder="Type your answer here..."
+    rows={1}
+    className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden"
+/>
+        )}
+    </div>
+)}
 
                                             {q.pdfUrl && (
                                                 <div className="mt-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
@@ -1821,19 +1866,6 @@ const PublicTestPage = () => {
                                                              src={q.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
                                                              alt={q.altText || 'Display Image'}
                                                              className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
-                                                         />
-                                                     </div>
-                                                 )}
-
-                                                 {/* Video Displaying */}
-                                                 {isVideoDisplay && (
-                                                     <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
-                                                         <video
-                                                             src={q.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
-                                                             controls
-                                                             autoPlay={!!q.autoplay}
-                                                             loop={!!q.loop}
-                                                             className="w-full max-h-60 rounded-lg object-contain bg-black"
                                                          />
                                                      </div>
                                                  )}

@@ -13,3 +13,7 @@ export const uploadVideo = async (formData) => {
 
     return response.data;
 };
+
+export const getVideoUrl = (videoUrl) => {
+    return `http://localhost:5000${videoUrl}`;
+};

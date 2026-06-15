@@ -27,6 +27,7 @@ import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
+
 // Mock components for now
 const PrivateRoute = ({ children, role }) => {
     const { user, loading } = useAuth();

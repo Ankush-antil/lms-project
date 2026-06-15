@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getAudioUrl } from '../../api/audioApi';
 import {Plyr} from "plyr-react";
 import toast from 'react-hot-toast';
 import {
@@ -10,7 +11,7 @@ import {
     RotateCcw, Sparkles, CheckSquare, List, AlertCircle, Play, Mic, Video, Square,
     MoreVertical, ChevronUp, ChevronDown, Volume2, Pause, Sliders, Globe, Settings,
     Send, Paperclip, MessageSquare, Trash2, X, ClipboardList,
-    Bot, Star, Upload, Headphones, Files, Camera, Monitor, Share2
+    Bot, Star, Upload, Headphones, Files, Camera, Monitor, Share2,Plus
 } from 'lucide-react';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
 
@@ -62,6 +63,7 @@ const PublicTestPage = () => {
     const [recaptchaVerifying, setRecaptchaVerifying] = useState(false);
     const [recaptchaDone, setRecaptchaDone] = useState(false);
     const [duplicateChecking, setDuplicateChecking] = useState(false);
+
 
     // Test Taking states
     const [answers, setAnswers] = useState({});
@@ -596,7 +598,7 @@ const PublicTestPage = () => {
                 const blob = new Blob(chunksRef.current[idx], { type: mimeType });
                 blobsRef.current[idx] = { blob, type };
                 const url = URL.createObjectURL(blob);
-                setRecordedURLs(prev => ({ ...prev, [idx]: { url, type } }));
+                setRecordedURLs(prev => ({ ...prev, [idx]: [...(prev[idx] || []),{ url, type }] }));
 
                 stream.getTracks().forEach(t => t.stop());
                 if (type === 'video' && videoPreviewRef.current[idx]) {
@@ -1520,60 +1522,60 @@ const PublicTestPage = () => {
                                                 </div>
                                             )}
 
-{q.videoUrl && (
-    <div className="space-y-4">
-<Plyr
-    source={{
-        type: "video",
-        sources: [
-            {
-                src: `http://localhost:5000${q.videoUrl}`,
-                type: "video/mp4",
-            },
-        ],
-    }}
-    options={{
-        controls: [
-            "play-large",
-            "restart",
-            "rewind",
-            "play",
-            "fast-forward",
-            "progress",
-            "current-time",
-            "duration",
-            "mute",
-            "volume",
-            "settings",
-            "pip",
-            "airplay",
-            "fullscreen",
-        ],
+                                            {q.videoUrl && (
+                                                <div className="space-y-4">
+                                            <Plyr
+                                                source={{
+                                                    type: "video",
+                                                    sources: [
+                                                        {
+                                                            src: `http://localhost:5000${q.videoUrl}`,
+                                                            type: "video/mp4",
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{
+                                                    controls: [
+                                                        "play-large",
+                                                        "restart",
+                                                        "rewind",
+                                                        "play",
+                                                        "fast-forward",
+                                                        "progress",
+                                                        "current-time",
+                                                        "duration",
+                                                        "mute",
+                                                        "volume",
+                                                        "settings",
+                                                        "pip",
+                                                        "airplay",
+                                                        "fullscreen",
+                                                    ],
 
-        settings: ["speed"],
+                                                    settings: ["speed"],
 
-        speed: {
-            selected: 1,
-            options: [0.5, 0.75, 1, 1.25, 1.5, 2],
-        },
+                                                    speed: {
+                                                        selected: 1,
+                                                        options: [0.5, 0.75, 1, 1.25, 1.5, 2],
+                                                    },
 
-        disableContextMenu: true,
-    }}
-/>
+                                                    disableContextMenu: true,
+                                                }}
+                                            />
 
-        {q.particulars?.enableAnswerBox !== false && (
-            <textarea
-    value={answers[idx] || ""}
-    onChange={(e) =>
-        handleTextChange(idx, e.target.value)
-    }
-    placeholder="Type your answer here..."
-    rows={1}
-    className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden"
-/>
-        )}
-    </div>
-)}
+                                                    {q.particulars?.enableAnswerBox !== false && (
+                                                        <textarea
+                                                value={answers[idx] || ""}
+                                                onChange={(e) =>
+                                                    handleTextChange(idx, e.target.value)
+                                                }
+                                                placeholder="Type your answer here..."
+                                                rows={1}
+                                                className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden"
+                                            />
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {q.pdfUrl && (
                                                 <div className="mt-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
@@ -1606,18 +1608,6 @@ const PublicTestPage = () => {
                                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                         allowFullScreen
                                                     ></iframe>
-                                                </div>
-                                            )}
-
-                                            {q.audioUrl && (
-                                                <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3">
-                                                    <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                                                        <Volume2 size={22} />
-                                                    </div>
-                                                    <div className="flex-1 text-left">
-                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Audio Track</span>
-                                                        <audio src={q.audioUrl} controls className="w-full mt-1.5 h-9" />
-                                                    </div>
                                                 </div>
                                             )}
 
@@ -1952,44 +1942,66 @@ const PublicTestPage = () => {
                                                  )}
 
                                                  {/* Audio listening Displaying */}
-                                                 {isAudioListening && (
-                                                     <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
-                                                         <div className="flex items-center gap-3">
-                                                             <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                                                                 <Headphones size={22} />
-                                                             </div>
-                                                             <div className="flex-1">
-                                                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Comprehension Track</span>
-                                                                 <audio src={q.audioUrl || ''} controls className="w-full mt-1.5 h-9" />
-                                                             </div>
-                                                         </div>
-                                                         {q.options && q.options.length > 0 && (
-                                                             <div className="space-y-2.5 mt-2 pt-4 border-t border-slate-200/50">
-                                                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block text-left">Answer Options:</span>
-                                                                 {q.options.map((opt, oIdx) => (
-                                                                     <label
-                                                                         key={oIdx}
-                                                                         className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
-                                                                             ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                             : 'border-slate-200 bg-white'
-                                                                             } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                                                     >
-                                                                         <input
-                                                                             type="radio"
-                                                                             name={`listening-mc-${idx}`}
-                                                                             disabled={!isEditable}
-                                                                             checked={answers[idx] === opt.text}
-                                                                             onChange={() => handleTextChange(idx, opt.text)}
-                                                                             className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
-                                                                         />
-                                                                         <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
-                                                                     </label>
-                                                                 ))}
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 )}
+                                                    {isAudioListening && (
+                                                        <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                                    <Headphones size={22} />
+                                                                </div>
 
+                                                                <div className="flex-1">
+                                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                                                                        Comprehension Track
+                                                                    </span>
+
+                                                                    <audio
+                                                                        src={getAudioUrl(q.audioUrl)}
+                                                                        controls
+                                                                        controlsList="nodownload"
+                                                                        className="w-full mt-1.5 h-9"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Answer Box */}
+                                                            {q.particulars?.enableAnswerBox !== false && (
+                                                                <textarea
+                                                                    value={answers[idx] || ""}
+                                                                    onChange={(e) =>
+                                                                        handleTextChange(idx, e.target.value)
+                                                                    }
+                                                                    placeholder="Type your answer here..."
+                                                                    rows={1}
+                                                                    className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden bg-white"
+                                                                />
+                                                            )}
+
+                                                            {/* MCQ Options */}
+                                                            {q.options && q.options.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    {q.options.map((opt, optIdx) => (
+                                                                        <label
+                                                                            key={optIdx}
+                                                                            className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50"
+                                                                        >
+                                                                            <input
+                                                                                type="radio"
+                                                                                name={`audio-${idx}`}
+                                                                                checked={answers[idx] === opt.text}
+                                                                                onChange={() =>
+                                                                                    handleTextChange(idx, opt.text)
+                                                                                }
+                                                                                className="text-purple-600"
+                                                                            />
+                                                                            <span className="text-sm text-slate-700">
+                                                                                {opt.text}
+                                                                            </span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                  {/* Multi file Displaying */}
                                                  {isMultiFile && (
                                                      <div className="space-y-3">
@@ -2676,38 +2688,140 @@ const PublicTestPage = () => {
                                                  )}
 
                                                  {/* Recording zone */}
-                                                 {isAudio && (
-                                                     <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
-                                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === 'recording' ? 'bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150' : 'bg-purple-100 text-[#6F42C1]'}`}>
-                                                             <Mic size={24} />
-                                                         </div>
-                                                         <p className="text-xs font-bold text-slate-700">{recordingStatus[idx] === 'recording' ? '🔴 Recording...' : recordedURLs[idx] ? '✅ Response Saved' : 'Voice Answer'}</p>
+                                                    {isAudio && (
+                                                        <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
 
-                                                         {recordingStatus[idx] === 'recording' ? (
-                                                             <button onClick={() => stopRecording(idx)} className="px-6 py-2 bg-red-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                                                                 <Square size={14} fill="currentColor" /> Stop Recording
-                                                             </button>
-                                                         ) : (
-                                                             <button
-                                                                 disabled={!!submittedAnswers[idx]}
-                                                                 onClick={() => startRecording(idx, 'audio')}
-                                                                 className={`px-6 py-2 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${submittedAnswers[idx] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                             >
-                                                                 <Mic size={14} /> Start Voice Capture
-                                                             </button>
-                                                         )}
+                                                            <div
+                                                                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                                                                    recordingStatus[idx] === "recording"
+                                                                        ? "bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150"
+                                                                        : "bg-purple-100 text-[#6F42C1]"
+                                                                }`}
+                                                            >
+                                                                <Mic size={24} />
+                                                            </div>
 
-                                                         {recordedURLs[idx]?.type === 'audio' && (
-                                                             <div className="w-full mt-2 bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2">
-                                                                 <audio controls src={recordedURLs[idx].url} className="w-full h-8" />
-                                                                 {!submittedAnswers[idx] && (
-                                                                     <button onClick={() => deleteRecording(idx)} className="text-[10px] text-red-400 hover:text-red-600 font-semibold self-start">✕ Delete & Re-record</button>
-                                                                 )}
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 )}
+                                                            <p className="text-xs font-bold text-slate-700">
+                                                                {recordingStatus[idx] === "recording"
+                                                                    ? " Recording..."
+                                                                    : recordedURLs[idx]?.length > 0
+                                                                    ? ` ${recordedURLs[idx].length}/5 Recording Saved`
+                                                                    : "Voice Answer (Minimum 1 Required)"}
+                                                            </p>
 
+                                                            {/* Stop Button */}
+                                                            {recordingStatus[idx] === "recording" ? (
+                                                                <button
+                                                                    onClick={() => stopRecording(idx)}
+                                                                    className="px-6 py-2 bg-red-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
+                                                                >
+                                                                    <Square size={14} fill="currentColor" />
+                                                                    Stop Recording
+                                                                </button>
+                                                            ) : (
+                                                                <>
+                                                                    {/* First Recording */}
+                                                                    {(!recordedURLs[idx] ||
+                                                                        recordedURLs[idx].length === 0) && (
+                                                                        <button
+                                                                            disabled={!!submittedAnswers[idx]}
+                                                                            onClick={() =>
+                                                                                startRecording(idx, "audio")
+                                                                            }
+                                                                            className={`px-6 py-2 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
+                                                                                submittedAnswers[idx]
+                                                                                    ? "opacity-50 cursor-not-allowed"
+                                                                                    : ""
+                                                                            }`}
+                                                                        >
+                                                                            <Mic size={14} />
+                                                                            Start Voice Capture
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Add More */}
+                                                                        {recordedURLs[idx]?.length > 0 && (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    submittedAnswers[idx] ||
+                                                                                    (recordedURLs[idx]?.length || 0) >= 5
+                                                                                }
+                                                                                onClick={() => startRecording(idx, "audio")}
+                                                                                className={`px-6 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
+                                                                                    (recordedURLs[idx]?.length || 0) >= 5
+                                                                                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                                                                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                }`}
+                                                                            >
+                                                                                <Plus size={14} />
+                                                                                Add More
+                                                                            </button>
+                                                                        )}
+
+                                                                    {(recordedURLs[idx]?.length || 0) >= 5 && (
+                                                                        <p className="text-xs text-red-500 font-semibold">
+                                                                            Maximum 5 recordings allowed
+                                                                        </p>
+                                                                    )}
+                                                                </>
+                                                            )}
+
+                                                            {/* Recording List */}
+                                                            {recordedURLs[idx]?.length > 0 && (
+                                                                <div className="w-full mt-2 space-y-2">
+                                                                    {recordedURLs[idx].map((audio, audioIdx) => (
+                                                                        <div
+                                                                            key={audioIdx}
+                                                                            className="bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2"
+                                                                        >
+                                                                            <div className="flex justify-between items-center">
+                                                                                <span className="text-xs font-semibold text-slate-600">
+                                                                                    Recording {audioIdx + 1}
+                                                                                </span>
+
+                                                                                {!submittedAnswers[idx] && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => deleteRecording(idx, audioIdx)}
+                                                                                        className="
+                                                                                            px-3 py-1
+                                                                                            bg-red-50
+                                                                                            border border-red-200
+                                                                                            text-red-600
+                                                                                            rounded-lg
+                                                                                            text-xs
+                                                                                            font-semibold
+                                                                                            hover:bg-red-100
+                                                                                            hover:border-red-300
+                                                                                            transition-all
+                                                                                        "
+                                                                                    >
+                                                                                        Delete
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+
+                                                                            <audio
+                                                                                controls
+                                                                                src={audio.url}
+                                                                                className="w-full h-8"
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Validation Message */}
+                                                            {(!recordedURLs[idx] ||
+                                                                recordedURLs[idx].length === 0) && (
+                                                                <p className="text-[11px] text-amber-600 font-medium">
+                                                                    At least 1 recording is required.
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    
                                                  {/* Video recording block */}
                                                  {(isVideo || showVideoRecorder[idx]) && (
                                                      <AdvancedVideoRecorder

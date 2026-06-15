@@ -29,6 +29,13 @@ const validateLanguage = (text, lang) => {
     return true;
 };
 
+const getYouTubeId = (url) => {
+    if (!url) return '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+    const match = String(url).match(regExp);
+    return (match && match[2].length === 11) ? match[2] : url;
+};
+
 const ShortAnswerTest = () => {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -1078,6 +1085,75 @@ const ShortAnswerTest = () => {
 
                                 {!isCollapsed && (
                                     <div className="space-y-6">
+                                        {/* Question Media Elements */}
+                                        {q.imageUrl && (
+                                            <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                <img
+                                                    src={q.imageUrl}
+                                                    alt={q.altText || 'Question Image'}
+                                                    className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {q.videoUrl && (
+                                            <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                                <video
+                                                    src={q.videoUrl}
+                                                    controls
+                                                    autoPlay={!!q.autoplay}
+                                                    loop={!!q.loop}
+                                                    className="w-full max-h-60 rounded-lg object-contain bg-black"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {q.pdfUrl && (
+                                            <div className="mt-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+                                                        <FileText size={22} />
+                                                    </div>
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
+                                                        <span className="text-xs text-slate-400">PDF Document File</span>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={q.pdfUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
+                                                >
+                                                    View Document
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {q.youtubeUrl && (
+                                            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                <iframe
+                                                    src={`https://www.youtube.com/embed/${getYouTubeId(q.youtubeUrl)}`}
+                                                    title="YouTube Video"
+                                                    className="w-full h-full border-0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                ></iframe>
+                                            </div>
+                                        )}
+
+                                        {q.audioUrl && (
+                                            <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3">
+                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                    <Volume2 size={22} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Audio Track</span>
+                                                    <audio src={q.audioUrl} controls className="w-full mt-1.5 h-9" />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Answer Inputs based on Question Type */}
                                         <div className="answer-input-zone">
 

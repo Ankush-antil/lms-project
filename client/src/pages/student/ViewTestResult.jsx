@@ -4,10 +4,17 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
     Info, FileText, CheckCircle, Clock, ChevronLeft,
-    Mic, Video, Star, MessageSquare, RefreshCw, User, Send, ChevronDown, ChevronUp
+    Mic, Video, Star, MessageSquare, RefreshCw, User, Send, ChevronDown, ChevronUp, Volume2
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import toast from 'react-hot-toast';
+
+const getYouTubeId = (url) => {
+    if (!url) return '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+    const match = String(url).match(regExp);
+    return (match && match[2].length === 11) ? match[2] : url;
+};
 
 const ViewTestResult = () => {
     const { user } = useAuth();
@@ -218,6 +225,7 @@ const ViewTestResult = () => {
                             const type = ans.questionType?.toLowerCase();
                             const isAudio = type?.includes('voice') || type?.includes('audio') || type?.includes('mic');
                             const isVideo = type?.includes('video') || type?.includes('cam');
+                            const q = test?.questions?.[idx];
 
                             return (
                                 <div key={idx} className={`bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col md:flex-row transition-all border-slate-200`}>
@@ -230,6 +238,75 @@ const ViewTestResult = () => {
                                                 <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase tracking-wider">{ans.questionType || "Short Answer"}</span>
                                             </div>
                                         </div>
+
+                                        {/* Question Media Elements */}
+                                        {q && q.imageUrl && (
+                                            <div className="mb-6 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                <img
+                                                    src={q.imageUrl}
+                                                    alt={q.altText || 'Question Image'}
+                                                    className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {q && q.videoUrl && (
+                                            <div className="mb-6 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                                <video
+                                                    src={q.videoUrl}
+                                                    controls
+                                                    autoPlay={!!q.autoplay}
+                                                    loop={!!q.loop}
+                                                    className="w-full max-h-60 rounded-lg object-contain bg-black"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {q && q.pdfUrl && (
+                                            <div className="mb-6 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+                                                        <FileText size={22} />
+                                                    </div>
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
+                                                        <span className="text-xs text-slate-400">PDF Document File</span>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={q.pdfUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
+                                                >
+                                                    View Document
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {q && q.youtubeUrl && (
+                                            <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                <iframe
+                                                    src={`https://www.youtube.com/embed/${getYouTubeId(q.youtubeUrl)}`}
+                                                    title="YouTube Video"
+                                                    className="w-full h-full border-0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                ></iframe>
+                                            </div>
+                                        )}
+
+                                        {q && q.audioUrl && (
+                                            <div className="mb-6 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3">
+                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                    <Volume2 size={22} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Audio Track</span>
+                                                    <audio src={q.audioUrl} controls className="w-full mt-1.5 h-9" />
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Submissions Details */}
                                         <div className="space-y-4 mb-6">

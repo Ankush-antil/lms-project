@@ -11,7 +11,8 @@ import {
     FolderUp, CircleDot, File, Mic, Video, Monitor, Camera, Phone,
     PlaySquare, Box, Globe, Headphones, Brain, Trash2, X, Sparkles, CheckCircle2, AlertCircle, Copy, Info,
     Bold, Italic, Underline, Strikethrough, ArrowRightLeft, Activity, Code, Quote, Table, HelpCircle, Sliders, GitBranch, Smile, Heading, ListOrdered, GripVertical, AlertTriangle,
-    Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip
+    Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip,
+    Files, Volume2, PhoneCall, Film
 } from 'lucide-react';
 import { uploadVideo } from "../../api/videoApi";
 import axios from 'axios';
@@ -68,6 +69,11 @@ import ScreenRecBuilder from '../../components/builder/elements/ScreenRecBuilder
 import ScreenShotBuilder from '../../components/builder/elements/ScreenShotBuilder';
 import TextChatAIBuilder from '../../components/builder/elements/TextChatAIBuilder';
 import VoiceChatAIBuilder from '../../components/builder/elements/VoiceChatAIBuilder';
+import WebpageBuilder from '../../components/builder/elements/WebpageBuilder';
+import EmbeddedVideoBuilder from '../../components/builder/elements/EmbeddedVideoBuilder';
+import EmbeddedSMBuilder from '../../components/builder/elements/EmbeddedSMBuilder';
+import MultiFileBuilder from '../../components/builder/elements/MultiFileBuilder';
+import VideoCallBuilder from '../../components/builder/elements/VideoCallBuilder';
 
 // Helper to strip HTML tags from rich text content
 const stripHtml = (html) => {
@@ -299,25 +305,46 @@ const QuestionBuilderCard = ({
     const getElementIcon = (lbl) => {
         switch (lbl) {
             case 'Short Answer': return Type;
+            case 'Paragraph Answer':
             case 'Paragraph': return AlignLeft;
-            case 'Date/Time': return Calendar;
-            case 'Audio Listening': return Headphones;
+            case 'Multiple choices':
             case 'Multiple Choice': return CircleDot;
+            case 'Checkbox':
             case 'Checkboxes': return CheckSquare;
             case 'Dropdown': return List;
-            case 'File Upload': return Upload;
+            case 'Date & Time':
+            case 'Date/Time': return Calendar;
             case 'Rating': return Star;
+            case 'File upload':
+            case 'File Upload': return Upload;
+            case 'Image Displaying':
             case 'Image': return ImageIcon;
-            case 'Video': return Video;
+            case 'Video Displaying':
+            case 'Video': return Film;
+            case 'PDF Displaying':
             case 'PDF': return FileText;
+            case 'Webpage Displaying': return Globe;
+            case 'Embedded Video Displaying':
             case 'YouTube': return Play;
-            case 'Voice Rec': return Mic;
-            case 'Video Rec': return Video;
-            case 'Call Rec': return Phone;
-            case 'Screen Rec': return Monitor;
+            case 'Embedded SM Content Displaying': return Share2;
+            case 'Audio listening Displaying':
+            case 'Audio Listening': return Headphones;
+            case 'Multi file Displaying': return Files;
+            case 'Screenshot taking':
             case 'Screen Shot': return Camera;
+            case 'Screen recording':
+            case 'Screen Rec': return Monitor;
+            case 'Voice recording':
+            case 'Voice Rec': return Mic;
+            case 'Video recording':
+            case 'Video Rec': return Video;
+            case 'Web based Audio calling':
+            case 'Call Rec': return PhoneCall;
+            case 'Web based video calling': return Video;
+            case 'Text based AI agent':
             case 'Text Chat AI': return MessageSquare;
-            case 'Voice Chat AI': return Bot;
+            case 'Voice based AI Agent':
+            case 'Voice Chat AI': return Volume2;
             case 'Matching': return ArrowRightLeft;
             case 'True/False': return CheckCircle2;
             case 'Fill in the Blanks': return Type;
@@ -1313,6 +1340,7 @@ const QuestionBuilderCard = ({
                                             setLightboxScale={setLightboxScale}
                                         />
                                     );
+                                case 'Paragraph Answer':
                                 case 'Paragraph':
                                     return (
                                         <ParagraphBuilder
@@ -1321,8 +1349,10 @@ const QuestionBuilderCard = ({
                                             setIsExpanded={setIsExpanded}
                                         />
                                     );
+                                case 'Multiple choices':
                                 case 'Multiple Choice':
                                     return <MCQBuilder {...commonProps} />;
+                                case 'Checkbox':
                                 case 'Checkboxes':
                                     return <CheckboxesBuilder {...commonProps} />;
                                 case 'Dropdown':
@@ -1337,36 +1367,58 @@ const QuestionBuilderCard = ({
                                     return <AssignmentBuilder {...commonProps} />;
                                 case 'Activity':
                                     return <ActivityBuilder {...commonProps} />;
+                                case 'Date & Time':
                                 case 'Date/Time':
                                     return <DateTimeBuilder {...commonProps} />;
+                                case 'Audio listening Displaying':
                                 case 'Audio Listening':
                                     return <AudioListeningBuilder {...commonProps} />;
+                                case 'Image Displaying':
                                 case 'Image':
                                     return <ImageBuilder {...commonProps} />;
+                                case 'File upload':
                                 case 'File Upload':
                                     return <FileUploadBuilder {...commonProps} />;
                                 case 'Rating':
                                     return <RatingBuilder {...commonProps} />;
+                                case 'Webpage Displaying':
+                                    return <WebpageBuilder {...commonProps} />;
+                                case 'Embedded Video Displaying':
                                 case 'YouTube':
-                                    return <YouTubeBuilder {...commonProps} />;
+                                    return <EmbeddedVideoBuilder {...commonProps} />;
+                                case 'Embedded SM Content Displaying':
+                                    return <EmbeddedSMBuilder {...commonProps} />;
+                                case 'Multi file Displaying':
+                                    return <MultiFileBuilder {...commonProps} />;
+                                case 'Video Displaying':
                                 case 'Video':
                                     return <VideoBuilder {...commonProps} />;
+                                case 'PDF Displaying':
                                 case 'PDF':
                                     return <PDFBuilder {...commonProps} />;
+                                case 'Voice recording':
                                 case 'Voice Rec':
                                     return <VoiceRecBuilder {...commonProps} />;
+                                case 'Video recording':
                                 case 'Video Rec':
                                     return <VideoRecBuilder {...commonProps} />;
+                                case 'Web based Audio calling':
                                 case 'Call Rec':
                                     return <CallRecBuilder {...commonProps} />;
+                                case 'Screen recording':
                                 case 'Screen Rec':
                                     return <ScreenRecBuilder {...commonProps} />;
+                                case 'Screenshot taking':
                                 case 'Screen Shot':
                                     return <ScreenShotBuilder {...commonProps} />;
+                                case 'Text based AI agent':
                                 case 'Text Chat AI':
                                     return <TextChatAIBuilder {...commonProps} />;
+                                case 'Voice based AI Agent':
                                 case 'Voice Chat AI':
                                     return <VoiceChatAIBuilder {...commonProps} />;
+                                case 'Web based video calling':
+                                    return <VideoCallBuilder {...commonProps} />;
                                 default:
                                     return null;
                             }
@@ -2030,7 +2082,10 @@ const TestBuilder = () => {
     const [sidebarTab, setSidebarTab] = useState('Elements & Addons');
     const [searchQuery, setSearchQuery] = useState('');
     const [formElements, setFormElements] = useState([]);
-    const [isMostCommonExpanded, setIsMostCommonExpanded] = useState(true);
+    const [isInputExpanded, setIsInputExpanded] = useState(true);
+    const [isDisplayExpanded, setIsDisplayExpanded] = useState(true);
+    const [isRecordingExpanded, setIsRecordingExpanded] = useState(true);
+    const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
     const [isAnalyticalWidgetsExpanded, setIsAnalyticalWidgetsExpanded] = useState(true);
     const [draggedQuestionIndex, setDraggedQuestionIndex] = useState(null);
     const [placeholderIndex, setPlaceholderIndex] = useState(null);
@@ -2089,35 +2144,42 @@ const TestBuilder = () => {
 
     // Sidebar Elements Configuration
     const sidebarElements = [
-        { icon: Type, label: 'Short Answer', category: 'Basic Inputs' },
-        { icon: AlignLeft, label: 'Paragraph', category: 'Basic Inputs' },
-        { icon: Calendar, label: 'Date/Time', category: 'Basic Inputs' },
-        { icon: Headphones, label: 'Audio Listening', category: 'Basic Inputs' },
+        // 1-8: Input Elements
+        { icon: Type, label: 'Short Answer', category: 'Input Elements' },
+        { icon: AlignLeft, label: 'Paragraph Answer', category: 'Input Elements' },
+        { icon: CircleDot, label: 'Multiple choices', category: 'Input Elements' },
+        { icon: CheckSquare, label: 'Checkbox', category: 'Input Elements' },
+        { icon: List, label: 'Dropdown', category: 'Input Elements' },
+        { icon: Calendar, label: 'Date & Time', category: 'Input Elements' },
+        { icon: Star, label: 'Rating', category: 'Input Elements' },
+        { icon: Upload, label: 'File upload', category: 'Input Elements' },
 
-        { icon: CircleDot, label: 'Multiple Choice', category: 'Choice Fields' },
-        { icon: CheckSquare, label: 'Checkboxes', category: 'Choice Fields' },
-        { icon: List, label: 'Dropdown', category: 'Choice Fields' },
-        { icon: CheckCircle2, label: 'True/False', category: 'Choice Fields' },
-        { icon: ArrowRightLeft, label: 'Matching', category: 'Choice Fields' },
+        // 9-16: Displaying Elements
+        { icon: ImageIcon, label: 'Image Displaying', category: 'Displaying Elements' },
+        { icon: Film, label: 'Video Displaying', category: 'Displaying Elements' },
+        { icon: FileText, label: 'PDF Displaying', category: 'Displaying Elements' },
+        { icon: Globe, label: 'Webpage Displaying', category: 'Displaying Elements' },
+        { icon: Play, label: 'Embedded Video Displaying', category: 'Displaying Elements' },
+        { icon: Share2, label: 'Embedded SM Content Displaying', category: 'Displaying Elements' },
+        { icon: Headphones, label: 'Audio listening Displaying', category: 'Displaying Elements' },
+        { icon: Files, label: 'Multi file Displaying', category: 'Displaying Elements' },
 
-        { icon: Upload, label: 'File Upload', category: 'Advanced Fields' },
-        { icon: Star, label: 'Rating', category: 'Advanced Fields' },
+        // 17-24: Recording & AI Agents
+        { icon: Camera, label: 'Screenshot taking', category: 'Recording & AI Agents' },
+        { icon: Monitor, label: 'Screen recording', category: 'Recording & AI Agents' },
+        { icon: Mic, label: 'Voice recording', category: 'Recording & AI Agents' },
+        { icon: Video, label: 'Video recording', category: 'Recording & AI Agents' },
+        { icon: PhoneCall, label: 'Web based Audio calling', category: 'Recording & AI Agents' },
+        { icon: Video, label: 'Web based video calling', category: 'Recording & AI Agents' },
+        { icon: MessageSquare, label: 'Text based AI agent', category: 'Recording & AI Agents' },
+        { icon: Bot, label: 'Voice based AI Agent', category: 'Recording & AI Agents' },
+
+        // Advanced/Extra Fields
+        { icon: CheckCircle2, label: 'True/False', category: 'Advanced Fields' },
+        { icon: Sliders, label: 'Matching', category: 'Advanced Fields' },
         { icon: Type, label: 'Fill in the Blanks', category: 'Advanced Fields' },
         { icon: FileText, label: 'Assignment', category: 'Advanced Fields' },
-        { icon: Activity, label: 'Activity', category: 'Advanced Fields' },
-
-        { icon: ImageIcon, label: 'Image', category: 'Media Elements' },
-        { icon: Video, label: 'Video', category: 'Media Elements' },
-        { icon: FileText, label: 'PDF', category: 'Media Elements' },
-        { icon: Play, label: 'YouTube', category: 'Media Elements' },
-        { icon: Mic, label: 'Voice Rec', category: 'Media Elements' },
-        { icon: Video, label: 'Video Rec', category: 'Media Elements' },
-        { icon: Phone, label: 'Call Rec', category: 'Media Elements' },
-        { icon: Monitor, label: 'Screen Rec', category: 'Media Elements' },
-        { icon: Camera, label: 'Screen Shot', category: 'Media Elements' },
-
-        { icon: MessageSquare, label: 'Text Chat AI', category: 'AI Agents' },
-        { icon: Bot, label: 'Voice Chat AI', category: 'AI Agents' }
+        { icon: Activity, label: 'Activity', category: 'Advanced Fields' }
     ];
 
     // Fetch existing test details if editing
@@ -2413,7 +2475,7 @@ const TestBuilder = () => {
 
     const handleAddElement = (element) => {
         let defaultOptions = [];
-        if (['Multiple Choice', 'Checkboxes', 'Dropdown'].includes(element.label)) {
+        if (['Multiple Choice', 'Multiple choices', 'Checkboxes', 'Checkbox', 'Dropdown'].includes(element.label)) {
             defaultOptions = [{ text: 'Option 1', isCorrect: false }, { text: 'Option 2', isCorrect: false }];
         } else if (element.label === 'True/False') {
             defaultOptions = [{ text: 'True', isCorrect: false }, { text: 'False', isCorrect: false }];
@@ -2528,8 +2590,8 @@ const TestBuilder = () => {
             quality: '1080p',
             includeMic: false,
             screenshotScope: 'Entire Screen',
-            agentName: element.label === 'Text Chat AI' ? 'AI Assistant' : element.label === 'Voice Chat AI' ? 'AI Voice Assistant' : '',
-            greetingMessage: element.label === 'Text Chat AI' ? 'Hello! How can I help you today?' : '',
+            agentName: (element.label === 'Text Chat AI' || element.label === 'Text based AI agent') ? 'AI Assistant' : (element.label === 'Voice Chat AI' || element.label === 'Voice based AI Agent') ? 'AI Voice Assistant' : '',
+            greetingMessage: (element.label === 'Text Chat AI' || element.label === 'Text based AI agent') ? 'Hello! How can I help you today?' : '',
             systemPersona: '',
             voicePersona: 'alloy',
             scriptScenario: '',
@@ -2833,7 +2895,7 @@ const TestBuilder = () => {
     );
 
     // Group elements by category
-    const categories = ['Basic Inputs', 'Choice Fields', 'Advanced Fields', 'Media Elements', 'AI Agents'];
+    const categories = ['Input Elements', 'Displaying Elements', 'Recording & AI Agents', 'Advanced Fields'];
 
     if (loading) {
         return (
@@ -2980,44 +3042,179 @@ const TestBuilder = () => {
                         {/* Draggable Elements List */}
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
                             {sidebarTab === 'Elements & Addons' ? (
-                                <div className="space-y-4">
+                                <div className="space-y-4 animate-fade-in">
+                                    {/* 1. Input Elements */}
                                     <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
                                         <button
                                             type="button"
-                                            onClick={() => setIsMostCommonExpanded(!isMostCommonExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-700 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-sm"
+                                            onClick={() => setIsInputExpanded(!isInputExpanded)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-purple-600">🔥</span>
-                                                <span>Most Common</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span>📝</span>
+                                                <span>Input Elements (1-8)</span>
                                                 <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
-                                                    {filteredElements.length}
+                                                    {filteredElements.filter(el => el.category === 'Input Elements').length}
                                                 </span>
                                             </div>
-                                            <ChevronDown size={16} className={`transition-transform duration-300 ${isMostCommonExpanded ? 'rotate-180' : ''}`} />
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isInputExpanded ? 'rotate-180' : ''}`} />
                                         </button>
+                                        {isInputExpanded && (
+                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                                {filteredElements.filter(el => el.category === 'Input Elements').map((el) => {
+                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                    return (
+                                                        <div
+                                                            key={el.label}
+                                                            draggable
+                                                            onDragStart={(e) => handleDragStart(e, el)}
+                                                            onClick={() => handleAddElement(el)}
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            title="Drag onto canvas or click to append"
+                                                        >
+                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                <el.icon size={16} />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-605 group-hover:text-purple-600 transition-colors leading-tight">
+                                                                {absoluteIndex}. {el.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {filteredElements.filter(el => el.category === 'Input Elements').length === 0 && (
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
-                                        {isMostCommonExpanded && (
-                                            <div className="p-3 bg-white grid grid-cols-2 gap-2 max-h-[500px] overflow-y-auto custom-scrollbar animate-fade-in">
-                                                {filteredElements.map((el, idx) => (
+                                    {/* 2. Displaying Elements */}
+                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDisplayExpanded(!isDisplayExpanded)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span>📺</span>
+                                                <span>Displaying Elements (9-16)</span>
+                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                    {filteredElements.filter(el => el.category === 'Displaying Elements').length}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isDisplayExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {isDisplayExpanded && (
+                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                                {filteredElements.filter(el => el.category === 'Displaying Elements').map((el) => {
+                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                    return (
+                                                        <div
+                                                            key={el.label}
+                                                            draggable
+                                                            onDragStart={(e) => handleDragStart(e, el)}
+                                                            onClick={() => handleAddElement(el)}
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            title="Drag onto canvas or click to append"
+                                                        >
+                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                <el.icon size={16} />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                                {absoluteIndex}. {el.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {filteredElements.filter(el => el.category === 'Displaying Elements').length === 0 && (
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 3. Recording & AI Agents */}
+                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsRecordingExpanded(!isRecordingExpanded)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span>🎙️</span>
+                                                <span>Recording & AI (17-24)</span>
+                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                    {filteredElements.filter(el => el.category === 'Recording & AI Agents').length}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isRecordingExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {isRecordingExpanded && (
+                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                                {filteredElements.filter(el => el.category === 'Recording & AI Agents').map((el) => {
+                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                    return (
+                                                        <div
+                                                            key={el.label}
+                                                            draggable
+                                                            onDragStart={(e) => handleDragStart(e, el)}
+                                                            onClick={() => handleAddElement(el)}
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            title="Drag onto canvas or click to append"
+                                                        >
+                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                <el.icon size={16} />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                                {absoluteIndex}. {el.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {filteredElements.filter(el => el.category === 'Recording & AI Agents').length === 0 && (
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 4. Advanced Fields */}
+                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span>⚡</span>
+                                                <span>Advanced Fields</span>
+                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                    {filteredElements.filter(el => el.category === 'Advanced Fields').length}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isAdvancedExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {isAdvancedExpanded && (
+                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                                {filteredElements.filter(el => el.category === 'Advanced Fields').map((el) => (
                                                     <div
-                                                        key={idx}
+                                                        key={el.label}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, el)}
                                                         onClick={() => handleAddElement(el)}
-                                                        className="flex flex-col items-center justify-center p-3.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                        className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                         title="Drag onto canvas or click to append"
                                                     >
-                                                        <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
-                                                            <el.icon size={18} />
+                                                        <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                            <el.icon size={16} />
                                                         </div>
-                                                        <span className="text-[11px] font-bold text-slate-600 group-hover:text-purple-600 transition-colors leading-tight">{el.label}</span>
+                                                        <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                            {el.label}
+                                                        </span>
                                                     </div>
                                                 ))}
-                                                {filteredElements.length === 0 && (
-                                                    <div className="col-span-2 text-center py-6 text-xs text-slate-400 font-medium">
-                                                        No matching Elements found.
-                                                    </div>
+                                                {filteredElements.filter(el => el.category === 'Advanced Fields').length === 0 && (
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
                                                 )}
                                             </div>
                                         )}
@@ -3250,13 +3447,12 @@ const TestBuilder = () => {
                                                 No fields added to preview yet. Add some Elements in the editor!
                                             </div>
                                         ) : (
-                                            <div className="space-y-6">
+                                                <div className="space-y-6">
                                                 {formElements.map((el, index) => (
                                                     <div key={index} className="space-y-2 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                                                         <label className="block text-sm font-bold text-slate-700">
                                                             {el.text || `${el.label} Question ${index + 1}`}
                                                         </label>
-
                                                         {el.label === 'Short Answer' && (
                                                             <input
                                                                 type="text"
@@ -3265,7 +3461,7 @@ const TestBuilder = () => {
                                                             />
                                                         )}
 
-                                                        {el.label === 'Paragraph' && (
+                                                        {(el.label === 'Paragraph' || el.label === 'Paragraph Answer') && (
                                                             <textarea
                                                                 placeholder="Your long-form answer..."
                                                                 rows={3}
@@ -3273,7 +3469,7 @@ const TestBuilder = () => {
                                                             ></textarea>
                                                         )}
 
-                                                        {el.label === 'Multiple Choice' && (
+                                                        {(el.label === 'Multiple Choice' || el.label === 'Multiple choices') && (
                                                             <div className="space-y-2.5 mt-2">
                                                                 {(el.options && el.options.length > 0 ? el.options : [{ text: 'Option 1' }, { text: 'Option 2' }]).map((opt, oIdx) => (
                                                                     <label key={oIdx} className="flex items-center gap-3 cursor-pointer group">
@@ -3288,7 +3484,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Checkboxes' && (
+                                                        {(el.label === 'Checkboxes' || el.label === 'Checkbox') && (
                                                             <div className="space-y-2.5 mt-2">
                                                                 {(el.options && el.options.length > 0 ? el.options : [{ text: 'Option 1' }, { text: 'Option 2' }]).map((opt, oIdx) => (
                                                                     <label key={oIdx} className="flex items-center gap-3 cursor-pointer group">
@@ -3311,7 +3507,7 @@ const TestBuilder = () => {
                                                             </select>
                                                         )}
 
-                                                        {el.label === 'File Upload' && (
+                                                        {(el.label === 'File Upload' || el.label === 'File upload') && (
                                                             <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center gap-3">
                                                                 <button type="button" className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
                                                                     <Upload size={14} />
@@ -3333,13 +3529,13 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Date/Time' && (
+                                                        {(el.label === 'Date/Time' || el.label === 'Date & Time') && (
                                                             <div className="grid grid-cols-2 gap-4">
                                                                 <input type="date" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 shadow-sm" />
                                                                 <input type="time" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 shadow-sm" />
                                                             </div>
                                                         )}
-                                                        {el.label === 'Voice Rec' && (
+                                                        {(el.label === 'Voice Rec' || el.label === 'Voice recording') && (
                                                             <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
                                                                 <button type="button" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-colors">
                                                                     <Mic size={18} />
@@ -3348,7 +3544,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Video Rec' && (
+                                                        {(el.label === 'Video Rec' || el.label === 'Video recording') && (
                                                             <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
                                                                 <button type="button" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-colors">
                                                                     <Video size={18} />
@@ -3357,7 +3553,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Image' && (
+                                                        {(el.label === 'Image' || el.label === 'Image Displaying') && (
                                                             <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                                                                 <img
                                                                     src={el.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
@@ -3368,7 +3564,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Video' && (
+                                                        {(el.label === 'Video' || el.label === 'Video Displaying') && (
                                                             <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
                                                                 <video
                                                                     src={el.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
@@ -3380,7 +3576,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'PDF' && (
+                                                        {(el.label === 'PDF' || el.label === 'PDF Displaying') && (
                                                             <div className="mt-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="p-3 bg-red-100 text-red-600 rounded-xl">
@@ -3402,11 +3598,11 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'YouTube' && (
+                                                        {(el.label === 'YouTube' || el.label === 'Embedded Video Displaying') && (
                                                             <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
-                                                                {el.youtubeUrl ? (
+                                                                {el.youtubeUrl || el.embeddedVideoUrl ? (
                                                                     <iframe
-                                                                        src={`https://www.youtube.com/embed/${getYouTubeId(el.youtubeUrl)}`}
+                                                                        src={`https://www.youtube.com/embed/${getYouTubeId(el.youtubeUrl || el.embeddedVideoUrl)}`}
                                                                         title="YouTube Video"
                                                                         className="w-full h-full border-0"
                                                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -3415,13 +3611,65 @@ const TestBuilder = () => {
                                                                 ) : (
                                                                     <div className="text-center text-slate-400 p-4">
                                                                         <Play size={32} className="mx-auto mb-2 text-red-500" />
-                                                                        <p className="text-xs font-semibold">Enter a valid YouTube URL to display it here</p>
+                                                                        <p className="text-xs font-semibold">Enter a valid YouTube/Video URL to display it here</p>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Screen Rec' && (
+                                                        {el.label === 'Webpage Displaying' && (
+                                                            <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
+                                                                {el.webpageUrl ? (
+                                                                    <div className="flex flex-col">
+                                                                        <div className="flex items-center gap-2 p-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
+                                                                            <Globe size={10} className="text-purple-500" />
+                                                                            <span>{el.webpageUrl}</span>
+                                                                        </div>
+                                                                        <iframe
+                                                                            src={el.webpageUrl}
+                                                                            title="Webpage Preview"
+                                                                            className="w-full border-0 bg-white"
+                                                                            style={{ height: `${Math.min(el.webpageHeight || 300, 200)}px` }}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-center text-slate-400 p-4 bg-slate-50">
+                                                                        <Globe size={32} className="mx-auto mb-2 text-purple-400" />
+                                                                        <p className="text-xs font-semibold">No webpage URL provided</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {el.label === 'Embedded SM Content Displaying' && (
+                                                            <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3 text-left">
+                                                                <div className="p-3 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 shadow-sm">
+                                                                    <Share2 size={20} />
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">{el.smPlatform || 'Social Media'} Post</span>
+                                                                    <span className="text-sm font-semibold text-slate-700 block truncate max-w-xs">{el.smPostUrl || 'No social media link provided'}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {el.label === 'Multi file Displaying' && (
+                                                            <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
+                                                                <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
+                                                                    <Files size={20} />
+                                                                </div>
+                                                                <div>
+                                                                    <button type="button" className="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-sm mx-auto">
+                                                                        Choose Multiple Files
+                                                                    </button>
+                                                                    <span className="text-xs text-slate-400 mt-2 block">
+                                                                        Maximum of {el.multiMaxFiles || 5} files
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {(el.label === 'Screen Rec' || el.label === 'Screen recording') && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
                                                                 <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center animate-pulse">
                                                                     <Monitor size={28} />
@@ -3433,14 +3681,14 @@ const TestBuilder = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toast.success("Simulating screen capture start...", { icon: '📹' })}
-                                                                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-red-500/10 flex items-center gap-2"
+                                                                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
                                                                 >
                                                                     <Monitor size={14} /> Start Screen Share
                                                                 </button>
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Screen Shot' && (
+                                                        {(el.label === 'Screen Shot' || el.label === 'Screenshot taking') && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
                                                                 <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
                                                                     <Camera size={28} />
@@ -3452,14 +3700,14 @@ const TestBuilder = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toast.success("Screenshot saved successfully!", { icon: '📸' })}
-                                                                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10 flex items-center gap-2"
+                                                                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
                                                                 >
                                                                     <Camera size={14} /> Capture Screenshot
                                                                 </button>
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Call Rec' && (
+                                                        {(el.label === 'Call Rec' || el.label === 'Web based Audio calling') && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50/80 flex flex-col gap-4">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
@@ -3486,8 +3734,35 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Audio Listening' && (
-                                                            <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4">
+                                                        {el.label === 'Web based video calling' && (
+                                                            <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
+                                                                        <Video size={22} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-sm font-bold block">Web Video Call Meeting</span>
+                                                                        <span className="text-xs text-slate-400">Simulating live interactive roleplay</span>
+                                                                    </div>
+                                                                </div>
+                                                                {el.videoCallScenario && (
+                                                                    <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
+                                                                        <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
+                                                                        {el.videoCallScenario}
+                                                                    </div>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toast.success("Connecting video call room...", { icon: '📹' })}
+                                                                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                                >
+                                                                    <Video size={14} /> Establish Video Connection ({el.videoCallDuration || 5} min)
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {(el.label === 'Audio Listening' || el.label === 'Audio listening Displaying') && (
+                                                            <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
                                                                         <Headphones size={22} />
@@ -3515,7 +3790,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Text Chat AI' && (
+                                                        {(el.label === 'Text Chat AI' || el.label === 'Text based AI agent') && (
                                                             <div className="mt-2 border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm flex flex-col h-80">
                                                                 <div className="bg-purple-600 p-4 flex items-center justify-between text-white">
                                                                     <div className="flex items-center gap-2">
@@ -3562,7 +3837,7 @@ const TestBuilder = () => {
                                                             </div>
                                                         )}
 
-                                                        {el.label === 'Voice Chat AI' && (
+                                                        {(el.label === 'Voice Chat AI' || el.label === 'Voice based AI Agent') && (
                                                             <div className="mt-2 border border-slate-200 rounded-3xl p-6 bg-slate-900 text-white flex flex-col items-center justify-center gap-6 min-h-60 relative overflow-hidden">
                                                                 <div className="absolute top-4 right-4 bg-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Voice Call Sim</div>
 
@@ -3572,7 +3847,7 @@ const TestBuilder = () => {
 
                                                                 <div className="text-center">
                                                                     <span className="font-extrabold text-sm block">{el.agentName || 'AI Voice Assistant'}</span>
-                                                                    <span className="text-xs text-slate-400 mt-1 block">Voice Persona: {el.voicePersona || 'Alloy'} (Neutral)</span>
+                                                                    <span className="text-xs text-slate-400 mt-1 block">Voice Persona: {el.voicePersona || 'Alloy'}</span>
                                                                 </div>
 
                                                                 {/* Audio Soundwaves Simulator */}

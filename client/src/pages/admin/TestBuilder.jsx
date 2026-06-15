@@ -13,6 +13,7 @@ import {
     Bold, Italic, Underline, Strikethrough, ArrowRightLeft, Activity, Code, Quote, Table, HelpCircle, Sliders, GitBranch, Smile, Heading, ListOrdered, GripVertical, AlertTriangle,
     Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip
 } from 'lucide-react';
+import { uploadVideo } from "../../api/videoApi";
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import ShortAnswerWidget from '../../components/builder/ShortAnswerWidget';
@@ -1966,43 +1967,105 @@ const QuestionBuilderCard = ({
                         )}
 
                         {/* 17. Video upload / source */}
-                        {label === 'Video' && (
-                            <div className="space-y-4 bg-white p-4 border border-slate-150 rounded-2xl">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-505 uppercase tracking-wider block">Video Source URL (.mp4)</label>
-                                    <input
-                                        type="text"
-                                        value={element.videoUrl || ''}
-                                        onChange={(e) => onUpdateField('videoUrl', e.target.value)}
-                                        placeholder="https://www.w3schools.com/html/mov_bbb.mp4"
-                                        className="w-full text-sm bg-slate-50 border border-slate-205 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-purple-500 transition-all font-medium"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-6">
-                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                        {
+                            label === "Video" && (
+                                <div className="space-y-4 bg-white p-4 border border-slate-150 rounded-2xl">
+
+                                    {/* Upload Input */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-505 uppercase tracking-wider block">
+                                            Upload Video
+                                        </label>
+
                                         <input
-                                            type="checkbox"
-                                            checked={!!element.autoplay}
-                                            onChange={(e) => onUpdateField('autoplay', e.target.checked)}
-                                            className="rounded text-purple-600"
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+
+                                                if (!file) return;
+
+                                                try {
+                                                    // File Name Show Karne Ke Liye
+                                                    onUpdateField("videoName", file.name);
+
+                                                    const formData = new FormData();
+                                                    formData.append("video", file);
+
+                                                    const data = await uploadVideo(formData);
+
+                                                    console.log("Uploaded Video:", data);
+
+                                                    // Backend Se URL Save
+                                                    onUpdateField("videoUrl", data.videoUrl);
+
+                                                } catch (error) {
+                                                    console.error("Video upload failed:", error);
+                                                }
+                                            }}
+                                            className="w-full text-sm bg-slate-50 border border-slate-205 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-purple-500 transition-all"
                                         />
-                                        Autoplay
-                                    </label>
-                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={!!element.loop}
-                                            onChange={(e) => onUpdateField('loop', e.target.checked)}
-                                            className="rounded text-purple-600"
-                                        />
-                                        Loop Video
-                                    </label>
+
+                                        {/* File Name */}
+                                        {element.videoName && (
+                                                <div className="mt-2 h-12 w-full rounded-xl bg-slate-100 border border-slate-200 flex items-center px-4">
+                                                    <span className="text-sm text-slate-600 truncate">
+                                                        {element.videoName}
+                                                    </span>
+                                                </div>
+                                            )}
+                                    </div>
+
+                                    {/* Video Settings */}
+                                    <div className="flex items-center gap-6">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!element.autoplay}
+                                                onChange={(e) =>
+                                                    onUpdateField("autoplay", e.target.checked)
+                                                }
+                                            />
+                                            Autoplay
+                                        </label>
+
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!element.loop}
+                                                onChange={(e) =>
+                                                    onUpdateField("loop", e.target.checked)
+                                                }
+                                            />
+                                            Loop Video
+                                        </label>
+                                    </div>
+
+                                    {/* Video Preview */}
+                                    {element.videoUrl && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-slate-500 break-all">
+                                                {element.videoUrl}
+                                            </p>
+
+                                            <video
+                                                key={element.videoUrl}
+                                                controls
+                                                autoPlay={!!element.autoplay}
+                                                loop={!!element.loop}
+                                                className="max-h-60 rounded-lg w-full bg-black"
+                                            >
+                                                <source
+                                                    src={`http://localhost:5000${element.videoUrl}`}
+                                                    type="video/mp4"
+                                                />
+                                                Your browser does not support video playback.
+                                            </video>
+                                        </div>
+                                    )}
                                 </div>
-                                {element.videoUrl && (
-                                    <video src={element.videoUrl} controls className="max-h-40 rounded-lg w-full bg-black mt-2" />
-                                )}
-                            </div>
-                        )}
+                            )
+                        }
 
                         {/* 18. PDF */}
                         {label === 'PDF' && (

@@ -324,6 +324,28 @@ const PublicTestPage = () => {
         }
     };
 
+    const togglePauseRecording = (idx) => {
+    const recorder = mediaRecorderRef.current[idx];
+
+    if (!recorder) return;
+
+    if (recorder.state === "recording") {
+        recorder.pause();
+
+        setRecordingStatus(prev => ({
+            ...prev,
+            [idx]: "paused"
+        }));
+    } else if (recorder.state === "paused") {
+        recorder.resume();
+
+        setRecordingStatus(prev => ({
+            ...prev,
+            [idx]: "recording"
+        }));
+    }
+};
+
     const handleMockRecaptcha = () => {
         if (recaptchaDone) return;
         setRecaptchaVerifying(true);
@@ -2710,62 +2732,81 @@ const PublicTestPage = () => {
                                                             </p>
 
                                                             {/* Stop Button */}
-                                                            {recordingStatus[idx] === "recording" ? (
-                                                                <button
-                                                                    onClick={() => stopRecording(idx)}
-                                                                    className="px-6 py-2 bg-red-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
-                                                                >
-                                                                    <Square size={14} fill="currentColor" />
-                                                                    Stop Recording
-                                                                </button>
-                                                            ) : (
-                                                                <>
-                                                                    {/* First Recording */}
-                                                                    {(!recordedURLs[idx] ||
-                                                                        recordedURLs[idx].length === 0) && (
-                                                                        <button
-                                                                            disabled={!!submittedAnswers[idx]}
-                                                                            onClick={() =>
-                                                                                startRecording(idx, "audio")
-                                                                            }
-                                                                            className={`px-6 py-2 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
-                                                                                submittedAnswers[idx]
-                                                                                    ? "opacity-50 cursor-not-allowed"
-                                                                                    : ""
-                                                                            }`}
-                                                                        >
-                                                                            <Mic size={14} />
-                                                                            Start Voice Capture
-                                                                        </button>
-                                                                    )}
+{/* Recording Controls */}
+{recordingStatus[idx] === "recording" ||
+recordingStatus[idx] === "paused" ? (
+    <div className="flex gap-2">
+        <button
+            onClick={() => stopRecording(idx)}
+            className="px-6 py-2 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
+        >
+            <Square size={14} fill="currentColor" />
+            Stop Recording
+        </button>
 
-                                                                    {/* Add More */}
-                                                                        {recordedURLs[idx]?.length > 0 && (
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={
-                                                                                    submittedAnswers[idx] ||
-                                                                                    (recordedURLs[idx]?.length || 0) >= 5
-                                                                                }
-                                                                                onClick={() => startRecording(idx, "audio")}
-                                                                                className={`px-6 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
-                                                                                    (recordedURLs[idx]?.length || 0) >= 5
-                                                                                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                                                                                        : "bg-emerald-600 text-white hover:bg-emerald-700"
-                                                                                }`}
-                                                                            >
-                                                                                <Plus size={14} />
-                                                                                Add More
-                                                                            </button>
-                                                                        )}
+        <button
+            onClick={() => togglePauseRecording(idx)}
+            className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-amber-600"
+        >
+            {recordingStatus[idx] === "paused" ? (
+                <>
+                    <Play size={14} />
+                    Resume
+                </>
+            ) : (
+                <>
+                    <Pause size={14} />
+                    Pause
+                </>
+            )}
+        </button>
+    </div>
+) : (
+    <>
+        {/* First Recording */}
+        {(!recordedURLs[idx] ||
+            recordedURLs[idx].length === 0) && (
+            <button
+                disabled={!!submittedAnswers[idx]}
+                onClick={() => startRecording(idx, "audio")}
+                className={`px-6 py-2 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
+                    submittedAnswers[idx]
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                }`}
+            >
+                <Mic size={14} />
+                Start Voice Capture
+            </button>
+        )}
 
-                                                                    {(recordedURLs[idx]?.length || 0) >= 5 && (
-                                                                        <p className="text-xs text-red-500 font-semibold">
-                                                                            Maximum 5 recordings allowed
-                                                                        </p>
-                                                                    )}
-                                                                </>
-                                                            )}
+        {/* Add More */}
+        {recordedURLs[idx]?.length > 0 && (
+            <button
+                type="button"
+                disabled={
+                    submittedAnswers[idx] ||
+                    (recordedURLs[idx]?.length || 0) >= 5
+                }
+                onClick={() => startRecording(idx, "audio")}
+                className={`px-6 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
+                    (recordedURLs[idx]?.length || 0) >= 5
+                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+            >
+                <Plus size={14} />
+                Add More
+            </button>
+        )}
+
+        {(recordedURLs[idx]?.length || 0) >= 5 && (
+            <p className="text-xs text-red-500 font-semibold">
+                Maximum 5 recordings allowed
+            </p>
+        )}
+    </>
+)}
 
                                                             {/* Recording List */}
                                                             {recordedURLs[idx]?.length > 0 && (
@@ -2821,7 +2862,7 @@ const PublicTestPage = () => {
                                                             )}
                                                         </div>
                                                     )}
-                                                    
+
                                                  {/* Video recording block */}
                                                  {(isVideo || showVideoRecorder[idx]) && (
                                                      <AdvancedVideoRecorder

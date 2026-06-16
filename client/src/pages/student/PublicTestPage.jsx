@@ -14,7 +14,6 @@ import {
     Bot, Star, Upload, Headphones, Files, Camera, Monitor, Share2,Plus
 } from 'lucide-react';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
-import CallRecBuilder from '../../components/builder/CallRecBuilder';
 const validateLanguage = (text, lang) => {
     if (!text || !lang) return true;
     const plainText = text.replace(/<[^>]*>/g, '').trim();

@@ -1906,30 +1906,76 @@ const PublicTestPage = () => {
                                                  )}
 
                                                  {/* Webpage Displaying */}
-                                                 {isWebpageDisplay && (
-                                                     <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
-                                                         {q.webpageUrl ? (
-                                                             <div className="flex flex-col">
-                                                                 <div className="flex items-center gap-2 p-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
-                                                                     <Globe size={10} className="text-purple-500" />
-                                                                     <span>{q.webpageUrl}</span>
-                                                                 </div>
-                                                                 <iframe
-                                                                     src={q.webpageUrl}
-                                                                     title="Webpage Display"
-                                                                     className="w-full border-0 bg-white"
-                                                                     style={{ height: `${Math.min(q.webpageHeight || 300, 200)}px` }}
-                                                                 />
-                                                             </div>
-                                                         ) : (
-                                                             <div className="text-center text-slate-400 p-4 bg-slate-50">
-                                                                 <Globe size={32} className="mx-auto mb-2 text-purple-400" />
-                                                                 <p className="text-xs font-semibold">No webpage URL provided</p>
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 )}
+{isWebpageDisplay && (
+    <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
+        {(q.webpageUrl || q.htmlContent) ? (
+            <div className="flex flex-col">
 
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border-b border-slate-200">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <Globe
+                            size={10}
+                            className="text-purple-500 shrink-0"
+                        />
+
+                        <span className="text-[10px] font-bold text-slate-500 truncate">
+                            {q.webpageUrl || "Custom HTML Content"}
+                        </span>
+                    </div>
+
+                    {q.webpageUrl && (
+                        <a
+                            href={q.webpageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-bold text-purple-600 hover:text-purple-700 shrink-0"
+                        >
+                            Open
+                        </a>
+                    )}
+                </div>
+
+                {/* Content */}
+                {q.htmlContent ? (
+                    <iframe
+                        title="HTML Content"
+                        srcDoc={q.htmlContent}
+                        className="w-full border-0 bg-white"
+                        style={{
+                            height: `${q.webpageHeight || 600}px`
+                        }}
+                        sandbox="allow-scripts"
+                    />
+                ) : (
+                    <iframe
+                        src={q.webpageUrl}
+                        title="Webpage Display"
+                        className="w-full border-0 bg-white"
+                        style={{
+                            height: `${q.webpageHeight || 600}px`
+                        }}
+                        scrolling={q.webpageScroll || "yes"}
+                        sandbox="allow-scripts allow-same-origin allow-forms"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                    />
+                )}
+            </div>
+        ) : (
+            <div className="text-center text-slate-400 p-4 bg-slate-50">
+                <Globe
+                    size={32}
+                    className="mx-auto mb-2 text-purple-400"
+                />
+
+                <p className="text-xs font-semibold">
+                    No webpage URL or HTML content provided
+                </p>
+            </div>
+        )}
+    </div>
+)}
                                                  {/* Embedded Video Displaying */}
                                                  {isEmbeddedVideo && (
                                                      <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">

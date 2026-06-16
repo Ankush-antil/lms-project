@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
-import { BookOpen, Clock, FileText, CheckCircle, User } from 'lucide-react';
+import { BookOpen, Clock, FileText, CheckCircle, User, Phone, X } from 'lucide-react';
+import { useSocket } from '../../context/SocketContext';
+import toast from 'react-hot-toast';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
@@ -23,29 +25,50 @@ const StudentDashboard = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
+    const { callUser, callState } = useSocket();
+
     const [profile, setProfile] = useState(null);
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [missedCalls, setMissedCalls] = useState([]);
+
+    const handleClearMissedCalls = async () => {
+        try {
+            await axios.post('/api/calls/missed/clear');
+            setMissedCalls([]);
+            toast.success("All missed calls cleared");
+        } catch (err) {
+            console.error("Failed to clear missed calls:", err);
+        }
+    };
+
+    const handleClearSingleMissed = async (callId) => {
+        try {
+            await axios.post(`/api/calls/missed/${callId}/read`);
+            setMissedCalls(prev => prev.filter(c => c._id !== callId));
+        } catch (err) {
+            console.error("Failed to clear missed call:", err);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-
                 if (!userInfo) return;
 
-                
-
-                // Concurrent fetch for profile, tests and submissions
-                const [profileRes, testsRes, subsRes] = await Promise.all([
+                // Concurrent fetch for profile, tests, submissions, and missed calls
+                const [profileRes, testsRes, subsRes, missedRes] = await Promise.all([
                     axios.get('/api/users/profile'),
                     axios.get('/api/tests'),
-                    axios.get('/api/submissions')
+                    axios.get('/api/submissions'),
+                    axios.get('/api/calls/missed')
                 ]);
 
                 setProfile(profileRes.data);
                 setTests(testsRes.data);
                 setSubmissions(subsRes.data);
+                setMissedCalls(missedRes.data);
                 setLoading(false);
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -92,6 +115,49 @@ const StudentDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Stats Area / Recent */}
                 <div className="lg:col-span-2 space-y-6">
+                    {missedCalls.length > 0 && (
+                        <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-red-800 font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                                    <span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
+                                    Missed Calls from Teachers ({missedCalls.length})
+                                </h3>
+                                <button 
+                                    onClick={handleClearMissedCalls} 
+                                    className="text-[10px] bg-red-100 text-red-700 hover:bg-red-200 font-black px-2.5 py-1 rounded-lg uppercase tracking-wider transition-all"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                            <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                                {missedCalls.map((call) => (
+                                    <div key={call._id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-red-100 hover:border-red-200 shadow-sm transition-all text-xs">
+                                        <div className="flex flex-col text-left">
+                                            <span className="font-bold text-slate-800">Teacher: {call.caller?.name || 'Instructor'}</span>
+                                            <span className="text-[10px] text-slate-400 font-medium">{new Date(call.createdAt).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                onClick={() => callUser(call.caller?._id, call.caller?.name, 'Teacher')}
+                                                className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors"
+                                                title="Call Back"
+                                            >
+                                                <Phone size={12} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleClearSingleMissed(call._id)}
+                                                className="p-1.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-slate-100"
+                                                title="Dismiss"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-slate-800">Upcoming Tests</h3>

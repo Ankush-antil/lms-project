@@ -4,7 +4,9 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
-import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle, Phone, Search, X, Trash2, Calendar } from 'lucide-react';
+import { useSocket } from '../../context/SocketContext';
+import toast from 'react-hot-toast';
 
 const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
     <div
@@ -32,22 +34,47 @@ const TeacherDashboard = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
+    const { callUser, callState, onlineUsers } = useSocket();
+    
     const [stats, setStats] = useState({ totalStudents: 0, pending: 0, completed: 0, courses: 0 });
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState([]);
+    const [showContactModal, setShowContactModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [missedCalls, setMissedCalls] = useState([]);
+
+    const handleClearMissedCalls = async () => {
+        try {
+            await axios.post('/api/calls/missed/clear');
+            setMissedCalls([]);
+            toast.success("All missed calls cleared");
+        } catch (err) {
+            console.error("Failed to clear missed calls:", err);
+        }
+    };
+
+    const handleClearSingleMissed = async (callId) => {
+        try {
+            await axios.post(`/api/calls/missed/${callId}/read`);
+            setMissedCalls(prev => prev.filter(c => c._id !== callId));
+        } catch (err) {
+            console.error("Failed to clear missed call:", err);
+        }
+    };
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-
                 if (!userInfo) return navigate('/');
-
-                
 
                 // 1. Fetch Students & their personal stats
                 const { data: studentsData } = await axios.get('/api/users/teacher-students');
 
-                // 2. Aggregate counts
+                // 2. Fetch Missed Calls
+                const { data: missedCallsData } = await axios.get('/api/calls/missed');
+                setMissedCalls(missedCallsData);
+
+                // 3. Aggregate counts
                 const totalPending = studentsData.reduce((acc, s) => acc + (s.stats?.pending || 0), 0);
                 const totalCompleted = studentsData.reduce((acc, s) => acc + (s.stats?.completed || 0), 0);
 
@@ -88,6 +115,12 @@ const TeacherDashboard = () => {
                     >
                         <FileText size={18} /> Take Action
                     </button>
+                    <button
+                        onClick={() => setShowContactModal(true)}
+                        className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                    >
+                        <Phone size={18} /> Contact Students
+                    </button>
                 </div>
             </div>
 
@@ -120,43 +153,99 @@ const TeacherDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {students.slice(0, 5).map((student) => (
-                                    <tr key={student._id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-md flex-shrink-0">
-                                                    {student.name[0]}
+                                {students.slice(0, 5).map((student) => {
+                                    const isOnline = onlineUsers.includes(student._id);
+                                    return (
+                                        <tr key={student._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-md flex-shrink-0 relative">
+                                                        {student.name[0]}
+                                                        <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                                                    </div>
+                                                    <span className="font-bold text-slate-800 text-sm">{student.name}</span>
                                                 </div>
-                                                <span className="font-bold text-slate-800 text-sm">{student.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
-                                                {student.studentProfile?.course?.name || 'Academic Course'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${(student.stats?.pending || 0) > 0 ? 'bg-orange-50 text-orange-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                {student.stats?.pending || 0} pending
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
-                                            <button
-                                                onClick={() => navigate('/teacher/activities')}
-                                                className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-indigo-100 hover:text-indigo-600 transition-colors"
-                                            >
-                                                <ChevronRight size={18} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                                                    {student.studentProfile?.course?.name || 'Academic Course'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${(student.stats?.pending || 0) > 0 ? 'bg-orange-50 text-orange-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                    {student.stats?.pending || 0} pending
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => callUser(student._id, student.name, 'Student')}
+                                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"
+                                                        title="Call Student"
+                                                    >
+                                                        <Phone size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => navigate('/teacher/activities')}
+                                                        className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-indigo-100 hover:text-indigo-600 transition-colors"
+                                                    >
+                                                        <ChevronRight size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Status Column */}
                 <div className="space-y-6">
+                    {/* Missed Calls Log Panel */}
+                    {missedCalls.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-[32px] p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-red-800 font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                                    <span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
+                                    Missed Calls ({missedCalls.length})
+                                </h3>
+                                <button 
+                                    onClick={handleClearMissedCalls} 
+                                    className="text-[10px] bg-red-100 text-red-700 hover:bg-red-200 font-black px-2.5 py-1 rounded-lg uppercase tracking-wider transition-all"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                            <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                                {missedCalls.map((call) => (
+                                    <div key={call._id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-red-100 hover:border-red-200 shadow-sm transition-all text-xs">
+                                        <div className="flex flex-col text-left">
+                                            <span className="font-bold text-slate-800">{call.caller?.name || call.guestName || 'Student'}</span>
+                                            <span className="text-[10px] text-slate-400 font-medium">{new Date(call.createdAt).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                onClick={() => callUser(call.caller?._id || ('guest_' + call.guestEmail), call.caller?.name || call.guestName || 'Guest Student', 'Student')}
+                                                className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors"
+                                                title="Call Back"
+                                            >
+                                                <Phone size={12} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleClearSingleMissed(call._id)}
+                                                className="p-1.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-slate-100"
+                                                title="Dismiss"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-10">
                             <AlertCircle size={80} />
@@ -191,6 +280,79 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Contact Students Modal */}
+            {showContactModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+                    <div className="bg-white rounded-[32px] shadow-2xl p-6 max-w-md w-full mx-4 flex flex-col border border-slate-100 max-h-[85vh] overflow-hidden transform scale-100 transition-all">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-850 tracking-tight">Contact Students</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Call assigned students in real-time</p>
+                            </div>
+                            <button 
+                                onClick={() => { setShowContactModal(false); setSearchQuery(''); }}
+                                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Search bar */}
+                        <div className="relative mt-4 mb-3">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                                <Search size={14} />
+                            </span>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search student by name..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-150 rounded-2xl text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 shadow-sm transition-all"
+                            />
+                        </div>
+
+                        {/* Student list */}
+                        <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1 custom-scrollbar">
+                            {students
+                                .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                                .map(student => {
+                                    const isOnline = onlineUsers.includes(student._id);
+                                    return (
+                                        <div key={student._id} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/60 rounded-2xl border border-slate-150 transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center font-bold text-sm relative">
+                                                    {student.name[0]}
+                                                    <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                                                </div>
+                                                <div className="flex flex-col text-left">
+                                                    <span className="text-xs font-bold text-slate-800 leading-none mb-1">{student.name}</span>
+                                                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                                                        {student.studentProfile?.course?.name || 'Academic Course'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    callUser(student._id, student.name, 'Student');
+                                                    setShowContactModal(false);
+                                                }}
+                                                className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center"
+                                                title="Call Student"
+                                            >
+                                                <Phone size={14} />
+                                            </button>
+                                        </div>
+                                    );
+                                })
+                            }
+                            {students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                <p className="text-center text-xs text-slate-400 italic py-6">No matching students found.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 };

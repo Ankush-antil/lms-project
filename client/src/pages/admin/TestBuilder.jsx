@@ -93,6 +93,18 @@ const getYouTubeId = (url) => {
     return (match && match[2].length === 11) ? match[2] : url;
 };
 
+const getEmbedUrl = (url) => {
+    if (!url) return '';
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^&#?/]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    const loomMatch = url.match(/loom\.com\/share\/([a-f0-9]+)/);
+    if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+    if (url.includes('embed') || url.includes('player')) return url;
+    return url;
+};
+
 const addonsList = [
     { label: 'Translator it', icon: Languages },
     { label: 'Help with AI', icon: Bot },
@@ -1449,7 +1461,7 @@ const QuestionBuilderCard = ({
                                         <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-600 select-none">
                                             {/* Enable Text Style / Enable Response */}
                                             <div className="flex items-center gap-2 select-none">
-                                                <span>{label === 'Short Answer' ? 'Enable Text Style' : 'Enable Response'}</span>
+                                                <span>Enable Text Style</span>
                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                     <input
                                                         type="checkbox"
@@ -1471,33 +1483,6 @@ const QuestionBuilderCard = ({
                                                 </label>
                                             </div>
 
-                                            {/* Required Question */}
-                                            <div className="flex items-center gap-2 select-none">
-                                                <span>Required Question</span>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={required}
-                                                        onChange={(e) => onUpdateField('required', e.target.checked)}
-                                                        className="sr-only peer"
-                                                    />
-                                                    <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
-                                                </label>
-                                            </div>
-
-                                            {/* Enable Question */}
-                                            <div className="flex items-center gap-2 select-none">
-                                                <span>Enable Question</span>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={enabled}
-                                                        onChange={(e) => onUpdateField('enabled', e.target.checked)}
-                                                        className="sr-only peer"
-                                                    />
-                                                    <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-650"></div>
-                                                </label>
-                                            </div>
                                         </div>
 
                                         {/* Action Buttons row */}
@@ -1568,57 +1553,6 @@ const QuestionBuilderCard = ({
                                                 </button>
                                             )}
 
-                                            {/* Particulars Button */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveFooterTab(activeFooterTab === 'particulars' ? null : 'particulars')}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'particulars'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
-                                                    : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 shadow-sm'
-                                                    }`}
-                                            >
-                                                <Sliders size={12} />
-                                                <span>Particulars</span>
-                                            </button>
-
-                                            {/* Scoring Button */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveFooterTab(activeFooterTab === 'scoring' ? null : 'scoring')}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'scoring'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
-                                                    : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 shadow-sm'
-                                                    }`}
-                                            >
-                                                <PieChart size={12} />
-                                                <span>Scoring</span>
-                                            </button>
-
-                                            {/* Advanced Button */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveFooterTab(activeFooterTab === 'advanced' ? null : 'advanced')}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'advanced'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
-                                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm'
-                                                    }`}
-                                            >
-                                                <Sliders size={12} />
-                                                <span>Advanced</span>
-                                            </button>
-
-                                            {/* Text Logic Button */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveFooterTab(activeFooterTab === 'textLogic' ? null : 'textLogic')}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'textLogic'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
-                                                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shadow-sm'
-                                                    }`}
-                                            >
-                                                <Code size={12} />
-                                                <span>Text Logic</span>
-                                            </button>
 
                                             {/* Small style drawer icon (Tt) */}
                                             <button
@@ -2123,6 +2057,7 @@ const TestBuilder = () => {
     const [publishSuccessInfo, setPublishSuccessInfo] = useState(null);
     const [publishModeSelected, setPublishModeSelected] = useState('connected');
     const [publicSettings, setPublicSettings] = useState({
+        selectedFolder: null,
         allowMultiple: false,
         startDate: '',
         endDate: '',
@@ -2209,19 +2144,24 @@ const TestBuilder = () => {
 
                     if (test.publishMode) {
                         setPublishModeSelected(test.publishMode);
-                    }
-                    if (test.publicSettings) {
-                        setPublicSettings(prev => ({
-                            ...prev,
-                            ...test.publicSettings,
-                            startDate: test.publicSettings.startDate ? new Date(test.publicSettings.startDate).toISOString().split('T')[0] : '',
-                            endDate: test.publicSettings.endDate ? new Date(test.publicSettings.endDate).toISOString().split('T')[0] : '',
-                            expiryDate: test.publicSettings.expiryDate ? new Date(test.publicSettings.expiryDate).toISOString().split('T')[0] : '',
-                            emailNotification: {
-                                ...prev.emailNotification,
-                                ...(test.publicSettings.emailNotification || {})
-                            }
-                        }));
+                        if (test.publicSettings) {
+                            setPublicSettings(prev => ({
+                                ...prev,
+                                ...test.publicSettings,
+                                selectedFolder: test.publishMode === 'public' ? {
+                                    institute: test.institute || 'Public Web',
+                                    course: test.course || 'Public Access',
+                                    subject: test.subject || 'General'
+                                } : null,
+                                startDate: test.publicSettings.startDate ? new Date(test.publicSettings.startDate).toISOString().split('T')[0] : '',
+                                endDate: test.publicSettings.endDate ? new Date(test.publicSettings.endDate).toISOString().split('T')[0] : '',
+                                expiryDate: test.publicSettings.expiryDate ? new Date(test.publicSettings.expiryDate).toISOString().split('T')[0] : '',
+                                emailNotification: {
+                                    ...prev.emailNotification,
+                                    ...(test.publicSettings.emailNotification || {})
+                                }
+                            }));
+                        }
                     }
 
                     // Map backend questions to front-end form elements
@@ -2303,6 +2243,18 @@ const TestBuilder = () => {
                             align: q.align || 'center',
                             pdfUrl: q.pdfUrl || '',
                             youtubeUrl: q.youtubeUrl || '',
+                            embeddedVideoUrl: q.embeddedVideoUrl || '',
+                            webpageUrl: q.webpageUrl || '',
+                            webpageHeight: q.webpageHeight || 400,
+                            webpageScroll: q.webpageScroll || 'yes',
+                            smPlatform: q.smPlatform || '',
+                            smPostUrl: q.smPostUrl || '',
+                            multiMaxFiles: q.multiMaxFiles || 5,
+                            multiMaxSizeMB: q.multiMaxSizeMB || 10,
+                            multiFileType: q.multiFileType || 'all',
+                            videoCallDuration: q.videoCallDuration || 5,
+                            videoCallRole: q.videoCallRole || 'interviewer',
+                            videoCallScenario: q.videoCallScenario || '',
                             videoUrl: q.videoUrl || '',
                             autoplay: !!q.autoplay,
                             loop: !!q.loop,
@@ -2784,9 +2736,15 @@ const TestBuilder = () => {
             const testData = {
                 testDetails: {
                     title: titleVal,
-                    institute: mode === 'connected' ? (connectData?.institute || 'Default Institute') : 'Public Web',
-                    course: mode === 'connected' ? (connectData?.course || 'Default Course') : 'Public Access',
-                    subject: mode === 'connected' ? (connectData?.subject || 'Default Subject') : 'General',
+                    institute: mode === 'connected' 
+                        ? (connectData?.institute || 'Default Institute') 
+                        : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.institute || 'Public Web') : 'Public Web'),
+                    course: mode === 'connected' 
+                        ? (connectData?.course || 'Default Course') 
+                        : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.course || '') : 'Public Access'),
+                    subject: mode === 'connected' 
+                        ? (connectData?.subject || 'Default Subject') 
+                        : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.subject || '') : 'General'),
                     date: connectData?.date || new Date().toISOString().split('T')[0],
                     index: mode === 'connected' ? (connectData?.index || 'Index 1') : 'Public Index',
                     activity: mode === 'connected' ? (connectData?.activity || 'Quiz') : 'Quiz',
@@ -2833,6 +2791,18 @@ const TestBuilder = () => {
                     align: el.align || 'center',
                     pdfUrl: el.pdfUrl || '',
                     youtubeUrl: el.youtubeUrl || '',
+                    embeddedVideoUrl: el.embeddedVideoUrl || '',
+                    webpageUrl: el.webpageUrl || '',
+                    webpageHeight: el.webpageHeight || 400,
+                    webpageScroll: el.webpageScroll || 'yes',
+                    smPlatform: el.smPlatform || '',
+                    smPostUrl: el.smPostUrl || '',
+                    multiMaxFiles: el.multiMaxFiles || 5,
+                    multiMaxSizeMB: el.multiMaxSizeMB || 10,
+                    multiFileType: el.multiFileType || 'all',
+                    videoCallDuration: el.videoCallDuration || 5,
+                    videoCallRole: el.videoCallRole || 'interviewer',
+                    videoCallScenario: el.videoCallScenario || '',
                     videoUrl: el.videoUrl || '',
                     htmlContent: el.htmlContent || '',
                     webpageUrl: el.webpageUrl || '',
@@ -3606,7 +3576,7 @@ const TestBuilder = () => {
                                                             <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
                                                                 {el.youtubeUrl || el.embeddedVideoUrl ? (
                                                                     <iframe
-                                                                        src={`https://www.youtube.com/embed/${getYouTubeId(el.youtubeUrl || el.embeddedVideoUrl)}`}
+                                                                        src={getEmbedUrl(el.embeddedVideoUrl || el.youtubeUrl)}
                                                                         title="YouTube Video"
                                                                         className="w-full h-full border-0"
                                                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

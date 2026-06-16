@@ -8,9 +8,10 @@ import {
     Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check,
     Globe, Copy, ExternalLink, Settings, BarChart2, ShieldCheck, Download, Mail, Lock,
     CheckCircle2, X, Eye, Loader2, EyeOff, Info, ChevronLeft, ChevronRight, Printer, ArrowLeft, Trash,
-    Video, MessageSquare, AlertTriangle
+    Video, MessageSquare, AlertTriangle, Folder, FolderOpen, ChevronDown, School, Book, Layers, LayoutGrid
 } from 'lucide-react';
 import TeacherVideoReview from '../../components/teacher/TeacherVideoReview';
+import TestFolderStructure from './TestFolderStructure';
 const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -20,6 +21,9 @@ const TestsList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSubject, setFilterSubject] = useState('All');
     const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
+
+    // Folder Explorer state
+    const [showFolderExplorer, setShowFolderExplorer] = useState(false);
 
     // Core tests data
     const [tests, setTests] = useState([]);
@@ -632,6 +636,56 @@ const TestsList = () => {
     });
 
     const uniqueSubjects = ['All', ...new Set(tests.map(t => t.subject).filter(s => s && s.trim() !== ''))];
+
+    // Aggregated tree: Institute -> Course -> Subject -> [Tests]
+    const folderTree = (() => {
+        const tree = {};
+        tests.forEach(test => {
+            const inst = (test.institute || 'Unassigned Institute').trim();
+            const crs = (test.course || 'Unassigned Course').trim();
+            const subj = (test.subject || 'Unassigned Subject').trim();
+
+            if (!tree[inst]) {
+                tree[inst] = {};
+            }
+            if (!tree[inst][crs]) {
+                tree[inst][crs] = {};
+            }
+            if (!tree[inst][crs][subj]) {
+                tree[inst][crs][subj] = [];
+            }
+            tree[inst][crs][subj].push(test);
+        });
+        return tree;
+    })();
+
+    const getFolderStats = (path) => {
+        let testCount = 0;
+        let courseSet = new Set();
+        let subjectSet = new Set();
+
+        tests.forEach(t => {
+            const inst = (t.institute || 'Unassigned Institute').trim();
+            const crs = (t.course || 'Unassigned Course').trim();
+            const subj = (t.subject || 'Unassigned Subject').trim();
+
+            if (path.length >= 1 && inst !== path[0]) return;
+            if (path.length >= 2 && crs !== path[1]) return;
+            if (path.length >= 3 && subj !== path[2]) return;
+
+            testCount++;
+            courseSet.add(crs);
+            subjectSet.add(subj);
+        });
+
+        return {
+            testCount,
+            courseCount: courseSet.size,
+            subjectCount: subjectSet.size
+        };
+    };
+
+    const [selectedExplorerFolderName, setSelectedExplorerFolderName] = useState(null);
 
     if (viewMode === 'responses') {
         const totalMarks = fullTestData?.questions?.reduce((sum, q) => sum + (q.marks || 1), 0) || 10;
@@ -1786,26 +1840,38 @@ const TestsList = () => {
                 </button>
             </div>
 
-            {/* Tab Selectors */}
-            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">
-                <button
-                    onClick={() => setActiveTab('lms')}
-                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
-                        ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
-                        : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                >
-                    LMS Connected Tests
-                </button>
-                <button
-                    onClick={() => setActiveTab('public')}
-                    className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
-                        ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
-                        : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                >
-                    Public Web Tests
-                </button>
+            {/* Tab Selectors & Folder Explorer Trigger */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+                    <button
+                        onClick={() => setActiveTab('lms')}
+                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
+                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                            : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                    >
+                        LMS Connected Tests
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('public')}
+                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
+                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                            : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                    >
+                        Public Web Tests
+                    </button>
+                </div>
+
+                {(activeTab === 'lms' || activeTab === 'public') && (
+                    <button
+                        onClick={() => setShowFolderExplorer(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-150 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm shadow-indigo-50"
+                    >
+                        <Folder size={14} className="text-indigo-500" />
+                        <span>Open Folder Explorer</span>
+                    </button>
+                )}
             </div>
 
             {/* Filters (Search Box & Subject Select) */}
@@ -2065,6 +2131,15 @@ const TestsList = () => {
                     </div>
                 )
             )}
+
+            {/* ── LMS CONNECTED TESTS FOLDER EXPLORER MODAL ── */}
+            <TestFolderStructure
+                isOpen={showFolderExplorer}
+                onClose={() => setShowFolderExplorer(false)}
+                tests={activeTab === 'lms' ? tests : publicTests}
+                onOpenResponses={(test, type) => handleOpenResponses(test, type || 'connected')}
+                onDelete={handleDelete}
+            />
 
             {/* ── 1. PUBLIC TEST SETTINGS EDIT MODAL ────────────────── */}
             {showSettingsModal && (

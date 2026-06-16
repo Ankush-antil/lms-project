@@ -5,8 +5,47 @@ const Activity = require('../../models/Activity');
 // @desc    Create new test
 // @route   POST /api/tests
 // @access  Private/Admin
+
+const validateWebpageQuestions = (questions = []) => {
+    for (const question of questions) {
+
+        if (question.type !== "webpage") continue;
+
+        if (!question.webpageUrl) {
+            throw new Error("Webpage URL is required");
+        }
+
+        let parsedUrl;
+
+        try {
+            parsedUrl = new URL(question.webpageUrl);
+        } catch {
+            throw new Error("Invalid webpage URL");
+        }
+
+        if (parsedUrl.protocol !== "https:") {
+            throw new Error("Only HTTPS URLs are allowed");
+        }
+
+        const blockedHosts = [
+            "localhost",
+            "127.0.0.1"
+        ];
+
+        if (
+            blockedHosts.includes(
+                parsedUrl.hostname.toLowerCase()
+            )
+        ) {
+            throw new Error("Invalid webpage URL");
+        }
+    }
+};
+
 const createTest = asyncHandler(async (req, res) => {
     const { testDetails, settings, questions } = req.body;
+
+    validateWebpageQuestions(questions);
 
     const test = await Test.create({
         ...testDetails,
@@ -52,6 +91,9 @@ const getTestById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const updateTest = asyncHandler(async (req, res) => {
     const { testDetails, settings, questions } = req.body;
+
+    validateWebpageQuestions(questions);
+
     const test = await Test.findById(req.params.id);
 
     if (test) {

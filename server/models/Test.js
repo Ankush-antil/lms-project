@@ -80,6 +80,20 @@ const testSchema = new mongoose.Schema({
         pdfUrl: String,
         youtubeUrl: String,
         videoUrl: String,
+        webpageUrl: String,
+        webpageHeight: {
+            type: Number,
+            default: ""
+        },
+        webpageScroll: {
+            type: String,
+            enum: ["yes", "no"],
+            default: "yes"
+        },
+        htmlContent: {
+            type: String,
+            default: ""
+        },
         autoplay: Boolean,
         loop: Boolean,
         quality: String,

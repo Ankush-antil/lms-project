@@ -1,13 +1,53 @@
-import { Phone } from 'lucide-react';
+import { Phone, PhoneOff } from "lucide-react";
 
 const CallRecBuilder = ({
-    element,
-    onUpdateField
+    teacherName = "Math Teacher",
+    teacherStatus = false,
+    onCall
 }) => {
     return (
-        <div className="flex flex-col items-center justify-center gap-2 py-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400">
-            <Phone size={22} className="text-purple-500" />
-            <span className="text-xs font-semibold">Web-based Audio calling configured.</span>
+        <div className="p-4 border rounded-xl bg-white">
+
+            <div className="flex items-center justify-between">
+
+                <div>
+                    <h3 className="font-semibold">
+                        {teacherName}
+                    </h3>
+
+                    <p
+                        className={`text-sm ${teacherStatus
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                    >
+                        {teacherStatus ? "Online" : "Offline"}
+                    </p>
+                </div>
+
+                <button
+                    disabled={!teacherStatus}
+                    onClick={onCall}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white ${teacherStatus
+                            ? "bg-green-600 hover:bg-green-700"
+                            : "bg-gray-400 cursor-not-allowed"
+                        }`}
+                >
+                    {teacherStatus ? (
+                        <>
+                            <Phone size={18} />
+                            Call
+                        </>
+                    ) : (
+                        <>
+                            <PhoneOff size={18} />
+                            Offline
+                        </>
+                    )}
+                </button>
+
+            </div>
+
         </div>
     );
 };

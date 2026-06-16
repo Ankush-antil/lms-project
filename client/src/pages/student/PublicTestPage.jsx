@@ -2713,99 +2713,90 @@ const PublicTestPage = () => {
                                                     {isAudio && (
                                                         <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
 
-                                                            <div
-                                                                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
-                                                                    recordingStatus[idx] === "recording"
-                                                                        ? "bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150"
-                                                                        : "bg-purple-100 text-[#6F42C1]"
-                                                                }`}
-                                                            >
-                                                                <Mic size={24} />
-                                                            </div>
-
-                                                            <p className="text-xs font-bold text-slate-700">
-                                                                {recordingStatus[idx] === "recording"
-                                                                    ? " Recording..."
-                                                                    : recordedURLs[idx]?.length > 0
-                                                                    ? ` ${recordedURLs[idx].length}/5 Recording Saved`
-                                                                    : "Voice Answer (Minimum 1 Required)"}
-                                                            </p>
-
                                                             {/* Recording Controls */}
-<div className="flex items-center justify-center gap-2 w-full">
-    {recordingStatus[idx] === "recording" ||
-    recordingStatus[idx] === "paused" ? (
-        <>
-            <button
-                onClick={() => stopRecording(idx)}
-                className="h-10 px-4 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-red-700 transition-all"
-            >
-                <Square size={14} fill="currentColor" />
-                Stop
-            </button>
+                                                                <div className="flex items-center justify-center gap-2 w-full">
+                                                                        <div
+                                                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                                                                            recordingStatus[idx] === "recording"
+                                                                                ? "bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150"
+                                                                                : "bg-purple-100 text-[#6F42C1]"
+                                                                        }`}
+                                                                    >
+                                                                        <Mic size={24} />
+                                                                    </div>
+                                                                    {recordingStatus[idx] === "recording" ||
+                                                                    recordingStatus[idx] === "paused" ? (
+                                                                        <>  
+                                                                            <button
+                                                                                onClick={() => stopRecording(idx)}
+                                                                                className="h-10 px-4 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-red-700 transition-all"
+                                                                            >
+                                                                                <Square size={14} fill="currentColor" />
+                                                                                Stop
+                                                                            </button>
 
-            <button
-                onClick={() => togglePauseRecording(idx)}
-                className="h-10 px-4 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-amber-600 transition-all"
-            >
-                {recordingStatus[idx] === "paused" ? (
-                    <>
-                        <Play size={14} />
-                        Resume
-                    </>
-                ) : (
-                    <>
-                        <Pause size={14} />
-                        Pause
-                    </>
-                )}
-            </button>
-        </>
-    ) : (
-        <>
-            {(!recordedURLs[idx] ||
-                recordedURLs[idx].length === 0) && (
-                <button
-                    disabled={!!submittedAnswers[idx]}
-                    onClick={() => startRecording(idx, "audio")}
-                    className={`h-10 px-4 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
-                        submittedAnswers[idx]
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                    }`}
-                >
-                    <Mic size={14} />
-                    Start Recording
-                </button>
-            )}
+                                                                            <button
+                                                                                onClick={() => togglePauseRecording(idx)}
+                                                                                className="h-10 px-4 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-amber-600 transition-all"
+                                                                            >
+                                                                                {recordingStatus[idx] === "paused" ? (
+                                                                                    <>
+                                                                                        <Play size={14} />
+                                                                                        Resume
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Pause size={14} />
+                                                                                        Pause
+                                                                                    </>
+                                                                                )}
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            {(!recordedURLs[idx] ||
+                                                                                recordedURLs[idx].length === 0) && (
+                                                                                <button
+                                                                                    disabled={!!submittedAnswers[idx]}
+                                                                                    onClick={() => startRecording(idx, "audio")}
+                                                                                    className={`h-10 px-4 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
+                                                                                        submittedAnswers[idx]
+                                                                                            ? "opacity-50 cursor-not-allowed"
+                                                                                            : ""
+                                                                                    }`}
+                                                                                >
+                                                                                    <Mic size={14} />
+                                                                                    Start Recording
+                                                                                </button>
+                                                                            )}
 
-            {recordedURLs[idx]?.length > 0 && (
-                <button
-                    type="button"
-                    disabled={
-                        submittedAnswers[idx] ||
-                        (recordedURLs[idx]?.length || 0) >= 5
-                    }
-                    onClick={() => startRecording(idx, "audio")}
-                    className={`h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
-                        (recordedURLs[idx]?.length || 0) >= 5
-                            ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                            : "bg-emerald-600 text-white hover:bg-emerald-700"
-                    }`}
-                >
-                    <Plus size={14} />
-                    Add More
-                </button>
-            )}
-        </>
-    )}
-</div>
+                                                                            {recordedURLs[idx]?.length > 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={
+                                                                                        submittedAnswers[idx] ||
+                                                                                        (recordedURLs[idx]?.length || 0) >= 5
+                                                                                    }
+                                                                                    onClick={() => startRecording(idx, "audio")}
+                                                                                    className={`h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
+                                                                                        (recordedURLs[idx]?.length || 0) >= 5
+                                                                                            ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                                                                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                    }`}
+                                                                                >
+                                                                                    <Plus size={14} />
+                                                                                    Add More
+                                                                                </button>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
 
-{(recordedURLs[idx]?.length || 0) >= 5 && (
-    <p className="text-xs text-red-500 font-semibold text-center">
-        Maximum 5 recordings allowed
-    </p>
-)}
+                                                                {(recordedURLs[idx]?.length || 0) >= 5 && (
+                                                                    <p className="text-xs text-red-500 font-semibold text-center">
+                                                                        Maximum 5 recordings allowed
+                                                                    </p>
+                                                                )}
                                                             
 
                                                             {/* Recording List */}
@@ -2853,13 +2844,14 @@ const PublicTestPage = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Validation Message */}
-                                                            {(!recordedURLs[idx] ||
-                                                                recordedURLs[idx].length === 0) && (
-                                                                <p className="text-[11px] text-amber-600 font-medium">
-                                                                    At least 1 recording is required.
-                                                                </p>
-                                                            )}
+                                                            <p className="text-xs font-bold text-slate-700">
+                                                                {recordingStatus[idx] === "recording"
+                                                                    ? " Recording..."
+                                                                    : recordedURLs[idx]?.length > 0
+                                                                    ? ` ${recordedURLs[idx].length}/5 Recording Saved`
+                                                                    : "Voice Answer (Minimum 1 Required)"}
+                                                            </p>
+
                                                         </div>
                                                     )}
 

@@ -10,7 +10,7 @@ import TeacherDetails from './pages/admin/TeacherDetails';
 
 import TestsList from './pages/admin/TestsList';
 import TestBuilder from './pages/admin/TestBuilder';
-import ToolsPage from './pages/admin/ToolsPage';
+// import ToolsPage from './pages/admin/ToolsPage';
 
 import InstitutesList from './pages/admin/InstitutesList';
 import CoursesList from './pages/admin/CoursesList';
@@ -103,11 +103,11 @@ function App() {
                                 <TestsList />
                             </PrivateRoute>
                         } />
-                        <Route path="/admin/tools" element={
+                        {/* <Route path="/admin/tools" element={
                             <PrivateRoute role="Admin">
                                 <ToolsPage />
                             </PrivateRoute>
-                        } />
+                        } /> */}
 
 
                         <Route path="/admin/tests/builder" element={

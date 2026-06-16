@@ -2736,14 +2736,14 @@ const TestBuilder = () => {
             const testData = {
                 testDetails: {
                     title: titleVal,
-                    institute: mode === 'connected' 
-                        ? (connectData?.institute || 'Default Institute') 
+                    institute: mode === 'connected'
+                        ? (connectData?.institute || 'Default Institute')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.institute || 'Public Web') : 'Public Web'),
-                    course: mode === 'connected' 
-                        ? (connectData?.course || 'Default Course') 
+                    course: mode === 'connected'
+                        ? (connectData?.course || 'Default Course')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.course || '') : 'Public Access'),
-                    subject: mode === 'connected' 
-                        ? (connectData?.subject || 'Default Subject') 
+                    subject: mode === 'connected'
+                        ? (connectData?.subject || 'Default Subject')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.subject || '') : 'General'),
                     date: connectData?.date || new Date().toISOString().split('T')[0],
                     index: mode === 'connected' ? (connectData?.index || 'Index 1') : 'Public Index',
@@ -3421,7 +3421,7 @@ const TestBuilder = () => {
                                                 No fields added to preview yet. Add some Elements in the editor!
                                             </div>
                                         ) : (
-                                                <div className="space-y-6">
+                                            <div className="space-y-6">
                                                 {formElements.map((el, index) => (
                                                     <div key={index} className="space-y-2 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                                                         <label className="block text-sm font-bold text-slate-700">

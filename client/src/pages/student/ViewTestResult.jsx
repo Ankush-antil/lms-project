@@ -16,6 +16,18 @@ const getYouTubeId = (url) => {
     return (match && match[2].length === 11) ? match[2] : url;
 };
 
+const getEmbedUrl = (url) => {
+    if (!url) return '';
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^&#?/]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    const loomMatch = url.match(/loom\.com\/share\/([a-f0-9]+)/);
+    if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+    if (url.includes('embed') || url.includes('player')) return url;
+    return url;
+};
+
 const ViewTestResult = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -227,6 +239,12 @@ const ViewTestResult = () => {
                             const isVideo = type?.includes('video') || type?.includes('cam');
                             const q = test?.questions?.[idx];
 
+                            const isImageDisplay = type === 'image displaying' || type === 'image';
+                            const isVideoDisplay = type === 'video displaying' || type === 'video';
+                            const isPdfDisplay = type === 'pdf displaying' || type === 'pdf';
+                            const isEmbeddedVideo = type === 'embedded video displaying' || type === 'youtube';
+                            const isAudioListening = type === 'audio listening displaying' || type === 'audio listening';
+
                             return (
                                 <div key={idx} className={`bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col md:flex-row transition-all border-slate-200`}>
                                     <div className={`w-full md:w-2 ${isEvaluated ? 'bg-emerald-500' : 'bg-[#00A36C]'}`}></div>
@@ -240,8 +258,8 @@ const ViewTestResult = () => {
                                         </div>
 
                                         {/* Question Media Elements */}
-                                        {q && q.imageUrl && (
-                                            <div className="mb-6 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                        {q && q.imageUrl && !isImageDisplay && (
+                                            <div className="mb-6 flex justify-center bg-slate-55 p-3 rounded-2xl border border-slate-100">
                                                 <img
                                                     src={q.imageUrl}
                                                     alt={q.altText || 'Question Image'}
@@ -250,7 +268,7 @@ const ViewTestResult = () => {
                                             </div>
                                         )}
 
-                                        {q && q.videoUrl && (
+                                        {q && q.videoUrl && !isVideoDisplay && (
                                             <div className="mb-6 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
                                                 <video
                                                     src={q.videoUrl}
@@ -262,7 +280,7 @@ const ViewTestResult = () => {
                                             </div>
                                         )}
 
-                                        {q && q.pdfUrl && (
+                                        {q && q.pdfUrl && !isPdfDisplay && (
                                             <div className="mb-6 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                                                 <div className="flex items-center gap-3">
                                                     <div className="p-3 bg-red-100 text-red-600 rounded-xl">
@@ -284,10 +302,10 @@ const ViewTestResult = () => {
                                             </div>
                                         )}
 
-                                        {q && q.youtubeUrl && (
+                                         {q && (q.youtubeUrl || q.embeddedVideoUrl) && !isEmbeddedVideo && (
                                             <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
                                                 <iframe
-                                                    src={`https://www.youtube.com/embed/${getYouTubeId(q.youtubeUrl)}`}
+                                                     src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
                                                     title="YouTube Video"
                                                     className="w-full h-full border-0"
                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -296,7 +314,7 @@ const ViewTestResult = () => {
                                             </div>
                                         )}
 
-                                        {q && q.audioUrl && (
+                                        {q && q.audioUrl && !isAudioListening && (
                                             <div className="mb-6 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3">
                                                 <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
                                                     <Volume2 size={22} />

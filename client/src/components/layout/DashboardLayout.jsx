@@ -16,7 +16,7 @@ const menuItems = {
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Tests', icon: FileText, path: '/admin/tests' },
-        { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+        { name: 'Test Builder', icon: PenTool, path: '/admin/tests/builder' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

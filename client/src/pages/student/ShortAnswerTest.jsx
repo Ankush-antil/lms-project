@@ -36,6 +36,18 @@ const getYouTubeId = (url) => {
     return (match && match[2].length === 11) ? match[2] : url;
 };
 
+const getEmbedUrl = (url) => {
+    if (!url) return '';
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^&#?/]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    const loomMatch = url.match(/loom\.com\/share\/([a-f0-9]+)/);
+    if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+    if (url.includes('embed') || url.includes('player')) return url;
+    return url;
+};
+
 const ShortAnswerTest = () => {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -1105,7 +1117,7 @@ const ShortAnswerTest = () => {
                                 {!isCollapsed && (
                                     <div className="space-y-6">
                                         {/* Question Media Elements */}
-                                        {q.imageUrl && (
+                                        {q.imageUrl && !isImageDisplay && (
                                             <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                                                 <img
                                                     src={q.imageUrl}
@@ -1115,7 +1127,7 @@ const ShortAnswerTest = () => {
                                             </div>
                                         )}
 
-                                        {q.videoUrl && (
+                                        {q.videoUrl && !isVideoDisplay && (
                                             <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
                                                 <video
                                                     src={q.videoUrl}
@@ -1127,7 +1139,7 @@ const ShortAnswerTest = () => {
                                             </div>
                                         )}
 
-                                        {q.pdfUrl && (
+                                        {q.pdfUrl && !isPdfDisplay && (
                                             <div className="mt-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                                                 <div className="flex items-center gap-3">
                                                     <div className="p-3 bg-red-100 text-red-600 rounded-xl">
@@ -1149,10 +1161,10 @@ const ShortAnswerTest = () => {
                                             </div>
                                         )}
 
-                                        {q.youtubeUrl && (
+                                        {(q.youtubeUrl || q.embeddedVideoUrl) && !isEmbeddedVideo && (
                                             <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
                                                 <iframe
-                                                    src={`https://www.youtube.com/embed/${getYouTubeId(q.youtubeUrl)}`}
+                                                    src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
                                                     title="YouTube Video"
                                                     className="w-full h-full border-0"
                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1161,7 +1173,7 @@ const ShortAnswerTest = () => {
                                             </div>
                                         )}
 
-                                        {q.audioUrl && (
+                                        {q.audioUrl && !isAudioListening && (
                                             <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3">
                                                 <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
                                                     <Volume2 size={22} />
@@ -1486,18 +1498,18 @@ const ShortAnswerTest = () => {
                                              {/* Embedded Video Displaying */}
                                              {isEmbeddedVideo && (
                                                  <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
-                                                     {q.youtubeUrl ? (
+                                                     {(q.youtubeUrl || q.embeddedVideoUrl) ? (
                                                          <iframe
-                                                             src={`https://www.youtube.com/embed/${getYouTubeId(q.youtubeUrl)}`}
-                                                             title="YouTube Video"
+                                                             src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
+                                                             title="Embedded Video"
                                                              className="w-full h-full border-0"
                                                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                              allowFullScreen
-                                                         ></iframe>
+                                                         />
                                                      ) : (
                                                          <div className="text-center text-slate-400 p-4">
                                                              <Play size={32} className="mx-auto mb-2 text-red-500" />
-                                                             <p className="text-xs font-semibold">No YouTube URL provided</p>
+                                                             <p className="text-xs font-semibold">No video URL provided</p>
                                                          </div>
                                                      )}
                                                  </div>
@@ -1846,7 +1858,7 @@ const ShortAnswerTest = () => {
                                              )}
 
                                              {/* Text/Short Answer input */}
-                                             {isShortAnswer ? (
+                                             {(isShortAnswer || isEmbeddedVideo) ? (
                                                  <div className="space-y-4">
                                                      {/* Supporting resources */}
                                                      {qParticulars.supportingResources && qParticulars.supportingResources.length > 0 && (

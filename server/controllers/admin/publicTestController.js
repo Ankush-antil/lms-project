@@ -24,6 +24,8 @@ const getPublicTestsDashboard = asyncHandler(async (req, res) => {
         return {
             _id: test._id,
             title: test.title,
+            institute: test.institute,
+            course: test.course,
             subject: test.subject,
             publicViews: test.publicViews || 0,
             totalResponses: attempts,

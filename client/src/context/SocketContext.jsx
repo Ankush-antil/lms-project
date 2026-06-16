@@ -178,7 +178,8 @@ export const SocketProvider = ({ children }) => {
                 targetName: callerName,
                 targetRole: activeUser.role === 'Teacher' ? 'Student' : 'Teacher',
                 callLogId,
-                isCaller: false
+                isCaller: false,
+                offer
             });
             startRingtone(false);
         });

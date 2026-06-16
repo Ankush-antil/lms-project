@@ -8,7 +8,9 @@ const {
     savePublicTestDraft,
     checkPublicTestEmail
 } = require('../../controllers/student/publicTestController');
+const { getAllTeachers } = require('../../controllers/teacher/callController');
 
+router.get('/teachers/all', getAllTeachers);
 router.get('/:id', getPublicTestById);
 router.post('/:id/verify-password', verifyPublicTestPassword);
 router.post('/:id/view', incrementPublicTestViews);

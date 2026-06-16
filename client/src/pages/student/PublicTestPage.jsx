@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getAudioUrl } from '../../api/audioApi';
-import {Plyr} from "plyr-react";
+import { Plyr } from "plyr-react";
 import toast from 'react-hot-toast';
 import {
     GraduationCap, Mail, Lock, Eye, EyeOff, ShieldCheck,
@@ -11,9 +11,11 @@ import {
     RotateCcw, Sparkles, CheckSquare, List, AlertCircle, Play, Mic, Video, Square,
     MoreVertical, ChevronUp, ChevronDown, Volume2, Pause, Sliders, Globe, Settings,
     Send, Paperclip, MessageSquare, Trash2, X, ClipboardList,
-    Bot, Star, Upload, Headphones, Files, Camera, Monitor, Share2,Plus
+    Bot, Star, Upload, Headphones, Files, Camera, Monitor, Share2, Plus
 } from 'lucide-react';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
+import { useSocket } from '../../context/SocketContext';
+
 const validateLanguage = (text, lang) => {
     if (!text || !lang) return true;
     const plainText = text.replace(/<[^>]*>/g, '').trim();
@@ -54,6 +56,13 @@ const PublicTestPage = () => {
     const { id: testId } = useParams();
     const navigate = useNavigate();
     const videoRef = useRef(null);
+
+    const { callUser, callState, onlineUsers, registerGuest } = useSocket();
+    const [teachersList, setTeachersList] = useState([]);
+    const [selectedTeachers, setSelectedTeachers] = useState({});
+    const [teachers, setTeachers] = useState([]);
+    const [showTeachers, setShowTeachers] = useState(false);
+
 
     // Loading & state
     const [loading, setLoading] = useState(true);
@@ -179,6 +188,20 @@ const PublicTestPage = () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, [testId]);
+
+    useEffect(() => {
+        if (viewState === 'test') {
+            const fetchTeachers = async () => {
+                try {
+                    const res = await axios.get('/api/public-tests/teachers/all');
+                    setTeachersList(res.data);
+                } catch (err) {
+                    console.error("Failed to load teachers for call list:", err);
+                }
+            };
+            fetchTeachers();
+        }
+    }, [viewState]);
 
     // Cleanup audio timers on unmount
     useEffect(() => {
@@ -351,26 +374,26 @@ const PublicTestPage = () => {
     };
 
     const togglePauseRecording = (idx) => {
-    const recorder = mediaRecorderRef.current[idx];
+        const recorder = mediaRecorderRef.current[idx];
 
-    if (!recorder) return;
+        if (!recorder) return;
 
-    if (recorder.state === "recording") {
-        recorder.pause();
+        if (recorder.state === "recording") {
+            recorder.pause();
 
-        setRecordingStatus(prev => ({
-            ...prev,
-            [idx]: "paused"
-        }));
-    } else if (recorder.state === "paused") {
-        recorder.resume();
+            setRecordingStatus(prev => ({
+                ...prev,
+                [idx]: "paused"
+            }));
+        } else if (recorder.state === "paused") {
+            recorder.resume();
 
-        setRecordingStatus(prev => ({
-            ...prev,
-            [idx]: "recording"
-        }));
-    }
-};
+            setRecordingStatus(prev => ({
+                ...prev,
+                [idx]: "recording"
+            }));
+        }
+    };
 
     const handleMockRecaptcha = () => {
         if (recaptchaDone) return;
@@ -452,6 +475,7 @@ const PublicTestPage = () => {
 
                     toast.success("Loaded draft from server!");
                 }
+                registerGuest(guestName || res.data.draftName, guestEmail);
                 setViewState('test');
             }
         } catch (err) {
@@ -646,7 +670,7 @@ const PublicTestPage = () => {
                 const blob = new Blob(chunksRef.current[idx], { type: mimeType });
                 blobsRef.current[idx] = { blob, type };
                 const url = URL.createObjectURL(blob);
-                setRecordedURLs(prev => ({ ...prev, [idx]: [...(prev[idx] || []),{ url, type }] }));
+                setRecordedURLs(prev => ({ ...prev, [idx]: [...(prev[idx] || []), { url, type }] }));
 
                 stream.getTracks().forEach(t => t.stop());
                 if (type === 'video' && videoPreviewRef.current[idx]) {
@@ -1572,55 +1596,55 @@ const PublicTestPage = () => {
 
                                             {q.videoUrl && (
                                                 <div className="space-y-4">
-                                            <Plyr
-                                                source={{
-                                                    type: "video",
-                                                    sources: [
-                                                        {
-                                                            src: `http://localhost:5000${q.videoUrl}`,
-                                                            type: "video/mp4",
-                                                        },
-                                                    ],
-                                                }}
-                                                options={{
-                                                    controls: [
-                                                        "play-large",
-                                                        "restart",
-                                                        "rewind",
-                                                        "play",
-                                                        "fast-forward",
-                                                        "progress",
-                                                        "current-time",
-                                                        "duration",
-                                                        "mute",
-                                                        "volume",
-                                                        "settings",
-                                                        "pip",
-                                                        "airplay",
-                                                        "fullscreen",
-                                                    ],
+                                                    <Plyr
+                                                        source={{
+                                                            type: "video",
+                                                            sources: [
+                                                                {
+                                                                    src: `http://localhost:5000${q.videoUrl}`,
+                                                                    type: "video/mp4",
+                                                                },
+                                                            ],
+                                                        }}
+                                                        options={{
+                                                            controls: [
+                                                                "play-large",
+                                                                "restart",
+                                                                "rewind",
+                                                                "play",
+                                                                "fast-forward",
+                                                                "progress",
+                                                                "current-time",
+                                                                "duration",
+                                                                "mute",
+                                                                "volume",
+                                                                "settings",
+                                                                "pip",
+                                                                "airplay",
+                                                                "fullscreen",
+                                                            ],
 
-                                                    settings: ["speed"],
+                                                            settings: ["speed"],
 
-                                                    speed: {
-                                                        selected: 1,
-                                                        options: [0.5, 0.75, 1, 1.25, 1.5, 2],
-                                                    },
+                                                            speed: {
+                                                                selected: 1,
+                                                                options: [0.5, 0.75, 1, 1.25, 1.5, 2],
+                                                            },
 
-                                                    disableContextMenu: true,
-                                                }}
-                                            />
+                                                            disableContextMenu: true,
+                                                        }}
+                                                    />
 
                                                     {q.particulars?.enableAnswerBox !== false && (
                                                         <textarea
-                                                value={answers[idx] || ""}
-                                                onChange={(e) =>
-                                                    handleTextChange(idx, e.target.value)
-                                                }
-                                                placeholder="Type your answer here..."
-                                                rows={1}
-                                                className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden"
-                                            />
+                                                            value={answers[idx] || ""}
+                                                            onChange={(e) =>
+                                                                handleTextChange(idx, e.target.value)
+                                                            }
+                                                            placeholder="Type your answer here..."
+                                                            rows={1}
+                                                            className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden"
+                                                        />
                                                     )}
                                                 </div>
                                             )}
@@ -1897,130 +1921,130 @@ const PublicTestPage = () => {
                                                     </div>
                                                 )}
 
-                                                 {/* Image Displaying */}
-                                                 {isImageDisplay && (
-                                                     <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                                         <img
-                                                             src={q.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
-                                                             alt={q.altText || 'Display Image'}
-                                                             className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
-                                                         />
-                                                     </div>
-                                                 )}
+                                                {/* Image Displaying */}
+                                                {isImageDisplay && (
+                                                    <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                        <img
+                                                            src={q.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
+                                                            alt={q.altText || 'Display Image'}
+                                                            className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                                 {/* PDF Displaying */}
-                                                 {isPdfDisplay && (
-                                                     <div className="mt-2 flex items-center justify-between p-4 bg-slate-55 border border-slate-200 rounded-2xl">
-                                                         <div className="flex items-center gap-3">
-                                                             <div className="p-3 bg-red-100 text-red-600 rounded-xl">
-                                                                 <FileText size={22} />
-                                                             </div>
-                                                             <div className="flex flex-col text-left">
-                                                                 <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
-                                                                 <span className="text-xs text-slate-400">PDF Document File</span>
-                                                             </div>
-                                                         </div>
-                                                         <a
-                                                             href={q.pdfUrl || '#'}
-                                                             target="_blank"
-                                                             rel="noreferrer"
-                                                             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
-                                                         >
-                                                             View Document
-                                                         </a>
-                                                     </div>
-                                                 )}
+                                                {/* PDF Displaying */}
+                                                {isPdfDisplay && (
+                                                    <div className="mt-2 flex items-center justify-between p-4 bg-slate-55 border border-slate-200 rounded-2xl">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+                                                                <FileText size={22} />
+                                                            </div>
+                                                            <div className="flex flex-col text-left">
+                                                                <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
+                                                                <span className="text-xs text-slate-400">PDF Document File</span>
+                                                            </div>
+                                                        </div>
+                                                        <a
+                                                            href={q.pdfUrl || '#'}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
+                                                        >
+                                                            View Document
+                                                        </a>
+                                                    </div>
+                                                )}
 
-                                                 {/* Webpage Displaying */}
-{isWebpageDisplay && (
-    <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
-        {(q.webpageUrl || q.htmlContent) ? (
-            <div className="flex flex-col">
+                                                {/* Webpage Displaying */}
+                                                {isWebpageDisplay && (
+                                                    <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
+                                                        {(q.webpageUrl || q.htmlContent) ? (
+                                                            <div className="flex flex-col">
 
-                {/* Header */}
-                <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border-b border-slate-200">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <Globe
-                            size={10}
-                            className="text-purple-500 shrink-0"
-                        />
+                                                                {/* Header */}
+                                                                <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border-b border-slate-200">
+                                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                                        <Globe
+                                                                            size={10}
+                                                                            className="text-purple-500 shrink-0"
+                                                                        />
 
-                        <span className="text-[10px] font-bold text-slate-500 truncate">
-                            {q.webpageUrl || "Custom HTML Content"}
-                        </span>
-                    </div>
+                                                                        <span className="text-[10px] font-bold text-slate-500 truncate">
+                                                                            {q.webpageUrl || "Custom HTML Content"}
+                                                                        </span>
+                                                                    </div>
 
-                    {q.webpageUrl && (
-                        <a
-                            href={q.webpageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-bold text-purple-600 hover:text-purple-700 shrink-0"
-                        >
-                            Open
-                        </a>
-                    )}
-                </div>
+                                                                    {q.webpageUrl && (
+                                                                        <a
+                                                                            href={q.webpageUrl}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-[10px] font-bold text-purple-600 hover:text-purple-700 shrink-0"
+                                                                        >
+                                                                            Open
+                                                                        </a>
+                                                                    )}
+                                                                </div>
 
-                {/* Content */}
-                {q.htmlContent ? (
-                    <iframe
-                        title="HTML Content"
-                        srcDoc={q.htmlContent}
-                        className="w-full border-0 bg-white"
-                        style={{
-                            height: `${q.webpageHeight || 600}px`
-                        }}
-                        sandbox="allow-scripts"
-                    />
-                ) : (
-                    <iframe
-                        src={q.webpageUrl}
-                        title="Webpage Display"
-                        className="w-full border-0 bg-white"
-                        style={{
-                            height: `${q.webpageHeight || 600}px`
-                        }}
-                        scrolling={q.webpageScroll || "yes"}
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                    />
-                )}
-            </div>
-        ) : (
-            <div className="text-center text-slate-400 p-4 bg-slate-50">
-                <Globe
-                    size={32}
-                    className="mx-auto mb-2 text-purple-400"
-                />
+                                                                {/* Content */}
+                                                                {q.htmlContent ? (
+                                                                    <iframe
+                                                                        title="HTML Content"
+                                                                        srcDoc={q.htmlContent}
+                                                                        className="w-full border-0 bg-white"
+                                                                        style={{
+                                                                            height: `${q.webpageHeight || 600}px`
+                                                                        }}
+                                                                        sandbox="allow-scripts"
+                                                                    />
+                                                                ) : (
+                                                                    <iframe
+                                                                        src={q.webpageUrl}
+                                                                        title="Webpage Display"
+                                                                        className="w-full border-0 bg-white"
+                                                                        style={{
+                                                                            height: `${q.webpageHeight || 600}px`
+                                                                        }}
+                                                                        scrolling={q.webpageScroll || "yes"}
+                                                                        sandbox="allow-scripts allow-same-origin allow-forms"
+                                                                        loading="lazy"
+                                                                        referrerPolicy="no-referrer"
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-center text-slate-400 p-4 bg-slate-50">
+                                                                <Globe
+                                                                    size={32}
+                                                                    className="mx-auto mb-2 text-purple-400"
+                                                                />
 
-                <p className="text-xs font-semibold">
-                    No webpage URL or HTML content provided
-                </p>
-            </div>
-        )}
-    </div>
-)}
-                                                 {/* Embedded Video Displaying */}
-                                                 {isEmbeddedVideo && (
-                                                     <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
-                                                         {(q.youtubeUrl || q.embeddedVideoUrl) ? (
-                                                             <iframe
-                                                                 src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
-                                                                 title="YouTube Video"
-                                                                 className="w-full h-full border-0"
-                                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                 allowFullScreen
-                                                             ></iframe>
-                                                         ) : (
-                                                             <div className="text-center text-slate-400 p-4">
-                                                                 <Play size={32} className="mx-auto mb-2 text-red-500" />
-                                                                 <p className="text-xs font-semibold">No video URL provided</p>
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 )}
+                                                                <p className="text-xs font-semibold">
+                                                                    No webpage URL or HTML content provided
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {/* Embedded Video Displaying */}
+                                                {isEmbeddedVideo && (
+                                                    <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                        {(q.youtubeUrl || q.embeddedVideoUrl) ? (
+                                                            <iframe
+                                                                src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
+                                                                title="YouTube Video"
+                                                                className="w-full h-full border-0"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            ></iframe>
+                                                        ) : (
+                                                            <div className="text-center text-slate-400 p-4">
+                                                                <Play size={32} className="mx-auto mb-2 text-red-500" />
+                                                                <p className="text-xs font-semibold">No video URL provided</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 {/* Embedded SM Content Displaying */}
                                                 {isEmbeddedSM && (
@@ -2035,119 +2059,119 @@ const PublicTestPage = () => {
                                                     </div>
                                                 )}
 
-                                                 {/* Audio listening Displaying */}
-                                                    {isAudioListening && (
-                                                        <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                                                                    <Headphones size={22} />
-                                                                </div>
-
-                                                                <div className="flex-1">
-                                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
-                                                                        Comprehension Track
-                                                                    </span>
-
-                                                                    <audio
-                                                                        src={getAudioUrl(q.audioUrl)}
-                                                                        controls
-                                                                        controlsList="nodownload"
-                                                                        className="w-full mt-1.5 h-9"
-                                                                    />
-                                                                </div>
+                                                {/* Audio listening Displaying */}
+                                                {isAudioListening && (
+                                                    <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                                <Headphones size={22} />
                                                             </div>
 
-                                                            {/* Answer Box */}
-                                                            {q.particulars?.enableAnswerBox !== false && (
-                                                                <textarea
-                                                                    value={answers[idx] || ""}
-                                                                    onChange={(e) =>
-                                                                        handleTextChange(idx, e.target.value)
-                                                                    }
-                                                                    placeholder="Type your answer here..."
-                                                                    rows={1}
-                                                                    className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden bg-white"
-                                                                />
-                                                            )}
+                                                            <div className="flex-1">
+                                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                                                                    Comprehension Track
+                                                                </span>
 
-                                                            {/* MCQ Options */}
-                                                            {q.options && q.options.length > 0 && (
-                                                                <div className="space-y-2">
-                                                                    {q.options.map((opt, optIdx) => (
-                                                                        <label
-                                                                            key={optIdx}
-                                                                            className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50"
-                                                                        >
-                                                                            <input
-                                                                                type="radio"
-                                                                                name={`audio-${idx}`}
-                                                                                checked={answers[idx] === opt.text}
-                                                                                onChange={() =>
-                                                                                    handleTextChange(idx, opt.text)
-                                                                                }
-                                                                                className="text-purple-600"
-                                                                            />
-                                                                            <span className="text-sm text-slate-700">
-                                                                                {opt.text}
-                                                                            </span>
-                                                                        </label>
-                                                                    ))}
-                                                                </div>
-                                                            )}
+                                                                <audio
+                                                                    src={getAudioUrl(q.audioUrl)}
+                                                                    controls
+                                                                    controlsList="nodownload"
+                                                                    className="w-full mt-1.5 h-9"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                 {/* Multi file Displaying */}
-                                                 {isMultiFile && (
-                                                     <div className="space-y-3">
-                                                         <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
-                                                             <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
-                                                                 <Files size={20} />
-                                                             </div>
-                                                             <div>
-                                                                 <button
-                                                                     type="button"
-                                                                     disabled={!isEditable}
-                                                                     onClick={() => {
-                                                                         const input = document.createElement('input');
-                                                                         input.type = 'file';
-                                                                         input.multiple = true;
-                                                                         input.onchange = (e) => {
-                                                                             if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
-                                                                         };
-                                                                         input.click();
-                                                                     }}
-                                                                     className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 mx-auto"
-                                                                 >
-                                                                     Choose Multiple Files
-                                                                 </button>
-                                                                 <span className="text-xs text-slate-400 mt-2 block">
-                                                                     {attachedFiles[idx] ? `${attachedFiles[idx].length} files selected` : `Maximum of ${q.multiMaxFiles || 5} files`}
-                                                                 </span>
-                                                             </div>
-                                                         </div>
-                                                         {attachedFiles[idx] && (
-                                                             <div className="flex flex-col gap-2 text-left">
-                                                                 {attachedFiles[idx].map((file, fIdx) => (
-                                                                     <div key={fIdx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 text-xs">
-                                                                         <span className="text-slate-700 font-semibold">{file.name}</span>
-                                                                         <button
-                                                                             type="button"
-                                                                             onClick={() => {
-                                                                                 setAttachedFiles(prev => ({
-                                                                                     ...prev,
-                                                                                     [idx]: prev[idx].filter((_, i) => i !== fIdx)
-                                                                                 }));
-                                                                             }}
-                                                                             className="text-red-500 hover:text-red-700"
-                                                                         >
-                                                                             <X size={14} />
-                                                                         </button>
-                                                                     </div>
-                                                                 ))}
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 )}
+
+                                                        {/* Answer Box */}
+                                                        {q.particulars?.enableAnswerBox !== false && (
+                                                            <textarea
+                                                                value={answers[idx] || ""}
+                                                                onChange={(e) =>
+                                                                    handleTextChange(idx, e.target.value)
+                                                                }
+                                                                placeholder="Type your answer here..."
+                                                                rows={1}
+                                                                className="w-full h-10 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500 resize-none overflow-hidden bg-white"
+                                                            />
+                                                        )}
+
+                                                        {/* MCQ Options */}
+                                                        {q.options && q.options.length > 0 && (
+                                                            <div className="space-y-2">
+                                                                {q.options.map((opt, optIdx) => (
+                                                                    <label
+                                                                        key={optIdx}
+                                                                        className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50"
+                                                                    >
+                                                                        <input
+                                                                            type="radio"
+                                                                            name={`audio-${idx}`}
+                                                                            checked={answers[idx] === opt.text}
+                                                                            onChange={() =>
+                                                                                handleTextChange(idx, opt.text)
+                                                                            }
+                                                                            className="text-purple-600"
+                                                                        />
+                                                                        <span className="text-sm text-slate-700">
+                                                                            {opt.text}
+                                                                        </span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {/* Multi file Displaying */}
+                                                {isMultiFile && (
+                                                    <div className="space-y-3">
+                                                        <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
+                                                            <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
+                                                                <Files size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={!isEditable}
+                                                                    onClick={() => {
+                                                                        const input = document.createElement('input');
+                                                                        input.type = 'file';
+                                                                        input.multiple = true;
+                                                                        input.onchange = (e) => {
+                                                                            if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
+                                                                        };
+                                                                        input.click();
+                                                                    }}
+                                                                    className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 mx-auto"
+                                                                >
+                                                                    Choose Multiple Files
+                                                                </button>
+                                                                <span className="text-xs text-slate-400 mt-2 block">
+                                                                    {attachedFiles[idx] ? `${attachedFiles[idx].length} files selected` : `Maximum of ${q.multiMaxFiles || 5} files`}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {attachedFiles[idx] && (
+                                                            <div className="flex flex-col gap-2 text-left">
+                                                                {attachedFiles[idx].map((file, fIdx) => (
+                                                                    <div key={fIdx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 text-xs">
+                                                                        <span className="text-slate-700 font-semibold">{file.name}</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setAttachedFiles(prev => ({
+                                                                                    ...prev,
+                                                                                    [idx]: prev[idx].filter((_, i) => i !== fIdx)
+                                                                                }));
+                                                                            }}
+                                                                            className="text-red-500 hover:text-red-700"
+                                                                        >
+                                                                            <X size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 {/* Screenshot taking */}
                                                 {isScreenshot && (
@@ -2204,15 +2228,86 @@ const PublicTestPage = () => {
                                                 )}
 
                                                 {/* Web based Audio calling */}
-                                                {isAudioCall && (
-                                                    <CallRecBuilder
-                                                        teacherName="Math Teacher"
-                                                        teacherStatus={true}
-                                                        onCall={() => {
-                                                            toast.success("Calling Teacher...");
-                                                        }}
-                                                    />
-                                                )}
+                                                {isAudioCall && (() => {
+                                                    const allowedIds = q.particulars?.allowedTeachers || [];
+                                                    const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                    const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                    const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+
+                                                    const handleCallTeacher = () => {
+                                                        const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                        const target = elementTeachers.find(t => t._id === targetId);
+                                                        if (!target) {
+                                                            toast.error("Please select a teacher to call");
+                                                            return;
+                                                        }
+                                                        callUser(target._id, target.name, 'Teacher');
+                                                        handleTextChange(idx, `Voice Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                    };
+
+                                                    return (
+                                                        <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                                                                    <Phone size={22} />
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-sm font-bold text-slate-700 block">Dialer Voice Connection</span>
+                                                                    <span className="text-xs text-slate-400">Establish a live audio call with your instructor</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {q.scriptScenario && (
+                                                                <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs font-medium text-slate-650 leading-relaxed max-h-24 overflow-y-auto">
+                                                                    <strong className="text-slate-700 uppercase tracking-wider block mb-1 text-[10px]">Roleplay Scenario:</strong>
+                                                                    {q.scriptScenario}
+                                                                </div>
+                                                            )}
+
+                                                            {!singleTeacher && elementTeachers.length > 0 && (
+                                                                <div className="space-y-1.5">
+                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                    <select
+                                                                        value={selectedTeachers[idx] || ''}
+                                                                        onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                        disabled={!isEditable}
+                                                                        className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-[#6F42C1] bg-white text-slate-700"
+                                                                    >
+                                                                        <option value="">-- Select Teacher --</option>
+                                                                        {elementTeachers.map(t => {
+                                                                            const isOnline = onlineUsers.includes(t._id);
+                                                                            return (
+                                                                                <option key={t._id} value={t._id}>
+                                                                                    {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                                </option>
+                                                                            );
+                                                                        })}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                                onClick={handleCallTeacher}
+                                                                className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                            >
+                                                                <Phone size={14} /> 
+                                                                {singleTeacher 
+                                                                    ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})` 
+                                                                    : 'Establish Voice Connection'
+                                                                }
+                                                            </button>
+
+                                                            {answers[idx] && (
+                                                                <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                    {answers[idx]}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Web based video calling */}
                                                 {isVideoCall && (
@@ -2757,114 +2852,111 @@ const PublicTestPage = () => {
                                                     )
                                                 )}
 
-                                                 {/* Recording zone */}
-                                                    {isAudio && (
-                                                        <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
+                                                {/* Recording zone */}
+                                                {isAudio && (
+                                                    <div className="border-2 border-dashed border-purple-100 rounded-2xl bg-purple-50/20 p-6 flex flex-col items-center gap-3">
 
-                                                            {/* Recording Controls */}
-                                                                <div className="flex items-center justify-center gap-2 w-full">
-                                                                        <div
-                                                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
-                                                                            recordingStatus[idx] === "recording"
-                                                                                ? "bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150"
-                                                                                : "bg-purple-100 text-[#6F42C1]"
-                                                                        }`}
+                                                        {/* Recording Controls */}
+                                                        <div className="flex items-center justify-center gap-2 w-full">
+                                                            <div
+                                                                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${recordingStatus[idx] === "recording"
+                                                                    ? "bg-red-100 text-red-600 animate-pulse ring-4 ring-red-150"
+                                                                    : "bg-purple-100 text-[#6F42C1]"
+                                                                    }`}
+                                                            >
+                                                                <Mic size={24} />
+                                                            </div>
+                                                            {recordingStatus[idx] === "recording" ||
+                                                                recordingStatus[idx] === "paused" ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => stopRecording(idx)}
+                                                                        className="h-10 px-4 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-red-700 transition-all"
                                                                     >
-                                                                        <Mic size={24} />
-                                                                    </div>
-                                                                    {recordingStatus[idx] === "recording" ||
-                                                                    recordingStatus[idx] === "paused" ? (
-                                                                        <>  
-                                                                            <button
-                                                                                onClick={() => stopRecording(idx)}
-                                                                                className="h-10 px-4 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-red-700 transition-all"
-                                                                            >
-                                                                                <Square size={14} fill="currentColor" />
-                                                                                Stop
-                                                                            </button>
+                                                                        <Square size={14} fill="currentColor" />
+                                                                        Stop
+                                                                    </button>
 
+                                                                    <button
+                                                                        onClick={() => togglePauseRecording(idx)}
+                                                                        className="h-10 px-4 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-amber-600 transition-all"
+                                                                    >
+                                                                        {recordingStatus[idx] === "paused" ? (
+                                                                            <>
+                                                                                <Play size={14} />
+                                                                                Resume
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <Pause size={14} />
+                                                                                Pause
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    {(!recordedURLs[idx] ||
+                                                                        recordedURLs[idx].length === 0) && (
                                                                             <button
-                                                                                onClick={() => togglePauseRecording(idx)}
-                                                                                className="h-10 px-4 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-amber-600 transition-all"
-                                                                            >
-                                                                                {recordingStatus[idx] === "paused" ? (
-                                                                                    <>
-                                                                                        <Play size={14} />
-                                                                                        Resume
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        <Pause size={14} />
-                                                                                        Pause
-                                                                                    </>
-                                                                                )}
-                                                                            </button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            {(!recordedURLs[idx] ||
-                                                                                recordedURLs[idx].length === 0) && (
-                                                                                <button
-                                                                                    disabled={!!submittedAnswers[idx]}
-                                                                                    onClick={() => startRecording(idx, "audio")}
-                                                                                    className={`h-10 px-4 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${
-                                                                                        submittedAnswers[idx]
-                                                                                            ? "opacity-50 cursor-not-allowed"
-                                                                                            : ""
+                                                                                disabled={!!submittedAnswers[idx]}
+                                                                                onClick={() => startRecording(idx, "audio")}
+                                                                                className={`h-10 px-4 bg-[#6F42C1] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-[#5a32a3] ${submittedAnswers[idx]
+                                                                                    ? "opacity-50 cursor-not-allowed"
+                                                                                    : ""
                                                                                     }`}
-                                                                                >
-                                                                                    <Mic size={14} />
-                                                                                    Start Recording
-                                                                                </button>
-                                                                            )}
+                                                                            >
+                                                                                <Mic size={14} />
+                                                                                Start Recording
+                                                                            </button>
+                                                                        )}
 
-                                                                            {recordedURLs[idx]?.length > 0 && (
+                                                                    {recordedURLs[idx]?.length > 0 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                submittedAnswers[idx] ||
+                                                                                (recordedURLs[idx]?.length || 0) >= 5
+                                                                            }
+                                                                            onClick={() => startRecording(idx, "audio")}
+                                                                            className={`h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${(recordedURLs[idx]?.length || 0) >= 5
+                                                                                ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                                                                : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                }`}
+                                                                        >
+                                                                            <Plus size={14} />
+                                                                            Add More
+                                                                        </button>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+
+                                                        {(recordedURLs[idx]?.length || 0) >= 5 && (
+                                                            <p className="text-xs text-red-500 font-semibold text-center">
+                                                                Maximum 5 recordings allowed
+                                                            </p>
+                                                        )}
+
+
+                                                        {/* Recording List */}
+                                                        {recordedURLs[idx]?.length > 0 && (
+                                                            <div className="w-full mt-2 space-y-2">
+                                                                {recordedURLs[idx].map((audio, audioIdx) => (
+                                                                    <div
+                                                                        key={audioIdx}
+                                                                        className="bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2"
+                                                                    >
+                                                                        <div className="flex justify-between items-center">
+                                                                            <span className="text-xs font-semibold text-slate-600">
+                                                                                Recording {audioIdx + 1}
+                                                                            </span>
+
+                                                                            {!submittedAnswers[idx] && (
                                                                                 <button
                                                                                     type="button"
-                                                                                    disabled={
-                                                                                        submittedAnswers[idx] ||
-                                                                                        (recordedURLs[idx]?.length || 0) >= 5
-                                                                                    }
-                                                                                    onClick={() => startRecording(idx, "audio")}
-                                                                                    className={`h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md ${
-                                                                                        (recordedURLs[idx]?.length || 0) >= 5
-                                                                                            ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                                                                                            : "bg-emerald-600 text-white hover:bg-emerald-700"
-                                                                                    }`}
-                                                                                >
-                                                                                    <Plus size={14} />
-                                                                                    Add More
-                                                                                </button>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </div>
-
-                                                                {(recordedURLs[idx]?.length || 0) >= 5 && (
-                                                                    <p className="text-xs text-red-500 font-semibold text-center">
-                                                                        Maximum 5 recordings allowed
-                                                                    </p>
-                                                                )}
-                                                            
-
-                                                            {/* Recording List */}
-                                                            {recordedURLs[idx]?.length > 0 && (
-                                                                <div className="w-full mt-2 space-y-2">
-                                                                    {recordedURLs[idx].map((audio, audioIdx) => (
-                                                                        <div
-                                                                            key={audioIdx}
-                                                                            className="bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2"
-                                                                        >
-                                                                            <div className="flex justify-between items-center">
-                                                                                <span className="text-xs font-semibold text-slate-600">
-                                                                                    Recording {audioIdx + 1}
-                                                                                </span>
-
-                                                                                {!submittedAnswers[idx] && (
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => deleteRecording(idx, audioIdx)}
-                                                                                        className="
+                                                                                    onClick={() => deleteRecording(idx, audioIdx)}
+                                                                                    className="
                                                                                             px-3 py-1
                                                                                             bg-red-50
                                                                                             border border-red-200
@@ -2876,32 +2968,32 @@ const PublicTestPage = () => {
                                                                                             hover:border-red-300
                                                                                             transition-all
                                                                                         "
-                                                                                    >
-                                                                                        Delete
-                                                                                    </button>
-                                                                                )}
-                                                                            </div>
-
-                                                                            <audio
-                                                                                controls
-                                                                                src={audio.url}
-                                                                                className="w-full h-8"
-                                                                            />
+                                                                                >
+                                                                                    Delete
+                                                                                </button>
+                                                                            )}
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
 
-                                                            <p className="text-xs font-bold text-slate-700">
-                                                                {recordingStatus[idx] === "recording"
-                                                                    ? " Recording..."
-                                                                    : recordedURLs[idx]?.length > 0
+                                                                        <audio
+                                                                            controls
+                                                                            src={audio.url}
+                                                                            className="w-full h-8"
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        <p className="text-xs font-bold text-slate-700">
+                                                            {recordingStatus[idx] === "recording"
+                                                                ? " Recording..."
+                                                                : recordedURLs[idx]?.length > 0
                                                                     ? ` ${recordedURLs[idx].length}/5 Recording Saved`
                                                                     : "Voice Answer (Minimum 1 Required)"}
-                                                            </p>
+                                                        </p>
 
-                                                        </div>
-                                                    )}
+                                                    </div>
+                                                )}
 
                                                 {/* Video recording block */}
                                                 {(isVideo || showVideoRecorder[idx]) && (

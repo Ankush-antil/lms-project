@@ -25,6 +25,7 @@ import TakeTestPage from './pages/student/TakeTestPage';
 import PublicTestPage from './pages/student/PublicTestPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { Toaster } from 'react-hot-toast';
 
 
@@ -55,9 +56,10 @@ function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <UserProfileProvider>
-                    <Toaster position="top-right" reverseOrder={false} />
-                    <Routes>
+                <SocketProvider>
+                    <UserProfileProvider>
+                        <Toaster position="top-right" reverseOrder={false} />
+                        <Routes>
                         <Route path="/" element={<LoginPage />} />
 
                         {/* Admin Routes */}
@@ -185,6 +187,7 @@ function App() {
 
                     </Routes>
                 </UserProfileProvider>
+                </SocketProvider>
             </AuthProvider>
         </BrowserRouter>
     );

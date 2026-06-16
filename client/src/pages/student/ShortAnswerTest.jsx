@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
 
 const validateLanguage = (text, lang) => {
@@ -52,6 +53,9 @@ const ShortAnswerTest = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { user } = useAuth();
+    const { callUser, callState, onlineUsers } = useSocket();
+    const [teachersList, setTeachersList] = useState([]);
+    const [selectedTeachers, setSelectedTeachers] = useState({});
     const [test, setTest] = useState(null);
     const [loading, setLoading] = useState(true);
     const [answers, setAnswers] = useState({});
@@ -109,6 +113,18 @@ const ShortAnswerTest = () => {
     const [showGameModal, setShowGameModal] = useState(false);
     const [board, setBoard] = useState(Array(9).fill(''));
     const [xIsNext, setXIsNext] = useState(true);
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            try {
+                const res = await axios.get('/api/calls/teachers');
+                setTeachersList(res.data);
+            } catch (err) {
+                console.error("Failed to load teachers for call list:", err);
+            }
+        };
+        fetchTeachers();
+    }, []);
 
 
 
@@ -1675,39 +1691,86 @@ const ShortAnswerTest = () => {
                                              )}
 
                                              {/* Web based Audio calling */}
-                                             {isAudioCall && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
-                                                     <div className="flex items-center gap-3">
-                                                         <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                                                             <Phone size={22} />
+                                             {isAudioCall && (() => {
+                                                 const allowedIds = q.particulars?.allowedTeachers || [];
+                                                 const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                 const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                 const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+
+                                                 const handleCallTeacher = () => {
+                                                     const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                     const target = elementTeachers.find(t => t._id === targetId);
+                                                     if (!target) {
+                                                         toast.error("Please select a teacher to call");
+                                                         return;
+                                                     }
+                                                     callUser(target._id, target.name, 'Teacher');
+                                                     handleTextChange(idx, `Voice Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                 };
+
+                                                 return (
+                                                     <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                         <div className="flex items-center gap-3">
+                                                             <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                                                                 <Phone size={22} />
+                                                             </div>
+                                                             <div>
+                                                                 <span className="text-sm font-bold text-slate-700 block">Dialer Voice Connection</span>
+                                                                 <span className="text-xs text-slate-400">Establish a live audio call with your instructor</span>
+                                                             </div>
                                                          </div>
-                                                         <div>
-                                                             <span className="text-sm font-bold text-slate-700 block">Dialer Roleplay Connection</span>
-                                                             <span className="text-xs text-slate-400">Incoming recording connection</span>
-                                                         </div>
+
+                                                         {q.scriptScenario && (
+                                                             <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs font-medium text-slate-650 leading-relaxed max-h-24 overflow-y-auto">
+                                                                 <strong className="text-slate-700 uppercase tracking-wider block mb-1 text-[10px]">Roleplay Scenario:</strong>
+                                                                 {q.scriptScenario}
+                                                             </div>
+                                                         )}
+
+                                                         {!singleTeacher && elementTeachers.length > 0 && (
+                                                             <div className="space-y-1.5">
+                                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                 <select
+                                                                     value={selectedTeachers[idx] || ''}
+                                                                     onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                     disabled={!isEditable}
+                                                                     className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-[#6F42C1] bg-white text-slate-700"
+                                                                 >
+                                                                     <option value="">-- Select Teacher --</option>
+                                                                     {elementTeachers.map(t => {
+                                                                         const isOnline = onlineUsers.includes(t._id);
+                                                                         return (
+                                                                             <option key={t._id} value={t._id}>
+                                                                                 {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                             </option>
+                                                                         );
+                                                                     })}
+                                                                 </select>
+                                                             </div>
+                                                         )}
+
+                                                         <button
+                                                             type="button"
+                                                             disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                             onClick={handleCallTeacher}
+                                                             className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                         >
+                                                             <Phone size={14} /> 
+                                                             {singleTeacher 
+                                                                 ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})` 
+                                                                 : 'Establish Voice Connection'
+                                                             }
+                                                         </button>
+
+                                                         {answers[idx] && (
+                                                             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                 {answers[idx]}
+                                                             </span>
+                                                         )}
                                                      </div>
-                                                     {q.scriptScenario && (
-                                                         <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs font-medium text-slate-650 leading-relaxed max-h-24 overflow-y-auto">
-                                                             <strong className="text-slate-700 uppercase tracking-wider block mb-1 text-[10px]">Roleplay Scenario:</strong>
-                                                             {q.scriptScenario}
-                                                         </div>
-                                                     )}
-                                                     <button
-                                                         type="button"
-                                                         disabled={!isEditable}
-                                                         onClick={() => {
-                                                             handleTextChange(idx, "call_recorded_" + Date.now() + ".mp3");
-                                                             toast.success("Dialing roleplay server...", { icon: '📞' });
-                                                         }}
-                                                         className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                                                     >
-                                                         <Phone size={14} /> Establish Roleplay Connection
-                                                     </button>
-                                                     {answers[idx] && (
-                                                         <span className="text-xs text-emerald-600 font-bold">✓ Connected: {answers[idx]}</span>
-                                                     )}
-                                                 </div>
-                                             )}
+                                                 );
+                                             })()}
 
                                              {/* Web based video calling */}
                                              {isVideoCall && (

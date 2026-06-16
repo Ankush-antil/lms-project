@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    callEnabled: {
+        type: Boolean,
+        default: false
+    },
     // Role specific fields
     studentProfile: {
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },

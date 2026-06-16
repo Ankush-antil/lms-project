@@ -1,30 +1,43 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-
-const { protect } = require("../../middleware/authMiddleware");
+const { protect } = require('../../middleware/authMiddleware');
 
 const {
-    getTeachersBySubject,
-    startCall,
-    getMissedCalls
-} = require("../../controllers/teacher/callController");
+    getAllTeachers,
+    toggleTeacherCall,
+    getMissedCalls,
+    clearMissedCalls,
+    markCallAsRead
+} = require('../../controllers/teacher/callController');
 
 router.get(
-    "/teachers/:subject",
+    '/teachers',
     protect,
-    getTeachersBySubject
+    getAllTeachers
+);
+
+router.put(
+    '/teachers/:teacherId/toggle',
+    protect,
+    toggleTeacherCall
+);
+
+router.get(
+    '/missed',
+    protect,
+    getMissedCalls
 );
 
 router.post(
-    "/start",
+    '/missed/clear',
     protect,
-    startCall
+    clearMissedCalls
 );
 
-router.get(
-    "/missed",
+router.post(
+    '/missed/:id/read',
     protect,
-    getMissedCalls
+    markCallAsRead
 );
 
 module.exports = router;

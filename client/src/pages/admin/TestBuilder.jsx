@@ -2890,7 +2890,7 @@ const TestBuilder = () => {
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/admin/tools')}
+                        onClick={() => navigate('/admin')}
                         className="flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all"
                     >
                         <Home size={16} className="text-purple-600" />

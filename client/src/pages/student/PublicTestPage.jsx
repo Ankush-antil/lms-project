@@ -104,8 +104,6 @@ const PublicTestPage = () => {
     const videoPreviewRef = useRef({});
     const blobsRef = useRef({});
     const recognitionRef = useRef(null);
-    const [teachers, setTeachers] = useState([]);
-    const [showTeachers, setShowTeachers] = useState(false);
 
     // New states for Short Answer advanced tools
     const [showAudioRecorder, setShowAudioRecorder] = useState({});

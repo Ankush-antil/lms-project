@@ -40,8 +40,9 @@ const initSocket = (server) => {
         });
 
         // Start a call
-        socket.on('call-user', async ({ targetId, offer, callerName, callerId }) => {
-            console.log(`[SOCKET] Call from ${callerId} (${callerName}) to target ${targetId}`);
+        socket.on('call-user', async ({ targetId, offer, callerName, callerId, callType }) => {
+            const resolvedCallType = callType === 'video' ? 'video' : 'audio';
+            console.log(`[SOCKET] ${resolvedCallType} call from ${callerId} (${callerName}) to target ${targetId}`);
             const receiverSocketId = onlineUsers[targetId];
             const isGuest = callerId && callerId.toString().startsWith('guest_');
 
@@ -54,6 +55,7 @@ const initSocket = (server) => {
                         guestEmail: isGuest ? callerId.replace('guest_', '') : undefined,
                         receiver: targetId,
                         status: 'missed',
+                        callType: resolvedCallType,
                         isRead: false
                     });
                 } catch (err) {
@@ -70,7 +72,8 @@ const initSocket = (server) => {
                     guestName: isGuest ? callerName : undefined,
                     guestEmail: isGuest ? callerId.replace('guest_', '') : undefined,
                     receiver: targetId,
-                    status: 'initiated'
+                    status: 'initiated',
+                    callType: resolvedCallType
                 });
                 callLogId = log._id;
             } catch (err) {
@@ -81,7 +84,8 @@ const initSocket = (server) => {
                 offer,
                 callerId,
                 callerName,
-                callLogId
+                callLogId,
+                callType: resolvedCallType
             });
         });
 

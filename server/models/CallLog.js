@@ -21,6 +21,11 @@ const callLogSchema = new mongoose.Schema({
         enum: ['initiated', 'connected', 'rejected', 'ended', 'missed'],
         default: 'initiated'
     },
+    callType: {
+        type: String,
+        enum: ['audio', 'video'],
+        default: 'audio'
+    },
     isRead: {
         type: Boolean,
         default: false

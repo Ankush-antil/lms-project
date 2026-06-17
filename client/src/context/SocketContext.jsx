@@ -37,7 +37,8 @@ export const SocketProvider = ({ children }) => {
     const socketRef = useRef(null);
     const pcRef = useRef(null);
     const localStreamRef = useRef(null);
-    const remoteAudioRef = useRef(new Audio());
+    const remoteAudioRef = useRef(null);
+    const iceCandidatesQueueRef = useRef([]);
     const timerRef = useRef(null);
     const audioCtxRef = useRef(null);
     const ringIntervalRef = useRef(null);
@@ -127,7 +128,9 @@ export const SocketProvider = ({ children }) => {
             pcRef.current.close();
             pcRef.current = null;
         }
-        remoteAudioRef.current.srcObject = null;
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = null;
+        }
         setIsMuted(false);
     };
 
@@ -172,6 +175,7 @@ export const SocketProvider = ({ children }) => {
                 return;
             }
 
+            iceCandidatesQueueRef.current = []; // Clear candidate queue for new incoming call
             setCallState('incoming');
             setCallInfo({
                 targetId: callerId,
@@ -194,6 +198,7 @@ export const SocketProvider = ({ children }) => {
             try {
                 if (pcRef.current) {
                     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+                    await processQueuedCandidates(); // Process any queued candidates
                 }
             } catch (err) {
                 console.error('[WebRTC] Error setting remote description:', err);
@@ -225,8 +230,10 @@ export const SocketProvider = ({ children }) => {
 
         s.on('ice-candidate', async ({ candidate }) => {
             try {
-                if (pcRef.current) {
+                if (pcRef.current && pcRef.current.remoteDescription) {
                     await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } else {
+                    iceCandidatesQueueRef.current.push(candidate);
                 }
             } catch (err) {
                 console.error('[WebRTC] Error adding ICE candidate:', err);
@@ -266,6 +273,7 @@ export const SocketProvider = ({ children }) => {
     const handleEndCallLocally = (finalState) => {
         stopRingtone();
         cleanMedia();
+        iceCandidatesQueueRef.current = []; // Clear ICE candidates queue
         
         // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
         if (callStateRef.current === 'idle') {
@@ -299,6 +307,21 @@ export const SocketProvider = ({ children }) => {
         }, 2500);
     };
 
+    // Helper to process queued ICE candidates after remote description is set
+    const processQueuedCandidates = async () => {
+        if (!pcRef.current || !pcRef.current.remoteDescription) return;
+        
+        console.log(`[WebRTC] Draining ${iceCandidatesQueueRef.current.length} queued ICE candidates`);
+        while (iceCandidatesQueueRef.current.length > 0) {
+            const candidate = iceCandidatesQueueRef.current.shift();
+            try {
+                await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+                console.error('[WebRTC] Error adding queued ICE candidate:', err);
+            }
+        }
+    };
+
     // Initialize WebRTC connection
     const initializePeerConnection = (targetId) => {
         const pc = new RTCPeerConnection({
@@ -316,11 +339,29 @@ export const SocketProvider = ({ children }) => {
                 });
             }
         };
-
         pc.ontrack = (event) => {
-            console.log('[WebRTC] Remote track received');
-            remoteAudioRef.current.srcObject = event.streams[0];
-            remoteAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+            console.log('[WebRTC] Remote track received:', event.track.kind);
+            if (remoteAudioRef.current) {
+                const stream = event.streams[0] || new MediaStream([event.track]);
+                remoteAudioRef.current.srcObject = stream;
+                remoteAudioRef.current.volume = 1.0;
+                remoteAudioRef.current.play()
+                    .then(() => console.log('[WebRTC] Remote audio playing successfully'))
+                    .catch(e => {
+                        console.error('[WebRTC] Audio play failed, trying on user interaction:', e);
+                        const playOnGesture = () => {
+                            if (remoteAudioRef.current) {
+                                remoteAudioRef.current.play()
+                                    .then(() => {
+                                        console.log('[WebRTC] Audio played on user gesture');
+                                        document.removeEventListener('click', playOnGesture);
+                                    })
+                                    .catch(err => console.error('[WebRTC] Gesture play failed:', err));
+                            }
+                        };
+                        document.addEventListener('click', playOnGesture);
+                    });
+            }
         };
 
         pcRef.current = pc;
@@ -394,9 +435,9 @@ export const SocketProvider = ({ children }) => {
 
             const pc = initializePeerConnection(callInfo.targetId);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
-            
+            await processQueuedCandidates();
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -405,8 +446,7 @@ export const SocketProvider = ({ children }) => {
                 callerId: callInfo.targetId,
                 answer,
                 callLogId: callInfo.callLogId
-            });
-        } catch (err) {
+            });        } catch (err) {
             console.error('[CALL] Failed accepting call:', err);
             toast.error('Could not connect call');
             socketRef.current.emit('reject-call', {
@@ -610,6 +650,8 @@ export const SocketProvider = ({ children }) => {
                     </div>
                 </div>
             )}
+            {/* Hidden Audio element for WebRTC Remote Stream */}
+            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
         </SocketContext.Provider>
     );
 };

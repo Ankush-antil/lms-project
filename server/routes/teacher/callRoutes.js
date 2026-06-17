@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
+const uploadAudio = require('../../middleware/uploadAudio');
 
 const {
     getAllTeachers,
     toggleTeacherCall,
     getMissedCalls,
     clearMissedCalls,
-    markCallAsRead
+    markCallAsRead,
+    uploadCallRecording,
+    getStudentCallHistory
 } = require('../../controllers/teacher/callController');
 
 router.get(
@@ -38,6 +41,19 @@ router.post(
     '/missed/:id/read',
     protect,
     markCallAsRead
+);
+
+router.post(
+    '/recordings/:callLogId',
+    protect,
+    uploadAudio.single('recording'),
+    uploadCallRecording
+);
+
+router.get(
+    '/history/:studentId',
+    protect,
+    getStudentCallHistory
 );
 
 module.exports = router;

@@ -37,7 +37,10 @@ export const SocketProvider = ({ children }) => {
     const socketRef = useRef(null);
     const pcRef = useRef(null);
     const localStreamRef = useRef(null);
-    const remoteAudioRef = useRef(new Audio());
+    const remoteAudioRef = useRef(null);
+    const iceCandidatesQueueRef = useRef([]);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
     const timerRef = useRef(null);
     const audioCtxRef = useRef(null);
     const ringIntervalRef = useRef(null);
@@ -119,6 +122,17 @@ export const SocketProvider = ({ children }) => {
 
     // Clean up local WebRTC Stream
     const cleanMedia = () => {
+        // Stop recording if active
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            try {
+                mediaRecorderRef.current.stop();
+                console.log('[WebRTC Recording] Stopped.');
+            } catch (e) {
+                console.error('[WebRTC Recording] Error stopping:', e);
+            }
+            mediaRecorderRef.current = null;
+        }
+
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
@@ -127,11 +141,91 @@ export const SocketProvider = ({ children }) => {
             pcRef.current.close();
             pcRef.current = null;
         }
-        remoteAudioRef.current.srcObject = null;
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = null;
+        }
         setIsMuted(false);
     };
 
-    // Handle Socket initialization
+    // Mix local and remote streams and record audio (Teacher side only)
+    const startRecording = (localStream, remoteStream) => {
+        const activeUser = user || guestInfo;
+        if (!activeUser || activeUser.role !== 'Teacher') return;
+        
+        try {
+            console.log('[WebRTC Recording] Initializing audio mix...');
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            const mixContext = new AudioContextClass();
+            
+            const localSource = mixContext.createMediaStreamSource(localStream);
+            const remoteSource = mixContext.createMediaStreamSource(remoteStream);
+            const mixDestination = mixContext.createMediaStreamDestination();
+            
+            localSource.connect(mixDestination);
+            remoteSource.connect(mixDestination);
+            
+            const mixedStream = mixDestination.stream;
+            audioChunksRef.current = [];
+            
+            // Check supported mime types
+            let options = { mimeType: 'audio/webm' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'audio/ogg' };
+            }
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = {}; // Fallback to default
+            }
+
+            const mediaRecorder = new MediaRecorder(mixedStream, options);
+            mediaRecorderRef.current = mediaRecorder;
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                console.log('[WebRTC Recording] Stopped. Preparing upload...');
+                const blobType = options.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunksRef.current, { type: blobType });
+                
+                // Get the callLogId from state or ref
+                const logId = callInfo.callLogId;
+                if (logId) {
+                    const formData = new FormData();
+                    formData.append('recording', audioBlob, 'recording.webm');
+                    
+                    try {
+                        const response = await fetch(`/api/calls/recordings/${logId}`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            console.log('[WebRTC Recording] Uploaded successfully:', data.recordingUrl);
+                        } else {
+                            console.error('[WebRTC Recording] Upload failed:', data.message);
+                        }
+                    } catch (error) {
+                        console.error('[WebRTC Recording] Error uploading audio:', error);
+                    }
+                } else {
+                    console.warn('[WebRTC Recording] No callLogId found. Cannot upload recording.');
+                }
+                
+                try {
+                    mixContext.close();
+                } catch (e) {}
+            };
+            
+            mediaRecorder.start(1000); // 1-second chunks
+            console.log('[WebRTC Recording] Started.');
+        } catch (err) {
+            console.error('[WebRTC Recording] Failed to start:', err);
+        }
+    };
+
     useEffect(() => {
         const activeUser = user || guestInfo;
         if (!activeUser) {
@@ -172,6 +266,7 @@ export const SocketProvider = ({ children }) => {
                 return;
             }
 
+            iceCandidatesQueueRef.current = []; // Clear candidate queue for new incoming call
             setCallState('incoming');
             setCallInfo({
                 targetId: callerId,
@@ -194,6 +289,7 @@ export const SocketProvider = ({ children }) => {
             try {
                 if (pcRef.current) {
                     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+                    await processQueuedCandidates(); // Process any queued candidates
                 }
             } catch (err) {
                 console.error('[WebRTC] Error setting remote description:', err);
@@ -225,8 +321,10 @@ export const SocketProvider = ({ children }) => {
 
         s.on('ice-candidate', async ({ candidate }) => {
             try {
-                if (pcRef.current) {
+                if (pcRef.current && pcRef.current.remoteDescription) {
                     await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } else {
+                    iceCandidatesQueueRef.current.push(candidate);
                 }
             } catch (err) {
                 console.error('[WebRTC] Error adding ICE candidate:', err);
@@ -266,6 +364,7 @@ export const SocketProvider = ({ children }) => {
     const handleEndCallLocally = (finalState) => {
         stopRingtone();
         cleanMedia();
+        iceCandidatesQueueRef.current = []; // Clear ICE candidates queue
         
         // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
         if (callStateRef.current === 'idle') {
@@ -299,6 +398,21 @@ export const SocketProvider = ({ children }) => {
         }, 2500);
     };
 
+    // Helper to process queued ICE candidates after remote description is set
+    const processQueuedCandidates = async () => {
+        if (!pcRef.current || !pcRef.current.remoteDescription) return;
+        
+        console.log(`[WebRTC] Draining ${iceCandidatesQueueRef.current.length} queued ICE candidates`);
+        while (iceCandidatesQueueRef.current.length > 0) {
+            const candidate = iceCandidatesQueueRef.current.shift();
+            try {
+                await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+                console.error('[WebRTC] Error adding queued ICE candidate:', err);
+            }
+        }
+    };
+
     // Initialize WebRTC connection
     const initializePeerConnection = (targetId) => {
         const pc = new RTCPeerConnection({
@@ -316,21 +430,49 @@ export const SocketProvider = ({ children }) => {
                 });
             }
         };
-
         pc.ontrack = (event) => {
-            console.log('[WebRTC] Remote track received');
-            remoteAudioRef.current.srcObject = event.streams[0];
-            remoteAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+            console.log('[WebRTC] Remote track received:', event.track.kind);
+            if (remoteAudioRef.current) {
+                const stream = event.streams[0] || new MediaStream([event.track]);
+                remoteAudioRef.current.srcObject = stream;
+                remoteAudioRef.current.volume = 1.0;
+                remoteAudioRef.current.play()
+                    .then(() => {
+                        console.log('[WebRTC] Remote audio playing successfully');
+                        const activeUser = user || guestInfo;
+                        if (activeUser && activeUser.role === 'Teacher' && localStreamRef.current) {
+                            startRecording(localStreamRef.current, stream);
+                        }
+                    })
+                    .catch(e => {
+                        console.error('[WebRTC] Audio play failed, trying on user interaction:', e);
+                        const playOnGesture = () => {
+                            if (remoteAudioRef.current) {
+                                remoteAudioRef.current.play()
+                                    .then(() => {
+                                        console.log('[WebRTC] Audio played on user gesture');
+                                        document.removeEventListener('click', playOnGesture);
+                                    })
+                                    .catch(err => console.error('[WebRTC] Gesture play failed:', err));
+                            }
+                        };
+                        document.addEventListener('click', playOnGesture);
+                    });
+            }
         };
 
         pcRef.current = pc;
         return pc;
     };
-
     // Actions
     const callUser = async (targetId, targetName, targetRole) => {
         if (!socketRef.current) return;
-        
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
+            return;
+        }
+
         console.log('[CALL] Calling user:', targetId);
         setCallState('dialing');
         setCallInfo({
@@ -371,6 +513,17 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current || !callInfo.targetId) return;
         
         stopRingtone();
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
+            socketRef.current.emit('reject-call', {
+                callerId: callInfo.targetId,
+                callLogId: callInfo.callLogId
+            });
+            handleEndCallLocally('idle');
+            return;
+        }
+
         console.log('[CALL] Accepting call from:', callInfo.targetId);
 
         try {
@@ -379,9 +532,9 @@ export const SocketProvider = ({ children }) => {
 
             const pc = initializePeerConnection(callInfo.targetId);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
-            
+            await processQueuedCandidates();
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -390,8 +543,7 @@ export const SocketProvider = ({ children }) => {
                 callerId: callInfo.targetId,
                 answer,
                 callLogId: callInfo.callLogId
-            });
-        } catch (err) {
+            });        } catch (err) {
             console.error('[CALL] Failed accepting call:', err);
             toast.error('Could not connect call');
             socketRef.current.emit('reject-call', {
@@ -595,6 +747,8 @@ export const SocketProvider = ({ children }) => {
                     </div>
                 </div>
             )}
+            {/* Hidden Audio element for WebRTC Remote Stream */}
+            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
         </SocketContext.Provider>
     );
 };

@@ -42,6 +42,25 @@ const TeacherDashboard = () => {
     const [showContactModal, setShowContactModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [missedCalls, setMissedCalls] = useState([]);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [historyLogs, setHistoryLogs] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
+    const fetchCallHistory = async (student) => {
+        setSelectedStudent(student);
+        setShowHistoryModal(true);
+        setHistoryLoading(true);
+        try {
+            const { data } = await axios.get(`/api/calls/history/${student._id}`);
+            setHistoryLogs(data);
+            setHistoryLoading(false);
+        } catch (err) {
+            console.error("Failed to fetch call history:", err);
+            toast.error("Failed to load call history");
+            setHistoryLoading(false);
+        }
+    };
 
     const handleClearMissedCalls = async () => {
         try {
@@ -52,7 +71,6 @@ const TeacherDashboard = () => {
             console.error("Failed to clear missed calls:", err);
         }
     };
-
     const handleClearSingleMissed = async (callId) => {
         try {
             await axios.post(`/api/calls/missed/${callId}/read`);
@@ -178,6 +196,13 @@ const TeacherDashboard = () => {
                                             </td>
                                             <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
                                                 <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => fetchCallHistory(student)}
+                                                        className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors"
+                                                        title="Call History"
+                                                    >
+                                                        <Calendar size={14} />
+                                                    </button>
                                                     <button
                                                         onClick={() => callUser(student._id, student.name, 'Student')}
                                                         className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"
@@ -332,22 +357,108 @@ const TeacherDashboard = () => {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    callUser(student._id, student.name, 'Student');
-                                                    setShowContactModal(false);
-                                                }}
-                                                className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center"
-                                                title="Call Student"
-                                            >
-                                                <Phone size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => {
+                                                        fetchCallHistory(student);
+                                                        setShowContactModal(false);
+                                                    }}
+                                                    className="p-2.5 bg-indigo-50 text-indigo-655 hover:bg-indigo-600 hover:text-white rounded-xl transition-all active:scale-95 flex items-center justify-center border border-indigo-100"
+                                                    title="Call History"
+                                                >
+                                                    <Calendar size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        callUser(student._id, student.name, 'Student');
+                                                        setShowContactModal(false);
+                                                    }}
+                                                    className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center"
+                                                    title="Call Student"
+                                                >
+                                                    <Phone size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })
                             }
                             {students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                 <p className="text-center text-xs text-slate-400 italic py-6">No matching students found.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Call History Modal */}
+            {showHistoryModal && selectedStudent && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+                    <div className="bg-white rounded-[32px] shadow-2xl p-6 max-w-lg w-full mx-4 flex flex-col border border-slate-100 max-h-[85vh] overflow-hidden transform scale-100 transition-all">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-850 tracking-tight">Call History</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                    With student: {selectedStudent.name}
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => { setShowHistoryModal(false); setSelectedStudent(null); setHistoryLogs([]); }}
+                                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* History Log List */}
+                        <div className="flex-1 overflow-y-auto space-y-3 py-4 pr-1 custom-scrollbar">
+                            {historyLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                </div>
+                            ) : historyLogs.length > 0 ? (
+                                <div className="space-y-3">
+                                    {historyLogs.map(log => {
+                                        const isTeacherCaller = log.caller && log.caller._id === user._id;
+                                        const dateStr = new Date(log.createdAt).toLocaleString();
+                                        const durationStr = log.startTime && log.endTime 
+                                            ? `${Math.round((new Date(log.endTime) - new Date(log.startTime)) / 1000)}s` 
+                                            : null;
+
+                                        return (
+                                            <div key={log._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col text-left">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-slate-800">
+                                                            {isTeacherCaller ? 'Outgoing Call' : 'Incoming Call'}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-semibold mt-0.5">{dateStr}</span>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                        log.status === 'connected' || log.status === 'ended' ? 'bg-emerald-50 text-emerald-600' :
+                                                        log.status === 'missed' ? 'bg-red-50 text-red-600' : 'bg-slate-200 text-slate-600'
+                                                    }`}>
+                                                        {log.status}
+                                                    </span>
+                                                </div>
+
+                                                <div className="text-xs text-slate-655 mt-1 flex flex-wrap gap-x-4">
+                                                    {durationStr && <span>Duration: <strong className="text-slate-800">{durationStr}</strong></span>}
+                                                    <span>Caller: <strong className="text-slate-800">{log.caller?.name || log.guestName || 'Unknown'}</strong></span>
+                                                </div>
+
+                                                {log.recordingUrl && (
+                                                    <div className="mt-3 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100/50 flex flex-col gap-1">
+                                                        <span className="text-[10px] text-indigo-755 font-bold uppercase tracking-widest">Call Recording</span>
+                                                        <audio controls src={log.recordingUrl} className="w-full h-8 mt-1" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-center text-xs text-slate-400 italic py-8">No calling history found with this student.</p>
                             )}
                         </div>
                     </div>

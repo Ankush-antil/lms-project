@@ -109,3 +109,62 @@ exports.markCallAsRead = async (req, res) => {
         });
     }
 };
+
+exports.uploadCallRecording = async (req, res) => {
+    try {
+        const { callLogId } = req.params;
+        if (!req.file) {
+            return res.status(400).json({ message: 'No recording file uploaded' });
+        }
+
+        const recordingUrl = `/uploads/audios/${req.file.filename}`;
+
+        const callLog = await CallLog.findByIdAndUpdate(
+            callLogId,
+            { recordingUrl },
+            { new: true }
+        );
+
+        if (!callLog) {
+            return res.status(404).json({ message: 'Call log not found' });
+        }
+
+        res.json({ success: true, recordingUrl, callLog });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getStudentCallHistory = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const teacherId = req.user._id;
+
+        const isGuest = studentId.startsWith('guest_');
+        let query = {};
+        if (isGuest) {
+            const guestEmail = studentId.replace('guest_', '');
+            query = {
+                receiver: teacherId,
+                guestEmail: guestEmail
+            };
+        } else {
+            query = {
+                $or: [
+                    { caller: teacherId, receiver: studentId },
+                    { caller: studentId, receiver: teacherId }
+                ]
+            };
+        }
+
+        const history = await CallLog.find(query)
+            .populate('caller', '_id name email role')
+            .populate('receiver', '_id name email role')
+            .sort({ createdAt: -1 });
+
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+

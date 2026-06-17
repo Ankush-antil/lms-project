@@ -166,7 +166,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     // Mix local and remote streams and record audio (Teacher side only)
-    const startRecording = (localStream, remoteStream) => {
+    const startRecording = (localStream, remoteStream, capturedLogId) => {
         const activeUser = user || guestInfo;
         if (!activeUser || activeUser.role !== 'Teacher') return;
         
@@ -208,8 +208,10 @@ export const SocketProvider = ({ children }) => {
                 const blobType = options.mimeType || 'audio/webm';
                 const audioBlob = new Blob(audioChunksRef.current, { type: blobType });
                 
-                // Get the callLogId from state or ref
-                const logId = callInfo.callLogId;
+                // ✅ Use capturedLogId captured at call-start time (closure).
+                // callInfo state and callInfoRef are both cleared before onstop fires.
+                const logId = capturedLogId || callInfoRef.current.callLogId;
+
                 if (logId) {
                     const formData = new FormData();
                     formData.append('recording', audioBlob, 'recording.webm');
@@ -380,32 +382,23 @@ export const SocketProvider = ({ children }) => {
         };
     }, [callState]);
 
-    // Automatically set video sources when the call connects and elements mount
+    // Automatically bind video stream sources when call connects and elements mount
     useEffect(() => {
         if (callState === 'connected' && callInfo.callType === 'video') {
-            const bindVideoStreams = () => {
+            // Use a small delay to let React paint the video elements into the DOM
+            const timer = setTimeout(() => {
+                // Local video: use the local mic+camera stream
                 if (localVideoRef.current && localStreamRef.current) {
-                    if (localVideoRef.current.srcObject !== localStreamRef.current) {
-                        localVideoRef.current.srcObject = localStreamRef.current;
-                        localVideoRef.current.play().catch(err => console.error('[WebRTC] Local video play error:', err));
-                    }
+                    localVideoRef.current.srcObject = localStreamRef.current;
+                    // autoPlay attribute handles play(), explicit call causes AbortError
                 }
-                if (remoteVideoRef.current && remoteAudioRef.current?.srcObject) {
-                    const remoteStream = remoteAudioRef.current.srcObject;
-                    if (remoteVideoRef.current.srcObject !== remoteStream) {
-                        remoteVideoRef.current.srcObject = remoteStream;
-                        remoteVideoRef.current.play().catch(err => console.error('[WebRTC] Remote video play error:', err));
-                    }
+                // Remote video: use the unified remoteStreamRef (contains all received tracks)
+                if (remoteVideoRef.current && remoteStreamRef.current) {
+                    remoteVideoRef.current.srcObject = remoteStreamRef.current;
+                    // autoPlay attribute handles play(), explicit call causes AbortError
                 }
-            };
-            bindVideoStreams();
-            // Tiny delay to guarantee elements are painted and refs are updated
-            const timer = setTimeout(bindVideoStreams, 100);
-            const timer2 = setTimeout(bindVideoStreams, 500);
-            return () => {
-                clearTimeout(timer);
-                clearTimeout(timer2);
-            };
+            }, 150);
+            return () => clearTimeout(timer);
         }
     }, [callState, callInfo.callType]);
 
@@ -494,7 +487,9 @@ export const SocketProvider = ({ children }) => {
                         console.log('[WebRTC] Remote audio playing successfully');
                         const activeUser = user || guestInfo;
                         if (activeUser && activeUser.role === 'Teacher' && localStreamRef.current) {
-                            startRecording(localStreamRef.current, remoteStreamRef.current);
+                            // ✅ Capture callLogId NOW (at call-connect time), before state is cleared
+                            const currentLogId = callInfoRef.current.callLogId;
+                            startRecording(localStreamRef.current, remoteStreamRef.current, currentLogId);
                         }
                     })
                     .catch(e => {

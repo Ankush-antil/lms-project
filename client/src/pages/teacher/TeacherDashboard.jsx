@@ -62,6 +62,20 @@ const TeacherDashboard = () => {
         }
     };
 
+    const handleDeleteRecording = async (callLogId) => {
+        if (!window.confirm("Are you sure you want to delete this recording?")) return;
+        try {
+            await axios.delete(`/api/calls/recordings/${callLogId}`);
+            toast.success("Recording deleted successfully");
+            setHistoryLogs(prev => prev.map(log => 
+                log._id === callLogId ? { ...log, recordingUrl: undefined } : log
+            ));
+        } catch (err) {
+            console.error("Failed to delete recording:", err);
+            toast.error("Failed to delete recording");
+        }
+    };
+
     const handleClearMissedCalls = async () => {
         try {
             await axios.post('/api/calls/missed/clear');
@@ -453,10 +467,18 @@ const TeacherDashboard = () => {
                                                     {durationStr && <span>Duration: <strong className="text-slate-800">{durationStr}</strong></span>}
                                                     <span>Caller: <strong className="text-slate-800">{log.caller?.name || log.guestName || 'Unknown'}</strong></span>
                                                 </div>
-
                                                 {log.recordingUrl && (
-                                                    <div className="mt-3 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100/50 flex flex-col gap-1">
-                                                        <span className="text-[10px] text-indigo-755 font-bold uppercase tracking-widest">Call Recording</span>
+                                                    <div className="mt-3 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100/50 flex flex-col gap-1 relative group/rec">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-[10px] text-indigo-755 font-bold uppercase tracking-widest">Call Recording</span>
+                                                            <button
+                                                                onClick={() => handleDeleteRecording(log._id)}
+                                                                className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                                                title="Delete Recording"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        </div>
                                                         <audio controls src={log.recordingUrl} className="w-full h-8 mt-1" />
                                                     </div>
                                                 )}

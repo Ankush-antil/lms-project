@@ -482,8 +482,10 @@ export const SocketProvider = ({ children }) => {
             toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
             return;
         }
-
         console.log('[CALL] Calling user:', targetId);
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.play().catch(() => {});
+        }
         setCallState('dialing');
         setCallInfo({
             targetId,
@@ -532,6 +534,9 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current || !callInfo.targetId) return;
         
         stopRingtone();
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.play().catch(() => {});
+        }
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');

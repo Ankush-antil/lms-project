@@ -168,3 +168,30 @@ exports.getStudentCallHistory = async (req, res) => {
     }
 };
 
+exports.deleteCallRecording = async (req, res) => {
+    try {
+        const { callLogId } = req.params;
+        const callLog = await CallLog.findById(callLogId);
+
+        if (!callLog) {
+            return res.status(404).json({ message: 'Call log not found' });
+        }
+
+        if (callLog.recordingUrl) {
+            const fs = require('fs');
+            const path = require('path');
+            const filePath = path.join(__dirname, '../..', callLog.recordingUrl);
+            
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+
+            callLog.recordingUrl = undefined;
+            await callLog.save();
+        }
+
+        res.json({ success: true, message: 'Recording deleted successfully', callLog });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

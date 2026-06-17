@@ -10,7 +10,8 @@ const {
     clearMissedCalls,
     markCallAsRead,
     uploadCallRecording,
-    getStudentCallHistory
+    getStudentCallHistory,
+    deleteCallRecording
 } = require('../../controllers/teacher/callController');
 
 router.get(
@@ -48,6 +49,12 @@ router.post(
     protect,
     uploadAudio.single('recording'),
     uploadCallRecording
+);
+
+router.delete(
+    '/recordings/:callLogId',
+    protect,
+    deleteCallRecording
 );
 
 router.get(

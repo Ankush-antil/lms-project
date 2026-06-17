@@ -1773,39 +1773,86 @@ const ShortAnswerTest = () => {
                                              })()}
 
                                              {/* Web based video calling */}
-                                             {isVideoCall && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
-                                                     <div className="flex items-center gap-3">
-                                                         <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
-                                                             <Video size={22} />
+                                             {isVideoCall && (() => {
+                                                 const allowedIds = q.particulars?.allowedTeachers || [];
+                                                 const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                 const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                 const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+
+                                                 const handleCallTeacher = () => {
+                                                     const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                     const target = elementTeachers.find(t => t._id === targetId);
+                                                     if (!target) {
+                                                         toast.error("Please select a teacher to call");
+                                                         return;
+                                                     }
+                                                     callUser(target._id, target.name, 'Teacher', 'video');
+                                                     handleTextChange(idx, `Video Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                 };
+
+                                                 return (
+                                                     <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
+                                                         <div className="flex items-center gap-3">
+                                                             <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
+                                                                 <Video size={22} />
+                                                             </div>
+                                                             <div>
+                                                                 <span className="text-sm font-bold block">Web Video Call Meeting</span>
+                                                                 <span className="text-xs text-slate-400">Establish a live video call with your instructor</span>
+                                                             </div>
                                                          </div>
-                                                         <div>
-                                                             <span className="text-sm font-bold block">Web Video Call Meeting</span>
-                                                             <span className="text-xs text-slate-400">Simulating live interactive roleplay</span>
-                                                         </div>
+
+                                                         {q.videoCallScenario && (
+                                                             <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
+                                                                 <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
+                                                                 {q.videoCallScenario}
+                                                             </div>
+                                                         )}
+
+                                                         {!singleTeacher && elementTeachers.length > 0 && (
+                                                             <div className="space-y-1.5">
+                                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                 <select
+                                                                     value={selectedTeachers[idx] || ''}
+                                                                     onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                     disabled={!isEditable}
+                                                                     className="w-full border border-white/10 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-purple-500 bg-white/5 text-white"
+                                                                 >
+                                                                     <option value="" className="text-slate-900">-- Select Teacher --</option>
+                                                                     {elementTeachers.map(t => {
+                                                                         const isOnline = onlineUsers.includes(t._id);
+                                                                         return (
+                                                                             <option key={t._id} value={t._id} className="text-slate-900">
+                                                                                 {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                             </option>
+                                                                         );
+                                                                     })}
+                                                                 </select>
+                                                             </div>
+                                                         )}
+
+                                                         <button
+                                                             type="button"
+                                                             disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                             onClick={handleCallTeacher}
+                                                             className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                         >
+                                                             <Video size={14} />
+                                                             {singleTeacher
+                                                                 ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
+                                                                 : 'Establish Video Connection'
+                                                             }
+                                                         </button>
+
+                                                         {answers[idx] && (
+                                                             <span className="text-xs text-emerald-450 font-bold flex items-center gap-1">
+                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                 {answers[idx]}
+                                                             </span>
+                                                         )}
                                                      </div>
-                                                     {q.videoCallScenario && (
-                                                         <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
-                                                             <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
-                                                             {q.videoCallScenario}
-                                                         </div>
-                                                     )}
-                                                     <button
-                                                         type="button"
-                                                         disabled={!isEditable}
-                                                         onClick={() => {
-                                                             handleTextChange(idx, "video_call_" + Date.now() + ".webm");
-                                                             toast.success("Connecting video call room...", { icon: '📹' });
-                                                         }}
-                                                         className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                                                     >
-                                                         <Video size={14} /> Establish Video Connection ({q.videoCallDuration || 5} min)
-                                                     </button>
-                                                     {answers[idx] && (
-                                                         <span className="text-xs text-emerald-450 font-bold">✓ Room Joined: {answers[idx]}</span>
-                                                     )}
-                                                 </div>
-                                             )}
+                                                 );
+                                             })()}
 
                                              {/* Text based AI agent */}
                                              {isTextAI && (

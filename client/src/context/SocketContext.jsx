@@ -60,6 +60,31 @@ export const SocketProvider = ({ children }) => {
         callInfoRef.current = callInfo;
     }, [callInfo]);
 
+    // Helper to unlock AudioContext (autoplay policy bypass)
+    const unlockAudioContext = () => {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+                setTimeout(() => {
+                    ctx.close().catch(() => {});
+                }, 200);
+            }
+        } catch (e) {
+            console.warn('[WebRTC] Failed to unlock AudioContext:', e);
+        }
+    };
+
     // Dynamic Ringtone Generator using Web Audio API
     const startRingtone = (isRingback = false) => {
         try {
@@ -342,7 +367,7 @@ export const SocketProvider = ({ children }) => {
 
         s.on('ice-candidate', async ({ candidate }) => {
             try {
-                if (pcRef.current && pcRef.current.remoteDescription) {
+                if (pcRef.current && pcRef.current.remoteDescription && iceCandidatesQueueRef.current.length === 0) {
                     await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
                 } else {
                     iceCandidatesQueueRef.current.push(candidate);
@@ -521,6 +546,7 @@ export const SocketProvider = ({ children }) => {
             return;
         }
         console.log('[CALL] Calling user:', targetId);
+        unlockAudioContext();
         if (remoteAudioRef.current) {
             remoteAudioRef.current.play().catch(() => {});
         }
@@ -573,6 +599,7 @@ export const SocketProvider = ({ children }) => {
         
         stopRingtone();
         const callType = callInfo.callType || 'audio';
+        unlockAudioContext();
         if (remoteAudioRef.current) {
             remoteAudioRef.current.play().catch(() => {});
         }
@@ -603,11 +630,10 @@ export const SocketProvider = ({ children }) => {
             const pc = initializePeerConnection(callInfo.targetId, callType);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
+            await processQueuedCandidates();
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-
-            await processQueuedCandidates();
 
             setCallState('connected');
             socketRef.current.emit('accept-call', {
@@ -719,7 +745,6 @@ export const SocketProvider = ({ children }) => {
                                     ref={remoteVideoRef}
                                     autoPlay
                                     playsInline
-                                    muted
                                     className="w-full h-full object-cover bg-slate-800"
                                 />
                                 <video

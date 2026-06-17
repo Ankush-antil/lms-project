@@ -510,19 +510,58 @@ export const SocketProvider = ({ children }) => {
         remoteStreamRef.current = new MediaStream();
         const pc = new RTCPeerConnection({
             iceServers: [
+                // STUN Servers (Google)
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
                 { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun4.l.google.com:19302' },
+                // Free TURN Servers (OpenRelay - Metered.ca) - required for different networks
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turns:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                // Backup free TURN server
+                {
+                    urls: 'turn:relay1.expressturn.com:3478',
+                    username: 'efKVAFBGMAS9ZMXOGN',
+                    credential: 'KiFYalDXLqZpzPQ8'
+                }
+            ],
+            iceCandidatePoolSize: 10
         });
 
         pc.oniceconnectionstatechange = () => {
             console.log('[WebRTC] ICE Connection State:', pc.iceConnectionState);
+            if (pc.iceConnectionState === 'failed') {
+                console.error('[WebRTC] ❌ ICE Connection FAILED — TURN server may be needed or blocked');
+                toast.error('Call connection failed. Network issue detected.');
+            }
+            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                console.log('[WebRTC] ✅ ICE Connection established successfully');
+            }
         };
         pc.onconnectionstatechange = () => {
             console.log('[WebRTC] Connection State:', pc.connectionState);
+            if (pc.connectionState === 'failed') {
+                console.error('[WebRTC] ❌ Peer Connection FAILED — check TURN/network');
+            }
         };
 
         pc.onicecandidate = (event) => {

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
-import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle, Phone, Search, X, Trash2, Calendar } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle, Phone, Video, Search, X, Trash2, Calendar } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import toast from 'react-hot-toast';
 
@@ -181,9 +181,16 @@ const TeacherDashboard = () => {
                                                     <button
                                                         onClick={() => callUser(student._id, student.name, 'Student')}
                                                         className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"
-                                                        title="Call Student"
+                                                        title="Audio Call Student"
                                                     >
                                                         <Phone size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => callUser(student._id, student.name, 'Student', 'video')}
+                                                        className="p-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-600 hover:text-white transition-colors"
+                                                        title="Video Call Student"
+                                                    >
+                                                        <Video size={14} />
                                                     </button>
                                                     <button
                                                         onClick={() => navigate('/teacher/activities')}
@@ -332,16 +339,28 @@ const TeacherDashboard = () => {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    callUser(student._id, student.name, 'Student');
-                                                    setShowContactModal(false);
-                                                }}
-                                                className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center"
-                                                title="Call Student"
-                                            >
-                                                <Phone size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => {
+                                                        callUser(student._id, student.name, 'Student');
+                                                        setShowContactModal(false);
+                                                    }}
+                                                    className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center"
+                                                    title="Audio Call Student"
+                                                >
+                                                    <Phone size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        callUser(student._id, student.name, 'Student', 'video');
+                                                        setShowContactModal(false);
+                                                    }}
+                                                    className="p-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-md shadow-purple-500/10 transition-all active:scale-95 flex items-center justify-center"
+                                                    title="Video Call Student"
+                                                >
+                                                    <Video size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })

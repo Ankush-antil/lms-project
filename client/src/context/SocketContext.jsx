@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
-import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, ShieldAlert } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, ShieldAlert, Video, VideoOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SocketContext = createContext();
@@ -28,24 +28,33 @@ export const SocketProvider = ({ children }) => {
         targetName: '',
         targetRole: '',
         callLogId: '',
-        isCaller: false
+        isCaller: false,
+        callType: 'audio' // 'audio' | 'video'
     });
     
     const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOff, setIsCameraOff] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
 
     const socketRef = useRef(null);
     const pcRef = useRef(null);
     const localStreamRef = useRef(null);
     const remoteAudioRef = useRef(new Audio());
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
     const timerRef = useRef(null);
     const audioCtxRef = useRef(null);
     const ringIntervalRef = useRef(null);
     const callStateRef = useRef(callState);
+    const callInfoRef = useRef(callInfo);
 
     useEffect(() => {
         callStateRef.current = callState;
     }, [callState]);
+
+    useEffect(() => {
+        callInfoRef.current = callInfo;
+    }, [callInfo]);
 
     // Dynamic Ringtone Generator using Web Audio API
     const startRingtone = (isRingback = false) => {
@@ -128,7 +137,10 @@ export const SocketProvider = ({ children }) => {
             pcRef.current = null;
         }
         remoteAudioRef.current.srcObject = null;
+        if (localVideoRef.current) localVideoRef.current.srcObject = null;
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
         setIsMuted(false);
+        setIsCameraOff(false);
     };
 
     // Handle Socket initialization
@@ -164,8 +176,8 @@ export const SocketProvider = ({ children }) => {
         });
 
         // Incoming Call handler
-        s.on('incoming-call', ({ offer, callerId, callerName, callLogId }) => {
-            console.log('[SOCKET] Incoming call from', callerName);
+        s.on('incoming-call', ({ offer, callerId, callerName, callLogId, callType }) => {
+            console.log('[SOCKET] Incoming call from', callerName, 'type:', callType);
             // Ignore if already in a call
             if (callStateRef.current !== 'idle') {
                 s.emit('reject-call', { callerId, callLogId });
@@ -179,6 +191,7 @@ export const SocketProvider = ({ children }) => {
                 targetRole: activeUser.role === 'Teacher' ? 'Student' : 'Teacher',
                 callLogId,
                 isCaller: false,
+                callType: callType === 'video' ? 'video' : 'audio',
                 offer
             });
             startRingtone(false);
@@ -293,14 +306,15 @@ export const SocketProvider = ({ children }) => {
                 targetName: '',
                 targetRole: '',
                 callLogId: '',
-                isCaller: false
+                isCaller: false,
+                callType: 'audio'
             });
             setCallDuration(0);
         }, 2500);
     };
 
     // Initialize WebRTC connection
-    const initializePeerConnection = (targetId) => {
+    const initializePeerConnection = (targetId, callType) => {
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -318,9 +332,16 @@ export const SocketProvider = ({ children }) => {
         };
 
         pc.ontrack = (event) => {
-            console.log('[WebRTC] Remote track received');
-            remoteAudioRef.current.srcObject = event.streams[0];
-            remoteAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+            console.log('[WebRTC] Remote track received:', event.track.kind);
+            if (callType === 'video') {
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = event.streams[0];
+                    remoteVideoRef.current.play().catch(e => console.error('Video play failed:', e));
+                }
+            } else {
+                remoteAudioRef.current.srcObject = event.streams[0];
+                remoteAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+            }
         };
 
         pcRef.current = pc;
@@ -328,24 +349,32 @@ export const SocketProvider = ({ children }) => {
     };
 
     // Actions
-    const callUser = async (targetId, targetName, targetRole) => {
+    const callUser = async (targetId, targetName, targetRole, callType = 'audio') => {
         if (!socketRef.current) return;
         
-        console.log('[CALL] Calling user:', targetId);
+        console.log('[CALL] Calling user:', targetId, 'type:', callType);
         setCallState('dialing');
         setCallInfo({
             targetId,
             targetName,
             targetRole,
             callLogId: '',
-            isCaller: true
+            isCaller: true,
+            callType
         });
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: callType === 'video'
+            });
             localStreamRef.current = stream;
 
-            const pc = initializePeerConnection(targetId);
+            if (callType === 'video' && localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            const pc = initializePeerConnection(targetId, callType);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
             const offer = await pc.createOffer();
@@ -358,11 +387,12 @@ export const SocketProvider = ({ children }) => {
                 targetId,
                 offer,
                 callerName: activeUser ? activeUser.name : 'Guest Student',
-                callerId: activeUser ? activeUser._id : ''
+                callerId: activeUser ? activeUser._id : '',
+                callType
             });
         } catch (err) {
             console.error('[CALL] Media capture or WebRTC failed:', err);
-            toast.error('Could not access microphone');
+            toast.error(callType === 'video' ? 'Could not access camera/microphone' : 'Could not access microphone');
             handleEndCallLocally('idle');
         }
     };
@@ -371,13 +401,21 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current || !callInfo.targetId) return;
         
         stopRingtone();
-        console.log('[CALL] Accepting call from:', callInfo.targetId);
+        const callType = callInfo.callType || 'audio';
+        console.log('[CALL] Accepting call from:', callInfo.targetId, 'type:', callType);
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: callType === 'video'
+            });
             localStreamRef.current = stream;
 
-            const pc = initializePeerConnection(callInfo.targetId);
+            if (callType === 'video' && localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            const pc = initializePeerConnection(callInfo.targetId, callType);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
@@ -434,11 +472,23 @@ export const SocketProvider = ({ children }) => {
         }
     };
 
+    const toggleCamera = () => {
+        if (localStreamRef.current) {
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsCameraOff(!videoTrack.enabled);
+            }
+        }
+    };
+
     const formatTime = (secs) => {
         const m = Math.floor(secs / 60).toString().padStart(2, '0');
         const s = (secs % 60).toString().padStart(2, '0');
         return `${m}:${s}`;
     };
+
+    const isVideoCall = callInfo.callType === 'video';
 
     return (
         <SocketContext.Provider value={{
@@ -448,11 +498,13 @@ export const SocketProvider = ({ children }) => {
             callInfo,
             callDuration,
             isMuted,
+            isCameraOff,
             callUser,
             acceptCall,
             rejectCall,
             endCall,
             toggleMute,
+            toggleCamera,
             registerGuest
         }}>
             {children}
@@ -460,7 +512,7 @@ export const SocketProvider = ({ children }) => {
             {/* Live Call Overlay System */}
             {callState !== 'idle' && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md transition-all duration-300">
-                    <div className="bg-white/80 border border-white/20 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center transform scale-100 transition-transform duration-300 relative overflow-hidden">
+                    <div className={`bg-white/80 border border-white/20 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 ${isVideoCall && callState === 'connected' ? 'max-w-2xl' : 'max-w-sm'} w-full mx-4 flex flex-col items-center text-center transform scale-100 transition-transform duration-300 relative overflow-hidden`}>
                         
                         {/* Glassmorphic Background Glow */}
                         <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 transition-colors duration-500 ${
@@ -470,35 +522,60 @@ export const SocketProvider = ({ children }) => {
                         }`}></div>
 
                         {/* Title / Role */}
-                        <span className="text-[10px] font-black tracking-widest text-indigo-600 uppercase mb-2 block">
-                            {callInfo.targetRole} Connection
+                        <span className="text-[10px] font-black tracking-widest text-indigo-600 uppercase mb-2 block flex items-center gap-1.5">
+                            {isVideoCall ? <Video size={12} /> : <Phone size={12} />}
+                            {callInfo.targetRole} {isVideoCall ? 'Video' : 'Voice'} Connection
                         </span>
 
-                        {/* Caller Icon / Avatar */}
-                        <div className="relative mb-6 mt-4">
-                            {/* Animated rings for active state */}
-                            {(callState === 'incoming' || callState === 'dialing' || callState === 'connected') && (
-                                <div className={`absolute inset-0 rounded-full animate-ping opacity-25 scale-125 border-4 ${
-                                    callState === 'connected' ? 'border-emerald-500' :
-                                    callState === 'incoming' ? 'border-purple-500' : 'border-indigo-500'
-                                }`}></div>
-                            )}
-
-                            <div className={`w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-xl border-4 border-white transition-all duration-500 ${
-                                callState === 'connected' ? 'bg-emerald-500' :
-                                callState === 'incoming' ? 'bg-purple-500' :
-                                callState === 'dialing' ? 'bg-indigo-500' : 'bg-slate-400'
-                            }`}>
-                                {callInfo.targetName ? callInfo.targetName[0] : <Phone size={36} />}
+                        {/* Video stage: shown only for connected video calls */}
+                        {isVideoCall && callState === 'connected' ? (
+                            <div className="relative w-full mb-6 mt-2 rounded-3xl overflow-hidden bg-slate-800 aspect-video">
+                                <video
+                                    ref={remoteVideoRef}
+                                    autoPlay
+                                    playsInline
+                                    className="w-full h-full object-cover bg-slate-800"
+                                />
+                                <video
+                                    ref={localVideoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    className="absolute bottom-3 right-3 w-24 h-32 object-cover rounded-2xl border-2 border-white/40 shadow-lg bg-slate-700"
+                                />
+                                {isCameraOff && (
+                                    <div className="absolute top-3 left-3 bg-red-500 text-white p-1.5 rounded-full shadow-md">
+                                        <VideoOff size={12} />
+                                    </div>
+                                )}
                             </div>
+                        ) : (
+                            /* Caller Icon / Avatar - used for audio calls and pre-connected video states */
+                            <div className="relative mb-6 mt-4">
+                                {/* Animated rings for active state */}
+                                {(callState === 'incoming' || callState === 'dialing' || callState === 'connected') && (
+                                    <div className={`absolute inset-0 rounded-full animate-ping opacity-25 scale-125 border-4 ${
+                                        callState === 'connected' ? 'border-emerald-500' :
+                                        callState === 'incoming' ? 'border-purple-500' : 'border-indigo-500'
+                                    }`}></div>
+                                )}
 
-                            {/* Mute indicator badge */}
-                            {isMuted && callState === 'connected' && (
-                                <div className="absolute bottom-0 right-0 bg-red-500 text-white p-2 rounded-full border-2 border-white shadow-md">
-                                    <MicOff size={14} />
+                                <div className={`w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-xl border-4 border-white transition-all duration-500 ${
+                                    callState === 'connected' ? 'bg-emerald-500' :
+                                    callState === 'incoming' ? 'bg-purple-500' :
+                                    callState === 'dialing' ? 'bg-indigo-500' : 'bg-slate-400'
+                                }`}>
+                                    {callInfo.targetName ? callInfo.targetName[0] : (isVideoCall ? <Video size={36} /> : <Phone size={36} />)}
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Mute indicator badge */}
+                                {isMuted && callState === 'connected' && (
+                                    <div className="absolute bottom-0 right-0 bg-red-500 text-white p-2 rounded-full border-2 border-white shadow-md">
+                                        <MicOff size={14} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Name & Subtitle */}
                         <h3 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">
@@ -507,16 +584,16 @@ export const SocketProvider = ({ children }) => {
 
                         {/* Current call state details */}
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-8">
-                            {callState === 'dialing' && 'Dialing Out...'}
-                            {callState === 'incoming' && 'Incoming Call...'}
+                            {callState === 'dialing' && (isVideoCall ? 'Starting Video Call...' : 'Dialing Out...')}
+                            {callState === 'incoming' && (isVideoCall ? 'Incoming Video Call...' : 'Incoming Call...')}
                             {callState === 'connected' && `Connected (${formatTime(callDuration)})`}
                             {callState === 'offline' && 'User is Offline'}
                             {callState === 'declined' && 'Call Declined'}
                             {callState === 'ended' && 'Call Ended'}
                         </p>
 
-                        {/* Bouncing Audio Wave Visualizer (connected call only) */}
-                        {callState === 'connected' && !isMuted && (
+                        {/* Bouncing Audio Wave Visualizer (connected audio call only) */}
+                        {callState === 'connected' && !isMuted && !isVideoCall && (
                             <div className="flex items-center gap-1 mb-8 h-6 select-none">
                                 {[...Array(5)].map((_, i) => (
                                     <span 
@@ -548,7 +625,7 @@ export const SocketProvider = ({ children }) => {
                                         className="w-14 h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg animate-pulse transition-transform active:scale-95"
                                         title="Accept Call"
                                     >
-                                        <Phone size={24} />
+                                        {isVideoCall ? <Video size={24} /> : <Phone size={24} />}
                                     </button>
                                 </>
                             )}
@@ -574,6 +651,18 @@ export const SocketProvider = ({ children }) => {
                                     >
                                         {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
                                     </button>
+
+                                    {isVideoCall && (
+                                        <button 
+                                            onClick={toggleCamera}
+                                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 ${
+                                                isCameraOff ? 'bg-red-100 text-red-600 border border-red-200' : 'bg-slate-100 text-slate-655 hover:bg-slate-200 border border-slate-200'
+                                            }`}
+                                            title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
+                                        >
+                                            {isCameraOff ? <VideoOff size={20} /> : <Video size={20} />}
+                                        </button>
+                                    )}
                                     
                                     <button 
                                         onClick={endCall}

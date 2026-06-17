@@ -265,6 +265,25 @@ export const SocketProvider = ({ children }) => {
     const handleEndCallLocally = (finalState) => {
         stopRingtone();
         cleanMedia();
+        
+        // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
+        if (callStateRef.current === 'idle') {
+            return;
+        }
+
+        if (finalState === 'idle') {
+            setCallState('idle');
+            setCallInfo({
+                targetId: '',
+                targetName: '',
+                targetRole: '',
+                callLogId: '',
+                isCaller: false
+            });
+            setCallDuration(0);
+            return;
+        }
+
         setCallState(finalState);
         setTimeout(() => {
             setCallState('idle');

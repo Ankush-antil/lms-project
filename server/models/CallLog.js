@@ -30,6 +30,9 @@ const callLogSchema = new mongoose.Schema({
     },
     endTime: {
         type: Date
+    },
+    recordingUrl: {
+        type: String
     }
 }, {
     timestamps: true

@@ -178,7 +178,8 @@ export const SocketProvider = ({ children }) => {
                 targetName: callerName,
                 targetRole: activeUser.role === 'Teacher' ? 'Student' : 'Teacher',
                 callLogId,
-                isCaller: false
+                isCaller: false,
+                offer
             });
             startRingtone(false);
         });
@@ -325,11 +326,15 @@ export const SocketProvider = ({ children }) => {
         pcRef.current = pc;
         return pc;
     };
-
     // Actions
     const callUser = async (targetId, targetName, targetRole) => {
         if (!socketRef.current) return;
-        
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
+            return;
+        }
+
         console.log('[CALL] Calling user:', targetId);
         setCallState('dialing');
         setCallInfo({
@@ -370,6 +375,17 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current || !callInfo.targetId) return;
         
         stopRingtone();
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
+            socketRef.current.emit('reject-call', {
+                callerId: callInfo.targetId,
+                callLogId: callInfo.callLogId
+            });
+            handleEndCallLocally('idle');
+            return;
+        }
+
         console.log('[CALL] Accepting call from:', callInfo.targetId);
 
         try {

@@ -279,25 +279,6 @@ export const SocketProvider = ({ children }) => {
     const handleEndCallLocally = (finalState) => {
         stopRingtone();
         cleanMedia();
-        
-        // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
-        if (callStateRef.current === 'idle') {
-            return;
-        }
-
-        if (finalState === 'idle') {
-            setCallState('idle');
-            setCallInfo({
-                targetId: '',
-                targetName: '',
-                targetRole: '',
-                callLogId: '',
-                isCaller: false
-            });
-            setCallDuration(0);
-            return;
-        }
-
         setCallState(finalState);
         setTimeout(() => {
             setCallState('idle');
@@ -333,14 +314,28 @@ export const SocketProvider = ({ children }) => {
 
         pc.ontrack = (event) => {
             console.log('[WebRTC] Remote track received:', event.track.kind);
+            const incomingStream = event.streams[0];
+
             if (callType === 'video') {
-                if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = event.streams[0];
-                    remoteVideoRef.current.play().catch(e => console.error('Video play failed:', e));
+                if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== incomingStream) {
+                    remoteVideoRef.current.srcObject = incomingStream;
+                    remoteVideoRef.current.play().catch(e => {
+                        // Ignore AbortError caused by rapid back-to-back ontrack firings
+                        // (audio + video tracks on the same stream each trigger ontrack).
+                        if (e.name !== 'AbortError') {
+                            console.error('Video play failed:', e);
+                        }
+                    });
                 }
             } else {
-                remoteAudioRef.current.srcObject = event.streams[0];
-                remoteAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+                if (remoteAudioRef.current.srcObject !== incomingStream) {
+                    remoteAudioRef.current.srcObject = incomingStream;
+                    remoteAudioRef.current.play().catch(e => {
+                        if (e.name !== 'AbortError') {
+                            console.error('Audio play failed:', e);
+                        }
+                    });
+                }
             }
         };
 

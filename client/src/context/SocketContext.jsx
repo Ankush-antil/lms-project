@@ -378,7 +378,9 @@ export const SocketProvider = ({ children }) => {
 
         s.on('ice-candidate', async ({ candidate }) => {
             try {
-                if (pcRef.current && pcRef.current.remoteDescription && iceCandidatesQueueRef.current.length === 0) {
+                // ✅ Add directly if remoteDescription is set, otherwise queue
+                // Do NOT check queue length — that caused candidates to be dropped mid-drain
+                if (pcRef.current && pcRef.current.remoteDescription) {
                     await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
                 } else {
                     iceCandidatesQueueRef.current.push(candidate);
@@ -648,10 +650,12 @@ export const SocketProvider = ({ children }) => {
             const pc = initializePeerConnection(callInfo.targetId, callType);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
-            await processQueuedCandidates();
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+
+            // ✅ Drain queued ICE candidates AFTER both local+remote descriptions are set
+            await processQueuedCandidates();
 
             setCallState('connected');
             socketRef.current.emit('accept-call', {

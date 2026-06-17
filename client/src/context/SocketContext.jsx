@@ -200,12 +200,19 @@ export const SocketProvider = ({ children }) => {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
             const mixContext = new AudioContextClass();
             
-            const localSource = mixContext.createMediaStreamSource(localStream);
-            const remoteSource = mixContext.createMediaStreamSource(remoteStream);
+            // Clone streams to prevent interference with live WebRTC connection tracks
+            const clonedLocalStream = localStream.clone();
+            const clonedRemoteStream = remoteStream.clone();
+            
+            const localSource = mixContext.createMediaStreamSource(clonedLocalStream);
+            const remoteSource = mixContext.createMediaStreamSource(clonedRemoteStream);
             const mixDestination = mixContext.createMediaStreamDestination();
             
             localSource.connect(mixDestination);
             remoteSource.connect(mixDestination);
+            
+            // Essential: Connect remoteSource to mixContext.destination so teacher can hear remote stream (student)
+            remoteSource.connect(mixContext.destination);
             
             const mixedStream = mixDestination.stream;
             audioChunksRef.current = [];
@@ -259,6 +266,10 @@ export const SocketProvider = ({ children }) => {
                     console.warn('[WebRTC Recording] No callLogId found. Cannot upload recording.');
                 }
                 
+                try {
+                    clonedLocalStream.getTracks().forEach(t => t.stop());
+                    clonedRemoteStream.getTracks().forEach(t => t.stop());
+                } catch (e) {}
                 try {
                     mixContext.close();
                 } catch (e) {}
@@ -489,6 +500,13 @@ export const SocketProvider = ({ children }) => {
                 { urls: 'stun:stun1.l.google.com:19302' }
             ]
         });
+
+        pc.oniceconnectionstatechange = () => {
+            console.log('[WebRTC] ICE Connection State:', pc.iceConnectionState);
+        };
+        pc.onconnectionstatechange = () => {
+            console.log('[WebRTC] Connection State:', pc.connectionState);
+        };
 
         pc.onicecandidate = (event) => {
             if (event.candidate && socketRef.current) {
@@ -896,7 +914,7 @@ export const SocketProvider = ({ children }) => {
                 </div>
             )}
             {/* Hidden Audio element for WebRTC Remote Stream */}
-            <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} />
+            <audio ref={remoteAudioRef} autoPlay playsInline />
         </SocketContext.Provider>
     );
 };

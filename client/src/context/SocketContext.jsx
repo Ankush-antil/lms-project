@@ -608,10 +608,11 @@ export const SocketProvider = ({ children }) => {
             const pc = initializePeerConnection(callInfo.targetId, callType);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
-            await processQueuedCandidates();
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+
+            await processQueuedCandidates();
 
             setCallState('connected');
             socketRef.current.emit('accept-call', {

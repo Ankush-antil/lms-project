@@ -42,6 +42,7 @@ export const SocketProvider = ({ children }) => {
     const remoteAudioRef = useRef(null);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const remoteStreamRef = useRef(null);
     const iceCandidatesQueueRef = useRef([]);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -159,6 +160,7 @@ export const SocketProvider = ({ children }) => {
         if (localVideoRef.current) {
             localVideoRef.current.srcObject = null;
         }
+        remoteStreamRef.current = null;
         setIsMuted(false);
         setIsCameraOff(false);
     };
@@ -462,6 +464,7 @@ export const SocketProvider = ({ children }) => {
 
     // Initialize WebRTC connection
     const initializePeerConnection = (targetId, callType) => {
+        remoteStreamRef.current = new MediaStream();
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -479,17 +482,19 @@ export const SocketProvider = ({ children }) => {
         };
         pc.ontrack = (event) => {
             console.log('[WebRTC] Remote track received:', event.track.kind);
-            const stream = event.streams[0] || new MediaStream([event.track]);
+            if (remoteStreamRef.current) {
+                remoteStreamRef.current.addTrack(event.track);
+            }
 
             if (event.track.kind === 'audio' && remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = stream;
+                remoteAudioRef.current.srcObject = remoteStreamRef.current;
                 remoteAudioRef.current.volume = 1.0;
                 remoteAudioRef.current.play()
                     .then(() => {
                         console.log('[WebRTC] Remote audio playing successfully');
                         const activeUser = user || guestInfo;
                         if (activeUser && activeUser.role === 'Teacher' && localStreamRef.current) {
-                            startRecording(localStreamRef.current, stream);
+                            startRecording(localStreamRef.current, remoteStreamRef.current);
                         }
                     })
                     .catch(e => {
@@ -506,10 +511,6 @@ export const SocketProvider = ({ children }) => {
                         };
                         document.addEventListener('click', playOnGesture);
                     });
-            }
-
-            if (event.track.kind === 'video' && remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = stream;
             }
         };
 

@@ -40,6 +40,8 @@ export const SocketProvider = ({ children }) => {
     const pcRef = useRef(null);
     const localStreamRef = useRef(null);
     const remoteAudioRef = useRef(null);
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
     const iceCandidatesQueueRef = useRef([]);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -150,6 +152,12 @@ export const SocketProvider = ({ children }) => {
         }
         if (remoteAudioRef.current) {
             remoteAudioRef.current.srcObject = null;
+        }
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+        }
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
         }
         setIsMuted(false);
         setIsCameraOff(false);
@@ -442,8 +450,9 @@ export const SocketProvider = ({ children }) => {
         };
         pc.ontrack = (event) => {
             console.log('[WebRTC] Remote track received:', event.track.kind);
-            if (remoteAudioRef.current) {
-                const stream = event.streams[0] || new MediaStream([event.track]);
+            const stream = event.streams[0] || new MediaStream([event.track]);
+
+            if (event.track.kind === 'audio' && remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = stream;
                 remoteAudioRef.current.volume = 1.0;
                 remoteAudioRef.current.play()
@@ -468,6 +477,10 @@ export const SocketProvider = ({ children }) => {
                         };
                         document.addEventListener('click', playOnGesture);
                     });
+            }
+
+            if (event.track.kind === 'video' && remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = stream;
             }
         };
 
@@ -534,6 +547,7 @@ export const SocketProvider = ({ children }) => {
         if (!socketRef.current || !callInfo.targetId) return;
         
         stopRingtone();
+        const callType = callInfo.callType || 'audio';
         if (remoteAudioRef.current) {
             remoteAudioRef.current.play().catch(() => {});
         }

@@ -44,6 +44,7 @@ export const SocketProvider = ({ children }) => {
     const remoteVideoRef = useRef(null);
     const remoteStreamRef = useRef(null);
     const iceCandidatesQueueRef = useRef([]);
+    const isDrainingRef = useRef(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const timerRef = useRef(null);
@@ -323,6 +324,7 @@ export const SocketProvider = ({ children }) => {
             }
 
             iceCandidatesQueueRef.current = []; // Clear candidate queue for new incoming call
+            isDrainingRef.current = false;
             setCallState('incoming');
             setCallInfo({
                 targetId: callerId,
@@ -378,12 +380,13 @@ export const SocketProvider = ({ children }) => {
 
         s.on('ice-candidate', async ({ candidate }) => {
             try {
-                // ✅ Add directly if remoteDescription is set, otherwise queue
-                // Do NOT check queue length — that caused candidates to be dropped mid-drain
-                if (pcRef.current && pcRef.current.remoteDescription) {
+                if (pcRef.current && pcRef.current.remoteDescription && iceCandidatesQueueRef.current.length === 0 && !isDrainingRef.current) {
                     await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
                 } else {
                     iceCandidatesQueueRef.current.push(candidate);
+                    if (pcRef.current && pcRef.current.remoteDescription) {
+                        await processQueuedCandidates();
+                    }
                 }
             } catch (err) {
                 console.error('[WebRTC] Error adding ICE candidate:', err);
@@ -444,6 +447,7 @@ export const SocketProvider = ({ children }) => {
         stopRingtone();
         cleanMedia();
         iceCandidatesQueueRef.current = []; // Clear ICE candidates queue
+        isDrainingRef.current = false;
         
         // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
         if (callStateRef.current === 'idle') {
@@ -481,15 +485,23 @@ export const SocketProvider = ({ children }) => {
     // Helper to process queued ICE candidates after remote description is set
     const processQueuedCandidates = async () => {
         if (!pcRef.current || !pcRef.current.remoteDescription) return;
-        
-        console.log(`[WebRTC] Draining ${iceCandidatesQueueRef.current.length} queued ICE candidates`);
-        while (iceCandidatesQueueRef.current.length > 0) {
-            const candidate = iceCandidatesQueueRef.current.shift();
-            try {
-                await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (err) {
-                console.error('[WebRTC] Error adding queued ICE candidate:', err);
+        if (isDrainingRef.current) return;
+
+        isDrainingRef.current = true;
+        try {
+            console.log(`[WebRTC] Draining ${iceCandidatesQueueRef.current.length} queued ICE candidates`);
+            while (iceCandidatesQueueRef.current.length > 0) {
+                const candidate = iceCandidatesQueueRef.current.shift();
+                if (candidate) {
+                    try {
+                        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (err) {
+                        console.error('[WebRTC] Error adding queued ICE candidate:', err);
+                    }
+                }
             }
+        } finally {
+            isDrainingRef.current = false;
         }
     };
 
@@ -574,6 +586,8 @@ export const SocketProvider = ({ children }) => {
             return;
         }
         console.log('[CALL] Calling user:', targetId);
+        iceCandidatesQueueRef.current = [];
+        isDrainingRef.current = false;
         unlockAudioContext();
         setCallState('dialing');
         setCallInfo({

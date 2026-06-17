@@ -195,3 +195,31 @@ exports.deleteCallRecording = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.deleteCallLog = async (req, res) => {
+    try {
+        const { callLogId } = req.params;
+        const callLog = await CallLog.findById(callLogId);
+
+        if (!callLog) {
+            return res.status(404).json({ message: 'Call log not found' });
+        }
+
+        if (callLog.recordingUrl) {
+            const fs = require('fs');
+            const path = require('path');
+            const filePath = path.join(__dirname, '../..', callLog.recordingUrl);
+            
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        await CallLog.findByIdAndDelete(callLogId);
+
+        res.json({ success: true, message: 'Call log deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+

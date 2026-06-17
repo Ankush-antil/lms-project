@@ -76,6 +76,18 @@ const TeacherDashboard = () => {
         }
     };
 
+    const handleDeleteCallLog = async (callLogId) => {
+        if (!window.confirm("Are you sure you want to delete this call log? This will also delete the recording if it exists.")) return;
+        try {
+            await axios.delete(`/api/calls/history/${callLogId}`);
+            toast.success("Call log deleted successfully");
+            setHistoryLogs(prev => prev.filter(log => log._id !== callLogId));
+        } catch (err) {
+            console.error("Failed to delete call log:", err);
+            toast.error("Failed to delete call log");
+        }
+    };
+
     const handleClearMissedCalls = async () => {
         try {
             await axios.post('/api/calls/missed/clear');
@@ -449,19 +461,28 @@ const TeacherDashboard = () => {
                                         return (
                                             <div key={log._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col text-left">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-slate-800">
-                                                            {isTeacherCaller ? 'Outgoing Call' : 'Incoming Call'}
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-400 font-semibold mt-0.5">{dateStr}</span>
-                                                    </div>
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                                        log.status === 'connected' || log.status === 'ended' ? 'bg-emerald-50 text-emerald-600' :
-                                                        log.status === 'missed' ? 'bg-red-50 text-red-600' : 'bg-slate-200 text-slate-600'
-                                                    }`}>
-                                                        {log.status}
-                                                    </span>
-                                                </div>
+                                                     <div className="flex flex-col">
+                                                         <span className="text-xs font-bold text-slate-800">
+                                                             {isTeacherCaller ? 'Outgoing Call' : 'Incoming Call'}
+                                                         </span>
+                                                         <span className="text-[10px] text-slate-400 font-semibold mt-0.5">{dateStr}</span>
+                                                     </div>
+                                                     <div className="flex items-center gap-2">
+                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                             log.status === 'connected' || log.status === 'ended' ? 'bg-emerald-50 text-emerald-600' :
+                                                             log.status === 'missed' ? 'bg-red-50 text-red-600' : 'bg-slate-200 text-slate-600'
+                                                         }`}>
+                                                             {log.status}
+                                                         </span>
+                                                         <button
+                                                             onClick={() => handleDeleteCallLog(log._id)}
+                                                             className="text-slate-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                                             title="Delete Call History Log"
+                                                         >
+                                                             <Trash2 size={14} />
+                                                         </button>
+                                                     </div>
+                                                 </div>
 
                                                 <div className="text-xs text-slate-655 mt-1 flex flex-wrap gap-x-4">
                                                     {durationStr && <span>Duration: <strong className="text-slate-800">{durationStr}</strong></span>}

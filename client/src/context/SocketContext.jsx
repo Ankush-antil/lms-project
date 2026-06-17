@@ -378,6 +378,35 @@ export const SocketProvider = ({ children }) => {
         };
     }, [callState]);
 
+    // Automatically set video sources when the call connects and elements mount
+    useEffect(() => {
+        if (callState === 'connected' && callInfo.callType === 'video') {
+            const bindVideoStreams = () => {
+                if (localVideoRef.current && localStreamRef.current) {
+                    if (localVideoRef.current.srcObject !== localStreamRef.current) {
+                        localVideoRef.current.srcObject = localStreamRef.current;
+                        localVideoRef.current.play().catch(err => console.error('[WebRTC] Local video play error:', err));
+                    }
+                }
+                if (remoteVideoRef.current && remoteAudioRef.current?.srcObject) {
+                    const remoteStream = remoteAudioRef.current.srcObject;
+                    if (remoteVideoRef.current.srcObject !== remoteStream) {
+                        remoteVideoRef.current.srcObject = remoteStream;
+                        remoteVideoRef.current.play().catch(err => console.error('[WebRTC] Remote video play error:', err));
+                    }
+                }
+            };
+            bindVideoStreams();
+            // Tiny delay to guarantee elements are painted and refs are updated
+            const timer = setTimeout(bindVideoStreams, 100);
+            const timer2 = setTimeout(bindVideoStreams, 500);
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(timer2);
+            };
+        }
+    }, [callState, callInfo.callType]);
+
     const handleEndCallLocally = (finalState) => {
         stopRingtone();
         cleanMedia();
@@ -693,6 +722,7 @@ export const SocketProvider = ({ children }) => {
                                     ref={remoteVideoRef}
                                     autoPlay
                                     playsInline
+                                    muted
                                     className="w-full h-full object-cover bg-slate-800"
                                 />
                                 <video
@@ -844,7 +874,7 @@ export const SocketProvider = ({ children }) => {
                 </div>
             )}
             {/* Hidden Audio element for WebRTC Remote Stream */}
-            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+            <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} />
         </SocketContext.Provider>
     );
 };

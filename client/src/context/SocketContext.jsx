@@ -499,7 +499,10 @@ export const SocketProvider = ({ children }) => {
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
             ]
         });
 
@@ -552,6 +555,11 @@ export const SocketProvider = ({ children }) => {
                         document.addEventListener('click', playOnGesture);
                     });
             }
+
+            if (event.track.kind === 'video' && remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = remoteStreamRef.current;
+                remoteVideoRef.current.play().catch(e => console.warn('[WebRTC] Remote video play failed:', e));
+            }
         };
 
         pcRef.current = pc;
@@ -567,9 +575,6 @@ export const SocketProvider = ({ children }) => {
         }
         console.log('[CALL] Calling user:', targetId);
         unlockAudioContext();
-        if (remoteAudioRef.current) {
-            remoteAudioRef.current.play().catch(() => {});
-        }
         setCallState('dialing');
         setCallInfo({
             targetId,
@@ -587,12 +592,19 @@ export const SocketProvider = ({ children }) => {
             });
             localStreamRef.current = stream;
 
+            const pc = initializePeerConnection(targetId, callType);
+
+            // Bind remote audio ref immediately inside user gesture context (bypass autoplay restriction)
+            if (remoteAudioRef.current && remoteStreamRef.current) {
+                remoteAudioRef.current.srcObject = remoteStreamRef.current;
+                remoteAudioRef.current.play().catch(() => {});
+            }
+
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
             if (callType === 'video' && localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
-
-            const pc = initializePeerConnection(targetId, callType);
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
@@ -620,9 +632,6 @@ export const SocketProvider = ({ children }) => {
         stopRingtone();
         const callType = callInfo.callType || 'audio';
         unlockAudioContext();
-        if (remoteAudioRef.current) {
-            remoteAudioRef.current.play().catch(() => {});
-        }
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
@@ -643,12 +652,20 @@ export const SocketProvider = ({ children }) => {
             });
             localStreamRef.current = stream;
 
+            const pc = initializePeerConnection(callInfo.targetId, callType);
+
+            // Bind remote audio ref immediately inside user gesture context (bypass autoplay restriction)
+            if (remoteAudioRef.current && remoteStreamRef.current) {
+                remoteAudioRef.current.srcObject = remoteStreamRef.current;
+                remoteAudioRef.current.play().catch(() => {});
+            }
+
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
             if (callType === 'video' && localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
 
-            const pc = initializePeerConnection(callInfo.targetId, callType);
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
             await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
 
             const answer = await pc.createAnswer();
@@ -764,13 +781,23 @@ export const SocketProvider = ({ children }) => {
                         {isVideoCall && callState === 'connected' ? (
                             <div className="relative w-full mb-6 mt-2 rounded-3xl overflow-hidden bg-slate-800 aspect-video">
                                 <video
-                                    ref={remoteVideoRef}
+                                    ref={(el) => {
+                                        remoteVideoRef.current = el;
+                                        if (el && remoteStreamRef.current) {
+                                            el.srcObject = remoteStreamRef.current;
+                                        }
+                                    }}
                                     autoPlay
                                     playsInline
                                     className="w-full h-full object-cover bg-slate-800"
                                 />
                                 <video
-                                    ref={localVideoRef}
+                                    ref={(el) => {
+                                        localVideoRef.current = el;
+                                        if (el && localStreamRef.current) {
+                                            el.srcObject = localStreamRef.current;
+                                        }
+                                    }}
                                     autoPlay
                                     playsInline
                                     muted
@@ -918,7 +945,16 @@ export const SocketProvider = ({ children }) => {
                 </div>
             )}
             {/* Hidden Audio element for WebRTC Remote Stream */}
-            <audio ref={remoteAudioRef} autoPlay playsInline />
+            <audio 
+                ref={(el) => {
+                    remoteAudioRef.current = el;
+                    if (el && remoteStreamRef.current) {
+                        el.srcObject = remoteStreamRef.current;
+                    }
+                }} 
+                autoPlay 
+                playsInline 
+            />
         </SocketContext.Provider>
     );
 };

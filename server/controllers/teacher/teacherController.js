@@ -14,12 +14,13 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         }
 
         const assignedCourses = teacher.teacherProfile?.assignedCourses || [];
-        console.log(`[API] Teacher ${teacher.name} fetching students for courses:`, assignedCourses.map(c => c._id || c));
+        const courseIds = assignedCourses.map(c => c._id || c);
+        console.log(`[API] Teacher ${teacher.name} fetching students for courses:`, courseIds);
 
         // Find students whose course ID is in the teacher's assignedCourses list
         const students = await User.find({
             role: 'Student',
-            'studentProfile.course': { $in: assignedCourses }
+            'studentProfile.course': { $in: courseIds }
         })
             .select('-password')
             .populate('institute', 'name')

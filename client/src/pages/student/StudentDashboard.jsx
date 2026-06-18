@@ -79,7 +79,7 @@ const StudentDashboard = () => {
     }, []);
 
     if (loading) return (
-        <DashboardLayout role="Student">
+        <DashboardLayout role="Student" fullWidth={true}>
             <LoadingPlaceholder type="dashboard" />
         </DashboardLayout>
     );
@@ -91,7 +91,7 @@ const StudentDashboard = () => {
 
 
     return (
-        <DashboardLayout role="Student">
+        <DashboardLayout role="Student" fullWidth={true}>
             <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Student Dashboard</h1>

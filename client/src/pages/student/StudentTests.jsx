@@ -184,7 +184,7 @@ const StudentTests = () => {
     };
 
     return (
-        <DashboardLayout role="Student">
+        <DashboardLayout role="Student" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* ── LEFT SIDEBAR ───────────────────────────────────── */}

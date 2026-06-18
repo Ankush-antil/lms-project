@@ -188,7 +188,7 @@ const StudentTests = () => {
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* ── LEFT SIDEBAR ───────────────────────────────────── */}
-                <aside className="w-80 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden">
+                <aside className="w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden">
                     <div className="p-6 border-b border-slate-150 shrink-0">
                         <div className="flex items-center gap-2 mb-1.5">
                             <BookOpen className="text-slate-700" size={18} />
@@ -248,15 +248,15 @@ const StudentTests = () => {
                                                 setViewMode('pending');
                                             }
                                         }}
-                                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
                                                 ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
                                                 : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                             }`}
                                     >
-                                        <div className="flex items-center space-x-3 min-w-0">
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                        <div className="flex items-center space-x-2.5 min-w-0">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
                                                 }`}>
-                                                <BookOpen size={16} />
+                                                <BookOpen size={14} />
                                             </div>
                                             <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                 {getDisplayTitle(item.title)}
@@ -268,13 +268,13 @@ const StudentTests = () => {
                                                 e.stopPropagation();
                                                 if (firstTest) setInfoModalData(firstTest);
                                             }}
-                                            className={`p-1.5 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
                                                     ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
                                                     : 'border-slate-200 text-slate-400 bg-white'
                                                 }`}
                                             title="Inbox Details"
                                         >
-                                            <Info size={14} />
+                                            <Info size={12} />
                                         </button>
                                     </div>
                                 );

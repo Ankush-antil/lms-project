@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
-    Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp
+    Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
+    Sparkles
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -209,6 +210,27 @@ const TeacherActivities = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
 
+    const pendingCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+    }, [selectedGroup, submissionMap]);
+
+    const submittedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status !== 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const evaluatedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
     const activeTests = useMemo(() => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
@@ -249,7 +271,7 @@ const TeacherActivities = () => {
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* --- Left Sidebar: Activities Inbox --- */}
-                <aside className="w-80 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
+                <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
                     <div className="p-6 border-b border-slate-150 shrink-0 bg-white">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
@@ -269,7 +291,7 @@ const TeacherActivities = () => {
                         <p className="text-[10px] text-slate-400 mb-3 font-semibold uppercase tracking-wider">Browse student's inboxes</p>
 
                         {selectedStudent ? (
-                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/10 mb-4 relative overflow-hidden group">
+                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/10 mb-4 border border-white/20 relative overflow-hidden group">
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-all duration-700" />
                                 <div className="flex items-center space-x-3.5 relative z-10">
                                     <div
@@ -333,19 +355,19 @@ const TeacherActivities = () => {
                                             onClick={() => {
                                                 setSelectedInboxId(item.id);
                                                 setSelectedCategory(null);
-                                                if (!viewMode || !['pending', 'submitted', 'evaluated', 'chat', 'analytics'].includes(viewMode)) {
+                                                if (!viewMode || !['pending', 'submitted', 'evaluated', 'practice', 'chat', 'analytics'].includes(viewMode)) {
                                                     setViewMode('pending');
                                                 }
                                             }}
-                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
                                                     ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
                                                     : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                                 }`}
                                         >
-                                            <div className="flex items-center space-x-3 min-w-0">
-                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                            <div className="flex items-center space-x-2.5 min-w-0">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
                                                     }`}>
-                                                    <BookOpen size={16} />
+                                                    <BookOpen size={14} />
                                                 </div>
                                                 <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                     {getDisplayTitle(item.title)}
@@ -357,13 +379,13 @@ const TeacherActivities = () => {
                                                     e.stopPropagation();
                                                     if (firstTest) setInfoModalData(firstTest);
                                                 }}
-                                                className={`p-1.5 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
                                                         ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
                                                         : 'border-slate-200 text-slate-400 bg-white'
                                                     }`}
                                                 title="Inbox Details"
                                             >
-                                                <Info size={14} />
+                                                <Info size={12} />
                                             </button>
                                         </div>
                                     );
@@ -404,9 +426,10 @@ const TeacherActivities = () => {
                             {selectedInboxId && (
                                 <div className="flex bg-slate-50/80 border border-slate-100 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1 shrink-0">
                                     {[
-                                        { id: 'pending', label: 'Pending', icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                        { id: 'submitted', label: 'Submitted', icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                        { id: 'evaluated', label: 'Evaluated', icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                        { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                     ].map(tab => {
@@ -528,50 +551,152 @@ const TeacherActivities = () => {
                                     </button>
                                 </form>
                             </div>
-                        ) : viewMode === 'analytics' ? (
-                            /* --- ANALYTICS TAB --- */
+                        ) : viewMode === 'practice' ? (
+                            /* --- PRACTICE TAB --- */
                             <div className="animate-fade-in space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                            <span className="text-3xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
-                                        </div>
-                                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><BookOpen size={20} /></div>
+                                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+                                    <div className="relative z-10">
+                                        <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-full tracking-widest">Student Practice Details</span>
+                                        <h2 className="text-xl font-bold mt-2">Practice Tools Analytics</h2>
+                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Review this student's learning and practice tool activities generated under the current inbox syllabus.</p>
                                     </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
-                                            <span className="text-3xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
-                                        </div>
-                                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle2 size={20} /></div>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
-                                            <span className="text-3xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
-                                        </div>
-                                        <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Clock size={20} /></div>
+                                    <div className="absolute right-4 bottom-0 opacity-10 pointer-events-none transform translate-y-4">
+                                        <Sparkles size={180} />
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                    <h3 className="font-bold text-slate-800 text-sm">Overall Student Progress</h3>
-                                    <div>
-                                        <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1">
-                                            <span>Progress Status</span>
-                                            <span className="text-indigo-600">
-                                                {selectedGroup.tests.length > 0 ? Math.round((selectedGroup.completed / selectedGroup.tests.length) * 100) : 0}% Completed
-                                            </span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[
+                                        {
+                                            title: "AI Quiz Generator",
+                                            metrics: [
+                                                { label: "Attempted Quizzes", value: "3 Quizzes" },
+                                                { label: "Average Score", value: "85%" },
+                                                { label: "Mastery Level", value: "Excellent" }
+                                            ],
+                                            color: "text-purple-600 bg-purple-50 border-purple-100"
+                                        },
+                                        {
+                                            title: "Smart Flashcards",
+                                            metrics: [
+                                                { label: "Decks Reviewed", value: "2 Decks" },
+                                                { label: "Total Cards Read", value: "24 Cards" },
+                                                { label: "Retention Rate", value: "90%" }
+                                            ],
+                                            color: "text-indigo-600 bg-indigo-50 border-indigo-100"
+                                        },
+                                        {
+                                            title: "Mindmap Builder",
+                                            metrics: [
+                                                { label: "Mindmaps Generated", value: "1 Mindmap" },
+                                                { label: "Visual Nodes mapped", value: "8 Nodes" },
+                                                { label: "Last Created", value: "Yesterday" }
+                                            ],
+                                            color: "text-teal-600 bg-teal-50 border-teal-100"
+                                        }
+                                    ].map((tool, idx) => (
+                                        <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between group">
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-2.5 mb-4">{tool.title}</h3>
+                                                <div className="space-y-3">
+                                                    {tool.metrics.map((m, mIdx) => (
+                                                        <div key={mIdx} className="flex justify-between items-center text-xs">
+                                                            <span className="text-slate-400 font-semibold">{m.label}</span>
+                                                            <span className="text-slate-700 font-bold">{m.value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                                            <div
-                                                className="bg-indigo-600 h-full rounded-full transition-all duration-500"
-                                                style={{ width: `${selectedGroup.tests.length > 0 ? (selectedGroup.completed / selectedGroup.tests.length) * 100 : 0}%` }}
-                                            />
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
+                            </div>
+                        ) : viewMode === 'analytics' ? (
+                            /* --- ANALYTICS TAB --- */
+                            <div className="animate-fade-in space-y-6">
+                                {(() => {
+                                    const totalTests = selectedGroup.tests.length;
+                                    const evaluatedTests = (selectedGroup.tests || []).filter(t => {
+                                        const sub = submissionMap.get(t._id);
+                                        return sub && sub.status === 'evaluated';
+                                    }).length;
+                                    const submittedTests = (selectedGroup.tests || []).filter(t => {
+                                        const sub = submissionMap.get(t._id);
+                                        return sub && sub.status !== 'evaluated';
+                                    }).length;
+                                    const unattemptedTests = totalTests - evaluatedTests - submittedTests;
+
+                                    const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
+                                    const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
+                                    const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
+
+                                    return (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                                        <span className="text-3xl font-black text-slate-800 mt-1 block">{totalTests}</span>
+                                                    </div>
+                                                    <div className="p-3 bg-indigo-50 text-[#3E3ADD] rounded-xl"><BookOpen size={20} /></div>
+                                                </div>
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated</span>
+                                                        <span className="text-3xl font-black text-emerald-600 mt-1 block">{evaluatedTests}</span>
+                                                    </div>
+                                                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle2 size={20} /></div>
+                                                </div>
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted</span>
+                                                        <span className="text-3xl font-black text-blue-600 mt-1 block">{submittedTests}</span>
+                                                    </div>
+                                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><FileText size={20} /></div>
+                                                </div>
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted</span>
+                                                        <span className="text-3xl font-black text-rose-500 mt-1 block">{unattemptedTests}</span>
+                                                    </div>
+                                                    <div className="p-3 bg-rose-50 text-[#EF4444] rounded-xl"><Hourglass size={20} /></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                <h3 className="font-bold text-slate-800 text-sm">Overall Inbox Completion Progress</h3>
+                                                <div>
+                                                    <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-2">
+                                                        <span>Student Status Breakdown</span>
+                                                        <span className="text-[#3E3ADD] font-bold">
+                                                            {evaluatedPct}% Graded
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
+                                                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${evaluatedPct}%` }} title={`Evaluated: ${evaluatedPct}%`} />
+                                                        <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${submittedPct}%` }} title={`Submitted for grading: ${submittedPct}%`} />
+                                                        <div className="bg-[#EF4444] h-full transition-all duration-500" style={{ width: `${unattemptedPct}%` }} title={`Unattempted: ${unattemptedPct}%`} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-4 pt-2 text-xs font-bold text-slate-500 border-t border-slate-100">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-3 h-3 bg-emerald-500 rounded-full" />
+                                                        <span>Evaluated / Graded ({evaluatedTests})</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-3 h-3 bg-blue-500 rounded-full" />
+                                                        <span>Submitted for Grading ({submittedTests})</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-3 h-3 bg-[#EF4444] rounded-full" />
+                                                        <span>Unattempted ({unattemptedTests})</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         ) : selectedCategory ? (
                             /* --- TESTS LIST UNDER CATEGORY --- */
@@ -769,23 +894,15 @@ const TeacherActivities = () => {
                                             fetchStudentSubmissions(student._id);
                                             setShowStudentList(false);
                                         }}
-                                        className={`flex items-center space-x-3 p-4 rounded-3xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-indigo-200 shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/10' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'}`}
+                                        className={`flex items-center space-x-3 p-4 rounded-3xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-lg shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}
                                     >
-                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-slate-500 shadow-sm transition-transform shrink-0 ${isSelected ? 'bg-indigo-100 scale-105' : avatarBg}`}>
+                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black !text-white shadow-sm transition-transform shrink-0 ${isSelected ? 'bg-[#3E3ADD] scale-105 shadow-md shadow-indigo-500/20' : avatarBg}`} style={{ color: '#ffffff' }}>
                                             {student.name[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                 {student.name}
                                             </h4>
-                                            <div className="flex items-center space-x-2 mt-1.5">
-                                                <span className="text-[9px] font-black text-slate-700 uppercase tracking-tighter bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-md">
-                                                    C: {stats.completed || 0}
-                                                </span>
-                                                <span className="text-[9px] font-black text-[#3E3ADD] uppercase tracking-tighter bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-md">
-                                                    P: {stats.pending || 0}
-                                                </span>
-                                            </div>
                                         </div>
                                     </div>
                                 );

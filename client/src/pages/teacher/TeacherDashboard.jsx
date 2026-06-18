@@ -379,7 +379,7 @@ const TeacherDashboard = () => {
                                     return (
                                         <div key={student._id} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/60 rounded-2xl border border-slate-150 transition-all">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center font-bold text-sm relative">
+                                                <div className="w-9 h-9 bg-slate-900 !text-white rounded-xl flex items-center justify-center font-bold text-sm relative" style={{ color: '#ffffff' }}>
                                                     {student.name[0]}
                                                     <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
                                                 </div>

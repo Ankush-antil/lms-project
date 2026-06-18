@@ -44,7 +44,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className="h-24 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative flex-shrink-0">
+                <div className="h-24 bg-[#0b1329] relative flex-shrink-0">
                     <div className="absolute inset-0 flex items-center px-8">
                         <h3 className="text-xl font-black text-white tracking-tight">Edit Institute</h3>
                     </div>
@@ -63,7 +63,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute Name</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                     required
                                     value={name}
                                     onChange={e => setName(e.target.value)}
@@ -74,7 +74,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute Code</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                     required
                                     value={code}
                                     onChange={e => setCode(e.target.value)}
@@ -84,7 +84,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                             <div>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Campus Address</label>
                                 <textarea
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all min-h-[100px] resize-none"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all min-h-[100px] resize-none"
                                     value={address}
                                     onChange={e => setAddress(e.target.value)}
                                     placeholder="Enter full address..."
@@ -95,7 +95,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-blue-600 transition-all active:scale-95 disabled:opacity-50"
+                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50"
                         >
                             {loading ? 'Updating Institute...' : 'Save Changes'}
                         </button>

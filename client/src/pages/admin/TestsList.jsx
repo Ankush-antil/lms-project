@@ -826,7 +826,7 @@ const TestsList = () => {
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                Responses: <span className="text-indigo-650">{selectedPublicTest?.title}</span>
+                                Responses: <span className="text-[#0b1329]">{selectedPublicTest?.title}</span>
                             </h1>
                             <p className="text-slate-500 text-sm font-semibold">Responses cannot be edited. Showing {filteredSubmissions.length} of {publicSubmissions.length} total submissions.</p>
                         </div>
@@ -880,7 +880,7 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('summary')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'summary'
-                                ? 'border-indigo-600 text-indigo-650'
+                                ? 'border-[#0b1329] text-[#0b1329]'
                                 : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
@@ -889,7 +889,7 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('question')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'question'
-                                ? 'border-indigo-600 text-indigo-650'
+                                ? 'border-[#0b1329] text-[#0b1329]'
                                 : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
@@ -898,7 +898,7 @@ const TestsList = () => {
                         <button
                             onClick={() => setResponsesTab('individual')}
                             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px ${responsesTab === 'individual'
-                                ? 'border-indigo-600 text-indigo-650'
+                                ? 'border-[#0b1329] text-[#0b1329]'
                                 : 'border-transparent text-slate-500 hover:text-slate-800'
                                 }`}
                         >
@@ -918,7 +918,7 @@ const TestsList = () => {
                                     setIndividualSearch(e.target.value);
                                     setIndividualIndex(0);
                                 }}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-indigo-500 transition-all font-medium text-slate-700"
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all font-medium text-slate-700"
                             />
                         </div>
 
@@ -1015,7 +1015,7 @@ const TestsList = () => {
                     {/* Content display based on active tab */}
                     {loadingStats ? (
                         <div className="h-96 flex flex-col items-center justify-center gap-3">
-                            <Loader2 size={36} className="text-indigo-650 animate-spin" />
+                            <Loader2 size={36} className="text-[#0b1329] animate-spin" />
                             <p className="text-slate-400 text-xs font-semibold">Loading stats & submissions...</p>
                         </div>
                     ) : (
@@ -1032,7 +1032,7 @@ const TestsList = () => {
                                             </div>
                                             <div className="mt-3 flex items-center justify-between">
                                                 <span className="text-[10px] text-slate-400 font-bold">In selected filter</span>
-                                                <span className="p-1.5 bg-indigo-50 text-indigo-650 rounded-lg"><FileText size={14} /></span>
+                                                <span className="p-1.5 bg-slate-100 text-[#0b1329] rounded-lg"><FileText size={14} /></span>
                                             </div>
                                         </div>
 
@@ -1052,13 +1052,13 @@ const TestsList = () => {
                                         <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden group">
                                             <div>
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Avg Score</span>
-                                                <span className="text-2xl font-black text-indigo-650 block mt-1">
+                                                <span className="text-2xl font-black text-[#0b1329] block mt-1">
                                                     {avgScore} <span className="text-xs text-slate-400 font-bold">/ {totalMarks} pts</span>
                                                 </span>
                                             </div>
                                             <div className="mt-3 flex items-center justify-between">
                                                 <span className="text-[10px] text-slate-400 font-bold">Mean score</span>
-                                                <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><ShieldCheck size={14} /></span>
+                                                <span className="p-1.5 bg-slate-100 text-[#0b1329] rounded-lg"><ShieldCheck size={14} /></span>
                                             </div>
                                         </div>
 
@@ -1097,7 +1097,7 @@ const TestsList = () => {
                                     </div>
 
                                     {hasVideoQuestion && (
-                                        <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-3xl p-6 mb-6 shadow-xl relative overflow-hidden">
+                                        <div className="bg-gradient-to-r from-[#0b1329] to-[#1e293b] text-white rounded-3xl p-6 mb-6 shadow-xl relative overflow-hidden">
                                             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
                                             <div className="relative z-10">
                                                 <h3 className="text-sm font-black uppercase tracking-widest text-[#B282FF] mb-4 flex items-center gap-1.5"><Video size={16} /> Video Submission Analytics</h3>
@@ -1193,7 +1193,7 @@ const TestsList = () => {
                                                             <div key={idx} className="flex items-center gap-3">
                                                                 <span className="w-16 text-right text-xs font-bold text-slate-500">{bin.label}</span>
                                                                 <div className="flex-1 bg-slate-50 h-5 rounded-lg overflow-hidden border border-slate-100 flex items-center relative">
-                                                                    <div className="bg-indigo-600 h-full rounded-l-lg transition-all duration-500" style={{ width: `${pct}%` }} />
+                                                                    <div className="bg-[#0b1329] h-full rounded-l-lg transition-all duration-500" style={{ width: `${pct}%` }} />
                                                                     <span className="absolute left-2.5 text-[10px] font-bold text-slate-705">{bin.count} ({pct}%)</span>
                                                                 </div>
                                                             </div>
@@ -1324,13 +1324,13 @@ const TestsList = () => {
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
                                                         <h4 className="text-sm font-bold text-slate-800">
-                                                            <span className="text-indigo-650 mr-1.5 font-extrabold">Question {idx + 1}:</span> {q.text}
+                                                            <span className="text-[#0b1329] mr-1.5 font-extrabold">Question {idx + 1}:</span> {q.text}
                                                         </h4>
                                                         <span className="inline-block mt-2 px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
                                                             {qType}
                                                         </span>
                                                     </div>
-                                                    <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-extrabold rounded-xl">
+                                                    <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-[#0b1329] text-xs font-extrabold rounded-xl">
                                                         {q.marks || 1} pts
                                                     </span>
                                                 </div>
@@ -1378,7 +1378,7 @@ const TestsList = () => {
                                                                         <span className="text-slate-500 font-bold">{chosenCount} responses ({pct}%)</span>
                                                                     </div>
                                                                     <div className="w-full bg-slate-50 h-3 rounded-lg overflow-hidden border border-slate-100">
-                                                                        <div className={`h-full rounded-lg transition-all ${isCorrect ? 'bg-emerald-550' : 'bg-indigo-455'
+                                                                        <div className={`h-full rounded-lg transition-all ${isCorrect ? 'bg-emerald-550' : 'bg-slate-400'
                                                                             }`} style={{ width: `${pct}%` }} />
                                                                     </div>
                                                                 </div>
@@ -1441,7 +1441,7 @@ const TestsList = () => {
                                                 </button>
 
                                                 <span className="text-xs font-bold text-slate-705">
-                                                    Response <span className="text-indigo-650 font-black">{individualIndex + 1}</span> of <span className="text-slate-500 font-bold">{totalCount}</span>
+                                                    Response <span className="text-[#0b1329] font-black">{individualIndex + 1}</span> of <span className="text-slate-500 font-bold">{totalCount}</span>
                                                 </span>
 
                                                 <button
@@ -1460,7 +1460,7 @@ const TestsList = () => {
                                                         <p className="text-slate-400 text-xs font-semibold mt-1">Submitted on {new Date(activeSubmission?.submittedAt).toLocaleString()}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-black text-indigo-655 bg-indigo-50 px-4 py-2 border border-indigo-100 rounded-2xl font-mono">
+                                                        <span className="text-sm font-black text-[#0b1329] bg-slate-100 px-4 py-2 border border-slate-200 rounded-2xl font-mono">
                                                             Score: {activeSubmission?.score} / {totalMarks} pts
                                                         </span>
                                                         <button
@@ -1667,7 +1667,7 @@ const TestsList = () => {
                                                                                                                 }
                                                                                                             }}
                                                                                                             className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${(playbackSpeeds[evalKey] || 1) === speed
-                                                                                                                ? 'bg-purple-600 text-white shadow-sm'
+                                                                                                                ? 'bg-[#0b1329] text-white shadow-sm'
                                                                                                                 : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
                                                                                                                 }`}
                                                                                                         >
@@ -1697,7 +1697,7 @@ const TestsList = () => {
                                                                                                         <div key={cIdx} className="flex gap-2 items-start bg-slate-50 p-2 rounded-lg border border-slate-150 text-[11px]">
                                                                                                             <button
                                                                                                                 onClick={() => seekVideo(evalKey, comment.timeSeconds || 0)}
-                                                                                                                className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-750 font-mono font-bold rounded text-[9px] transition-colors"
+                                                                                                                className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-300 text-[#0b1329] font-mono font-bold rounded text-[9px] transition-colors"
                                                                                                             >
                                                                                                                 {comment.time}
                                                                                                             </button>
@@ -1720,14 +1720,14 @@ const TestsList = () => {
                                                                                                     value={newCommentText[evalKey] || ''}
                                                                                                     onChange={(e) => setNewCommentText(prev => ({ ...prev, [evalKey]: e.target.value }))}
                                                                                                     placeholder="Type feedback at current video playhead..."
-                                                                                                    className="flex-1 text-xs border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500"
+                                                                                                    className="flex-1 text-xs border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 outline-none focus:border-slate-500"
                                                                                                     onKeyDown={(e) => {
                                                                                                         if (e.key === 'Enter') handleAddComment(evalKey, { current: videoRefs.current[evalKey] });
                                                                                                     }}
                                                                                                 />
                                                                                                 <button
                                                                                                     onClick={() => handleAddComment(evalKey, { current: videoRefs.current[evalKey] })}
-                                                                                                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-750 text-white text-xs font-bold rounded-lg transition-colors"
+                                                                                                    className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white text-xs font-bold rounded-lg transition-colors"
                                                                                                 >
                                                                                                     Add
                                                                                                 </button>
@@ -1750,7 +1750,7 @@ const TestsList = () => {
                                                                                                 }}
                                                                                                 placeholder="Write evaluation review details here..."
                                                                                                 rows={2}
-                                                                                                className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-purple-500 resize-none font-semibold text-slate-700"
+                                                                                                className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-slate-500 resize-none font-semibold text-slate-700"
                                                                                             />
                                                                                         </div>
                                                                                         <div className="flex items-center gap-2">
@@ -1834,7 +1834,7 @@ const TestsList = () => {
                 </div>
                 <button
                     onClick={() => navigate('/admin/tests/builder')}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-150 transition-all active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95"
                 >
                     <Plus size={20} /> Create New Assessment
                 </button>
@@ -1846,7 +1846,7 @@ const TestsList = () => {
                     <button
                         onClick={() => setActiveTab('lms')}
                         className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
-                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
                             : 'text-slate-500 hover:text-slate-800'
                             }`}
                     >
@@ -1855,7 +1855,7 @@ const TestsList = () => {
                     <button
                         onClick={() => setActiveTab('public')}
                         className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
-                            ? 'bg-white text-indigo-650 shadow-sm border border-slate-200/50'
+                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
                             : 'text-slate-500 hover:text-slate-800'
                             }`}
                     >
@@ -1866,9 +1866,9 @@ const TestsList = () => {
                 {(activeTab === 'lms' || activeTab === 'public') && (
                     <button
                         onClick={() => setShowFolderExplorer(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-150 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm shadow-indigo-50"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0b1329] border border-slate-200 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm shadow-sm"
                     >
-                        <Folder size={14} className="text-indigo-500" />
+                        <Folder size={14} className="text-[#0b1329]" />
                         <span>Open Folder Explorer</span>
                     </button>
                 )}
@@ -1883,7 +1883,7 @@ const TestsList = () => {
                         placeholder="Search by test name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-indigo-500 transition-all font-medium"
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all font-medium"
                     />
                 </div>
 
@@ -1910,7 +1910,7 @@ const TestsList = () => {
                 /* ── LMS CONNECTED TESTS TABLE ── */
                 loading ? (
                     <div className="flex justify-center items-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
                     </div>
                 ) : filteredTests.length === 0 ? (
                     <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-250">
@@ -1939,14 +1939,14 @@ const TestsList = () => {
                                         <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="p-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-indigo-50 text-indigo-605 rounded-lg flex-shrink-0">
+                                                    <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
                                                         <FileText size={16} />
                                                     </div>
                                                     <span className="font-semibold text-slate-800">{test.title || 'Untitled'}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
-                                                <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                                                <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
                                                     {test.course || 'N/A'}
                                                 </span>
                                             </td>
@@ -1963,7 +1963,7 @@ const TestsList = () => {
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
                                                 {test.index ? (
-                                                    <span className="font-bold text-indigo-600 px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-xs">{test.index}</span>
+                                                    <span className="font-bold text-[#0b1329] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs">{test.index}</span>
                                                 ) : (
                                                     <span className="text-slate-400 italic text-xs">No Index</span>
                                                 )}
@@ -1971,7 +1971,7 @@ const TestsList = () => {
                                             <td className="p-4 whitespace-nowrap text-center">
                                                 <button
                                                     onClick={() => handleOpenResponses(test, 'connected')}
-                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 text-indigo-755 text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0b1329] text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
                                                 >
                                                     <span>Responses</span>
                                                 </button>
@@ -1981,7 +1981,7 @@ const TestsList = () => {
                                                     onClick={() => handleCopyUrl(test._id, 'connected')}
                                                     className={`p-1.5 rounded-lg border transition-all ${copiedId === test._id
                                                         ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-                                                        : 'text-slate-405 border-slate-200 hover:text-indigo-600 hover:bg-indigo-50/50 hover:border-indigo-200'
+                                                        : 'text-slate-405 border-slate-200 hover:text-[#0b1329] hover:bg-slate-100/50 hover:border-slate-300'
                                                         }`}
                                                     title="Copy shareable link"
                                                 >
@@ -1989,7 +1989,7 @@ const TestsList = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
-                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 rounded-lg transition-colors ml-1.5"
+                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
                                                     title="Edit Test"
                                                 >
                                                     <Edit size={15} />
@@ -2077,10 +2077,10 @@ const TestsList = () => {
                                                 <td className="p-4 whitespace-nowrap text-center">
                                                     <button
                                                         onClick={() => handleOpenResponses(test)}
-                                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 text-indigo-755 text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+                                                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0b1329] text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
                                                     >
                                                         <span>Responses</span>
-                                                        <span className="bg-indigo-650 text-black px-1.5 py-0.2 rounded-full text-[10px] font-black">{test.totalResponses}</span>
+                                                        <span className="bg-slate-200 text-black px-1.5 py-0.2 rounded-full text-[10px] font-black">{test.totalResponses}</span>
                                                     </button>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-center">
@@ -2102,14 +2102,14 @@ const TestsList = () => {
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                     <button
                                                         onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 rounded-lg transition-colors"
+                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
                                                         title="Edit Test"
                                                     >
                                                         <Edit size={15} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleOpenSettings(test)}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-indigo-655 hover:bg-indigo-50 hover:border-indigo-250 rounded-lg transition-colors ml-1.5"
+                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
                                                         title="Public Settings"
                                                     >
                                                         <Settings size={15} />
@@ -2147,7 +2147,7 @@ const TestsList = () => {
                     <form onSubmit={handleSaveSettings} className="bg-white w-full max-w-3xl max-h-[85vh] rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <Settings size={18} className="text-indigo-600" /> Edit Web Settings: <span className="text-indigo-650 font-extrabold">{selectedPublicTest?.title}</span>
+                                <Settings size={18} className="text-[#0b1329]" /> Edit Web Settings: <span className="text-[#0b1329] font-extrabold">{selectedPublicTest?.title}</span>
                             </h3>
                             <button type="button" onClick={() => setShowSettingsModal(false)} className="p-2 text-slate-400 hover:text-slate-650 rounded-full">
                                 <X size={20} />
@@ -2156,7 +2156,7 @@ const TestsList = () => {
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
                             {/* Dates & Limits Row */}
                             <div className="p-4 border border-slate-200 rounded-2xl space-y-4 animate-fade-in">
-                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12} className="text-indigo-650" /> Schedule & Limits</h5>
+                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12} className="text-[#0b1329]" /> Schedule & Limits</h5>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-600">Start Date</label>
@@ -2164,7 +2164,7 @@ const TestsList = () => {
                                             type="date"
                                             value={editSettingsForm.startDate}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, startDate: e.target.value }))}
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -2173,7 +2173,7 @@ const TestsList = () => {
                                             type="date"
                                             value={editSettingsForm.endDate}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, endDate: e.target.value }))}
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -2182,7 +2182,7 @@ const TestsList = () => {
                                             type="date"
                                             value={editSettingsForm.expiryDate}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, expiryDate: e.target.value }))}
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -2192,7 +2192,7 @@ const TestsList = () => {
                                             value={editSettingsForm.maxResponses}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, maxResponses: e.target.value }))}
                                             placeholder="No capacity limit"
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
                                 </div>
@@ -2202,7 +2202,7 @@ const TestsList = () => {
 
                                 {/* Security */}
                                 <div className="p-4 border border-slate-200 rounded-2xl space-y-4">
-                                    <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Lock size={12} className="text-indigo-650" /> Access Controls</h5>
+                                    <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Lock size={12} className="text-[#0b1329]" /> Access Controls</h5>
 
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-600">Access Password</label>
@@ -2211,7 +2211,7 @@ const TestsList = () => {
                                             value={editSettingsForm.password}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, password: e.target.value }))}
                                             placeholder="No password required"
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
 
@@ -2220,7 +2220,7 @@ const TestsList = () => {
                                             type="checkbox"
                                             checked={!editSettingsForm.allowMultiple}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, allowMultiple: !e.target.checked }))}
-                                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                            className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                         />
                                         One Response Per Email
                                     </label>
@@ -2230,7 +2230,7 @@ const TestsList = () => {
                                             type="checkbox"
                                             checked={editSettingsForm.antiSpam}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, antiSpam: e.target.checked }))}
-                                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                            className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                         />
                                         Enable reCAPTCHA & Rate Limiting
                                     </label>
@@ -2238,7 +2238,7 @@ const TestsList = () => {
 
                                 {/* Timer & Flow */}
                                 <div className="p-4 border border-slate-200 rounded-2xl space-y-4">
-                                    <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Clock size={12} className="text-indigo-650" /> assessment rules</h5>
+                                    <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Clock size={12} className="text-[#0b1329]" /> assessment rules</h5>
 
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-600">Time Limit (Minutes)</label>
@@ -2246,7 +2246,7 @@ const TestsList = () => {
                                             type="number"
                                             value={editSettingsForm.timeLimit}
                                             onChange={(e) => setEditSettingsForm(prev => ({ ...prev, timeLimit: e.target.value }))}
-                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-indigo-500"
+                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10"
                                         />
                                     </div>
 
@@ -2256,7 +2256,7 @@ const TestsList = () => {
                                                 type="checkbox"
                                                 checked={editSettingsForm.randomizeQuestions}
                                                 onChange={(e) => setEditSettingsForm(prev => ({ ...prev, randomizeQuestions: e.target.checked }))}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                                className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                             />
                                             Randomize Questions
                                         </label>
@@ -2265,7 +2265,7 @@ const TestsList = () => {
                                                 type="checkbox"
                                                 checked={editSettingsForm.showScoreAfterSubmission}
                                                 onChange={(e) => setEditSettingsForm(prev => ({ ...prev, showScoreAfterSubmission: e.target.checked }))}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                                className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                             />
                                             Show Score After Submission
                                         </label>
@@ -2274,7 +2274,7 @@ const TestsList = () => {
                                                 type="checkbox"
                                                 checked={editSettingsForm.showCorrectAnswers}
                                                 onChange={(e) => setEditSettingsForm(prev => ({ ...prev, showCorrectAnswers: e.target.checked }))}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                                className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                             />
                                             Show Correct Answers
                                         </label>
@@ -2284,7 +2284,7 @@ const TestsList = () => {
 
                             {/* Assistive Features Checklist */}
                             <div className="p-4 border border-slate-200 rounded-2xl space-y-4 animate-fade-in">
-                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Settings size={12} className="text-indigo-650" /> Assistive Accessibility Features (OFF by default)</h5>
+                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Settings size={12} className="text-[#0b1329]" /> Assistive Accessibility Features (OFF by default)</h5>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     {[
                                         { key: 'relevantInformation', label: 'Relevant Information' },
@@ -2314,7 +2314,7 @@ const TestsList = () => {
                                                         }
                                                     }));
                                                 }}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                                className="rounded text-[#0b1329] focus:ring-slate-500 w-4 h-4"
                                             />
                                             <span>{feat.label}</span>
                                         </label>
@@ -2324,14 +2324,14 @@ const TestsList = () => {
 
                             {/* Notifications */}
                             <div className="p-4 border border-slate-200 rounded-2xl space-y-3">
-                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Mail size={12} className="text-indigo-650" /> Email Notifications (Simulated)</h5>
+                                <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Mail size={12} className="text-[#0b1329]" /> Email Notifications (Simulated)</h5>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                                         <input
                                             type="checkbox"
                                             checked={editSettingsForm.emailNotification.sendConfirmationEmail}
                                             onChange={(e) => handleEmailNotificationChange('sendConfirmationEmail', e.target.checked)}
-                                            className="rounded text-indigo-600 w-4 h-4"
+                                            className="rounded text-[#0b1329] w-4 h-4"
                                         />
                                         Confirmation Email
                                     </label>
@@ -2340,7 +2340,7 @@ const TestsList = () => {
                                             type="checkbox"
                                             checked={editSettingsForm.emailNotification.sendScoreEmail}
                                             onChange={(e) => handleEmailNotificationChange('sendScoreEmail', e.target.checked)}
-                                            className="rounded text-indigo-600 w-4 h-4"
+                                            className="rounded text-[#0b1329] w-4 h-4"
                                         />
                                         Score Report Email
                                     </label>
@@ -2349,7 +2349,7 @@ const TestsList = () => {
                                             type="checkbox"
                                             checked={editSettingsForm.emailNotification.sendSubmissionNotification}
                                             onChange={(e) => handleEmailNotificationChange('sendSubmissionNotification', e.target.checked)}
-                                            className="rounded text-indigo-600 w-4 h-4"
+                                            className="rounded text-[#0b1329] w-4 h-4"
                                         />
                                         Admin Alert Email
                                     </label>
@@ -2359,7 +2359,7 @@ const TestsList = () => {
 
                         <div className="p-6 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/50">
                             <button type="button" onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-605 bg-white">Cancel</button>
-                            <button type="submit" disabled={savingSettings} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-150">
+                            <button type="submit" disabled={savingSettings} className="px-6 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-xs font-bold shadow-md shadow-[#0b1329]/15">
                                 {savingSettings ? "Saving..." : "Save Settings"}
                             </button>
                         </div>

@@ -32,10 +32,10 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
     return createPortal(
         <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4 font-sans">
             <div className="bg-white w-full max-w-lg rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up p-8 text-center space-y-6">
-                
+
                 {/* Close Button */}
-                <button 
-                    onClick={onClose} 
+                <button
+                    onClick={onClose}
                     className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-50 rounded-full transition-all"
                 >
                     <X size={20} />
@@ -60,19 +60,18 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
                         {publishMode === 'public' ? <Globe size={12} className="text-emerald-500" /> : <Link2 size={12} className="text-[#0b1329]" />}
                         {publishMode === 'public' ? 'Public Web Link' : 'LMS Connected Link'}
                     </span>
-                    
+
                     <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-2.5 overflow-hidden">
                         <span className="text-xs text-slate-650 truncate flex-1 font-mono select-all">
                             {url}
                         </span>
-                        
+
                         <button
                             onClick={handleCopy}
-                            className={`p-2 rounded-lg border transition-all ${
-                                copied
-                                    ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-                                    : 'text-slate-505 border-slate-200 hover:bg-slate-50 hover:text-slate-800'
-                            }`}
+                            className={`p-2 rounded-lg border transition-all ${copied
+                                ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                                : 'text-slate-505 border-slate-200 hover:bg-slate-50 hover:text-slate-800'
+                                }`}
                             title="Copy link to clipboard"
                         >
                             {copied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
@@ -91,7 +90,7 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
                         <ExternalLink size={14} />
                         <span>Preview Test</span>
                     </a>
-                    
+
                     <button
                         onClick={onClose}
                         className="py-3 bg-[#0b1329] hover:bg-[#152244] text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0b1329]/15 transition-all"

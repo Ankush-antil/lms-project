@@ -1,38 +1,80 @@
 import { useAuth } from '../../context/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
-    BookOpen, Clock, MoreVertical, RefreshCw, Info
+    BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
+    Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
+const getDisplayTitle = (title) => {
+    if (!title) return 'Inbox No';
+    const cleanTitle = title.trim();
+    if (cleanTitle.toLowerCase().startsWith('inbox no')) return cleanTitle;
+    if (cleanTitle.toLowerCase().startsWith('index')) {
+        return cleanTitle.replace(/index/i, 'Inbox No');
+    }
+    if (/^\d+$/.test(cleanTitle)) {
+        return `Inbox No ${cleanTitle}`;
+    }
+    return cleanTitle;
+};
+
+const getCategoryDisplayName = (act) => {
+    if (!act) return 'General';
+    const a = act.trim().toLowerCase();
+    if (a === 'quiz' || a === 'mcq' || a === 'mcqs') return 'MCQs';
+    if (a === 'short' || a === 'one-liner') return 'Short One-Liner Questions';
+    if (a === 'long' || a === 'descriptive') return 'Long Descriptive Questions';
+    if (a === 'oral') return 'Oral';
+    if (a === 'true & false' || a === 'true/false') return 'True & False';
+    if (a === 'fill in the blanks' || a === 'fill blanks') return 'Fill in the Blanks';
+    if (a === 'match the following' || a === 'match') return 'Match the Following';
+    if (a === 'assignment') return 'Assignment';
+    if (a === 'activity') return 'Activity';
+    if (a === 'projects' || a === 'project') return 'Projects';
+    if (a === 'practical task') return 'Practical Task';
+    if (a === 'practical viva' || a === 'viva') return 'Practical Viva';
+    
+    return act.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+};
+
 const TeacherActivities = () => {
     const { user } = useAuth();
     const userInfo = user;
     const [selectedStudent, setSelectedStudent] = useState(null);
-    const [selectedInbox, setSelectedInbox] = useState(null);
-    const [selectedIndex, setSelectedIndex] = useState('All');
-    const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'completed'
+    const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
+    const [inboxSearchQuery, setInboxSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [loading, setLoading] = useState(false);
     const [teacherInfo, setTeacherInfo] = useState(null);
     const [students, setStudents] = useState([]);
     const [studentSubmissions, setStudentSubmissions] = useState([]);
+    const [allTests, setAllTests] = useState([]);
+    const [selectedInboxId, setSelectedInboxId] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState(null);
     const [infoModalData, setInfoModalData] = useState(null);
+    const [showStudentList, setShowStudentList] = useState(true);
+    const [chatInput, setChatInput] = useState('');
+    const [chatMessages, setChatMessages] = useState([
+        { id: 1, sender: 'student', text: "Hello! Please make sure to submit your pending test category items before the scheduled deadline.", time: "10:00 AM" },
+        { id: 2, sender: 'teacher', text: "Sure. I will review and let you know.", time: "10:05 AM" }
+    ]);
+    const [submissionsLoading, setSubmissionsLoading] = useState(false);
     const { openProfile } = useUserProfile();
 
     const navigate = useNavigate();
 
     useEffect(() => {
-
         if (userInfo) {
             setTeacherInfo(userInfo);
             fetchStudents(userInfo.token);
+            fetchTests();
         } else {
             navigate('/');
         }
@@ -41,7 +83,6 @@ const TeacherActivities = () => {
     const fetchStudents = async (token) => {
         try {
             setLoading(true);
-
             const { data } = await axios.get('/api/users/teacher-students');
             setStudents(data);
             setLoading(false);
@@ -51,165 +92,290 @@ const TeacherActivities = () => {
         }
     };
 
+    const fetchTests = async () => {
+        try {
+            const { data } = await axios.get('/api/tests');
+            setAllTests(data);
+        } catch (error) {
+            console.error("Error fetching all tests:", error);
+        }
+    };
+
     const fetchStudentSubmissions = async (studentId) => {
         try {
-
-
+            setSubmissionsLoading(true);
             const { data } = await axios.get('/api/submissions');
             const filtered = data.filter(s => (s.student?._id || s.student) === studentId);
             setStudentSubmissions(filtered);
-            if (filtered.length > 0) {
-                const uniqueIndices = [...new Set(filtered.map(s => s.test?.index || 'No Index'))];
-                setSelectedIndex(uniqueIndices[0]);
-                setViewMode('pending');
-            }
         } catch (error) {
             console.error("Error fetching student submissions:", error);
+        } finally {
+            setSubmissionsLoading(false);
         }
     };
 
-    // Group submissions by the Test's Index strictly for the left sidebar "Inboxes"
-    const groupedByIndex = studentSubmissions.reduce((acc, sub) => {
-        const indexStr = sub.test?.index || 'No Index';
-
-        if (!acc[indexStr]) {
-            acc[indexStr] = {
-                id: indexStr,
-                title: indexStr,
-                submissions: [],
-                pending: 0,
-                completed: 0,
-                latestTime: new Date(sub.submittedAt)
-            };
-        }
-        acc[indexStr].submissions.push(sub);
-        if (sub.status === 'submitted') acc[indexStr].pending++;
-        else acc[indexStr].completed++;
-        if (new Date(sub.submittedAt) > acc[indexStr].latestTime) acc[indexStr].latestTime = new Date(sub.submittedAt);
-        return acc;
-    }, {});
-
-    const dynamicInboxes = Object.values(groupedByIndex).sort((a, b) => {
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
-        return getNum(a.id) - getNum(b.id) || b.latestTime - a.latestTime;
-    });
-
-    // Index filtering and counts for the dashboard
-    const indexStats = studentSubmissions.reduce((acc, s) => {
-        const indexKey = s.test?.index || 'No Index';
-
-        if (!acc[indexKey]) acc[indexKey] = { count: 0, pending: 0, completed: 0 };
-        acc[indexKey].count++;
-        if (s.status === 'submitted') acc[indexKey].pending++;
-        else acc[indexKey].completed++;
-        return acc;
-    }, {});
-
-    const uniqueIndices = studentSubmissions.length ? Object.keys(indexStats).sort((a, b) => {
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
-        return getNum(a) - getNum(b);
-    }) : [];
-
-    const filteredSubmissions = studentSubmissions.filter(s => {
-        const sIndex = s.test?.index || 'No Index';
-        const matchesIndex = sIndex === selectedIndex;
-        const matchesStatus = viewMode === 'pending' ? s.status === 'submitted' : s.status === 'evaluated';
-        return matchesIndex && matchesStatus;
-    }) || [];
-
-    // Dashboard summary stats
-    const summaryStats = {
-        pending: indexStats[selectedIndex]?.pending || 0,
-        completed: indexStats[selectedIndex]?.completed || 0
-    };
-
+    // Filter students by search bar
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Filter assigned tests based on student profile (institute, course, subjects)
+    const assignedTests = useMemo(() => {
+        if (!selectedStudent) return [];
+        const studentInstitute = selectedStudent.institute?.name?.trim() || '';
+        const studentCourse = selectedStudent.studentProfile?.course?.name?.trim() || '';
+        const studentSubject = selectedStudent.studentProfile?.subject?.trim() || '';
+
+        if (!studentInstitute) return [];
+
+        const subjects = studentSubject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+        return allTests.filter(test => {
+            // 1. Match Institute (case-insensitive)
+            const instMatch = test.institute?.trim().toLowerCase() === studentInstitute.toLowerCase();
+            if (!instMatch) return false;
+
+            // 2. Match Subject
+            const testSub = test.subject?.trim().toLowerCase() || '';
+            const subMatch = subjects.some(sub => testSub === sub);
+            if (!subMatch) return false;
+
+            // 3. Match Course
+            const testCourse = test.course?.trim().toLowerCase() || '';
+            if (testCourse && testCourse !== studentCourse.toLowerCase()) return false;
+
+            return true;
+        });
+    }, [allTests, selectedStudent]);
+
+    const submissionMap = useMemo(() => {
+        const map = new Map();
+        studentSubmissions.forEach(sub => {
+            const testId = sub.test?._id || sub.test;
+            if (testId) map.set(testId, sub);
+        });
+        return map;
+    }, [studentSubmissions]);
+
+    const selectedStudentStats = useMemo(() => {
+        if (!selectedStudent || !assignedTests) return { completed: 0, pending: 0 };
+        const completed = assignedTests.filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status === 'evaluated';
+        }).length;
+        const pending = assignedTests.length - completed;
+        return { completed, pending };
+    }, [assignedTests, submissionMap, selectedStudent]);
+
+    // Group assigned tests by index for the student
+    const dynamicInboxItems = useMemo(() => {
+        const grouped = assignedTests.reduce((acc, test) => {
+            const indexStr = test.index || 'No Index';
+            if (!acc[indexStr]) acc[indexStr] = [];
+            acc[indexStr].push(test);
+            return acc;
+        }, {});
+
+        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+
+        return Object.keys(grouped)
+            .sort((a, b) => getNum(a) - getNum(b))
+            .map(indexStr => ({
+                id: indexStr,
+                title: indexStr,
+                completed: grouped[indexStr].filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return sub && sub.status === 'evaluated';
+                }).length,
+                pending: grouped[indexStr].filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return !sub || sub.status !== 'evaluated';
+                }).length,
+                tests: grouped[indexStr]
+            }));
+    }, [assignedTests, submissionMap]);
+
+    // Auto-select first group when student changes
+    useEffect(() => {
+        if (dynamicInboxItems.length > 0) {
+            setSelectedInboxId(dynamicInboxItems[0].id);
+            setViewMode('pending');
+            setSelectedCategory(null);
+        } else {
+            setSelectedInboxId(null);
+            setSelectedCategory(null);
+        }
+    }, [selectedStudent, dynamicInboxItems]);
+
+    const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
+
+    const activeTests = useMemo(() => {
+        if (!selectedGroup) return [];
+        return (selectedGroup.tests || []).filter(test => {
+            const sub = submissionMap.get(test._id);
+            if (viewMode === 'pending') {
+                return !sub;
+            } else if (viewMode === 'submitted') {
+                return sub && sub.status !== 'evaluated';
+            } else if (viewMode === 'evaluated') {
+                return sub && sub.status === 'evaluated';
+            }
+            return false;
+        });
+    }, [selectedGroup, viewMode, submissionMap]);
+
+    const categoriesMap = useMemo(() => {
+        const map = {};
+        activeTests.forEach(test => {
+            const catName = getCategoryDisplayName(test.activity);
+            if (!map[catName]) map[catName] = [];
+            map[catName].push(test);
+        });
+        return map;
+    }, [activeTests]);
+
+    const filteredInboxItems = useMemo(() => {
+        return dynamicInboxItems.filter(item =>
+            getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
+        );
+    }, [dynamicInboxItems, inboxSearchQuery]);
+
+    const getAvatarBgColor = (name) => {
+        return 'bg-slate-400';
+    };
+
     return (
-        <DashboardLayout role="Teacher">
+        <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* --- Left Sidebar: Activities Inbox --- */}
-                <aside className="w-80 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-gray-100">
-                    <div className="p-6 border-b border-slate-200 bg-gray-100">
-                        <h2 className="text-lg font-bold text-slate-800 mb-4">Student Profile</h2>
+                <aside className="w-80 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
+                    <div className="p-6 border-b border-slate-150 shrink-0 bg-white">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <BookOpen className="text-slate-700" size={18} />
+                                <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
+                            </div>
+                            {selectedStudent && (
+                                <button
+                                    onClick={() => setShowStudentList(prev => !prev)}
+                                    className="p-2 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
+                                    title="Toggle Student List"
+                                >
+                                    <Menu size={16} />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mb-3 font-semibold uppercase tracking-wider">Browse student's inboxes</p>
 
                         {selectedStudent ? (
-                            <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 mb-4">
-                                <div className="flex items-center space-x-3">
+                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/10 mb-4 relative overflow-hidden group">
+                                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-all duration-700" />
+                                <div className="flex items-center space-x-3.5 relative z-10">
                                     <div
-                                        className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm cursor-pointer hover:scale-110 hover:ring-2 hover:ring-indigo-400 hover:ring-offset-2 transition-all overflow-hidden"
+                                        className="w-12 h-12 rounded-full border-2 border-white/30 bg-white/20 flex items-center justify-center text-white text-lg font-black shadow-inner cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden shrink-0"
                                         onClick={() => openProfile(selectedStudent._id)}
                                         title="View student profile"
                                     >
                                         {selectedStudent.avatar ? (
                                             <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            selectedStudent.name[0]
+                                            selectedStudent.name[0].toUpperCase()
                                         )}
                                     </div>
                                     <div className="min-w-0">
                                         <h3
-                                            className="font-bold text-slate-800 text-sm truncate cursor-pointer hover:text-indigo-600 transition-colors"
+                                            className="font-bold text-white text-base leading-tight truncate cursor-pointer hover:underline transition-all"
                                             onClick={() => openProfile(selectedStudent._id)}
                                         >
                                             {selectedStudent.name}
                                         </h3>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider truncate">{selectedStudent.studentProfile?.course?.name || 'No Course'}</p>
+                                        <p className="text-[10px] text-indigo-100 font-semibold truncate mt-1">
+                                            {selectedStudent.studentProfile?.course?.name || 'Web Dev'} • {selectedStudent.institute?.name || 'DPS Indore'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-4">
-                                <p className="text-xs text-slate-400 italic">Select a student from the right</p>
+                            <div className="p-5 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center mb-4 flex flex-col items-center justify-center py-6">
+                                <span className="text-xs font-semibold text-slate-400">Select a student from the list</span>
                             </div>
                         )}
 
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <div className="relative mb-3">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <input
                                 type="text"
-                                placeholder="Search activities..."
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-xs focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                placeholder="Search Inboxes..."
+                                value={inboxSearchQuery}
+                                onChange={(e) => setInboxSearchQuery(e.target.value)}
+                                disabled={!selectedStudent}
+                                className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800 disabled:opacity-50"
                             />
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                        {selectedStudent ? dynamicInboxes.map(inbox => (
-                            <div
-                                key={inbox.id}
-                                onClick={() => { setSelectedInbox(inbox); setSelectedIndex(inbox.title); }}
-                                className={`p-4 rounded-2xl border transition-all cursor-pointer group ${selectedInbox?.id === inbox.id ? 'border-indigo-500 bg-white shadow-md ring-1 ring-indigo-500/20' : 'border-transparent hover:border-indigo-200 hover:bg-white'}`}
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Clock size={14} className="text-indigo-500" />
-                                        <h4 className="font-bold text-slate-700 text-sm group-hover:text-indigo-700 transition-colors uppercase tracking-tight">{inbox.title}</h4>
-                                    </div>
-                                    <button className="text-slate-300 hover:text-slate-500"><MoreVertical size={14} /></button>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
+                        {selectedStudent ? (
+                            submissionsLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12 bg-white h-full">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                    <p className="text-xs text-slate-450 font-semibold">Loading activities...</p>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 mt-3">
-                                    <div
-                                        onClick={(e) => { e.stopPropagation(); setSelectedInbox(inbox); setSelectedIndex(inbox.title); setViewMode('completed'); }}
-                                        className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-lg border transition-all ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-100/50 hover:bg-emerald-100'}`}
-                                    >
-                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'bg-white' : 'bg-emerald-500'}`}></div>
-                                        <span className={`text-[10px] font-black uppercase ${selectedInbox?.id === inbox.id && viewMode === 'completed' ? 'text-white' : 'text-emerald-700'}`}>Completed {inbox.completed}</span>
-                                    </div>
-                                    <div
-                                        onClick={(e) => { e.stopPropagation(); setSelectedInbox(inbox); setSelectedIndex(inbox.title); setViewMode('pending'); }}
-                                        className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-lg border transition-all ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'bg-orange-500 text-white border-orange-600' : 'bg-orange-50 text-orange-700 border-orange-100/50 hover:bg-orange-100'}`}
-                                    >
-                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'bg-white' : 'bg-orange-500'}`}></div>
-                                        <span className={`text-[10px] font-black uppercase leading-none ${selectedInbox?.id === inbox.id && viewMode === 'pending' ? 'text-white' : 'text-orange-700'}`}>Pending : {inbox.pending}</span>
-                                    </div>
+                            ) : filteredInboxItems.length > 0 ? (
+                                filteredInboxItems.map(item => {
+                                    const isActive = selectedInboxId === item.id;
+                                    const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            onClick={() => {
+                                                setSelectedInboxId(item.id);
+                                                setSelectedCategory(null);
+                                                if (!viewMode || !['pending', 'submitted', 'evaluated', 'chat', 'analytics'].includes(viewMode)) {
+                                                    setViewMode('pending');
+                                                }
+                                            }}
+                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                    ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                }`}
+                                        >
+                                            <div className="flex items-center space-x-3 min-w-0">
+                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                    }`}>
+                                                    <BookOpen size={16} />
+                                                </div>
+                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                    {getDisplayTitle(item.title)}
+                                                </h3>
+                                            </div>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (firstTest) setInfoModalData(firstTest);
+                                                }}
+                                                className={`p-1.5 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                        ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                        : 'border-slate-200 text-slate-400 bg-white'
+                                                    }`}
+                                                title="Inbox Details"
+                                            >
+                                                <Info size={14} />
+                                            </button>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 opacity-50 py-12">
+                                    <Search size={32} strokeWidth={1.5} />
+                                    <p className="text-xs font-semibold">No inboxes found</p>
                                 </div>
-                            </div>
-                        )) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 space-y-2">
+                            )
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 space-y-2 py-12">
                                 <Clock size={40} strokeWidth={1} />
                                 <p className="text-[10px] font-medium">No student selected</p>
                             </div>
@@ -219,106 +385,57 @@ const TeacherActivities = () => {
 
                 {/* --- Center: Main Content --- */}
                 <main className="flex-1 bg-white flex flex-col overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                        {selectedStudent ? (
-                            <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-                                <div className={`rounded-xl p-3 flex items-center justify-between text-white shadow-md ${viewMode === 'pending' ? 'bg-red-500' : 'bg-emerald-500'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-white/20 p-2 rounded-lg"><BookOpen size={20} /></div>
-                                        <h2 className="font-bold text-lg">{viewMode === 'pending' ? 'Pending Submissions' : 'Completed Submissions'}</h2>
-                                    </div>
-                                    {/* <div className="flex items-center gap-3">
-                                        <button onClick={() => fetchStudentSubmissions(selectedStudent._id)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-                                            <RefreshCw size={18} />
-                                        </button>
-                                    </div> */}
+                    {selectedStudent && (
+                        <div className="bg-white border-b border-slate-200 p-6 flex flex-col gap-4 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                    <BookOpen size={20} />
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-6 bg-emerald-50/50 rounded-[32px] border border-emerald-100/50 flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Total Evaluated</span>
-                                            <div className="text-4xl font-black text-emerald-800">{summaryStats.completed}</div>
-                                        </div>
-                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-emerald-500"><CheckCircle2 size={24} /></div>
-                                    </div>
-                                    <div className="p-6 bg-orange-50/50 rounded-[32px] border border-orange-100/50 flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block mb-1">Awaiting Review</span>
-                                            <div className="text-4xl font-black text-orange-800">{summaryStats.pending}</div>
-                                        </div>
-                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-orange-500"><AlertCircle size={24} /></div>
-                                    </div>
-                                </div>
-
-
-
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Submission List</h4>
-                                    </div>
-
-                                    {filteredSubmissions.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {filteredSubmissions.map((sub) => {
-                                                const isEvaluated = sub.status === 'evaluated';
-                                                return (
-                                                    <div
-                                                        key={sub._id}
-                                                        onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
-                                                        className={`bg-white rounded-2xl border-2 overflow-hidden transition-all cursor-pointer group hover:shadow-md ${isEvaluated ? 'border-emerald-500 shadow-emerald-50' : 'border-[#3E3ADD]'}`}
-                                                    >
-                                                        {/* Submission card header */}
-                                                        <div className="p-4 flex items-center justify-between transition-colors">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${isEvaluated ? 'bg-emerald-500' : 'bg-slate-900'}`} />
-                                                                <div>
-                                                                    <h3 className="font-bold text-slate-800 text-sm leading-tight transition-colors group-hover:text-indigo-600">{sub.test?.title || 'Test'}</h3>
-                                                                    <p className="text-[10px] font-semibold text-slate-500 mt-1 uppercase tracking-wider">
-                                                                        Submitted date: {new Date(sub.submittedAt).toLocaleDateString('en-GB')}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3">
-                                                                <MoreVertical size={16} className="text-[#3E3ADD]" />
-                                                                <div className="flex items-center gap-2">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setInfoModalData(sub.test);
-                                                                        }}
-                                                                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
-                                                                    >
-                                                                        Connect it
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            navigate(`/teacher/evaluate/${sub._id}`);
-                                                                        }}
-                                                                        className={`${isEvaluated ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-[#FFE4E6] text-[#E11D48] hover:bg-[#FECDD3]'} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all`}
-                                                                    >
-                                                                        {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="py-24 text-center bg-slate-50/50 rounded-[40px] border border-dashed border-slate-200">
-                                            <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 text-slate-200 shadow-sm">
-                                                <Search size={24} />
-                                            </div>
-                                            <p className="text-slate-400 text-sm font-medium italic">No submissions for the selected date.</p>
-                                        </div>
-                                    )}
+                                <div>
+                                    <h1 className="text-xl font-extrabold text-indigo-950 tracking-tight leading-none">
+                                        {selectedInboxId ? getDisplayTitle(selectedInboxId) : 'Select an Inbox'}
+                                    </h1>
+                                    <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                        Your activities for this inbox
+                                    </p>
                                 </div>
                             </div>
-                        ) : (
+
+                            {selectedInboxId && (
+                                <div className="flex bg-slate-50/80 border border-slate-100 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1 shrink-0">
+                                    {[
+                                        { id: 'pending', label: 'Pending', icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'submitted', label: 'Submitted', icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                        { id: 'evaluated', label: 'Evaluated', icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
+                                        { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
+                                    ].map(tab => {
+                                        const isActive = viewMode === tab.id;
+                                        const TabIcon = tab.icon;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => {
+                                                    setViewMode(tab.id);
+                                                    setSelectedCategory(null);
+                                                }}
+                                                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                                        ? tab.activeClass
+                                                        : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                    }`}
+                                            >
+                                                <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                                <span>{tab.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                        {!selectedStudent ? (
                             <div className="h-full flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-6">
                                 <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center shadow-inner">
                                     <Users size={32} className="text-indigo-500" />
@@ -326,72 +443,356 @@ const TeacherActivities = () => {
                                 <div className="space-y-2">
                                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">Welcome Back!</h3>
                                     <p className="text-slate-400 text-sm leading-relaxed">
-                                        Select a student and an inbox item to view detailed activity reports.
+                                        Select a student from the list to view their assigned inbox activities.
                                     </p>
                                 </div>
+                            </div>
+                        ) : !selectedInboxId ? (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                    <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
+                                    <p className="text-slate-400 text-xs leading-relaxed">
+                                        This student does not have any assigned activities matching their course/subjects.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : viewMode === 'chat' ? (
+                            /* --- CHAT TAB --- */
+                            <div className="animate-fade-in flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
+                                            {selectedStudent.name[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
+                                            <p className="text-[10px] text-slate-400 font-semibold">{selectedStudent.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex bg-white p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500">
+                                        Inbox Chat View
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                                    {chatMessages.map(msg => (
+                                        <div key={msg.id} className={`flex ${msg.sender === 'teacher' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${
+                                                msg.sender === 'teacher'
+                                                    ? 'bg-[#3E3ADD] text-white rounded-tr-none'
+                                                    : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none shadow-sm'
+                                            }`}>
+                                                <p className="font-semibold">{msg.text}</p>
+                                                <span className={`text-[8px] mt-1 block text-right ${
+                                                    msg.sender === 'teacher' ? 'text-indigo-200' : 'text-slate-400'
+                                                }`}>
+                                                    {msg.time}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    if (!chatInput.trim()) return;
+                                    const newMsg = {
+                                        id: chatMessages.length + 1,
+                                        sender: 'teacher',
+                                        text: chatInput,
+                                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    };
+                                    setChatMessages(prev => [...prev, newMsg]);
+                                    setChatInput('');
+                                    setTimeout(() => {
+                                        setChatMessages(prev => [...prev, {
+                                            id: prev.length + 1,
+                                            sender: 'student',
+                                            text: "Thanks! I've received your note and will update the task accordingly.",
+                                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                        }]);
+                                    }, 1000);
+                                }} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                    <input
+                                        type="text"
+                                        value={chatInput}
+                                        onChange={e => setChatInput(e.target.value)}
+                                        placeholder="Type your message to the student..."
+                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                    >
+                                        Send
+                                    </button>
+                                </form>
+                            </div>
+                        ) : viewMode === 'analytics' ? (
+                            /* --- ANALYTICS TAB --- */
+                            <div className="animate-fade-in space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                            <span className="text-3xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
+                                        </div>
+                                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><BookOpen size={20} /></div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
+                                            <span className="text-3xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
+                                        </div>
+                                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle2 size={20} /></div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
+                                            <span className="text-3xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
+                                        </div>
+                                        <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Clock size={20} /></div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                    <h3 className="font-bold text-slate-800 text-sm">Overall Student Progress</h3>
+                                    <div>
+                                        <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1">
+                                            <span>Progress Status</span>
+                                            <span className="text-indigo-600">
+                                                {selectedGroup.tests.length > 0 ? Math.round((selectedGroup.completed / selectedGroup.tests.length) * 100) : 0}% Completed
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                            <div
+                                                className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${selectedGroup.tests.length > 0 ? (selectedGroup.completed / selectedGroup.tests.length) * 100 : 0}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : selectedCategory ? (
+                            /* --- TESTS LIST UNDER CATEGORY --- */
+                            <div className="animate-fade-in space-y-4">
+                                <div className="flex items-center justify-between mb-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200/50">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-800 font-bold text-sm">
+                                            {selectedCategory}
+                                        </span>
+                                        <span className="text-slate-400 text-xs font-medium">
+                                            ({(categoriesMap[selectedCategory] || []).length} items found)
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedCategory(null)}
+                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white shadow-sm border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
+                                    >
+                                        <RotateCcw size={12} /> Back to Categories
+                                    </button>
+                                </div>
+
+                                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                    {!(categoriesMap[selectedCategory] || []).length ? (
+                                        <div className="col-span-3 py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                            <div className="text-4xl mb-2">📋</div>
+                                            <p className="font-bold text-slate-700 text-sm">No items found</p>
+                                        </div>
+                                    ) : (
+                                        (categoriesMap[selectedCategory] || []).map(test => {
+                                            const sub = submissionMap.get(test._id);
+                                            const isEvaluated = sub && sub.status === 'evaluated';
+
+                                            return (
+                                                <div
+                                                    key={test._id}
+                                                    className="bg-white p-5 rounded-2xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-40 relative group"
+                                                >
+                                                    <div className="flex items-start gap-3 min-w-0">
+                                                        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
+                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                        }`} />
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
+                                                            <p className="text-[9px] font-black text-slate-400 mt-2.5 uppercase tracking-wider truncate">
+                                                                Subject: {test.subject || 'N/A'}
+                                                            </p>
+                                                            <p className="text-[9px] font-bold text-slate-450 mt-1">
+                                                                Created: {test.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3">
+                                                        <button
+                                                            onClick={() => setInfoModalData(test)}
+                                                            className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0"
+                                                        >
+                                                            RI Details
+                                                        </button>
+
+                                                        {!sub ? (
+                                                            <span className="px-4 py-2 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0">
+                                                                Not Submitted
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
+                                                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                    isEvaluated
+                                                                        ? 'bg-slate-105 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
+                                                                }`}
+                                                            >
+                                                                {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            /* --- CATEGORIES GRID --- */
+                            <div className="animate-fade-in space-y-4">
+                                {!Object.keys(categoriesMap).length ? (
+                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                        <div className="text-4xl mb-2">🎉</div>
+                                        <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                        {Object.keys(categoriesMap).map(catName => {
+                                            const testsInCat = categoriesMap[catName];
+                                            return (
+                                                <div
+                                                    key={catName}
+                                                    onClick={() => setSelectedCategory(catName)}
+                                                    className="bg-white p-5 rounded-[24px] border border-slate-200 hover:border-[#3E3ADD] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between h-32 group"
+                                                >
+                                                    <div className="flex items-start">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#3E3ADD] shrink-0" />
+                                                            <h4 className="font-extrabold text-slate-800 text-xs group-hover:text-[#3E3ADD] transition-colors leading-tight uppercase tracking-tight">
+                                                                {catName}
+                                                            </h4>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between mt-auto" onClick={e => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[9px] text-slate-500 font-extrabold bg-slate-50 border border-slate-150 rounded-full px-3 py-1 shrink-0 uppercase">
+                                                                {testsInCat.length} {testsInCat.length === 1 ? 'Test' : 'Tests'}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
+                                                                }}
+                                                                className="px-3 py-1 text-[9px] font-black text-indigo-600 bg-[#3E3ADD]/5 border border-indigo-150 rounded-full hover:bg-[#3E3ADD]/10 transition-all shrink-0 uppercase"
+                                                            >
+                                                                RI
+                                                            </button>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all shrink-0"
+                                                        >
+                                                            <Settings size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </main>
 
                 {/* --- Right Sidebar: Students Selecting --- */}
-                <aside className="w-80 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-gray-100">
-                    <div className="p-6 border-b border-slate-200 bg-gray-100">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 tracking-tight">Student List</h2>
-
-                        <div className="relative mb-6">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Find student..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
-                            />
-                        </div>
-
-                        <div className="flex bg-slate-100 p-1 rounded-2xl">
-                            {['Institute', 'Course'].map(filter => (
-                                <button
-                                    key={filter}
-                                    onClick={() => setActiveFilter(filter)}
-                                    className={`flex-1 py-2 text-[10px] font-bold transition-all rounded-xl ${activeFilter === filter ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    {filter}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                        {loading && !students.length ? (
-                            <LoadingPlaceholder type="activities" />
-                        ) : filteredStudents.map(student => (
-                            <div
-                                key={student._id}
-                                onClick={() => {
-                                    setSelectedStudent(student);
-                                    setSelectedInbox(null);
-                                    fetchStudentSubmissions(student._id);
-                                }}
-                                className={`flex items-center space-x-3 p-4 rounded-3xl border transition-all cursor-pointer ${selectedStudent?._id === student._id ? 'bg-white border-indigo-200 shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/10' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'}`}
-                            >
-                                <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-white shadow-sm transition-transform ${selectedStudent?._id === student._id ? 'bg-indigo-600 scale-105' : 'bg-slate-800'}`}>
-                                    {student.name[0]}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className={`text-sm font-bold truncate ${selectedStudent?._id === student._id ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                        {student.name}
-                                    </h4>
-                                    <div className="flex items-center space-x-2 mt-1">
-                                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter bg-emerald-50 px-1.5 py-0.5 rounded">Complete: {student.stats?.completed || 0}</span>
-                                        <span className="text-[8px] font-black text-orange-500 uppercase tracking-tighter bg-orange-50 px-1.5 py-0.5 rounded">Pending: {student.stats?.pending || 0}</span>
-                                    </div>
-                                </div>
+                {showStudentList && (
+                    <aside className="w-80 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white animate-slide-in-right">
+                        <div className="p-6 border-b border-slate-150 bg-white">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">Student List</h2>
+                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-0.5 rounded-full text-xs font-black">
+                                    {filteredStudents.length}
+                                </span>
                             </div>
-                        ))}
-                    </div>
-                </aside>
+
+                            <div className="relative mb-6">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Find student..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="flex bg-slate-100 p-1 rounded-2xl">
+                                {['Institute', 'Course'].map(filter => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => setActiveFilter(filter)}
+                                        className={`flex-1 py-2 text-[10px] font-bold transition-all rounded-xl ${activeFilter === filter ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {filter}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                            {loading && !students.length ? (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                    <p className="text-xs text-indigo-950 font-semibold">Loading students...</p>
+                                </div>
+                            ) : filteredStudents.map(student => {
+                                const isSelected = selectedStudent?._id === student._id;
+                                const stats = isSelected ? selectedStudentStats : (student.stats || { completed: 0, pending: 0 });
+                                const avatarBg = getAvatarBgColor(student.name);
+                                return (
+                                    <div
+                                        key={student._id}
+                                        onClick={() => {
+                                            setSelectedStudent(student);
+                                            fetchStudentSubmissions(student._id);
+                                            setShowStudentList(false);
+                                        }}
+                                        className={`flex items-center space-x-3 p-4 rounded-3xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-indigo-200 shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/10' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'}`}
+                                    >
+                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-slate-500 shadow-sm transition-transform shrink-0 ${isSelected ? 'bg-indigo-100 scale-105' : avatarBg}`}>
+                                            {student.name[0].toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                {student.name}
+                                            </h4>
+                                            <div className="flex items-center space-x-2 mt-1.5">
+                                                <span className="text-[9px] font-black text-slate-700 uppercase tracking-tighter bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-md">
+                                                    C: {stats.completed || 0}
+                                                </span>
+                                                <span className="text-[9px] font-black text-[#3E3ADD] uppercase tracking-tighter bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-md">
+                                                    P: {stats.pending || 0}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </aside>
+                )}
             </div>
 
             <style dangerouslySetInnerHTML={{
@@ -399,10 +800,14 @@ const TeacherActivities = () => {
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+                .scrollbar-none::-webkit-scrollbar { display: none; }
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
                 .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                .animate-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
             `}} />
 
             {/* Relevant Information Modal */}
@@ -412,7 +817,7 @@ const TeacherActivities = () => {
                         <div className="p-8">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                    <div className="w-10 h-10 rounded-full bg-[#3E3ADD] flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                                         <BookOpen size={20} strokeWidth={2.5} />
                                     </div>
                                     <h2 className="text-xl font-black text-slate-800 tracking-tight">Relevant Information</h2>
@@ -421,7 +826,7 @@ const TeacherActivities = () => {
                                     onClick={() => setInfoModalData(null)}
                                     className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
                                 >
-                                    <RefreshCw size={20} className="rotate-45" />
+                                    <RotateCcw size={20} className="rotate-45" />
                                 </button>
                             </div>
 

@@ -278,7 +278,7 @@ const MobileNavDrawer = ({ role, isMobileOpen }) => {
 /* ─────────────────────────────────────────
    Main DashboardLayout
 ───────────────────────────────────────── */
-const DashboardLayout = ({ children, role }) => {
+const DashboardLayout = ({ children, role, fullWidth = false }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
@@ -321,14 +321,14 @@ const DashboardLayout = ({ children, role }) => {
                 }}
                 className="flex-1 pt-24 pb-12 px-4 md:px-8 hidden lg:block"
             >
-                <div className="max-w-7xl mx-auto animate-fade-in relative">
+                <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
                     {children}
                 </div>
             </main>
 
             {/* Mobile main content (no sidebar offset) */}
             <main className="flex-1 pt-24 pb-12 px-4 md:px-8 lg:hidden">
-                <div className="max-w-7xl mx-auto animate-fade-in relative">
+                <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
                     {children}
                 </div>
             </main>

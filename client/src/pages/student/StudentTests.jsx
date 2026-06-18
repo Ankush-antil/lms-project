@@ -8,7 +8,7 @@ import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
-    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle
+    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info
 } from 'lucide-react';
 
 const getDisplayTitle = (title) => {
@@ -18,14 +18,12 @@ const getDisplayTitle = (title) => {
     if (cleanTitle.toLowerCase().startsWith('index')) {
         return cleanTitle.replace(/index/i, 'Inbox No');
     }
-    // if it's just a number:
     if (/^\d+$/.test(cleanTitle)) {
         return `Inbox No ${cleanTitle}`;
     }
     return cleanTitle;
 };
 
-// Helper to map DB activity string to readable display category
 const getCategoryDisplayName = (act) => {
     if (!act) return 'General';
     const a = act.trim().toLowerCase();
@@ -41,8 +39,7 @@ const getCategoryDisplayName = (act) => {
     if (a === 'projects' || a === 'project') return 'Projects';
     if (a === 'practical task') return 'Practical Task';
     if (a === 'practical viva' || a === 'viva') return 'Practical Viva';
-    
-    // Capitalize words for custom categories
+
     return act.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
@@ -51,15 +48,14 @@ const StudentTests = () => {
     const userInfo = user;
     const navigate = useNavigate();
     const [tests, setTests] = useState([]);
-    const [submissions, setSubmissions] = useState([]); // student's own submissions
+    const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | null
-    const [hiddenActivities, setHiddenActivities] = useState({});
-    const [showRelevantInfo, setShowRelevantInfo] = useState(false);
+    const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
     const [infoModalData, setInfoModalData] = useState(null);
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [inboxSearchQuery, setInboxSearchQuery] = useState('');
     const [chatInput, setChatInput] = useState('');
     const [chatMessages, setChatMessages] = useState([
         { id: 1, sender: 'teacher', text: "Hello! Please make sure to submit your pending test category items before the scheduled deadline.", time: "10:00 AM" },
@@ -69,19 +65,13 @@ const StudentTests = () => {
     useEffect(() => {
         const fetch = async () => {
             try {
-
                 if (!userInfo) return;
-
-
-                // Fetch tests AND student's own submissions in parallel
                 const [testsRes, subsRes] = await Promise.all([
                     axios.get('/api/tests'),
                     axios.get('/api/submissions')
                 ]);
-
                 setTests(testsRes.data);
-                setSubmissions(subsRes.data); // already filtered by backend for students
-
+                setSubmissions(subsRes.data);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -89,15 +79,13 @@ const StudentTests = () => {
             }
         };
         fetch();
-    }, []);
+    }, [userInfo]);
 
-    // Set of submitted test IDs (for quick lookup)
     const submittedTestIds = useMemo(() =>
         new Set(submissions.map(s => s.test?._id || s.test)),
         [submissions]
     );
 
-    // Group tests by Index
     const dynamicInboxItems = useMemo(() => {
         const grouped = tests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
@@ -106,7 +94,6 @@ const StudentTests = () => {
             return acc;
         }, {});
 
-        // Sort by index numerically if possible
         const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
 
         return Object.keys(grouped)
@@ -114,15 +101,12 @@ const StudentTests = () => {
             .map(indexStr => ({
                 id: indexStr,
                 title: indexStr,
-                // Done = tests in this index that have a submission
                 completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
-                // Pending = tests with no submission yet
                 pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
                 tests: grouped[indexStr]
             }));
     }, [tests, submittedTestIds]);
 
-    // Auto-select first group
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {
             setSelectedItem(dynamicInboxItems[0].id);
@@ -132,7 +116,6 @@ const StudentTests = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedItem);
 
-    // Map test IDs to their submissions for quick lookup
     const submissionMap = useMemo(() => {
         const map = new Map();
         submissions.forEach(sub => {
@@ -142,7 +125,6 @@ const StudentTests = () => {
         return map;
     }, [submissions]);
 
-    // Active tests based on selected group and selected viewMode (pending, submitted, evaluated)
     const activeTests = useMemo(() => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
@@ -158,7 +140,6 @@ const StudentTests = () => {
         });
     }, [selectedGroup, viewMode, submissionMap]);
 
-    // Group active tests by Category Name
     const categoriesMap = useMemo(() => {
         const map = {};
         activeTests.forEach(test => {
@@ -169,14 +150,11 @@ const StudentTests = () => {
         return map;
     }, [activeTests]);
 
-    // Pending: tests in group without a submission
-    const pendingTests = (selectedGroup?.tests || []).filter(t => !submittedTestIds.has(t._id));
-
-    // Completed: submissions whose test is in the selected group
-    const completedSubmissions = submissions.filter(sub => {
-        const testId = sub.test?._id || sub.test;
-        return (selectedGroup?.tests || []).some(t => t._id === testId);
-    });
+    const filteredInboxItems = useMemo(() => {
+        return dynamicInboxItems.filter(item =>
+            getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
+        );
+    }, [dynamicInboxItems, inboxSearchQuery]);
 
     const handleSendChatMessage = (e) => {
         e.preventDefault();
@@ -192,7 +170,6 @@ const StudentTests = () => {
         setChatMessages(prev => [...prev, newMsg]);
         setChatInput('');
 
-        // Simulated teacher response
         setTimeout(() => {
             setChatMessages(prev => [
                 ...prev,
@@ -207,33 +184,40 @@ const StudentTests = () => {
     };
 
     return (
-        <DashboardLayout role="Student">
-            <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-9.5rem)] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <DashboardLayout role="Student" fullWidth={true}>
+            <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* ── LEFT SIDEBAR ───────────────────────────────────── */}
-                <div className="w-full md:w-[260px] lg:w-[280px] md:max-w-[260px] lg:max-w-[280px] max-w-[300px] border-b md:border-b-0 md:border-r border-slate-200 flex flex-col bg-white shrink-0">
-                    <div className="p-2 border-b border-slate-100">
-                        <h2 className="font-bold text-slate-800 text-[16px] leading-tight mb-1.5">Activities Inbox Sidebar</h2>
-                        <div className="relative mb-1.5">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                <aside className="w-80 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden">
+                    <div className="p-6 border-b border-slate-150 shrink-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <BookOpen className="text-slate-700" size={18} />
+                            <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mb-3 font-semibold uppercase tracking-wider">Browse your inboxes</p>
+
+                        <div className="relative mb-3">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <input
                                 type="text"
-                                placeholder="Search"
-                                className="w-full h-7 pl-6 pr-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800"
+                                placeholder="Search Inboxes..."
+                                value={inboxSearchQuery}
+                                onChange={(e) => setInboxSearchQuery(e.target.value)}
+                                className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800"
                             />
                         </div>
-                        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
-                            {['Institute', 'Course', 'Subject', 'Inbox No'].map(f => {
+
+                        <div className="flex bg-slate-100 p-0.5 rounded-xl">
+                            {['Institute', 'Course'].map(f => {
                                 const isActive = activeFilter === f;
                                 return (
                                     <button
                                         key={f}
                                         onClick={() => setActiveFilter(f)}
-                                        className={`h-7 px-2 whitespace-nowrap border rounded-md text-[10px] font-bold transition-all flex items-center justify-center ${
-                                            isActive
-                                                ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm shadow-blue-500/10'
-                                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                                        }`}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${isActive
+                                                ? 'bg-white text-[#3E3ADD] shadow-sm border border-slate-200/10'
+                                                : 'text-slate-500 hover:text-slate-700'
+                                            }`}
                                     >
                                         {f}
                                     </button>
@@ -242,15 +226,15 @@ const StudentTests = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
                         {loading ? (
-                            <div className="space-y-2">
-                                {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-[80px] bg-slate-100 animate-pulse rounded-xl" />)}
+                            <div className="space-y-3">
+                                {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />)}
                             </div>
-                        ) : dynamicInboxItems.length === 0 ? (
-                            <div className="text-center py-6 text-slate-400 text-xs font-medium">No tests found for your course.</div>
+                        ) : filteredInboxItems.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400 text-xs font-semibold">No inboxes found.</div>
                         ) : (
-                            dynamicInboxItems.map(item => {
+                            filteredInboxItems.map(item => {
                                 const isActive = selectedItem === item.id;
                                 const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
 
@@ -264,99 +248,71 @@ const StudentTests = () => {
                                                 setViewMode('pending');
                                             }
                                         }}
-                                        className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm flex flex-col justify-between min-h-[92px] ${
-                                            isActive
-                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 ring-1 ring-[#3E3ADD]/10'
-                                                : 'border-slate-200 bg-white hover:border-blue-400 hover:shadow-sm'
-                                        }`}
+                                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                            }`}
                                     >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <h3 className="font-bold text-slate-800 text-[12px] leading-tight truncate mr-2">
+                                        <div className="flex items-center space-x-3 min-w-0">
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                }`}>
+                                                <BookOpen size={16} />
+                                            </div>
+                                            <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                 {getDisplayTitle(item.title)}
                                             </h3>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (firstTest) setInfoModalData(firstTest);
-                                                }}
-                                                className={`px-1.5 py-0.5 whitespace-nowrap border rounded text-[9px] font-bold transition-all shrink-0 ${
-                                                    isActive
-                                                        ? 'border-blue-300 text-blue-600 bg-blue-50/50 hover:bg-blue-100/50'
-                                                        : 'border-slate-200 text-slate-500 bg-white hover:bg-slate-50'
-                                                }`}
-                                            >
-                                                Info
-                                            </button>
                                         </div>
 
-                                        <div className="flex flex-col gap-1 mt-1">
-                                            {/* Completed pill */}
-                                            <div
-                                                onClick={e => {
-                                                    e.stopPropagation();
-                                                    setSelectedItem(item.id);
-                                                    setSelectedCategory(null);
-                                                    setViewMode('completed');
-                                                }}
-                                                className={`flex items-center gap-1.5 px-2 py-0.5 border rounded-md hover:shadow-sm transition-all cursor-pointer text-[10px] font-bold ${
-                                                    isActive && (viewMode === 'completed' || viewMode === 'submitted' || viewMode === 'evaluated')
-                                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                                        : 'bg-white border-slate-150 text-slate-600 hover:bg-slate-50'
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (firstTest) setInfoModalData(firstTest);
+                                            }}
+                                            className={`p-1.5 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                    : 'border-slate-200 text-slate-400 bg-white'
                                                 }`}
-                                            >
-                                                <span className="text-emerald-600 text-[10px] font-bold">✓</span>
-                                                <span className="whitespace-nowrap">{item.completed} Completed</span>
-                                            </div>
-
-                                            {/* Pending pill */}
-                                            <div
-                                                onClick={e => {
-                                                    e.stopPropagation();
-                                                    setSelectedItem(item.id);
-                                                    setSelectedCategory(null);
-                                                    setViewMode('pending');
-                                                }}
-                                                className={`flex items-center gap-1.5 px-2 py-0.5 border rounded-md hover:shadow-sm transition-all cursor-pointer text-[10px] font-bold ${
-                                                    isActive && viewMode === 'pending'
-                                                        ? 'bg-orange-50 border-orange-350 text-orange-850'
-                                                        : 'bg-white border-slate-150 text-slate-600 hover:bg-slate-50'
-                                                }`}
-                                            >
-                                                <span className="text-orange-500 text-[10px]">⏳</span>
-                                                <span className="whitespace-nowrap">{item.pending} Pending</span>
-                                            </div>
-                                        </div>
+                                            title="Inbox Details"
+                                        >
+                                            <Info size={14} />
+                                        </button>
                                     </div>
                                 );
                             })
                         )}
                     </div>
-                </div>
+                </aside>
 
                 {/* ── MAIN CONTENT ──────────────────────────────────── */}
-                <div className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden">
-                    {/* Top Header Section with colourful modern tabs */}
-                    <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-3 shrink-0">
-                        <div className="flex items-center justify-between">
-                            <h1 className="text-lg font-bold text-indigo-950 flex items-center gap-2">
-                                <span className="bg-indigo-50 text-[#3E3ADD] p-1.5 rounded-lg border border-indigo-100">
-                                    <BookOpen size={16} />
-                                </span>
-                                {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
-                            </h1>
+                <main className="flex-1 flex flex-col bg-white overflow-hidden">
+                    {/* Top Header Section */}
+                    <div className="bg-white border-b border-slate-200 p-6 flex flex-col gap-4 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                <BookOpen size={20} />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-extrabold text-indigo-950 tracking-tight leading-none">
+                                    {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
+                                </h1>
+                                <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                    Your activities for this inbox
+                                </p>
+                            </div>
                         </div>
 
                         {selectedGroup && (
-                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                            <div className="flex bg-slate-50/80 border border-slate-100 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1 shrink-0">
                                 {[
-                                    { id: 'pending', label: 'Pending', activeClass: 'bg-rose-500 text-white border-rose-600 shadow-sm' },
-                                    { id: 'submitted', label: 'Submitted', activeClass: 'bg-blue-600 text-white border-blue-700 shadow-sm' },
-                                    { id: 'evaluated', label: 'Evaluated', activeClass: 'bg-emerald-600 text-white border-emerald-700 shadow-sm' },
-                                    { id: 'practice', label: 'Practice Through Tools', activeClass: 'bg-purple-600 text-white border-purple-700 shadow-sm' },
-                                    { id: 'chat', label: 'Chat with Teacher', activeClass: 'bg-teal-600 text-white border-teal-700 shadow-sm' },
-                                    { id: 'analytics', label: 'Analytics', activeClass: 'bg-amber-600 text-white border-amber-700 shadow-sm' }
+                                    { id: 'pending', label: 'Pending', icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                    { id: 'submitted', label: 'Submitted', icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                    { id: 'evaluated', label: 'Evaluated', icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                    { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
+                                    { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
+                                    { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                 ].map(tab => {
                                     const isActive = viewMode === tab.id;
+                                    const TabIcon = tab.icon;
                                     return (
                                         <button
                                             key={tab.id}
@@ -364,13 +320,13 @@ const StudentTests = () => {
                                                 setViewMode(tab.id);
                                                 setSelectedCategory(null);
                                             }}
-                                            className={`px-4 py-2 border rounded-xl text-xs font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
-                                                isActive
+                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
                                                     ? tab.activeClass
-                                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100/80 hover:text-slate-800'
-                                            }`}
+                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                }`}
                                         >
-                                            {tab.label}
+                                            <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                            <span>{tab.label}</span>
                                         </button>
                                     );
                                 })}
@@ -378,31 +334,31 @@ const StudentTests = () => {
                         )}
                     </div>
 
-                    <div className="flex-1 p-5 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
                         {!selectedGroup ? (
                             <div className="h-full flex items-center justify-center">
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
                                     <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Selected</h2>
-                                    <p className="text-slate-400 text-xs leading-relaxed">
+                                    <p className="text-slate-450 text-xs leading-relaxed">
                                         Select an Inbox item from the sidebar to view categories and assignments.
                                     </p>
                                 </div>
                             </div>
                         ) : viewMode === 'practice' ? (
                             /* --- PRACTICE TAB --- */
-                            <div className="animate-fade-in space-y-4">
-                                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+                            <div className="animate-fade-in space-y-6">
+                                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
                                     <div className="relative z-10">
                                         <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-full tracking-widest">Interactive Practice</span>
                                         <h2 className="text-xl font-bold mt-2">Practice Through Tools</h2>
-                                        <p className="text-xs text-indigo-100 mt-1 max-w-md">Boost your performance by generating practice quizzes, flashcards, and concept maps for the current inbox syllabus.</p>
+                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Boost your performance by generating practice quizzes, flashcards, and concept maps for the current inbox syllabus.</p>
                                     </div>
                                     <div className="absolute right-4 bottom-0 opacity-10 pointer-events-none transform translate-y-4">
                                         <Sparkles size={180} />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {[
                                         {
                                             title: "AI Quiz Generator",
@@ -423,19 +379,19 @@ const StudentTests = () => {
                                             color: "text-teal-600 bg-teal-50 border-teal-100"
                                         }
                                     ].map((tool, idx) => (
-                                        <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between group">
+                                        <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between group">
                                             <div>
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${tool.color} mb-4 group-hover:scale-110 transition-all`}>
                                                     <tool.icon size={20} />
                                                 </div>
                                                 <h3 className="font-bold text-slate-800 text-sm">{tool.title}</h3>
-                                                <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">{tool.desc}</p>
+                                                <p className="text-slate-500 text-xs mt-1.5 leading-relaxed font-medium">{tool.desc}</p>
                                             </div>
                                             <button
                                                 onClick={() => {
                                                     alert(`${tool.title} is ready! Generating simulator...`);
                                                 }}
-                                                className="mt-5 w-full py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all"
+                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all uppercase tracking-wider"
                                             >
                                                 Launch Tool
                                             </button>
@@ -445,8 +401,7 @@ const StudentTests = () => {
                             </div>
                         ) : viewMode === 'chat' ? (
                             /* --- CHAT TAB --- */
-                            <div className="animate-fade-in flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                {/* Chat Header */}
+                            <div className="animate-fade-in flex flex-col h-full bg-white border border-slate-250 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                     <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
                                         T
@@ -459,19 +414,16 @@ const StudentTests = () => {
                                     </div>
                                 </div>
 
-                                {/* Chat messages thread */}
                                 <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
                                     {chatMessages.map(msg => (
                                         <div key={msg.id} className={`flex ${msg.sender === 'student' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${
-                                                msg.sender === 'student'
+                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${msg.sender === 'student'
                                                     ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                    : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none shadow-sm'
-                                            }`}>
-                                                <p>{msg.text}</p>
-                                                <span className={`text-[8px] mt-1 block text-right ${
-                                                    msg.sender === 'student' ? 'text-indigo-200' : 'text-slate-400'
+                                                    : 'bg-white text-slate-800 border border-slate-105 rounded-tl-none shadow-sm'
                                                 }`}>
+                                                <p className="font-semibold">{msg.text}</p>
+                                                <span className={`text-[8px] mt-1 block text-right ${msg.sender === 'student' ? 'text-indigo-200' : 'text-slate-400'
+                                                    }`}>
                                                     {msg.time}
                                                 </span>
                                             </div>
@@ -479,18 +431,17 @@ const StudentTests = () => {
                                     ))}
                                 </div>
 
-                                {/* Chat Input box */}
                                 <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
                                     <input
                                         type="text"
                                         value={chatInput}
                                         onChange={e => setChatInput(e.target.value)}
                                         placeholder="Type your message to the instructor..."
-                                        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"
+                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                     />
                                     <button
                                         type="submit"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-xl transition-colors shrink-0 flex items-center justify-center"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center shadow-sm"
                                     >
                                         <SendHorizontal size={16} />
                                     </button>
@@ -499,7 +450,7 @@ const StudentTests = () => {
                         ) : viewMode === 'analytics' ? (
                             /* --- ANALYTICS TAB --- */
                             <div className="animate-fade-in space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                                         <div>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
@@ -543,25 +494,25 @@ const StudentTests = () => {
                             </div>
                         ) : selectedCategory ? (
                             /* --- TESTS LIST UNDER CATEGORY --- */
-                            <div className="animate-fade-in space-y-4">
-                                <div className="flex items-center justify-between mb-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200/50">
+                            <div className="animate-fade-in space-y-6">
+                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-150">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-slate-800 font-bold text-sm">
+                                        <span className="text-slate-800 font-extrabold text-base">
                                             {selectedCategory}
                                         </span>
-                                        <span className="text-slate-400 text-xs">
+                                        <span className="text-slate-450 text-xs font-semibold">
                                             ({(categoriesMap[selectedCategory] || []).length} items found)
                                         </span>
                                     </div>
                                     <button
                                         onClick={() => setSelectedCategory(null)}
-                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white shadow-sm border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
+                                        className="flex items-center gap-1.5 text-xs font-black text-indigo-600 hover:text-indigo-800 bg-white shadow-sm border border-slate-200 rounded-xl px-4 py-2 transition-colors uppercase tracking-wider"
                                     >
                                         <RotateCcw size={12} /> Back to Categories
                                     </button>
                                 </div>
 
-                                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                                     {!(categoriesMap[selectedCategory] || []).length ? (
                                         <div className="col-span-3 py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
                                             <div className="text-4xl mb-2">📋</div>
@@ -583,27 +534,26 @@ const StudentTests = () => {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className={`bg-white p-4 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer group flex flex-col justify-between h-36 relative`}
+                                                    className={`bg-white p-5 rounded-2xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-40 relative group`}
                                                 >
-                                                    <div className="flex items-start gap-2.5 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                        }`} />
+                                                    <div className="flex items-start gap-3 min-w-0">
+                                                        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                            }`} />
                                                         <div className="min-w-0">
-                                                            <h3 className="font-bold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2">{test.title}</h3>
-                                                            <p className="text-[9px] font-semibold text-slate-400 mt-1 uppercase tracking-wider truncate">
+                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
+                                                            <p className="text-[9px] font-black text-slate-400 mt-2.5 uppercase tracking-wider truncate">
                                                                 Subject: {test.subject || 'N/A'}
                                                             </p>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5">
+                                                            <p className="text-[9px] font-bold text-slate-450 mt-1">
                                                                 Created: {test.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A'}
                                                             </p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-2" onClick={e => e.stopPropagation()}>
+                                                    <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3" onClick={e => e.stopPropagation()}>
                                                         <button
                                                             onClick={() => setInfoModalData(test)}
-                                                            className="px-2.5 py-1 text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors"
+                                                            className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors"
                                                         >
                                                             RI Details
                                                         </button>
@@ -616,13 +566,12 @@ const StudentTests = () => {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm ${
-                                                                !sub
+                                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 ${!sub
                                                                     ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
                                                                     : isEvaluated
-                                                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-250 hover:bg-emerald-200'
-                                                                        : 'bg-blue-100 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                            }`}
+                                                                        ? 'bg-[#ECFDF5] text-emerald-800 border border-emerald-250 hover:bg-emerald-100'
+                                                                        : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                }`}
                                                         >
                                                             {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
@@ -637,53 +586,52 @@ const StudentTests = () => {
                             /* --- CATEGORIES GRID --- */
                             <div className="animate-fade-in space-y-4">
                                 {!Object.keys(categoriesMap).length ? (
-                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                        <div className="text-4xl mb-2">🎉</div>
-                                        <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                        <p className="text-slate-400 text-xs mt-1">No {viewMode} test categories exist in this Inbox.</p>
+                                    <div className="py-16 text-center bg-slate-50/30 rounded-3xl border border-dashed border-slate-250 max-w-md mx-auto flex flex-col items-center justify-center">
+                                        <div className="w-14 h-14 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-center text-slate-350 text-2xl mb-4">🎉</div>
+                                        <p className="font-extrabold text-slate-700 text-sm">All caught up!</p>
+                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} test categories exist in this Inbox.</p>
                                     </div>
                                 ) : (
-                                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                    <div className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                                         {Object.keys(categoriesMap).map(catName => {
                                             const testsInCat = categoriesMap[catName];
                                             return (
                                                 <div
                                                     key={catName}
                                                     onClick={() => setSelectedCategory(catName)}
-                                                    className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#3E3ADD] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between h-32 group"
+                                                    className="bg-white p-5 rounded-[24px] border border-slate-200 hover:border-[#3E3ADD] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between h-32 group"
                                                 >
-                                                    <div className="flex items-start justify-between">
+                                                    <div className="flex items-start">
                                                         <div className="flex items-center gap-2">
-                                                            {/* bullet point */}
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#3E3ADD]" />
-                                                            <h4 className="font-bold text-slate-800 text-xs group-hover:text-[#3E3ADD] transition-colors">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#3E3ADD] shrink-0" />
+                                                            <h4 className="font-extrabold text-slate-800 text-xs group-hover:text-[#3E3ADD] transition-colors leading-tight uppercase tracking-tight">
                                                                 {catName}
                                                             </h4>
                                                         </div>
                                                     </div>
 
                                                     <div className="flex items-center justify-between mt-auto" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-[10px] text-slate-500 font-semibold bg-slate-50 border border-slate-100 rounded-md px-2 py-0.5">
-                                                            {testsInCat.length} {testsInCat.length === 1 ? 'Test' : 'Tests'}
-                                                        </span>
                                                         <div className="flex items-center gap-1.5">
+                                                            <span className="text-[9px] text-slate-500 font-extrabold bg-slate-50 border border-slate-150 rounded-full px-3 py-1 shrink-0 uppercase">
+                                                                {testsInCat.length} {testsInCat.length === 1 ? 'Test' : 'Tests'}
+                                                            </span>
                                                             <button
                                                                 onClick={() => {
                                                                     if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
                                                                 }}
-                                                                className="px-2.5 py-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full hover:bg-indigo-100 transition-all"
+                                                                className="px-3 py-1 text-[9px] font-black text-indigo-600 bg-[#3E3ADD]/5 border border-indigo-150 rounded-full hover:bg-[#3E3ADD]/10 transition-all shrink-0 uppercase"
                                                             >
                                                                 RI
                                                             </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
-                                                                }}
-                                                                className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-50 transition-all"
-                                                            >
-                                                                <Settings size={12} />
-                                                            </button>
                                                         </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all shrink-0"
+                                                        >
+                                                            <Settings size={14} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             );
@@ -693,7 +641,7 @@ const StudentTests = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </main>
             </div>
 
             <style>{`
@@ -701,9 +649,8 @@ const StudentTests = () => {
                 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 4px; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.25s ease-out; }
             `}</style>
+
             {/* Relevant Information Modal */}
             {infoModalData && (
                 <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
@@ -720,7 +667,7 @@ const StudentTests = () => {
                                     onClick={() => setInfoModalData(null)}
                                     className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
                                 >
-                                    <Menu size={20} className="rotate-45" />
+                                    <RotateCcw size={20} className="rotate-45" />
                                 </button>
                             </div>
 

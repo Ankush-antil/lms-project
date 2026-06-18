@@ -125,6 +125,27 @@ const StudentTests = () => {
         return map;
     }, [submissions]);
 
+    const pendingCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+    }, [selectedGroup, submissionMap]);
+
+    const submittedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status !== 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const evaluatedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
     const activeTests = useMemo(() => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
@@ -286,27 +307,27 @@ const StudentTests = () => {
                 {/* ── MAIN CONTENT ──────────────────────────────────── */}
                 <main className="flex-1 flex flex-col bg-white overflow-hidden">
                     {/* Top Header Section */}
-                    <div className="bg-white border-b border-slate-200 p-6 flex flex-col gap-4 shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
-                                <BookOpen size={20} />
+                    <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                <BookOpen size={16} />
                             </div>
                             <div>
-                                <h1 className="text-xl font-extrabold text-indigo-950 tracking-tight leading-none">
+                                <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
                                     {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
                                 </h1>
-                                <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                                     Your activities for this inbox
                                 </p>
                             </div>
                         </div>
 
                         {selectedGroup && (
-                            <div className="flex bg-slate-50/80 border border-slate-100 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1 shrink-0">
+                            <div className="flex bg-slate-50/80 border border-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none gap-1 shrink-0">
                                 {[
-                                    { id: 'pending', label: 'Pending', icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                    { id: 'submitted', label: 'Submitted', icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                    { id: 'evaluated', label: 'Evaluated', icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                    { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                    { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                    { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
                                     { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                     { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                     { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
@@ -320,7 +341,7 @@ const StudentTests = () => {
                                                 setViewMode(tab.id);
                                                 setSelectedCategory(null);
                                             }}
-                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
                                                     ? tab.activeClass
                                                     : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
                                                 }`}
@@ -379,19 +400,19 @@ const StudentTests = () => {
                                             color: "text-teal-600 bg-teal-50 border-teal-100"
                                         }
                                     ].map((tool, idx) => (
-                                        <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between group">
+                                        <div key={idx} className="bg-white p-4.5 rounded-2xl border border-slate-200 hover:border-[#3E3ADD] hover:shadow-md transition-all flex flex-col justify-between group">
                                             <div>
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${tool.color} mb-4 group-hover:scale-110 transition-all`}>
-                                                    <tool.icon size={20} />
+                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${tool.color} mb-3 group-hover:scale-110 transition-all`}>
+                                                    <tool.icon size={18} />
                                                 </div>
-                                                <h3 className="font-bold text-slate-800 text-sm">{tool.title}</h3>
-                                                <p className="text-slate-500 text-xs mt-1.5 leading-relaxed font-medium">{tool.desc}</p>
+                                                <h3 className="font-bold text-slate-800 text-xs">{tool.title}</h3>
+                                                <p className="text-slate-500 text-[11px] mt-1 leading-relaxed font-medium">{tool.desc}</p>
                                             </div>
                                             <button
                                                 onClick={() => {
                                                     alert(`${tool.title} is ready! Generating simulator...`);
                                                 }}
-                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all uppercase tracking-wider"
+                                                className="mt-4 w-full py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider"
                                             >
                                                 Launch Tool
                                             </button>
@@ -451,30 +472,30 @@ const StudentTests = () => {
                             /* --- ANALYTICS TAB --- */
                             <div className="animate-fade-in space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                                         <div>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                            <span className="text-3xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
+                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
                                         </div>
-                                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><BookOpen size={20} /></div>
+                                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg"><BookOpen size={16} /></div>
                                     </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                                         <div>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
-                                            <span className="text-3xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
+                                            <span className="text-2xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
                                         </div>
-                                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle size={20} /></div>
+                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle size={16} /></div>
                                     </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                                         <div>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
-                                            <span className="text-3xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
+                                            <span className="text-2xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
                                         </div>
-                                        <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Hourglass size={20} /></div>
+                                        <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                                     <h3 className="font-bold text-slate-800 text-sm">Overall Completion Progress</h3>
                                     <div>
                                         <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1">
@@ -492,35 +513,18 @@ const StudentTests = () => {
                                     </div>
                                 </div>
                             </div>
-                        ) : selectedCategory ? (
-                            /* --- TESTS LIST UNDER CATEGORY --- */
-                            <div className="animate-fade-in space-y-6">
-                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-slate-800 font-extrabold text-base">
-                                            {selectedCategory}
-                                        </span>
-                                        <span className="text-slate-450 text-xs font-semibold">
-                                            ({(categoriesMap[selectedCategory] || []).length} items found)
-                                        </span>
+                        ) : (
+                            /* --- DIRECT TESTS GRID --- */
+                            <div className="animate-fade-in space-y-4">
+                                {!activeTests.length ? (
+                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                        <div className="text-4xl mb-2">🎉</div>
+                                        <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox.</p>
                                     </div>
-                                    <button
-                                        onClick={() => setSelectedCategory(null)}
-                                        className="flex items-center gap-1.5 text-xs font-black text-indigo-600 hover:text-indigo-800 bg-white shadow-sm border border-slate-200 rounded-xl px-4 py-2 transition-colors uppercase tracking-wider"
-                                    >
-                                        <RotateCcw size={12} /> Back to Categories
-                                    </button>
-                                </div>
-
-                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                    {!(categoriesMap[selectedCategory] || []).length ? (
-                                        <div className="col-span-3 py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                            <div className="text-4xl mb-2">📋</div>
-                                            <p className="font-bold text-slate-700 text-sm">No tests found</p>
-                                            <p className="text-slate-400 text-xs mt-1">There are no tests listed in this category.</p>
-                                        </div>
-                                    ) : (
-                                        (categoriesMap[selectedCategory] || []).map(test => {
+                                ) : (
+                                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                        {activeTests.map(test => {
                                             const sub = submissionMap.get(test._id);
                                             const isEvaluated = sub && sub.status === 'evaluated';
 
@@ -534,30 +538,36 @@ const StudentTests = () => {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className={`bg-white p-5 rounded-2xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-40 relative group`}
+                                                    className="bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-32 relative group"
                                                 >
-                                                    <div className="flex items-start gap-3 min-w-0">
-                                                        <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                            }`} />
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setInfoModalData(test);
+                                                        }}
+                                                        className="absolute top-3 right-3 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0 z-10"
+                                                    >
+                                                        RI Details
+                                                    </button>
+
+                                                    <div className="flex items-start gap-2.5 min-w-0 pr-20">
+                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                        }`} />
                                                         <div className="min-w-0">
                                                             <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
-                                                            <p className="text-[9px] font-black text-slate-400 mt-2.5 uppercase tracking-wider truncate">
+                                                            {test.activity && (
+                                                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded-md inline-block mt-1 w-max">
+                                                                    {getCategoryDisplayName(test.activity)}
+                                                                </span>
+                                                            )}
+                                                            <p className="text-[9px] font-black text-slate-405 mt-1.5 uppercase tracking-wider truncate">
                                                                 Subject: {test.subject || 'N/A'}
-                                                            </p>
-                                                            <p className="text-[9px] font-bold text-slate-450 mt-1">
-                                                                Created: {test.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A'}
                                                             </p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={() => setInfoModalData(test)}
-                                                            className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors"
-                                                        >
-                                                            RI Details
-                                                        </button>
-
+                                                    <div className="flex items-center justify-end mt-2 border-t border-slate-50 pt-2" onClick={e => e.stopPropagation()}>
                                                         <button
                                                             onClick={() => {
                                                                 if (!sub) {
@@ -566,71 +576,15 @@ const StudentTests = () => {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 ${!sub
+                                                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                !sub
                                                                     ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
                                                                     : isEvaluated
                                                                         ? 'bg-[#ECFDF5] text-emerald-800 border border-emerald-250 hover:bg-emerald-100'
                                                                         : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                                }`}
+                                                            }`}
                                                         >
                                                             {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            /* --- CATEGORIES GRID --- */
-                            <div className="animate-fade-in space-y-4">
-                                {!Object.keys(categoriesMap).length ? (
-                                    <div className="py-16 text-center bg-slate-50/30 rounded-3xl border border-dashed border-slate-250 max-w-md mx-auto flex flex-col items-center justify-center">
-                                        <div className="w-14 h-14 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-center text-slate-350 text-2xl mb-4">🎉</div>
-                                        <p className="font-extrabold text-slate-700 text-sm">All caught up!</p>
-                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} test categories exist in this Inbox.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                        {Object.keys(categoriesMap).map(catName => {
-                                            const testsInCat = categoriesMap[catName];
-                                            return (
-                                                <div
-                                                    key={catName}
-                                                    onClick={() => setSelectedCategory(catName)}
-                                                    className="bg-white p-5 rounded-[24px] border border-slate-200 hover:border-[#3E3ADD] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between h-32 group"
-                                                >
-                                                    <div className="flex items-start">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#3E3ADD] shrink-0" />
-                                                            <h4 className="font-extrabold text-slate-800 text-xs group-hover:text-[#3E3ADD] transition-colors leading-tight uppercase tracking-tight">
-                                                                {catName}
-                                                            </h4>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between mt-auto" onClick={e => e.stopPropagation()}>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[9px] text-slate-500 font-extrabold bg-slate-50 border border-slate-150 rounded-full px-3 py-1 shrink-0 uppercase">
-                                                                {testsInCat.length} {testsInCat.length === 1 ? 'Test' : 'Tests'}
-                                                            </span>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
-                                                                }}
-                                                                className="px-3 py-1 text-[9px] font-black text-indigo-600 bg-[#3E3ADD]/5 border border-indigo-150 rounded-full hover:bg-[#3E3ADD]/10 transition-all shrink-0 uppercase"
-                                                            >
-                                                                RI
-                                                            </button>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
-                                                            }}
-                                                            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all shrink-0"
-                                                        >
-                                                            <Settings size={14} />
                                                         </button>
                                                     </div>
                                                 </div>

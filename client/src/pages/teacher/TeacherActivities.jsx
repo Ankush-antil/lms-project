@@ -73,25 +73,11 @@ const TeacherActivities = () => {
     });
 
     const getAvatarBgColor = (name) => {
-        const colors = [
-            'bg-[#3E3ADD]', // Purple
-            'bg-[#EC4899]', // Pink/Magenta
-            'bg-[#10B981]', // Green
-            'bg-[#F59E0B]', // Orange
-            'bg-[#06B6D4]', // Cyan
-            'bg-[#3B82F6]'  // Blue
-        ];
-        if (!name) return colors[0];
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const index = Math.abs(hash) % colors.length;
-        return colors[index];
+        return 'bg-slate-400';
     };
 
     return (
-        <DashboardLayout role="Teacher">
+        <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
                 {/* --- Left Sidebar: Activities Inbox --- */}
@@ -148,25 +134,25 @@ const TeacherActivities = () => {
                             <div className="grid grid-cols-2 gap-3 mb-4">
                                 <div
                                     onClick={() => setViewMode('completed')}
-                                    className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${viewMode === 'completed' ? 'bg-emerald-50/50 border-emerald-500 shadow-sm' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
+                                    className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${viewMode === 'completed' ? 'bg-indigo-50/70 border-[#3E3ADD] text-[#3E3ADD] shadow-sm' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
                                 >
-                                    <div className="flex items-center justify-between text-emerald-600">
+                                    <div className={`flex items-center justify-between ${viewMode === 'completed' ? 'text-[#3E3ADD]' : 'text-slate-500'}`}>
                                         <span className="text-[10px] font-black uppercase tracking-wider">Complete</span>
-                                        <CheckCircle2 size={14} className="text-emerald-500" />
+                                        <CheckCircle2 size={14} />
                                     </div>
-                                    <span className="text-2xl font-black text-emerald-800 mt-1">
+                                    <span className={`text-2xl font-black mt-1 ${viewMode === 'completed' ? 'text-indigo-950' : 'text-slate-700'}`}>
                                         {studentSubmissions.filter(s => s.status === 'evaluated').length}
                                     </span>
                                 </div>
                                 <div
                                     onClick={() => setViewMode('pending')}
-                                    className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${viewMode === 'pending' ? 'bg-orange-50/50 border-orange-500 shadow-sm' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
+                                    className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${viewMode === 'pending' ? 'bg-indigo-50/70 border-[#3E3ADD] text-[#3E3ADD] shadow-sm' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
                                 >
-                                    <div className="flex items-center justify-between text-orange-600">
+                                    <div className={`flex items-center justify-between ${viewMode === 'pending' ? 'text-[#3E3ADD]' : 'text-slate-500'}`}>
                                         <span className="text-[10px] font-black uppercase tracking-wider">Pending</span>
-                                        <Clock size={14} className="text-orange-500" />
+                                        <Clock size={14} />
                                     </div>
-                                    <span className="text-2xl font-black text-orange-800 mt-1">
+                                    <span className={`text-2xl font-black mt-1 ${viewMode === 'pending' ? 'text-indigo-950' : 'text-slate-700'}`}>
                                         {studentSubmissions.filter(s => s.status === 'submitted').length}
                                     </span>
                                 </div>
@@ -194,10 +180,7 @@ const TeacherActivities = () => {
                                     const isAssignment = sub.test?.title?.toLowerCase().includes('assignment');
                                     const isProject = sub.test?.title?.toLowerCase().includes('project') || sub.test?.title?.toLowerCase().includes('mastery');
                                     
-                                    let iconBg = 'bg-indigo-50 text-indigo-500';
-                                    if (isQuiz) iconBg = 'bg-emerald-50 text-emerald-500';
-                                    else if (isAssignment) iconBg = 'bg-sky-50 text-sky-500';
-                                    else if (isProject) iconBg = 'bg-amber-50 text-amber-500';
+                                    const iconBg = 'bg-indigo-50/70 text-[#3E3ADD] border border-indigo-100/50';
                                     
                                     const isSelected = selectedSubmission?._id === sub._id;
                                     return (
@@ -237,8 +220,8 @@ const TeacherActivities = () => {
                 <main className="flex-1 bg-white flex flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                         {selectedStudent ? (
-                            <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-                                <div className={`rounded-[24px] p-6 flex items-center justify-between text-white shadow-md transition-all duration-300 ${viewMode === 'pending' ? 'bg-gradient-to-r from-rose-500 to-orange-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}>
+                            <div className="w-full space-y-8 animate-fade-in">
+                                <div className="rounded-[24px] p-6 flex items-center justify-between text-white shadow-md transition-all duration-300 bg-gradient-to-r from-[#3E3ADD] to-[#5A56E0]">
                                     <div className="flex items-center gap-4">
                                         <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm shadow-inner"><BookOpen size={24} /></div>
                                         <div>
@@ -251,24 +234,24 @@ const TeacherActivities = () => {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="p-6 bg-[#ECFDF5] rounded-[24px] border border-emerald-100/50 flex items-center justify-between shadow-sm">
+                                    <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-200/60 flex items-center justify-between shadow-sm">
                                         <div>
-                                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Total Evaluated</span>
-                                            <div className="text-4xl font-black text-emerald-800">
+                                            <span className="text-[10px] font-black text-[#3E3ADD] uppercase tracking-widest block mb-1">Total Evaluated</span>
+                                            <div className="text-4xl font-black text-slate-800">
                                                 {studentSubmissions.filter(s => s.status === 'evaluated').length}
                                             </div>
                                         </div>
-                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-emerald-500 border border-emerald-50"><CheckCircle2 size={24} /></div>
+                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-[#3E3ADD] border border-slate-100"><CheckCircle2 size={24} /></div>
                                     </div>
                                     
-                                    <div className="p-6 bg-[#FFFBEB] rounded-[24px] border border-amber-100/50 flex items-center justify-between shadow-sm">
+                                    <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-200/60 flex items-center justify-between shadow-sm">
                                         <div>
-                                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest block mb-1">Awaiting Review</span>
-                                            <div className="text-4xl font-black text-amber-800">
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Awaiting Review</span>
+                                            <div className="text-4xl font-black text-slate-800">
                                                 {studentSubmissions.filter(s => s.status === 'submitted').length}
                                             </div>
                                         </div>
-                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-amber-500 border border-amber-50"><AlertCircle size={24} /></div>
+                                        <div className="p-4 bg-white rounded-2xl shadow-sm text-[#3E3ADD] border border-slate-100"><AlertCircle size={24} /></div>
                                     </div>
                                 </div>
 
@@ -280,7 +263,7 @@ const TeacherActivities = () => {
                                     {selectedSubmission ? (
                                         <div className="bg-white rounded-3xl border-2 border-[#3E3ADD] p-6 shadow-md shadow-[#3E3ADD]/5 flex items-center justify-between transition-all">
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${selectedSubmission.status === 'evaluated' ? 'bg-emerald-500' : 'bg-[#3E3ADD]'}`} />
+                                                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${selectedSubmission.status === 'evaluated' ? 'bg-slate-400' : 'bg-[#3E3ADD]'}`} />
                                                 <div>
                                                     <h3 className="font-extrabold text-slate-800 text-base leading-tight">{selectedSubmission.test?.title || 'Test'}</h3>
                                                     <p className="text-[10px] font-semibold text-slate-400 mt-1.5 uppercase tracking-wider">
@@ -298,7 +281,7 @@ const TeacherActivities = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => navigate(`/teacher/evaluate/${selectedSubmission._id}`)}
-                                                    className={`${selectedSubmission.status === 'evaluated' ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-red-500 text-white hover:bg-red-600'} px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95`}
+                                                    className={`${selectedSubmission.status === 'evaluated' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200' : 'bg-[#3E3ADD] text-white hover:bg-indigo-700'} px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95`}
                                                 >
                                                     {selectedSubmission.status === 'evaluated' ? 'Re-evaluate' : 'Evaluate Item'}
                                                 </button>
@@ -391,10 +374,10 @@ const TeacherActivities = () => {
                                                 {student.name}
                                             </h4>
                                             <div className="flex items-center space-x-2 mt-1.5">
-                                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-md">
+                                                <span className="text-[9px] font-black text-slate-700 uppercase tracking-tighter bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-md">
                                                     C: {student.stats?.completed || 0}
                                                 </span>
-                                                <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter bg-orange-50 border border-orange-100/50 px-2 py-0.5 rounded-md">
+                                                <span className="text-[9px] font-black text-[#3E3ADD] uppercase tracking-tighter bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-md">
                                                     P: {student.stats?.pending || 0}
                                                 </span>
                                             </div>

@@ -162,7 +162,7 @@ const EvaluatePage = () => {
     };
 
     if (loading) return (
-        <DashboardLayout role={role}>
+        <DashboardLayout role={role} fullWidth={true}>
             <div className="flex items-center gap-4 mb-6">
                 <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-xl shadow-sm border border-slate-100 transition-all text-slate-500 hover:text-indigo-600">
                     <ArrowLeft size={20} />
@@ -174,7 +174,7 @@ const EvaluatePage = () => {
     );
 
     return (
-        <DashboardLayout role={role}>
+        <DashboardLayout role={role} fullWidth={true}>
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
                 <div className="flex items-center gap-4">
                     <button onClick={() => navigate(-1)} className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-200 transition-all text-slate-500 hover:text-indigo-600 hover:shadow-md">
@@ -205,7 +205,7 @@ const EvaluatePage = () => {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="w-full space-y-6">
                 {showInfo && submissions.length > 0 && (
                     <div className="bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 p-6 animate-fade-in relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-16 -mt-16 rounded-full"></div>

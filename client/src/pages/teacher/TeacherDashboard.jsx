@@ -140,13 +140,13 @@ const TeacherDashboard = () => {
     }, [navigate]);
 
     if (loading) return (
-        <DashboardLayout role="Teacher">
+        <DashboardLayout role="Teacher" fullWidth={true}>
             <LoadingPlaceholder type="dashboard" />
         </DashboardLayout>
     );
 
     return (
-        <DashboardLayout role="Teacher">
+        <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>

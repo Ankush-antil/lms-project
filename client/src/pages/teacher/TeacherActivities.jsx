@@ -40,7 +40,7 @@ const getCategoryDisplayName = (act) => {
     if (a === 'projects' || a === 'project') return 'Projects';
     if (a === 'practical task') return 'Practical Task';
     if (a === 'practical viva' || a === 'viva') return 'Practical Viva';
-    
+
     return act.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
@@ -272,8 +272,8 @@ const TeacherActivities = () => {
 
                 {/* --- Left Sidebar: Activities Inbox --- */}
                 <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
-                    <div className="p-6 border-b border-slate-150 shrink-0 bg-white">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
+                        <div className="flex items-center justify-between mb-2.5">
                             <div className="flex items-center gap-2">
                                 <BookOpen className="text-slate-700" size={18} />
                                 <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
@@ -281,21 +281,20 @@ const TeacherActivities = () => {
                             {selectedStudent && (
                                 <button
                                     onClick={() => setShowStudentList(prev => !prev)}
-                                    className="p-2 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
+                                    className="p-1.5 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
                                     title="Toggle Student List"
                                 >
-                                    <Menu size={16} />
+                                    <Menu size={14} />
                                 </button>
                             )}
                         </div>
-                        <p className="text-[10px] text-slate-400 mb-3 font-semibold uppercase tracking-wider">Browse student's inboxes</p>
 
                         {selectedStudent ? (
-                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/10 mb-4 border border-white/20 relative overflow-hidden group">
+                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-3 text-white shadow-lg shadow-indigo-500/10 mb-2.5 border border-white/20 relative overflow-hidden group">
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-all duration-700" />
-                                <div className="flex items-center space-x-3.5 relative z-10">
+                                <div className="flex items-center space-x-2.5 relative z-10">
                                     <div
-                                        className="w-12 h-12 rounded-full border-2 border-white/30 bg-white/20 flex items-center justify-center text-white text-lg font-black shadow-inner cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden shrink-0"
+                                        className="w-9 h-9 rounded-full border border-white/30 bg-white/20 flex items-center justify-center text-white text-sm font-black shadow-inner cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden shrink-0"
                                         onClick={() => openProfile(selectedStudent._id)}
                                         title="View student profile"
                                     >
@@ -307,24 +306,24 @@ const TeacherActivities = () => {
                                     </div>
                                     <div className="min-w-0">
                                         <h3
-                                            className="font-bold text-white text-base leading-tight truncate cursor-pointer hover:underline transition-all"
+                                            className="font-bold text-white text-xs leading-tight truncate cursor-pointer hover:underline transition-all"
                                             onClick={() => openProfile(selectedStudent._id)}
                                         >
                                             {selectedStudent.name}
                                         </h3>
-                                        <p className="text-[10px] text-indigo-100 font-semibold truncate mt-1">
+                                        <p className="text-[9px] text-indigo-100 font-semibold truncate mt-0.5">
                                             {selectedStudent.studentProfile?.course?.name || 'Web Dev'} • {selectedStudent.institute?.name || 'DPS Indore'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="p-5 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center mb-4 flex flex-col items-center justify-center py-6">
-                                <span className="text-xs font-semibold text-slate-400">Select a student from the list</span>
+                            <div className="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-2.5 flex flex-col items-center justify-center py-4">
+                                <span className="text-xs font-semibold text-slate-400">Select student from list</span>
                             </div>
                         )}
 
-                        <div className="relative mb-3">
+                        <div className="relative mb-2">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <input
                                 type="text"
@@ -337,7 +336,7 @@ const TeacherActivities = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/10 custom-scrollbar">
                         {selectedStudent ? (
                             submissionsLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 bg-white h-full">
@@ -359,9 +358,9 @@ const TeacherActivities = () => {
                                                     setViewMode('pending');
                                                 }
                                             }}
-                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                                    ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                                 }`}
                                         >
                                             <div className="flex items-center space-x-2.5 min-w-0">
@@ -380,8 +379,8 @@ const TeacherActivities = () => {
                                                     if (firstTest) setInfoModalData(firstTest);
                                                 }}
                                                 className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                        ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                        : 'border-slate-200 text-slate-400 bg-white'
+                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                    : 'border-slate-200 text-slate-400 bg-white'
                                                     }`}
                                                 title="Inbox Details"
                                             >
@@ -408,23 +407,23 @@ const TeacherActivities = () => {
                 {/* --- Center: Main Content --- */}
                 <main className="flex-1 bg-white flex flex-col overflow-hidden">
                     {selectedStudent && (
-                        <div className="bg-white border-b border-slate-200 p-6 flex flex-col gap-4 shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
-                                    <BookOpen size={20} />
+                        <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                    <BookOpen size={16} />
                                 </div>
                                 <div>
-                                    <h1 className="text-xl font-extrabold text-indigo-950 tracking-tight leading-none">
+                                    <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
                                         {selectedInboxId ? getDisplayTitle(selectedInboxId) : 'Select an Inbox'}
                                     </h1>
-                                    <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                                         Your activities for this inbox
                                     </p>
                                 </div>
                             </div>
 
                             {selectedInboxId && (
-                                <div className="flex bg-slate-50/80 border border-slate-100 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1 shrink-0">
+                                <div className="flex bg-slate-50/80 border border-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none gap-1 shrink-0">
                                     {[
                                         { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
@@ -442,9 +441,9 @@ const TeacherActivities = () => {
                                                     setViewMode(tab.id);
                                                     setSelectedCategory(null);
                                                 }}
-                                                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                        ? tab.activeClass
-                                                        : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                                    ? tab.activeClass
+                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
                                                     }`}
                                             >
                                                 <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
@@ -500,15 +499,13 @@ const TeacherActivities = () => {
                                 <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
                                     {chatMessages.map(msg => (
                                         <div key={msg.id} className={`flex ${msg.sender === 'teacher' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${
-                                                msg.sender === 'teacher'
-                                                    ? 'bg-[#3E3ADD] text-white rounded-tr-none'
-                                                    : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none shadow-sm'
-                                            }`}>
-                                                <p className="font-semibold">{msg.text}</p>
-                                                <span className={`text-[8px] mt-1 block text-right ${
-                                                    msg.sender === 'teacher' ? 'text-indigo-200' : 'text-slate-400'
+                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${msg.sender === 'teacher'
+                                                ? 'bg-[#3E3ADD] text-white rounded-tr-none'
+                                                : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none shadow-sm'
                                                 }`}>
+                                                <p className="font-semibold">{msg.text}</p>
+                                                <span className={`text-[8px] mt-1 block text-right ${msg.sender === 'teacher' ? 'text-indigo-200' : 'text-slate-400'
+                                                    }`}>
                                                     {msg.time}
                                                 </span>
                                             </div>
@@ -698,139 +695,65 @@ const TeacherActivities = () => {
                                     );
                                 })()}
                             </div>
-                        ) : selectedCategory ? (
-                            /* --- TESTS LIST UNDER CATEGORY --- */
-                            <div className="animate-fade-in space-y-4">
-                                <div className="flex items-center justify-between mb-4 bg-slate-100 p-2.5 rounded-xl border border-slate-200/50">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-slate-800 font-bold text-sm">
-                                            {selectedCategory}
-                                        </span>
-                                        <span className="text-slate-400 text-xs font-medium">
-                                            ({(categoriesMap[selectedCategory] || []).length} items found)
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedCategory(null)}
-                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white shadow-sm border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
-                                    >
-                                        <RotateCcw size={12} /> Back to Categories
-                                    </button>
-                                </div>
-
-                                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                    {!(categoriesMap[selectedCategory] || []).length ? (
-                                        <div className="col-span-3 py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                            <div className="text-4xl mb-2">📋</div>
-                                            <p className="font-bold text-slate-700 text-sm">No items found</p>
-                                        </div>
-                                    ) : (
-                                        (categoriesMap[selectedCategory] || []).map(test => {
-                                            const sub = submissionMap.get(test._id);
-                                            const isEvaluated = sub && sub.status === 'evaluated';
-
-                                            return (
-                                                <div
-                                                    key={test._id}
-                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-32 relative group"
-                                                >
-                                                    <div className="flex items-start gap-2.5 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                        }`} />
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
-                                                            <p className="text-[9px] font-black text-slate-405 mt-1.5 uppercase tracking-wider truncate">
-                                                                Subject: {test.subject || 'N/A'}
-                                                            </p>
-                                                            <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-                                                                Created: {test.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between mt-2 border-t border-slate-50 pt-2">
-                                                        <button
-                                                            onClick={() => setInfoModalData(test)}
-                                                            className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0"
-                                                        >
-                                                            RI Details
-                                                        </button>
-
-                                                        {!sub ? (
-                                                            <span className="px-3 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0">
-                                                                Not Submitted
-                                                            </span>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
-                                                                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                    isEvaluated
-                                                                        ? 'bg-slate-105 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
-                                                                }`}
-                                                            >
-                                                                {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
                         ) : (
-                            /* --- CATEGORIES GRID --- */
+                            /* --- DIRECT TESTS GRID --- */
                             <div className="animate-fade-in space-y-4">
-                                {!Object.keys(categoriesMap).length ? (
+                                {!activeTests.length ? (
                                     <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                         <div className="text-4xl mb-2">🎉</div>
                                         <p className="font-bold text-slate-700 text-sm">All caught up!</p>
                                         <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
                                     </div>
                                 ) : (
-                                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                        {Object.keys(categoriesMap).map(catName => {
-                                            const testsInCat = categoriesMap[catName];
+                                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                        {activeTests.map(test => {
+                                            const sub = submissionMap.get(test._id);
+                                            const isEvaluated = sub && sub.status === 'evaluated';
+
                                             return (
                                                 <div
-                                                    key={catName}
-                                                    onClick={() => setSelectedCategory(catName)}
-                                                    className="bg-white p-3.5 rounded-2xl border border-slate-200 hover:border-[#3E3ADD] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between h-24 group"
+                                                    key={test._id}
+                                                    className="bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-32 relative group"
                                                 >
-                                                    <div className="flex items-start">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#3E3ADD] shrink-0" />
-                                                            <h4 className="font-extrabold text-slate-800 text-xs group-hover:text-[#3E3ADD] transition-colors leading-tight uppercase tracking-tight">
-                                                                {catName}
-                                                            </h4>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setInfoModalData(test);
+                                                        }}
+                                                        className="absolute top-3 right-3 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0 z-10"
+                                                    >
+                                                        RI Details
+                                                    </button>
+
+                                                    <div className="flex items-start gap-2.5 min-w-0 pr-20">
+                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                            }`} />
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
+                                                            {test.activity && (
+                                                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded-md inline-block mt-1 w-max">
+                                                                    {getCategoryDisplayName(test.activity)}
+                                                                </span>
+                                                            )}
+                                                            <p className="text-[9px] font-black text-slate-405 mt-1.5 uppercase tracking-wider truncate">
+                                                                Subject: {test.subject || 'N/A'}
+                                                            </p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-auto" onClick={e => e.stopPropagation()}>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[9px] text-slate-500 font-extrabold bg-slate-50 border border-slate-150 rounded-full px-2.5 py-0.5 shrink-0 uppercase">
-                                                                {testsInCat.length} {testsInCat.length === 1 ? 'Test' : 'Tests'}
-                                                            </span>
+                                                    {sub && (
+                                                        <div className="flex items-center justify-end mt-2 border-t border-slate-50 pt-2" onClick={e => e.stopPropagation()}>
                                                             <button
-                                                                onClick={() => {
-                                                                    if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
-                                                                }}
-                                                                className="px-2.5 py-0.5 text-[9px] font-black text-indigo-600 bg-[#3E3ADD]/5 border border-indigo-150 rounded-full hover:bg-[#3E3ADD]/10 transition-all shrink-0 uppercase"
+                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
+                                                                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
+                                                                    ? 'bg-slate-105 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                    : 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
+                                                                    }`}
                                                             >
-                                                                RI
+                                                                {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
                                                             </button>
                                                         </div>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (testsInCat.length > 0) setInfoModalData(testsInCat[0]);
-                                                            }}
-                                                            className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all shrink-0"
-                                                        >
-                                                            <Settings size={13} />
-                                                        </button>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -843,32 +766,32 @@ const TeacherActivities = () => {
 
                 {/* --- Right Sidebar: Students Selecting --- */}
                 {showStudentList && (
-                    <aside className="w-80 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white animate-slide-in-right">
-                        <div className="p-6 border-b border-slate-150 bg-white">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">Student List</h2>
-                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-0.5 rounded-full text-xs font-black">
+                    <aside className="w-64 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white animate-slide-in-right">
+                        <div className="p-4 border-b border-slate-150 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">Student List</h2>
+                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-black">
                                     {filteredStudents.length}
                                 </span>
                             </div>
 
-                            <div className="relative mb-6">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <div className="relative mb-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <input
                                     type="text"
                                     placeholder="Find student..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                    className="w-full h-9 bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 text-xs font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                                 />
                             </div>
 
-                            <div className="flex bg-slate-100 p-1 rounded-2xl">
+                            <div className="flex bg-slate-100 p-0.5 rounded-xl">
                                 {['Institute', 'Course'].map(filter => (
                                     <button
                                         key={filter}
                                         onClick={() => setActiveFilter(filter)}
-                                        className={`flex-1 py-2 text-[10px] font-bold transition-all rounded-xl ${activeFilter === filter ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold transition-all rounded-lg ${activeFilter === filter ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         {filter}
                                     </button>
@@ -876,7 +799,7 @@ const TeacherActivities = () => {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                             {loading && !students.length ? (
                                 <div className="flex flex-col items-center justify-center py-12">
                                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>

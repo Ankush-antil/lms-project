@@ -250,7 +250,7 @@ const QuestionBuilderCard = ({
                 {/* Header Row */}
                 <div className="flex justify-between items-center border-b border-slate-100 pb-2 select-none">
                     <span className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
-                        <PieChart size={14} className="text-purple-600 animate-pulse" /> Addons Window
+                        <PieChart size={14} className="text-[#0b1329] animate-pulse" /> Addons Window
                     </span>
                     <button
                         type="button"
@@ -271,8 +271,8 @@ const QuestionBuilderCard = ({
                             return (
                                 <div key={addonLabel} className="flex flex-col items-center gap-1.5 shrink-0 animate-fade-in">
                                     {/* Addon Card/Badge */}
-                                    <div className="relative flex items-center gap-2 bg-white border border-slate-200 rounded-xl pl-3 pr-8 py-2 shadow-sm hover:border-purple-400 transition-all text-xs font-bold text-slate-700 min-w-[140px]">
-                                        <div className="p-1 bg-purple-50 text-purple-600 rounded">
+                                    <div className="relative flex items-center gap-2 bg-white border border-slate-200 rounded-xl pl-3 pr-8 py-2 shadow-sm hover:border-[#0b1329] transition-all text-xs font-bold text-slate-700 min-w-[140px]">
+                                        <div className="p-1 bg-slate-100 text-[#0b1329] rounded">
                                             <IconComponent size={14} />
                                         </div>
                                         <span className="truncate max-w-[80px]">{addonLabel}</span>
@@ -293,7 +293,7 @@ const QuestionBuilderCard = ({
                                         type="button"
                                         onClick={() => onApplyAddonToAll(addonLabel, !isSyncing)}
                                         className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all border w-full text-center ${isSyncing
-                                            ? 'bg-purple-100 border-purple-200 text-purple-700 font-extrabold shadow-sm'
+                                            ? 'bg-slate-100 border-slate-200 text-[#0b1329] font-extrabold shadow-sm'
                                             : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                                             }`}
                                     >
@@ -626,8 +626,8 @@ const QuestionBuilderCard = ({
 
     return (
         <div
-            className={`bg-white rounded-xl border transition-all duration-300 font-sans shadow-sm hover:shadow-md ${enabled ? 'border-slate-200 hover:border-purple-300' : 'border-slate-200 bg-slate-50/50 opacity-70'
-                } ${writeMode ? 'ring-2 ring-purple-100 border-purple-400' : ''} ${isDragged ? 'opacity-40 border-purple-500 border-dashed scale-[0.99] bg-purple-50/30 shadow-inner' : ''
+            className={`bg-white rounded-xl border transition-all duration-300 font-sans shadow-sm hover:shadow-md ${enabled ? 'border-slate-200 hover:border-[#0b1329]' : 'border-slate-200 bg-slate-50/50 opacity-70'
+                } ${writeMode ? 'ring-2 ring-slate-100 border-[#0b1329]' : ''} ${isDragged ? 'opacity-40 border-[#0b1329] border-dashed scale-[0.99] bg-slate-50/30 shadow-inner' : ''
                 } ${(showSwitcherMenu || showUploadMenu) ? 'overflow-visible' : 'overflow-hidden'} mb-2 ${isDragging ? 'pointer-events-none select-none' : ''}`}
         >
 
@@ -658,7 +658,7 @@ const QuestionBuilderCard = ({
             {/* HEADER SECTION */}
             <div className="flex flex-wrap items-center justify-between py-1.5 px-3 border-b border-slate-100 bg-white gap-2 select-none">
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-[#6366F1] text-white rounded-lg flex items-center justify-center shadow-sm w-7.5 h-7.5">
+                    <div className="p-1.5 bg-[#0b1329] text-white rounded-lg flex items-center justify-center shadow-sm w-7.5 h-7.5">
                         <WidgetIcon size={14} />
                     </div>
                     <span className="font-bold text-slate-800 text-sm">{label}</span>
@@ -691,7 +691,7 @@ const QuestionBuilderCard = ({
                             <button
                                 type="button"
                                 onClick={label === 'Short Answer' ? () => toast("Coming Soon", { icon: 'ℹ️' }) : handleAiGenerate}
-                                className="px-3 py-1.5 bg-[#0086F0] text-white hover:bg-blue-600 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                 title="Generate Question content automatically using AI"
                             >
                                 <Wand2 size={13} />
@@ -705,7 +705,7 @@ const QuestionBuilderCard = ({
                                         <button
                                             type="button"
                                             onClick={() => setShowUploadMenu(!showUploadMenu)}
-                                            className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                            className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                             title="Manage uploaded resource"
                                         >
                                             <Upload size={13} />
@@ -777,7 +777,7 @@ const QuestionBuilderCard = ({
                                     <button
                                         type="button"
                                         onClick={() => resourceFileInputRef.current?.click()}
-                                        className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                        className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                         title="Upload supporting resources (PDF, DOC, etc.)"
                                     >
                                         <Upload size={13} />
@@ -788,7 +788,7 @@ const QuestionBuilderCard = ({
                                 <button
                                     type="button"
                                     onClick={handleUploadClick}
-                                    className="px-3 py-1.5 bg-[#5A5CD6] hover:bg-[#4a4cb2] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                    className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                     title="Upload supporting resources (PDF, DOC, etc.)"
                                 >
                                     <Upload size={13} />
@@ -823,7 +823,7 @@ const QuestionBuilderCard = ({
                                                         }}
                                                         className="w-full px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700 transition-colors"
                                                     >
-                                                        <Edit size={12} className="text-purple-650 shrink-0" />
+                                                        <Edit size={12} className="text-[#0b1329] shrink-0" />
                                                         <span>Edit </span>
                                                     </button>
                                                     <button
@@ -877,7 +877,7 @@ const QuestionBuilderCard = ({
                                                         }}
                                                         className="w-full px-2.5 py-1.5 hover:bg-slate-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-slate-700 transition-colors"
                                                     >
-                                                        <Eye size={12} className="text-blue-500 shrink-0" />
+                                                        <Eye size={12} className="text-slate-655 shrink-0" />
                                                         <span>Preview</span>
                                                     </button>
                                                     <button
@@ -921,7 +921,7 @@ const QuestionBuilderCard = ({
                                             onUpdateText(stripHtml(element.text || ''));
                                         }
                                     }}
-                                    className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm ${writeMode ? 'bg-[#5A5CD6] text-white' : 'bg-black hover:bg-slate-900 text-white'}`}
+                                    className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm ${writeMode ? 'bg-[#0b1329] text-white' : 'bg-black hover:bg-slate-900 text-white'}`}
                                     title="Toggle Advanced Rich Text Toolbar"
                                 >
                                     <Type size={13} />
@@ -934,7 +934,7 @@ const QuestionBuilderCard = ({
                                 <button
                                     type="button"
                                     onClick={() => setShowImageModal(true)}
-                                    className={`p-1.5 rounded-lg transition-all ${element.insertedImage ? 'bg-purple-100 text-purple-750' : 'bg-slate-100 text-slate-655 hover:bg-slate-200'}`}
+                                    className={`p-1.5 rounded-lg transition-all ${element.insertedImage ? 'bg-slate-100 text-[#0b1329]' : 'bg-slate-100 text-slate-655 hover:bg-slate-200'}`}
                                     title="Insert Image"
                                 >
                                     <ImageIcon size={14} />
@@ -946,7 +946,7 @@ const QuestionBuilderCard = ({
                                         const url = prompt("Enter media URL (image, video, or audio file):");
                                         if (url) onUpdateField('mediaUrl', url);
                                     }}
-                                    className={`p-1.5 rounded-lg transition-all ${element.mediaUrl ? 'bg-purple-100 text-purple-750' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                    className={`p-1.5 rounded-lg transition-all ${element.mediaUrl ? 'bg-slate-100 text-[#0b1329]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                                     title="Attach media Link URL"
                                 >
                                     <ImageIcon size={14} />
@@ -1000,7 +1000,7 @@ const QuestionBuilderCard = ({
                                                 className="px-4 py-2 hover:bg-slate-55 text-left transition-colors flex items-center justify-between"
                                             >
                                                 <span>{item.label}</span>
-                                                {label === item.label && <span className="w-1.5 h-1.5 rounded-full bg-indigo-650" />}
+                                                {label === item.label && <span className="w-1.5 h-1.5 rounded-full bg-[#0b1329]" />}
                                             </button>
                                         ))}
                                     </div>
@@ -1142,7 +1142,7 @@ const QuestionBuilderCard = ({
 
                                 {/* Background Color - PURPLE BUTTON BLOCK */}
                                 <div className="flex items-center gap-1.5 border-r border-slate-100 pr-1.5" title="Background Color">
-                                    <label className="cursor-pointer bg-[#800080] text-white px-2 py-1 rounded font-bold text-[10px] hover:bg-purple-800 transition-colors shadow-sm flex items-center gap-1">
+                                    <label className="cursor-pointer bg-[#0b1329] text-white px-2 py-1 rounded font-bold text-[10px] hover:bg-[#152244] transition-colors shadow-sm flex items-center gap-1">
                                         <span>Background Color</span>
                                         <input
                                             type="color"
@@ -1225,11 +1225,11 @@ const QuestionBuilderCard = ({
                                     <button
                                         type="button"
                                         onClick={() => toggleMenu('insert')}
-                                        className={`px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-all ${openMenu === 'insert' ? 'bg-purple-100' : ''}`}
+                                        className={`px-2 py-1 bg-slate-100 hover:bg-slate-100 text-[#0b1329] rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition-all ${openMenu === 'insert' ? 'bg-slate-100' : ''}`}
                                         title="Insert media, tables or formulas"
                                     >
                                         <span>Insert</span>
-                                        <ChevronDown size={10} className="text-purple-400" />
+                                        <ChevronDown size={10} className="text-slate-400" />
                                     </button>
                                     {openMenu === 'insert' && (
                                         <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 flex flex-col gap-0.5 min-w-[150px]">
@@ -1289,7 +1289,7 @@ const QuestionBuilderCard = ({
                                 value={element.description || ''}
                                 onChange={(e) => onUpdateField('description', e.target.value)}
                                 placeholder="E.g., Answer in 100 words..."
-                                className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-all shadow-sm"
+                                className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-[#0b1329] transition-all shadow-sm"
                             />
                         </div>
                     )}
@@ -1310,8 +1310,8 @@ const QuestionBuilderCard = ({
 
                     {/* Attached uploaded files indicator */}
                     {element.uploadedFiles && element.uploadedFiles.length > 0 && (
-                        <div className="p-3.5 bg-indigo-50/40 border border-indigo-100 rounded-2xl space-y-2">
-                            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest block">Attachments ({element.uploadedFiles.length})</span>
+                        <div className="p-3.5 bg-slate-50/60 border border-slate-200 rounded-2xl space-y-2">
+                            <span className="text-[10px] font-black text-[#0b1329] uppercase tracking-widest block">Attachments ({element.uploadedFiles.length})</span>
                             <div className="flex flex-col gap-2">
                                 {element.uploadedFiles.map((file, fIdx) => (
                                     <div key={fIdx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-150 text-xs font-semibold">
@@ -1479,7 +1479,7 @@ const QuestionBuilderCard = ({
                                                         }}
                                                         className="sr-only peer"
                                                     />
-                                                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-650"></div>
+                                                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b1329]"></div>
                                                 </label>
                                             </div>
 
@@ -1517,7 +1517,7 @@ const QuestionBuilderCard = ({
                                                     }
                                                 }}
                                                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'assistive'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
+                                                    ? 'bg-[#0b1329] text-white border-[#0b1329] shadow-sm'
                                                     : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 shadow-sm'
                                                     }`}
                                             >
@@ -1530,7 +1530,7 @@ const QuestionBuilderCard = ({
                                                 type="button"
                                                 onClick={() => setActiveFooterTab(activeFooterTab === 'moreSettings' ? null : 'moreSettings')}
                                                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'moreSettings'
-                                                    ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
+                                                    ? 'bg-[#0b1329] text-white border-[#0b1329] shadow-sm'
                                                     : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 shadow-sm'
                                                     }`}
                                             >
@@ -1544,8 +1544,8 @@ const QuestionBuilderCard = ({
                                                     type="button"
                                                     onClick={() => setActiveFooterTab(activeFooterTab === 'videoSettings' ? null : 'videoSettings')}
                                                     className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 ${activeFooterTab === 'videoSettings'
-                                                        ? 'bg-[#5A5CD6] text-white border-[#5A5CD6] shadow-sm'
-                                                        : 'bg-violet-50 text-violet-750 hover:bg-violet-100 border border-violet-200 shadow-sm'
+                                                        ? 'bg-[#0b1329] text-white border-[#0b1329] shadow-sm'
+                                                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm'
                                                         }`}
                                                 >
                                                     <Video size={12} />
@@ -1622,7 +1622,7 @@ const QuestionBuilderCard = ({
                                                     setDraftValidationSettings(element.validationSettings || {});
                                                     setShowValidationSettingsModal(true);
                                                 }}
-                                                className="px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-sm"
+                                                className="px-3 py-1.5 rounded-lg text-xs font-black transition-all border flex items-center gap-1.5 bg-slate-50 text-[#0b1329] hover:bg-slate-100 border border-slate-200 shadow-sm"
                                             >
                                                 <AlertCircle size={12} />
                                                 <span>Validation</span>
@@ -1997,7 +1997,7 @@ const QuestionBuilderCard = ({
                                 updateNoteActiveFormat();
                             }}
                             onFocus={updateNoteActiveFormat}
-                            className="w-full text-xs font-medium bg-slate-55 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none min-h-[180px] focus:bg-white focus:border-purple-500 transition-all shadow-sm rich-text-editor font-sans"
+                            className="w-full text-xs font-medium bg-slate-55 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none min-h-[180px] focus:bg-white focus:border-[#0b1329] transition-all shadow-sm rich-text-editor font-sans"
                             placeholder="Write a note..."
                             style={{ outline: 'none' }}
                         />
@@ -2872,7 +2872,7 @@ const TestBuilder = () => {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-slate-50">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
                     <p className="text-slate-500 font-medium">Loading form builder details...</p>
                 </div>
             </div>
@@ -2880,20 +2880,20 @@ const TestBuilder = () => {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 antialiased selection:bg-purple-100 selection:text-purple-900">
+        <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 antialiased selection:bg-slate-100 selection:text-white">
             {/* Top Navigation Bar */}
-            <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 sticky top-0 z-50 shadow-sm">
+            <header className="bg-[#0b1329] text-white border-b border-slate-800 h-16 flex items-center justify-between px-6 sticky top-0 z-50 shadow-md">
 
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate('/admin')}
-                        className="flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all"
+                        className="flex items-center gap-2 px-3.5 py-2 border border-slate-800 rounded-xl hover:bg-white/10 text-white font-semibold text-sm transition-all"
                     >
-                        <Home size={16} className="text-purple-600" />
+                        <Home size={16} className="text-white" />
                         <span>Home</span>
                     </button>
-                    <div className="h-5 w-px bg-slate-200"></div>
+                    <div className="h-5 w-px bg-slate-800"></div>
 
                     {/* Form Name Input */}
                     <div className="flex items-center gap-2">
@@ -2902,21 +2902,21 @@ const TestBuilder = () => {
                             value={connectData?.name || ''}
                             onChange={(e) => setConnectData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Untitled Form"
-                            className="bg-transparent font-bold text-slate-800 text-base border-b border-transparent hover:border-slate-300 focus:border-purple-600 focus:outline-none transition-colors px-1 py-0.5 min-w-[150px] max-w-[240px]"
+                            className="bg-transparent font-bold text-white text-base border-b border-transparent hover:border-slate-750 focus:border-white focus:outline-none transition-colors px-1 py-0.5 min-w-[150px] max-w-[240px]"
                         />
-                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Draft</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">Draft</span>
                     </div>
                 </div>
 
                 {/* Center Tabs */}
-                <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl">
+                <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
                     <button
                         onClick={() => {
                             setIsConnectModalOpen(true);
                         }}
                         className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isConnected
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200/50'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                            ? 'bg-white/10 text-white border border-white/20'
+                            : 'text-slate-300 hover:text-white hover:bg-white/10'
                             }`}
                         title="Configure form details"
                     >
@@ -2940,8 +2940,8 @@ const TestBuilder = () => {
                                 }
                             }}
                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === tab
-                                ? 'bg-purple-600 text-white shadow-md shadow-purple-500/10'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                                ? 'bg-white text-[#0b1329] shadow-md'
+                                : 'text-slate-300 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             {tab}
@@ -2968,20 +2968,20 @@ const TestBuilder = () => {
 
                 {/* Left Sidebar (Only visible when in Edit tab) */}
                 {activeTab === 'Edit' && (
-                    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-full z-20 shadow-sm">
+                    <aside className="w-64 bg-[#0b1329] border-r border-slate-800/80 flex flex-col h-full z-20 shadow-md text-white">
                         {/* Sidebar Header */}
-                        <div className="p-4 border-b border-slate-100 space-y-4">
+                        <div className="p-4 border-b border-slate-800 space-y-4">
                             <div className="flex justify-between items-center">
-                                <h2 className="font-extrabold text-slate-800 text-base">Elements & Addons</h2>
+                                <h2 className="font-extrabold text-white text-base">Elements & Addons</h2>
                             </div>
 
                             {/* Sidebar Tab Selector */}
-                            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+                            <div className="flex gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/60">
                                 <button
                                     onClick={() => setSidebarTab('Elements & Addons')}
                                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements & Addons'
-                                        ? 'bg-purple-600 text-white shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
+                                        ? 'bg-white text-[#0b1329] shadow-sm'
+                                        : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Elements
@@ -2989,8 +2989,8 @@ const TestBuilder = () => {
                                 <button
                                     onClick={() => setSidebarTab('Elements/Addons')}
                                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements/Addons'
-                                        ? 'bg-purple-600 text-white shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
+                                        ? 'bg-white text-[#0b1329] shadow-sm'
+                                        : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
                                     Addons
@@ -2999,13 +2999,13 @@ const TestBuilder = () => {
 
                             {/* Search Box */}
                             <div className="relative">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                                 <input
                                     type="text"
                                     placeholder="Search elements..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all placeholder:text-slate-400"
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm outline-none focus:bg-slate-800 focus:border-slate-700 transition-all placeholder:text-slate-500 text-white"
                                 />
                             </div>
                         </div>
@@ -3015,23 +3015,23 @@ const TestBuilder = () => {
                             {sidebarTab === 'Elements & Addons' ? (
                                 <div className="space-y-4 animate-fade-in">
                                     {/* 1. Input Elements */}
-                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
                                         <button
                                             type="button"
                                             onClick={() => setIsInputExpanded(!isInputExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
                                         >
                                             <div className="flex items-center gap-1.5">
                                                 <span>📝</span>
                                                 <span>Input Elements (1-8)</span>
-                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
                                                     {filteredElements.filter(el => el.category === 'Input Elements').length}
                                                 </span>
                                             </div>
                                             <ChevronDown size={14} className={`transition-transform duration-300 ${isInputExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                         {isInputExpanded && (
-                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
                                                 {filteredElements.filter(el => el.category === 'Input Elements').map((el) => {
                                                     const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
                                                     return (
@@ -3040,43 +3040,43 @@ const TestBuilder = () => {
                                                             draggable
                                                             onDragStart={(e) => handleDragStart(e, el)}
                                                             onClick={() => handleAddElement(el)}
-                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                             title="Drag onto canvas or click to append"
                                                         >
-                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                            <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
                                                                 <el.icon size={16} />
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-605 group-hover:text-purple-600 transition-colors leading-tight">
+                                                            <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
                                                                 {absoluteIndex}. {el.label}
                                                             </span>
                                                         </div>
                                                     );
                                                 })}
                                                 {filteredElements.filter(el => el.category === 'Input Elements').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
 
                                     {/* 2. Displaying Elements */}
-                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
                                         <button
                                             type="button"
                                             onClick={() => setIsDisplayExpanded(!isDisplayExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
                                         >
                                             <div className="flex items-center gap-1.5">
                                                 <span>📺</span>
                                                 <span>Displaying Elements (9-16)</span>
-                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
                                                     {filteredElements.filter(el => el.category === 'Displaying Elements').length}
                                                 </span>
                                             </div>
                                             <ChevronDown size={14} className={`transition-transform duration-300 ${isDisplayExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                         {isDisplayExpanded && (
-                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
                                                 {filteredElements.filter(el => el.category === 'Displaying Elements').map((el) => {
                                                     const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
                                                     return (
@@ -3085,43 +3085,43 @@ const TestBuilder = () => {
                                                             draggable
                                                             onDragStart={(e) => handleDragStart(e, el)}
                                                             onClick={() => handleAddElement(el)}
-                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                             title="Drag onto canvas or click to append"
                                                         >
-                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                            <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
                                                                 <el.icon size={16} />
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                            <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
                                                                 {absoluteIndex}. {el.label}
                                                             </span>
                                                         </div>
                                                     );
                                                 })}
                                                 {filteredElements.filter(el => el.category === 'Displaying Elements').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
 
                                     {/* 3. Recording & AI Agents */}
-                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
                                         <button
                                             type="button"
                                             onClick={() => setIsRecordingExpanded(!isRecordingExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
                                         >
                                             <div className="flex items-center gap-1.5">
                                                 <span>🎙️</span>
                                                 <span>Recording & AI (17-24)</span>
-                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
                                                     {filteredElements.filter(el => el.category === 'Recording & AI Agents').length}
                                                 </span>
                                             </div>
                                             <ChevronDown size={14} className={`transition-transform duration-300 ${isRecordingExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                         {isRecordingExpanded && (
-                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
                                                 {filteredElements.filter(el => el.category === 'Recording & AI Agents').map((el) => {
                                                     const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
                                                     return (
@@ -3130,62 +3130,62 @@ const TestBuilder = () => {
                                                             draggable
                                                             onDragStart={(e) => handleDragStart(e, el)}
                                                             onClick={() => handleAddElement(el)}
-                                                            className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                            className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                             title="Drag onto canvas or click to append"
                                                         >
-                                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                            <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
                                                                 <el.icon size={16} />
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                            <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
                                                                 {absoluteIndex}. {el.label}
                                                             </span>
                                                         </div>
                                                     );
                                                 })}
                                                 {filteredElements.filter(el => el.category === 'Recording & AI Agents').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
 
                                     {/* 4. Advanced Fields */}
-                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
                                         <button
                                             type="button"
                                             onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-750 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-xs"
+                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
                                         >
                                             <div className="flex items-center gap-1.5">
                                                 <span>⚡</span>
                                                 <span>Advanced Fields</span>
-                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
                                                     {filteredElements.filter(el => el.category === 'Advanced Fields').length}
                                                 </span>
                                             </div>
                                             <ChevronDown size={14} className={`transition-transform duration-300 ${isAdvancedExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                         {isAdvancedExpanded && (
-                                            <div className="p-2.5 bg-white grid grid-cols-2 gap-2 animate-fade-in">
+                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
                                                 {filteredElements.filter(el => el.category === 'Advanced Fields').map((el) => (
                                                     <div
                                                         key={el.label}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, el)}
                                                         onClick={() => handleAddElement(el)}
-                                                        className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                        className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                         title="Drag onto canvas or click to append"
                                                     >
-                                                        <div className="p-2 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                        <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
                                                             <el.icon size={16} />
                                                         </div>
-                                                        <span className="text-[10px] font-bold text-slate-655 group-hover:text-purple-600 transition-colors leading-tight">
+                                                        <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
                                                             {el.label}
                                                         </span>
                                                     </div>
                                                 ))}
                                                 {filteredElements.filter(el => el.category === 'Advanced Fields').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-400 font-medium">No matches</div>
+                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
                                                 )}
                                             </div>
                                         )}
@@ -3194,16 +3194,16 @@ const TestBuilder = () => {
                             ) : (
                                 // Addons Tab Render
                                 <div className="space-y-4">
-                                    <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
                                         <button
                                             type="button"
                                             onClick={() => setIsAnalyticalWidgetsExpanded(!isAnalyticalWidgetsExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-50/60 to-indigo-50/40 text-purple-700 hover:from-purple-50 hover:to-indigo-50 transition-all font-bold text-sm"
+                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-sm"
                                         >
                                             <div className="flex items-center gap-2">
-                                                <PieChart size={16} className="text-purple-600" />
+                                                <PieChart size={16} className="text-white" />
                                                 <span>Analytical Widgets</span>
-                                                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-extrabold ml-1 animate-pulse">
+                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1 animate-pulse">
                                                     {filteredAddons.length}
                                                 </span>
                                             </div>
@@ -3211,20 +3211,20 @@ const TestBuilder = () => {
                                         </button>
 
                                         {isAnalyticalWidgetsExpanded && (
-                                            <div className="p-3 bg-white grid grid-cols-2 gap-2 max-h-[500px] overflow-y-auto custom-scrollbar animate-fade-in">
+                                            <div className="p-3 bg-[#0b1329] grid grid-cols-2 gap-2 max-h-[500px] overflow-y-auto custom-scrollbar animate-fade-in">
                                                 {filteredAddons.map((addon, idx) => (
                                                     <div
                                                         key={idx}
                                                         draggable
                                                         onDragStart={(e) => handleAddonDragStart(e, addon)}
                                                         onClick={() => toast.success(`${addon.label} activated! Drag it to Addons Container.`)}
-                                                        className="flex flex-col items-center justify-center p-3.5 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                        className="flex flex-col items-center justify-center p-3.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
                                                         title="Drag onto Addons Container or window"
                                                     >
-                                                        <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                        <div className="p-2.5 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
                                                             <addon.icon size={18} />
                                                         </div>
-                                                        <span className="text-[11px] font-bold text-slate-600 group-hover:text-purple-600 transition-colors leading-tight">{addon.label}</span>
+                                                        <span className="text-[11px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">{addon.label}</span>
                                                     </div>
                                                 ))}
                                                 {filteredAddons.length === 0 && (
@@ -3245,41 +3245,41 @@ const TestBuilder = () => {
                     <div className="h-12 bg-white border-b border-slate-200 px-6 flex items-center justify-between">         <div className="flex items-center gap-6">
                         <button
                             onClick={() => toast("Purple Accent Theme active. More templates coming soon!", { icon: '🎨' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
-                            <Palette size={14} className="text-purple-500" />
+                            <Palette size={14} className="text-[#0b1329]" />
                             <span>Theme</span>
                         </button>
 
                         <button
                             onClick={handleAiGenerateForm}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
-                            <Bot size={14} className="text-purple-500" />
+                            <Bot size={14} className="text-[#0b1329]" />
                             <span>Create with AI</span>
                         </button>
 
                         <button
                             onClick={() => toast("Integration settings opened: copy link or embed iframe script.", { icon: '🔗' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
-                            <Link size={14} className="text-purple-500" />
+                            <Link size={14} className="text-[#0b1329]" />
                             <span>Integrate</span>
                         </button>
 
                         <button
                             onClick={() => toast("Drag and drop JSON schema file to import elements.", { icon: '📥' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
-                            <FolderUp size={14} className="text-purple-500" />
+                            <FolderUp size={14} className="text-[#0b1329]" />
                             <span>Import</span>
                         </button>
 
                         <button
                             onClick={() => toast("Layout saved as reusable template in your dashboard.", { icon: '💾' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
-                            <Save size={14} className="text-purple-500" />
+                            <Save size={14} className="text-[#0b1329]" />
                             <span>Save as Template</span>
                         </button>
                     </div>
@@ -3311,10 +3311,10 @@ const TestBuilder = () => {
                                             <div className="w-[480px] bg-white rounded-3xl p-10 text-center shadow-xl border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
                                                 {/* Pulsing AI Arrow */}
                                                 <div className="absolute -left-16 top-12 animate-bounce-x hidden md:block">
-                                                    <ArrowLeft size={44} className="text-purple-600" strokeWidth={3} />
+                                                    <ArrowLeft size={44} className="text-[#0b1329]" strokeWidth={3} />
                                                 </div>
 
-                                                <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-purple-100">
+                                                <div className="w-16 h-16 bg-slate-100 text-[#0b1329] rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-slate-100">
                                                     <Sparkles size={32} />
                                                 </div>
 
@@ -3325,7 +3325,7 @@ const TestBuilder = () => {
 
                                                 <button
                                                     onClick={handleAiGenerateForm}
-                                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 mx-auto active:scale-95 transition-all"
+                                                    className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] hover:bg-[#152244] text-white rounded-2xl text-sm font-bold shadow-lg shadow-[#0b1329]/20 hover:shadow-[#0b1329]/30 mx-auto active:scale-95 transition-all"
                                                 >
                                                     <Bot size={18} />
                                                     <span>Generate Form with AI</span>
@@ -3428,7 +3428,7 @@ const TestBuilder = () => {
                                                             <input
                                                                 type="text"
                                                                 placeholder="Your answer..."
-                                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm shadow-sm transition-all"
+                                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#0b1329] outline-none text-sm shadow-sm transition-all"
                                                             />
                                                         )}
 
@@ -3436,7 +3436,7 @@ const TestBuilder = () => {
                                                             <textarea
                                                                 placeholder="Your long-form answer..."
                                                                 rows={3}
-                                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm shadow-sm transition-all resize-none"
+                                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#0b1329] outline-none text-sm shadow-sm transition-all resize-none"
                                                             ></textarea>
                                                         )}
 
@@ -3447,7 +3447,7 @@ const TestBuilder = () => {
                                                                         <input
                                                                             type="radio"
                                                                             name={`mc-${index}`}
-                                                                            className="w-4.5 h-4.5 text-purple-600 focus:ring-purple-500 border-slate-300"
+                                                                            className="w-4.5 h-4.5 text-[#0b1329] focus:ring-[#0b1329]/20 border-slate-300"
                                                                         />
                                                                         <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{opt.text}</span>
                                                                     </label>
@@ -3461,7 +3461,7 @@ const TestBuilder = () => {
                                                                     <label key={oIdx} className="flex items-center gap-3 cursor-pointer group">
                                                                         <input
                                                                             type="checkbox"
-                                                                            className="rounded text-purple-600 focus:ring-purple-500 border-slate-300 w-4.5 h-4.5"
+                                                                            className="rounded text-[#0b1329] focus:ring-[#0b1329]/20 border-slate-300 w-4.5 h-4.5"
                                                                         />
                                                                         <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{opt.text}</span>
                                                                     </label>
@@ -3470,7 +3470,7 @@ const TestBuilder = () => {
                                                         )}
 
                                                         {el.label === 'Dropdown' && (
-                                                            <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm shadow-sm transition-all">
+                                                            <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#0b1329] outline-none text-sm shadow-sm transition-all">
                                                                 <option value="">Select option...</option>
                                                                 {(el.options && el.options.length > 0 ? el.options : [{ text: 'Option 1' }, { text: 'Option 2' }]).map((opt, oIdx) => (
                                                                     <option key={oIdx} value={opt.text}>{opt.text}</option>
@@ -3480,7 +3480,7 @@ const TestBuilder = () => {
 
                                                         {(el.label === 'File Upload' || el.label === 'File upload') && (
                                                             <div className="border border-slate-200 rounded-xl p-4 bg-white flex items-center gap-3">
-                                                                <button type="button" className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
+                                                                <button type="button" className="px-4 py-2 bg-slate-100 hover:bg-slate-100 text-[#0b1329] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
                                                                     <Upload size={14} />
                                                                     Choose File
                                                                 </button>
@@ -3502,13 +3502,13 @@ const TestBuilder = () => {
 
                                                         {(el.label === 'Date/Time' || el.label === 'Date & Time') && (
                                                             <div className="grid grid-cols-2 gap-4">
-                                                                <input type="date" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 shadow-sm" />
-                                                                <input type="time" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 shadow-sm" />
+                                                                <input type="date" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#0b1329] shadow-sm" />
+                                                                <input type="time" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#0b1329] shadow-sm" />
                                                             </div>
                                                         )}
                                                         {(el.label === 'Voice Rec' || el.label === 'Voice recording') && (
                                                             <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
-                                                                <button type="button" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-colors">
+                                                                <button type="button" className="w-10 h-10 rounded-full bg-slate-100 text-[#0b1329] flex items-center justify-center hover:bg-slate-100 transition-colors">
                                                                     <Mic size={18} />
                                                                 </button>
                                                                 <span className="text-xs font-semibold text-slate-500">Click to record voice response</span>
@@ -3517,7 +3517,7 @@ const TestBuilder = () => {
 
                                                         {(el.label === 'Video Rec' || el.label === 'Video recording') && (
                                                             <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
-                                                                <button type="button" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-colors">
+                                                                <button type="button" className="w-10 h-10 rounded-full bg-slate-100 text-[#0b1329] flex items-center justify-center hover:bg-slate-100 transition-colors">
                                                                     <Video size={18} />
                                                                 </button>
                                                                 <span className="text-xs font-semibold text-slate-500">Click to capture video response</span>
@@ -3562,7 +3562,7 @@ const TestBuilder = () => {
                                                                     href={el.pdfUrl || '#'}
                                                                     target="_blank"
                                                                     rel="noreferrer"
-                                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
+                                                                    className="px-4 py-2 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-slate-200"
                                                                 >
                                                                     View Document
                                                                 </a>
@@ -3593,7 +3593,7 @@ const TestBuilder = () => {
                                                                 {el.webpageUrl ? (
                                                                     <div className="flex flex-col">
                                                                         <div className="flex items-center gap-2 p-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
-                                                                            <Globe size={10} className="text-purple-500" />
+                                                                            <Globe size={10} className="text-[#0b1329]" />
                                                                             <span>{el.webpageUrl}</span>
                                                                         </div>
                                                                         <iframe
@@ -3605,7 +3605,7 @@ const TestBuilder = () => {
                                                                     </div>
                                                                 ) : (
                                                                     <div className="text-center text-slate-400 p-4 bg-slate-50">
-                                                                        <Globe size={32} className="mx-auto mb-2 text-purple-400" />
+                                                                        <Globe size={32} className="mx-auto mb-2 text-slate-400" />
                                                                         <p className="text-xs font-semibold">No webpage URL provided</p>
                                                                     </div>
                                                                 )}
@@ -3625,12 +3625,12 @@ const TestBuilder = () => {
                                                         )}
 
                                                         {el.label === 'Multi file Displaying' && (
-                                                            <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
-                                                                <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
+                                                            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50/20 text-center space-y-2">
+                                                                <div className="p-3 bg-white text-[#0b1329] rounded-full border border-slate-200 inline-block">
                                                                     <Files size={20} />
                                                                 </div>
                                                                 <div>
-                                                                    <button type="button" className="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-sm mx-auto">
+                                                                    <button type="button" className="px-4 py-2 bg-[#0b1329] text-white text-xs font-bold rounded-lg shadow-sm mx-auto">
                                                                         Choose Multiple Files
                                                                     </button>
                                                                     <span className="text-xs text-slate-400 mt-2 block">
@@ -3661,7 +3661,7 @@ const TestBuilder = () => {
 
                                                         {(el.label === 'Screen Shot' || el.label === 'Screenshot taking') && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
-                                                                <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
+                                                                <div className="w-14 h-14 bg-slate-100 text-[#0b1329] rounded-2xl flex items-center justify-center">
                                                                     <Camera size={28} />
                                                                 </div>
                                                                 <div>
@@ -3671,7 +3671,7 @@ const TestBuilder = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toast.success("Screenshot saved successfully!", { icon: '📸' })}
-                                                                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                                                                    className="px-6 py-2.5 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
                                                                 >
                                                                     <Camera size={14} /> Capture Screenshot
                                                                 </button>
@@ -3708,7 +3708,7 @@ const TestBuilder = () => {
                                                         {el.label === 'Web based video calling' && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
+                                                                    <div className="p-3 bg-slate-1000/10 border border-[#0b1329]/30 text-slate-400 rounded-xl">
                                                                         <Video size={22} />
                                                                     </div>
                                                                     <div>
@@ -3725,7 +3725,7 @@ const TestBuilder = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toast.success("Connecting video call room...", { icon: '📹' })}
-                                                                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                                    className="w-full py-2.5 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
                                                                 >
                                                                     <Video size={14} /> Establish Video Connection ({el.videoCallDuration || 5} min)
                                                                 </button>
@@ -3735,7 +3735,7 @@ const TestBuilder = () => {
                                                         {(el.label === 'Audio Listening' || el.label === 'Audio listening Displaying') && (
                                                             <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                                    <div className="p-3 bg-slate-100 text-[#0b1329] rounded-xl">
                                                                         <Headphones size={22} />
                                                                     </div>
                                                                     <div className="flex-1">
@@ -3748,11 +3748,11 @@ const TestBuilder = () => {
                                                                 <div className="space-y-2 mt-2 pt-4 border-t border-slate-200/50">
                                                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Answer Options:</span>
                                                                     {(el.options && el.options.length > 0 ? el.options : [{ text: 'Listen to the audio to respond' }]).map((opt, oIdx) => (
-                                                                        <label key={oIdx} className="flex items-center gap-3 cursor-pointer group bg-white p-2.5 rounded-xl border border-slate-100 hover:border-purple-200 transition-all">
+                                                                        <label key={oIdx} className="flex items-center gap-3 cursor-pointer group bg-white p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 transition-all">
                                                                             <input
                                                                                 type="radio"
                                                                                 name={`listening-mc-${index}`}
-                                                                                className="w-4.5 h-4.5 text-purple-600 focus:ring-purple-500 border-slate-300"
+                                                                                className="w-4.5 h-4.5 text-[#0b1329] focus:ring-[#0b1329]/20 border-slate-300"
                                                                             />
                                                                             <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors font-medium">{opt.text}</span>
                                                                         </label>
@@ -3763,14 +3763,14 @@ const TestBuilder = () => {
 
                                                         {(el.label === 'Text Chat AI' || el.label === 'Text based AI agent') && (
                                                             <div className="mt-2 border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm flex flex-col h-80">
-                                                                <div className="bg-purple-600 p-4 flex items-center justify-between text-white">
+                                                                <div className="bg-[#0b1329] p-4 flex items-center justify-between text-white">
                                                                     <div className="flex items-center gap-2">
                                                                         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                                                                             <Bot size={18} />
                                                                         </div>
                                                                         <div className="flex flex-col">
                                                                             <span className="text-xs font-extrabold">{el.agentName || 'AI Assistant'}</span>
-                                                                            <span className="text-[10px] text-purple-100 flex items-center gap-1 font-semibold">
+                                                                            <span className="text-[10px] text-slate-300 flex items-center gap-1 font-semibold">
                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Online
                                                                             </span>
                                                                         </div>
@@ -3779,7 +3779,7 @@ const TestBuilder = () => {
                                                                 </div>
                                                                 <div className="flex-1 p-4 bg-slate-50/50 overflow-y-auto space-y-3 text-xs custom-scrollbar">
                                                                     <div className="flex gap-2">
-                                                                        <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 font-bold text-[10px]">AI</div>
+                                                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-[#0b1329] flex items-center justify-center shrink-0 font-bold text-[10px]">AI</div>
                                                                         <div className="bg-white p-2.5 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm max-w-[80%] font-medium text-slate-600">
                                                                             {el.greetingMessage || 'Hello! How can I help you today?'}
                                                                         </div>
@@ -3800,7 +3800,7 @@ const TestBuilder = () => {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => toast.success("AI typing simulation started...", { icon: '🤖' })}
-                                                                        className="px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                                                                        className="px-4 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-md"
                                                                     >
                                                                         Send
                                                                     </button>
@@ -3812,7 +3812,7 @@ const TestBuilder = () => {
                                                             <div className="mt-2 border border-slate-200 rounded-3xl p-6 bg-slate-900 text-white flex flex-col items-center justify-center gap-6 min-h-60 relative overflow-hidden">
                                                                 <div className="absolute top-4 right-4 bg-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Voice Call Sim</div>
 
-                                                                <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-full flex items-center justify-center animate-pulse">
+                                                                <div className="w-16 h-16 bg-slate-1000/10 border border-[#0b1329]/30 text-slate-400 rounded-full flex items-center justify-center animate-pulse">
                                                                     <Bot size={32} />
                                                                 </div>
 
@@ -3826,7 +3826,7 @@ const TestBuilder = () => {
                                                                     {[1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1].map((h, i) => (
                                                                         <span
                                                                             key={i}
-                                                                            className="w-0.75 bg-purple-400 rounded-full transition-all duration-300"
+                                                                            className="w-0.75 bg-[#0b1329] rounded-full transition-all duration-300"
                                                                             style={{
                                                                                 height: `${Math.max(4, h * 3)}px`,
                                                                                 animation: `wave-dance 1.2s infinite ease-in-out`,
@@ -3839,7 +3839,7 @@ const TestBuilder = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toast.success("Voice channel connected successfully!", { icon: '🎙️' })}
-                                                                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-500/20 flex items-center gap-2"
+                                                                    className="px-6 py-2.5 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-[#0b1329]/20 flex items-center gap-2"
                                                                 >
                                                                     <Mic size={14} /> Establish Voice Channel
                                                                 </button>
@@ -3857,7 +3857,7 @@ const TestBuilder = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => toast.success("Mock response submitted! Visual verification completed.")}
-                                                    className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold shadow-lg shadow-purple-500/20 active:scale-95 transition-all text-sm"
+                                                    className="w-full py-3.5 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-2xl font-bold shadow-lg shadow-[#0b1329]/20 active:scale-95 transition-all text-sm"
                                                 >
                                                     Submit Form Response
                                                 </button>
@@ -3877,17 +3877,17 @@ const TestBuilder = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div className="bg-white p-5 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-400 uppercase">Total Responses</span>
-                                            <span className="text-3xl font-extrabold text-purple-600">124</span>
+                                            <span className="text-3xl font-extrabold text-[#0b1329]">124</span>
                                             <span className="text-xs text-green-500 font-semibold">+12% from last week</span>
                                         </div>
                                         <div className="bg-white p-5 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-400 uppercase">Completion Rate</span>
-                                            <span className="text-3xl font-extrabold text-purple-600">94.2%</span>
+                                            <span className="text-3xl font-extrabold text-[#0b1329]">94.2%</span>
                                             <span className="text-xs text-slate-400 font-medium">Average time: 4m 32s</span>
                                         </div>
                                         <div className="bg-white p-5 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-400 uppercase">Dropoff Rate</span>
-                                            <span className="text-3xl font-extrabold text-purple-600">5.8%</span>
+                                            <span className="text-3xl font-extrabold text-[#0b1329]">5.8%</span>
                                             <span className="text-xs text-red-400 font-semibold">Highest dropoff: Pg 2</span>
                                         </div>
                                         <div className="bg-white p-5 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col gap-1">
@@ -3935,14 +3935,14 @@ const TestBuilder = () => {
                                             { rev: 'V1', date: 'Jun 5, 2026, 5:00 PM', author: 'Admin User', desc: 'Created form draft' }
                                         ].map((rev, rIdx) => (
                                             <div key={rIdx} className="flex gap-6 relative items-start">
-                                                <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md z-10 ${rIdx === 0 ? 'bg-purple-600 shadow-purple-200' : 'bg-slate-400'
+                                                <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md z-10 ${rIdx === 0 ? 'bg-[#0b1329] shadow-slate-200' : 'bg-slate-400'
                                                     }`}>
                                                     {rev.rev}
                                                 </div>
                                                 <div className="flex-1 bg-white p-4 border border-slate-200/50 rounded-2xl shadow-sm space-y-1">
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-xs font-bold text-slate-400">{rev.date}</span>
-                                                        <span className="text-xs font-semibold text-purple-600">{rev.author}</span>
+                                                        <span className="text-xs font-semibold text-[#0b1329]">{rev.author}</span>
                                                     </div>
                                                     <p className="text-sm font-semibold text-slate-700 leading-snug">{rev.desc}</p>
                                                 </div>
@@ -3968,11 +3968,11 @@ const TestBuilder = () => {
                                             <input
                                                 type="email"
                                                 placeholder="Enter collaborator email..."
-                                                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all"
+                                                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-[#0b1329] focus:ring-2 focus:ring-slate-100 transition-all"
                                             />
                                             <button
                                                 onClick={() => toast.success("Invitation sent successfully!")}
-                                                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10 active:scale-95"
+                                                className="px-5 py-2.5 bg-[#0b1329] hover:bg-[#0b1329] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-slate-200 active:scale-95"
                                             >
                                                 Send Invite
                                             </button>
@@ -3984,7 +3984,7 @@ const TestBuilder = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                                                    <div className="w-8 h-8 rounded-full bg-[#0b1329] text-white font-bold text-xs flex items-center justify-center shadow-sm">
                                                         AU
                                                     </div>
                                                     <div className="flex flex-col">
@@ -3997,7 +3997,7 @@ const TestBuilder = () => {
 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
                                                         TU
                                                     </div>
                                                     <div className="flex flex-col">
@@ -4022,7 +4022,7 @@ const TestBuilder = () => {
                                         onClick={() => setIsDiscussionModalOpen(true)}
                                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl shadow-sm transition-all whitespace-nowrap"
                                     >
-                                        <MessageSquare size={14} className="text-purple-600" />
+                                        <MessageSquare size={14} className="text-[#0b1329]" />
                                         <span>Decide Activity</span>
                                     </button>
                                 </div>
@@ -4036,7 +4036,7 @@ const TestBuilder = () => {
                                     </button>
                                     <div className="bg-slate-100 p-1 rounded-xl flex gap-1 items-center">
                                         <button className="px-3.5 py-1.5 bg-white shadow-sm rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 whitespace-nowrap">
-                                            <Settings size={12} className="text-purple-600" />
+                                            <Settings size={12} className="text-[#0b1329]" />
                                             <span>Page 1</span>
                                         </button>
                                         <button
@@ -4062,7 +4062,7 @@ const TestBuilder = () => {
                         <div className="absolute bottom-4 right-4 z-30">
                             <button
                                 onClick={() => toast(`Form is composed of ${formElements.length} custom Elements.`)}
-                                className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full shadow-lg hover:shadow-xl font-bold text-xs flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                                className="bg-[#0b1329] hover:bg-[#0b1329] text-white px-5 py-2.5 rounded-full shadow-lg hover:shadow-xl font-bold text-xs flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                             >
                                 <Zap size={14} fill="currentColor" />
                                 <span>{formElements.length} UI Elements</span>
@@ -4157,7 +4157,7 @@ const TestBuilder = () => {
                         <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col p-6 animate-scale-up" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                                 <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                                    <MessageSquare size={20} className="text-purple-600" />
+                                    <MessageSquare size={20} className="text-[#0b1329]" />
                                     <span>Decide Activity</span>
                                 </h3>
                                 <button
@@ -4176,7 +4176,7 @@ const TestBuilder = () => {
                                         value={discussionActivity?.activityName || ''}
                                         onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityName: e.target.value }))}
                                         placeholder="Enter activity name (e.g. Discuss on Slack)"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0b1329] outline-none text-sm font-semibold transition-all"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -4186,7 +4186,7 @@ const TestBuilder = () => {
                                         value={discussionActivity?.activityLink || ''}
                                         onChange={(e) => setDiscussionActivity(prev => ({ ...prev, activityLink: e.target.value }))}
                                         placeholder="https://example.com/discussion"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none text-sm font-semibold transition-all"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0b1329] outline-none text-sm font-semibold transition-all"
                                     />
                                 </div>
                             </div>
@@ -4213,7 +4213,7 @@ const TestBuilder = () => {
                                         setIsDiscussionModalOpen(false);
                                         toast.success("Decide Activity settings configured!");
                                     }}
-                                    className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-purple-500/15"
+                                    className="px-5 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-[#0b1329]/15"
                                 >
                                     Save Activity
                                 </button>

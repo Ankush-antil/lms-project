@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
 import { useSocket } from '../../context/SocketContext';
+import { motion } from 'framer-motion';
+import loginIllustration from '../login-illustration.png';
+
 
 const validateLanguage = (text, lang) => {
     if (!text || !lang) return true;
@@ -1195,143 +1198,211 @@ const PublicTestPage = () => {
 
     if (viewState === 'register') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row justify-center items-stretch font-sans text-slate-800">
-                {/* Brand Side Panel */}
-                <div className="md:w-[32%] bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white p-8 md:p-12 flex flex-col justify-between relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]" />
+            <div className="h-screen w-screen overflow-hidden flex items-center justify-center bg-gradient-to-r from-[#fafafa] from-35% via-[#b8c5d6] to-[#0b1329] to-65% p-4 md:p-8 font-sans">
+                <div className="flex w-full max-w-5xl h-[85vh] max-h-[580px] bg-transparent rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-200/50 relative">
+                    {/* Left Side - Form (Off-White Theme) */}
+                    <motion.div 
+                        initial={{ opacity: 0, x: -40 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-between h-full bg-[#fafafa] overflow-hidden"
+                    >
+                        <div>
+                            {/* Title Section */}
+                            <motion.div 
+                                initial={{ opacity: 0, y: -15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.15, duration: 0.4 }}
+                                className="mb-4 mt-0"
+                            >
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <GraduationCap size={16} className="text-[#0b1329]" />
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">LMS Portal</span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Access Information</h2>
+                                <p className="text-slate-500 mt-0.5 text-xs">Please enter your credentials to attempt this assessment.</p>
+                            </motion.div>
 
-                    <div className="flex items-center gap-2 relative z-10">
-                        <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-sm tracking-tight text-white border border-white/10">LMS</span>
-                        <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-200">Public Portal</span>
-                    </div>
+                            <form onSubmit={handleRegisterStart} className="space-y-3">
+                                {/* Full Name field */}
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2, duration: 0.4 }}
+                                    className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                                >
+                                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Full Name <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        value={guestName}
+                                        onChange={e => setGuestName(e.target.value)}
+                                        className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-0.5 placeholder-slate-350"
+                                        placeholder="Enter your full name"
+                                        required
+                                    />
+                                </motion.div>
 
-                    <div className="space-y-6 relative z-10 py-12 md:py-0">
-                        <span className="text-[10px] font-black uppercase bg-white/20 text-indigo-100 px-3 py-1 rounded-full tracking-widest">Web Assessment</span>
-                        <h1 className="text-3xl font-black tracking-tight leading-tight">{test?.title || 'Assessments'}</h1>
-                        <p className="text-indigo-200 text-xs leading-relaxed max-w-sm">
-                            {test?.description || 'Complete the short assessment shared with you. Your score details will be logged in the system.'}
-                        </p>
+                                {/* Email Address field */}
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.25, duration: 0.4 }}
+                                    className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                                >
+                                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Email Address <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="email"
+                                        value={guestEmail}
+                                        onChange={e => setGuestEmail(e.target.value)}
+                                        className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-0.5 placeholder-slate-350"
+                                        placeholder="Enter your email"
+                                        required
+                                    />
+                                </motion.div>
 
-                        <div className="pt-6 border-t border-white/20 flex flex-wrap gap-4 text-xs">
-                            <div className="flex items-center gap-1.5 text-indigo-150">
-                                <Clock size={14} />
-                                <span>{test?.publicSettings?.timeLimit || 60} mins limit</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-indigo-150">
-                                <BookOpen size={14} />
-                                <span>{test?.questions?.length || 0} questions</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="text-xs text-indigo-300 relative z-10 hidden md:block">
-                        © 2026 Assessment Engine. All rights reserved.
-                    </div>
-                </div>
-
-                {/* Form Side Panel */}
-                <div className="flex-1 bg-white p-8 md:p-16 flex flex-col justify-center max-w-2xl">
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Access Information</h2>
-                        <p className="text-slate-400 text-xs mt-1">Please enter your credentials to attempt this assessment.</p>
-                    </div>
-
-                    <form onSubmit={handleRegisterStart} className="space-y-5">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Full Name <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input
-                                    type="text"
-                                    value={guestName}
-                                    onChange={e => setGuestName(e.target.value)}
-                                    placeholder="Enter your full name..."
-                                    required
-                                    className="w-full border border-slate-200 rounded-2xl pl-11 pr-4 py-3 bg-slate-50 outline-none text-slate-850 text-sm focus:bg-white focus:border-indigo-500 transition-all font-semibold"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Email Address <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input
-                                    type="email"
-                                    value={guestEmail}
-                                    onChange={e => setGuestEmail(e.target.value)}
-                                    placeholder="your@email.com"
-                                    required
-                                    className="w-full border border-slate-200 rounded-2xl pl-11 pr-4 py-3 bg-slate-50 outline-none text-slate-850 text-sm focus:bg-white focus:border-indigo-500 transition-all font-semibold"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Mobile Number <span className="text-slate-400">(Optional)</span></label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                {/* Mobile Number field */}
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3, duration: 0.4 }}
+                                    className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                                >
+                                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Mobile Number <span className="text-slate-450 font-normal">(Optional)</span></label>
                                     <input
                                         type="tel"
                                         value={guestPhone}
                                         onChange={e => setGuestPhone(e.target.value)}
-                                        placeholder="Phone number..."
-                                        className="w-full border border-slate-200 rounded-2xl pl-11 pr-4 py-3 bg-slate-50 outline-none text-slate-850 text-sm focus:bg-white focus:border-indigo-500 transition-all font-semibold"
+                                        className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-0.5 placeholder-slate-350"
+                                        placeholder="Enter phone number"
                                     />
-                                </div>
-                            </div>
+                                </motion.div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Institute/Organization <span className="text-slate-400">(Optional)</span></label>
-                                <div className="relative">
-                                    <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                {/* Institute/Organization field */}
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.35, duration: 0.4 }}
+                                    className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                                >
+                                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Institute/Organization <span className="text-slate-450 font-normal">(Optional)</span></label>
                                     <input
                                         type="text"
                                         value={guestOrg}
                                         onChange={e => setGuestOrg(e.target.value)}
-                                        placeholder="Institute name..."
-                                        className="w-full border border-slate-200 rounded-2xl pl-11 pr-4 py-3 bg-slate-50 outline-none text-slate-850 text-sm focus:bg-white focus:border-indigo-500 transition-all font-semibold"
+                                        className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-0.5 placeholder-slate-350"
+                                        placeholder="Enter institute name"
                                     />
-                                </div>
-                            </div>
+                                </motion.div>
+
+                                {/* reCAPTCHA Anti-Spam simulation */}
+                                {test?.publicSettings?.antiSpam && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: 0.4, duration: 0.3 }}
+                                        className="bg-slate-50 p-2 border border-slate-100 rounded-xl flex items-center justify-between mt-2"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleMockRecaptcha}
+                                                disabled={recaptchaVerifying || recaptchaDone}
+                                                className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${recaptchaDone
+                                                    ? 'bg-emerald-500 border-emerald-600 text-white'
+                                                    : 'bg-white border-slate-300 hover:border-slate-400'
+                                                    }`}
+                                            >
+                                                {recaptchaVerifying && <Loader2 size={8} className="animate-spin text-slate-550" />}
+                                                {recaptchaDone && <CheckCircle size={10} className="text-white" />}
+                                            </button>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-slate-700 leading-none">I'm not a robot</span>
+                                                <span className="text-[7px] text-slate-400 font-semibold mt-0.5">reCAPTCHA Anti-Spam Protection</span>
+                                            </div>
+                                        </div>
+                                        <ShieldCheck size={20} className="text-[#0b1329]/25" />
+                                    </motion.div>
+                                )}
+
+                                {/* Submit Button */}
+                                <motion.button
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.45, duration: 0.4, type: 'spring', stiffness: 90 }}
+                                    type="submit"
+                                    disabled={duplicateChecking}
+                                    className="w-full bg-[#0b1329] hover:bg-[#152244] text-white font-medium py-2.5 px-6 rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-slate-900/10 flex justify-center items-center gap-2 mt-4 text-sm"
+                                >
+                                    {duplicateChecking ? (
+                                        <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                        <>Start Assessment <ArrowRight size={16} /></>
+                                    )}
+                                </motion.button>
+                            </form>
                         </div>
 
-                        {/* reCAPTCHA Anti-Spam simulation */}
-                        {test?.publicSettings?.antiSpam && (
-                            <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl flex items-center justify-between mt-6">
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleMockRecaptcha}
-                                        disabled={recaptchaVerifying || recaptchaDone}
-                                        className={`w-6 h-6 rounded border flex items-center justify-center transition-all ${recaptchaDone
-                                            ? 'bg-emerald-500 border-emerald-600 text-white'
-                                            : 'bg-white border-slate-300 hover:border-slate-400'
-                                            }`}
-                                    >
-                                        {recaptchaVerifying && <Loader2 size={12} className="animate-spin text-slate-550" />}
-                                        {recaptchaDone && <CheckCircle size={14} className="text-white" />}
-                                    </button>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-extrabold text-slate-700 leading-none">I'm not a robot</span>
-                                        <span className="text-[9px] text-slate-400 font-semibold mt-1">reCAPTCHA Anti-Spam Protection</span>
-                                    </div>
+                        {/* Footer / Empty area to align with LoginPage */}
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.5, duration: 0.4 }}
+                            className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100"
+                        >
+                            <span className="text-slate-400 text-[10px]">Need help? Contact the test administrator.</span>
+                        </motion.div>
+                    </motion.div>
+
+                    {/* Right Side - Brand/Illustration (Navy Blue Theme) */}
+                    <div className="hidden md:flex flex-col justify-between items-center w-1/2 bg-[#0b1329] p-8 md:p-10 h-full relative overflow-hidden">
+                        {/* Soft transition border at the left edge to blend with the form side */}
+                        <div className="absolute top-0 left-0 w-[1px] h-full bg-gradient-to-b from-transparent via-slate-500/10 to-transparent"></div>
+
+                        {/* Visual waves / decoration circles */}
+                        <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-white/5 blur-2xl"></div>
+                        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-white/5 blur-3xl"></div>
+
+                        {/* Text Section */}
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.5, type: 'spring', stiffness: 90 }}
+                            className="relative z-10 text-center w-full mt-2"
+                        >
+                            <span className="text-[9px] font-bold uppercase bg-white/10 text-slate-200 px-3 py-1 rounded-full tracking-widest inline-block mb-3">
+                                Web Assessment
+                            </span>
+                            <h1 className="text-2xl font-extrabold text-white tracking-tight mb-2 leading-tight drop-shadow-sm px-2">
+                                {test?.title || 'Assessment'}
+                            </h1>
+                            <p className="text-slate-300 text-xs font-medium opacity-90 px-4 leading-relaxed max-h-[60px] overflow-hidden text-ellipsis line-clamp-2">
+                                {test?.description || 'Complete the short assessment shared with you.'}
+                            </p>
+
+                            <div className="mt-4 pt-4 border-t border-white/10 flex justify-center gap-6 text-[10px] text-slate-300 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                    <Clock size={12} className="text-slate-300" />
+                                    <span>{test?.publicSettings?.timeLimit || 60} mins limit</span>
                                 </div>
-                                <div className="flex flex-col items-center">
-                                    <ShieldCheck size={28} className="text-indigo-600/30" />
+                                <div className="flex items-center gap-1.5">
+                                    <BookOpen size={12} className="text-slate-300" />
+                                    <span>{test?.questions?.length || 0} questions</span>
                                 </div>
                             </div>
-                        )}
+                        </motion.div>
 
-                        <button
-                            type="submit"
-                            disabled={duplicateChecking}
-                            className="w-full py-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2"
-                        >
-                            {duplicateChecking ? <Loader2 size={18} className="animate-spin" /> : "Start Assessment"}
-                        </button>
-                    </form>
+                        {/* Custom Illustration Image */}
+                        <div className="w-full max-w-[280px] z-10 my-auto flex justify-center">
+                            <motion.img 
+                                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                transition={{ delay: 0.4, duration: 0.6, type: 'spring', stiffness: 80 }}
+                                src={loginIllustration}
+                                alt="Student Portal Illustration"
+                                className="w-full h-auto max-h-[220px] object-contain select-none pointer-events-none"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         );

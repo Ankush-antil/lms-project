@@ -37,7 +37,7 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Section */}
-                <div className="h-32 bg-gradient-to-br from-slate-800 to-slate-900 relative flex-shrink-0">
+                <div className="h-32 bg-gradient-to-br from-[#0b1329] to-[#1e293b] relative flex-shrink-0">
                     <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                     <div className="absolute inset-0 flex items-center px-10">
                         <div className="flex items-center gap-5">
@@ -102,10 +102,10 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <BookOpen size={18} className="text-indigo-500" />
+                                        <BookOpen size={18} className="text-[#0b1329]" />
                                         <h4 className="font-bold text-slate-800">Assigned Courses</h4>
                                     </div>
-                                    <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black">
+                                    <span className="px-3 py-1 bg-slate-100 text-[#0b1329] rounded-full text-xs font-black">
                                         {details?.courses?.length || 0} TOTAL
                                     </span>
                                 </div>
@@ -113,13 +113,13 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                                 <div className="grid grid-cols-1 gap-3">
                                     {details?.courses?.length > 0 ? (
                                         details.courses.map((course) => (
-                                            <div key={course._id} className="group p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5 transition-all flex items-center justify-between">
+                                            <div key={course._id} className="group p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-200 hover:shadow-lg hover:shadow-slate-200/5 transition-all flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 flex items-center justify-center font-bold transition-colors">
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-[#0b1329] flex items-center justify-center font-bold transition-colors">
                                                         <BookOpen size={20} />
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{course.name}</p>
+                                                        <p className="font-bold text-slate-700 group-hover:text-[#0b1329] transition-colors">{course.name}</p>
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{course.code}</p>
                                                     </div>
                                                 </div>
@@ -169,7 +169,7 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                 <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
                     <button
                         onClick={onClose}
-                        className="px-8 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95 text-sm"
+                        className="px-8 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] transition-all active:scale-95 text-sm"
                     >
                         Dismiss Details
                     </button>

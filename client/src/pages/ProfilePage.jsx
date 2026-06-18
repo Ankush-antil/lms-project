@@ -112,7 +112,7 @@ const ProfilePage = () => {
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left Side: Avatar & Basic Info */}
                     <div className="w-full md:w-1/3">
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center sticky top-24">
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center sticky top-20">
                             <div className="relative inline-block mb-6">
                                 <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-5xl font-bold shadow-lg ring-4 ring-indigo-50 mx-auto overflow-hidden">
                                     {user.avatar ? (

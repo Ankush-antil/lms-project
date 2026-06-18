@@ -48,7 +48,7 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
     };
 
     return (
-        <header className="h-20 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
+        <header className="h-16 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
             {/* Logo + Non-admin desktop nav */}
             <div className="flex items-center space-x-6 xl:space-x-12">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${role.toLowerCase()}`)}>
@@ -148,7 +148,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
             {/* Sidebar — desktop */}
             <aside
                 style={{ transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)' }}
-                className={`hidden lg:flex flex-col fixed top-20 left-0 bottom-0 z-40 bg-[#0b1329] border-r border-slate-800/80 shadow-md text-white ${collapsed ? 'w-[72px]' : 'w-56'}`}
+                className={`hidden lg:flex flex-col fixed top-16 left-0 bottom-0 z-40 bg-[#0b1329] border-r border-slate-800/80 shadow-md text-white ${collapsed ? 'w-[72px]' : 'w-56'}`}
             >
                 {/* Collapse toggle */}
                 <button
@@ -195,7 +195,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
             </aside>
 
             {/* Mobile drawer */}
-            <div className={`lg:hidden fixed inset-0 top-20 z-[60] transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
+            <div className={`lg:hidden fixed inset-0 top-16 z-[60] transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
                 {/* Backdrop */}
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                 {/* Drawer panel */}
@@ -247,7 +247,7 @@ const MobileNavDrawer = ({ role, isMobileOpen }) => {
     };
 
     return (
-        <div className={`lg:hidden fixed inset-0 top-20 bg-[#0b1329] z-[60] p-6 transition-all duration-300 text-white ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
+        <div className={`lg:hidden fixed inset-0 top-16 bg-[#0b1329] z-[60] p-6 transition-all duration-300 text-white ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
             <nav className="space-y-3">
                 {menuItems[role]?.map((item) => (
                     <button
@@ -316,10 +316,10 @@ const DashboardLayout = ({ children, role, fullWidth = false }) => {
             {/* Main content */}
             <main
                 style={{
-                    paddingLeft: isAdmin ? `${sidebarWidth}px` : undefined,
+                    paddingLeft: isAdmin ? `${sidebarWidth + 16}px` : undefined,
                     transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
                 }}
-                className="flex-1 pt-24 pb-12 px-4 md:px-8 hidden lg:block"
+                className="flex-1 pt-20 pb-12 px-4 md:px-8 hidden lg:block"
             >
                 <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
                     {children}
@@ -327,7 +327,7 @@ const DashboardLayout = ({ children, role, fullWidth = false }) => {
             </main>
 
             {/* Mobile main content (no sidebar offset) */}
-            <main className="flex-1 pt-24 pb-12 px-4 md:px-8 lg:hidden">
+            <main className="flex-1 pt-20 pb-12 px-4 md:px-8 lg:hidden">
                 <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
                     {children}
                 </div>

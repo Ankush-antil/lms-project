@@ -223,7 +223,7 @@ const CreateTest = () => {
             {step === 2 && (
                 <div className="space-y-6 animate-fade-in">
                     {/* Toolbar */}
-                    <div className="flex gap-2 p-4 bg-white rounded-xl shadow-sm border border-slate-100 sticky top-20 z-10 overflow-x-auto">
+                    <div className="flex gap-2 p-4 bg-white rounded-xl shadow-sm border border-slate-100 sticky top-16 z-10 overflow-x-auto">
                         <button onClick={() => addQuestion('MCQ')} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 text-sm font-medium">
                             <CheckSquare size={16} /> Add MCQ
                         </button>

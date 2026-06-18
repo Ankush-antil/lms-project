@@ -111,7 +111,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                 <div className="flex items-center justify-between p-5 border-b border-slate-150 bg-slate-50">
                     <div className="flex items-center gap-3">
                         <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                            <FolderOpen size={16} className="text-indigo-550" />
+                            <FolderOpen size={16} className="text-[#0b1329]" />
                             <span>LMS Directory Explorer</span>
                         </h3>
                     </div>
@@ -133,7 +133,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                 setSelectedExplorerFolderName(null);
                                 setSelectedExplorerTestId(null);
                             }}
-                            className="hover:text-indigo-600 transition-colors flex items-center gap-1"
+                            className="hover:text-[#0b1329] transition-colors flex items-center gap-1"
                         >
                             <LayoutGrid size={13} />
                             <span>All Institutes</span>
@@ -150,7 +150,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                             setSelectedExplorerFolderName(null);
                                             setSelectedExplorerTestId(null);
                                         }}
-                                        className="hover:text-indigo-600 transition-colors text-slate-700 font-bold"
+                                        className="hover:text-[#0b1329] transition-colors text-slate-700 font-bold"
                                     >
                                         {folder}
                                     </button>
@@ -171,7 +171,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                 setSelectedExplorerTestId(null);
                                 setSelectedExplorerFolderName(null);
                             }}
-                            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-indigo-500 transition-all font-medium text-slate-700"
+                            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-slate-500 transition-all font-medium text-slate-700"
                         />
                         {explorerSearch && (
                             <button
@@ -198,7 +198,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                 return (
                                     <div key={instName} className="space-y-1">
                                         <div
-                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors group ${isInstSelected ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-150/60 text-slate-700'
+                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors group ${isInstSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-700'
                                                 }`}
                                             onClick={() => {
                                                 setExplorerPath([instName]);
@@ -217,7 +217,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                             >
                                                 <ChevronDown size={14} className={`text-slate-400 transition-transform ${isInstExpanded ? '' : '-rotate-90'}`} />
                                             </button>
-                                            <School size={14} className="text-indigo-505" />
+                                            <School size={14} className="text-[#0b1329]" />
                                             <span className="truncate flex-1">{instName}</span>
                                         </div>
 
@@ -232,7 +232,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                     return (
                                                         <div key={courseName} className="space-y-1">
                                                             <div
-                                                                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${isCourseSelected ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-150/60 text-slate-655'
+                                                                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${isCourseSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-655'
                                                                     }`}
                                                                 onClick={() => {
                                                                     setExplorerPath([instName, courseName]);
@@ -264,7 +264,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                                         return (
                                                                             <div
                                                                                 key={subjectName}
-                                                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${isSubjSelected ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-150/60 text-slate-600'
+                                                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${isSubjSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-600'
                                                                                     }`}
                                                                                 onClick={() => {
                                                                                     setExplorerPath([instName, courseName, subjectName]);
@@ -301,7 +301,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                     <span className="text-xs font-bold text-slate-550">
                                         Search Results for "{explorerSearch}"
                                     </span>
-                                    <span className="text-[10px] bg-indigo-50 text-indigo-650 px-2 py-0.5 rounded font-black">
+                                    <span className="text-[10px] bg-slate-100 text-[#0b1329] px-2 py-0.5 rounded font-black">
                                         {tests.filter(t => (t.title || '').toLowerCase().includes(explorerSearch.toLowerCase())).length} Found
                                     </span>
                                 </div>
@@ -312,10 +312,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         .map(test => (
                                             <div
                                                 key={test._id}
-                                                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
+                                                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
                                             >
                                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                    <div className="text-indigo-500 flex-shrink-0">
+                                                    <div className="text-[#0b1329] flex-shrink-0">
                                                         <FileText size={18} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
@@ -352,7 +352,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             onClose();
                                                             onOpenResponses(test, 'connected');
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 rounded-lg text-slate-600 transition-all"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="View Responses"
                                                     >
                                                         <BarChart2 size={12} />
@@ -364,7 +364,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             navigate(`/admin/tests/edit/${test._id}`);
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 rounded-lg text-slate-600 transition-all"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"
                                                     >
                                                         <Edit size={12} />
@@ -548,10 +548,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
+                                                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
                                             >
                                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                    <div className="text-indigo-500 flex-shrink-0">
+                                                    <div className="text-[#0b1329] flex-shrink-0">
                                                         <FileText size={18} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
@@ -588,7 +588,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             onClose();
                                                             onOpenResponses(test, 'connected');
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 rounded-lg text-slate-600 transition-all"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="View Responses"
                                                     >
                                                         <BarChart2 size={12} />
@@ -600,7 +600,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             navigate(`/admin/tests/edit/${test._id}`);
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 rounded-lg text-slate-600 transition-all"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"
                                                     >
                                                         <Edit size={12} />

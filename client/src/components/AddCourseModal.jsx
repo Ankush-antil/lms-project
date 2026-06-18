@@ -47,7 +47,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className="h-24 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative flex-shrink-0">
+                <div className="h-24 bg-[#0b1329] relative flex-shrink-0">
                     <div className="absolute inset-0 flex items-center px-8">
                         <h3 className="text-xl font-black text-white tracking-tight">Add New Course</h3>
                     </div>
@@ -65,7 +65,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                             <div>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
                                 <select
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all appearance-none cursor-pointer"
                                     required
                                     value={formData.instituteId}
                                     onChange={e => setFormData({ ...formData, instituteId: e.target.value })}
@@ -80,7 +80,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Name</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                     required
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -92,7 +92,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Code</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                         required
                                         value={formData.code}
                                         onChange={e => setFormData({ ...formData, code: e.target.value })}
@@ -103,7 +103,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch/Year</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                         placeholder="2024"
                                     />
                                 </div>
@@ -112,7 +112,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects (comma separated)</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
                                     required
                                     value={formData.subjects}
                                     onChange={e => setFormData({ ...formData, subjects: e.target.value })}
@@ -124,7 +124,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-blue-600 transition-all active:scale-95 disabled:opacity-50"
+                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50"
                         >
                             {loading ? 'Adding Course...' : 'Create Course'}
                         </button>

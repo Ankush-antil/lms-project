@@ -69,7 +69,7 @@ const InstitutesList = () => {
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                    className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95"
                 >
                     <Plus size={20} /> Add New Institute
                 </button>
@@ -84,10 +84,10 @@ const InstitutesList = () => {
                         placeholder="Search by Name, Code or Location..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all text-sm"
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all text-sm"
                     />
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg">
+                <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 text-[#0b1329] rounded-lg">
                     <Building size={16} />
                     <span className="text-xs font-semibold uppercase tracking-wider">{institutes.length} Institutes</span>
                 </div>
@@ -122,7 +122,7 @@ const InstitutesList = () => {
                                     <tr key={inst._id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm">
+                                                <div className="w-10 h-10 rounded-lg bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm">
                                                     <Building size={20} />
                                                 </div>
                                                 <span className="font-medium text-slate-800">{inst.name}</span>
@@ -133,7 +133,7 @@ const InstitutesList = () => {
                                         </td>
                                         <td className="p-4">
                                             <div className="flex flex-col">
-                                                <span className={`text-xs font-bold ${inst.courseCount > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                <span className={`text-xs font-bold ${inst.courseCount > 0 ? 'text-[#0b1329]' : 'text-slate-400'}`}>
                                                     {inst.courseCount} Courses
                                                 </span>
                                                 {inst.courses?.length > 0 && (
@@ -152,7 +152,7 @@ const InstitutesList = () => {
                                                     setSelectedInstitute(inst);
                                                     setIsDetailsModalOpen(true);
                                                 }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-lg transition-colors"
                                                 title="View Details"
                                             >
                                                 <Eye size={20} />
@@ -162,7 +162,7 @@ const InstitutesList = () => {
                                                     setSelectedInstitute(inst);
                                                     setIsEditModalOpen(true);
                                                 }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                className="p-2 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-lg transition-colors ml-2"
                                                 title="Edit Institute"
                                             >
                                                 <Edit size={20} />

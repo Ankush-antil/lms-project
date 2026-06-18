@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { GraduationCap, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertTriangle, Loader2, FileText, ArrowRight, CheckCircle, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { motion } from 'framer-motion';
+import loginIllustration from '../login-illustration.png';
 
 const TakeTestPage = () => {
     const { user, login } = useAuth();
     const userInfo = user;
     const { id: testId } = useParams();
     const navigate = useNavigate();
-    
 
     // Form state
     const [email, setEmail] = useState('');
@@ -99,16 +100,14 @@ const TakeTestPage = () => {
         }
     };
 
-    const isLoggedIn = !!user;
-
     // ── Render States ────────────────────────────────────────────────────────
 
     if (checkState === 'checking') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-[#fafafa] via-white to-slate-100 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">
-                    <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <Loader2 size={32} className="text-indigo-600 animate-spin" />
+                    <div className="w-16 h-16 bg-[#0b1329]/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Loader2 size={32} className="text-[#0b1329] animate-spin" />
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 mb-2">Verifying Access…</h2>
                     <p className="text-slate-500 text-sm">Checking if this test is assigned to you.</p>
@@ -119,7 +118,7 @@ const TakeTestPage = () => {
 
     if (checkState === 'allowed') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-indigo-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-[#fafafa] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">
                     <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <CheckCircle size={32} className="text-emerald-600" />
@@ -137,10 +136,10 @@ const TakeTestPage = () => {
 
     if (checkState === 'submitted') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-[#fafafa] via-white to-emerald-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <ClipboardCheck size={32} className="text-indigo-600" />
+                    <div className="w-16 h-16 bg-[#0b1329]/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <ClipboardCheck size={32} className="text-[#0b1329]" />
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 mb-2">Already Submitted</h2>
                     <p className="text-slate-500 text-sm mb-2">
@@ -151,7 +150,7 @@ const TakeTestPage = () => {
                         {submissionId && (
                             <button
                                 onClick={() => navigate(`/student/test-result/${submissionId}`)}
-                                className="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md flex items-center justify-center gap-2"
+                                className="w-full py-3.5 bg-[#0b1329] text-white font-bold rounded-xl hover:bg-[#152244] transition-all shadow-md flex items-center justify-center gap-2"
                             >
                                 <ClipboardCheck size={18} /> View My Results
                             </button>
@@ -170,7 +169,7 @@ const TakeTestPage = () => {
 
     if (checkState === 'denied') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-[#fafafa] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">
                     <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle size={32} className="text-red-600" />
@@ -179,7 +178,7 @@ const TakeTestPage = () => {
                     <p className="text-slate-500 text-sm mb-8">{denyReason}</p>
                     <button
                         onClick={() => navigate('/student/tests')}
-                        className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md"
+                        className="px-8 py-3 bg-[#0b1329] text-white font-bold rounded-xl hover:bg-[#152244] transition-all shadow-md"
                     >
                         Go to My Tests
                     </button>
@@ -189,9 +188,8 @@ const TakeTestPage = () => {
     }
 
     if (checkState === 'not_student') {
-
         return (
-            <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-[#fafafa] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md w-full text-center">
                     <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <ShieldCheck size={32} className="text-amber-600" />
@@ -203,7 +201,7 @@ const TakeTestPage = () => {
                     </p>
                     <button
                         onClick={() => navigate(`/${userInfo.role?.toLowerCase()}`)}
-                        className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md"
+                        className="w-full py-3 bg-[#0b1329] text-white font-bold rounded-xl hover:bg-[#152244] transition-all shadow-md"
                     >
                         Go to Dashboard
                     </button>
@@ -214,88 +212,149 @@ const TakeTestPage = () => {
 
     // Default: show login form (unauthenticated)
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
-            <div className="flex w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[560px]">
-
-                {/* Left branding panel */}
-                <div className="hidden md:flex flex-col justify-center items-center w-2/5 bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-10 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=60')", backgroundSize: 'cover' }} />
-                    <div className="relative z-10 text-center">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <FileText size={32} className="text-white" />
-                        </div>
-                        <h1 className="text-3xl font-black mb-3 tracking-tight">LMS<span className="text-indigo-200">Portal</span></h1>
-                        <p className="text-indigo-200 text-sm leading-relaxed">Sign in with your student credentials to access the test shared with you.</p>
-                    </div>
-                </div>
-
-                {/* Right form panel */}
-                <div className="flex-1 p-8 md:p-12 flex flex-col justify-center">
-                    <div className="mb-8">
-                        <div className="flex items-center gap-2 mb-1">
-                            <GraduationCap size={20} className="text-indigo-600" />
-                            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">LMS Portal</span>
-                        </div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Sign In to Attempt Test</h2>
-                        <p className="text-slate-500 text-sm mt-1">A test has been shared with you. Log in to check if you can attempt it.</p>
-                    </div>
-
-                    <form onSubmit={handleLogin} className="space-y-5">
-                        {loginError && (
-                            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-200 flex items-center gap-2">
-                                <AlertTriangle size={16} /> {loginError}
+        <div className="h-screen w-screen overflow-hidden flex items-center justify-center bg-gradient-to-r from-[#fafafa] from-35% via-[#b8c5d6] to-[#0b1329] to-65% p-4 md:p-8">
+            <div className="flex w-full max-w-5xl h-[85vh] max-h-[580px] bg-transparent rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-200/50 relative">
+                {/* Left Side - Form (Off-White Theme) */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                    className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between h-full bg-[#fafafa]"
+                >
+                    <div>
+                        {/* Title Section */}
+                        <motion.div 
+                            initial={{ opacity: 0, y: -15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15, duration: 0.4 }}
+                            className="mb-8 mt-2"
+                        >
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                                <GraduationCap size={16} className="text-[#0b1329]" />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">LMS Portal</span>
                             </div>
-                        )}
+                            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Sign In to Attempt Test</h2>
+                            <p className="text-slate-500 mt-1 text-xs">A test has been shared with you. Log in to check if you can attempt it.</p>
+                        </motion.div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Email Address</label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            {loginError && (
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-2.5 bg-red-50 text-red-600 rounded-xl text-xs border border-red-200 flex items-center gap-2"
+                                >
+                                    <AlertTriangle size={14} /> {loginError}
+                                </motion.div>
+                            )}
+
+                            {/* Email / Username field */}
+                            <motion.div 
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.25, duration: 0.4 }}
+                                className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                            >
+                                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Email Address</label>
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
-                                    placeholder="your@email.com"
+                                    className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-1 placeholder-slate-300"
+                                    placeholder="Enter your email"
                                     required
                                 />
-                            </div>
-                        </div>
+                            </motion.div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            {/* Password field */}
+                            <motion.div 
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.35, duration: 0.4 }}
+                                className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
+                            >
+                                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Password</label>
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
-                                    placeholder="••••••••"
+                                    className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-1 pr-8 placeholder-slate-300"
+                                    placeholder="Enter your password"
                                     required
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                    className="absolute right-0 bottom-1.5 text-slate-400 hover:text-[#0b1329] transition-colors"
                                 >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
-                            </div>
-                        </div>
+                            </motion.div>
 
-                        <button
-                            type="submit"
-                            disabled={loginLoading}
-                            className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 text-sm uppercase tracking-widest disabled:opacity-60"
-                        >
-                            {loginLoading ? (
-                                <Loader2 size={20} className="animate-spin" />
-                            ) : (
-                                <>Sign In & Check Access <ArrowRight size={18} /></>
-                            )}
-                        </button>
-                    </form>
+                            {/* Login Button */}
+                            <motion.button
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.5, duration: 0.4, type: 'spring', stiffness: 90 }}
+                                type="submit"
+                                disabled={loginLoading}
+                                className="w-full bg-[#0b1329] hover:bg-[#152244] text-white font-medium py-3 px-6 rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-slate-900/10 flex justify-center items-center gap-2 mt-6 text-sm"
+                            >
+                                {loginLoading ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                    <>Sign In & Check Access <ArrowRight size={16} /></>
+                                )}
+                            </motion.button>
+                        </form>
+                    </div>
+
+                    {/* Footer / Empty area to align with LoginPage */}
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.6, duration: 0.4 }}
+                        className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100"
+                    >
+                        <span className="text-slate-400 text-xs">Need help? Contact your administrator.</span>
+                    </motion.div>
+                </motion.div>
+
+                {/* Right Side - Brand/Illustration (Navy Blue Theme) */}
+                <div className="hidden md:flex flex-col justify-between items-center w-1/2 bg-[#0b1329] p-8 md:p-10 h-full relative overflow-hidden">
+                    {/* Soft transition border at the left edge to blend with the form side */}
+                    <div className="absolute top-0 left-0 w-[1px] h-full bg-gradient-to-b from-transparent via-slate-500/10 to-transparent"></div>
+
+                    {/* Visual waves / decoration circles */}
+                    <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-white/5 blur-2xl"></div>
+                    <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-white/5 blur-3xl"></div>
+
+                    {/* Text Section */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.5, type: 'spring', stiffness: 90 }}
+                        className="relative z-10 text-center w-full mt-2"
+                    >
+                        <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2 leading-tight drop-shadow-sm">
+                            Welcome to LMS portal
+                        </h1>
+                        <p className="text-slate-300 text-xs font-medium opacity-90">
+                            Login to access your account
+                        </p>
+                    </motion.div>
+
+                    {/* Custom Illustration Image */}
+                    <div className="w-full max-w-[320px] z-10 my-auto flex justify-center">
+                        <motion.img 
+                            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ delay: 0.4, duration: 0.6, type: 'spring', stiffness: 80 }}
+                            src={loginIllustration}
+                            alt="Student Portal Illustration"
+                            className="w-full h-auto max-h-[260px] object-contain select-none pointer-events-none"
+                        />
+                    </div>
                 </div>
             </div>
         </div>

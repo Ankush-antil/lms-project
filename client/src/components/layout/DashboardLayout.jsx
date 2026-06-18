@@ -48,12 +48,12 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
     };
 
     return (
-        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-sm">
+        <header className="h-20 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
             {/* Logo + Non-admin desktop nav */}
             <div className="flex items-center space-x-6 xl:space-x-12">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${role.toLowerCase()}`)}>
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform duration-300">L</div>
-                    <span className="text-xl font-black text-slate-900 tracking-tight hidden sm:block">LMS<span className="text-indigo-600">Portal</span></span>
+                    <div className="w-10 h-10 bg-white text-[#0b1329] rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-black/10 group-hover:scale-110 transition-transform duration-300">L</div>
+                    <span className="text-xl font-black text-white tracking-tight hidden sm:block">LMS<span className="text-slate-300">Portal</span></span>
                 </div>
 
                 {/* Desktop nav — only for non-admin roles */}
@@ -64,8 +64,8 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
                                 key={item.name}
                                 onClick={() => navigate(item.path)}
                                 className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm ${isActive(item.path)
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                                    ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
                                     }`}
                             >
                                 <item.icon size={18} strokeWidth={isActive(item.path) ? 2.5 : 2} />
@@ -79,14 +79,14 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
             {/* User Profile & Mobile Toggle */}
             <div className="flex items-center space-x-4">
                 <div
-                    className="flex items-center space-x-3 pl-4 border-l border-slate-200 relative group cursor-pointer"
+                    className="flex items-center space-x-3 pl-4 border-l border-slate-800 relative group cursor-pointer"
                     onClick={() => openProfile(user?._id || user?.id)}
                 >
                     <div className="text-right hidden sm:block">
-                        <p className="text-sm font-bold text-slate-800 leading-none">{user?.name || 'User'}</p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5 opacity-70">{user?.role || 'Guest'}</p>
+                        <p className="text-sm font-bold text-slate-200 leading-none">{user?.name || 'User'}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 opacity-70">{user?.role || 'Guest'}</p>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-100 ring-2 ring-white hover:rotate-3 transition-transform">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-bold shadow-md shadow-black/10 ring-2 ring-slate-800 hover:rotate-3 transition-transform">
                         {user?.avatar ? (
                             <img src={user.avatar} alt="Profile" className="w-full h-full object-cover rounded-xl" />
                         ) : (
@@ -95,22 +95,22 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
                     </div>
 
                     {/* Desktop Dropdown */}
-                    <div className="absolute top-full right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                        <div className="px-4 py-3 border-b border-slate-50 mb-1">
+                    <div className="absolute top-full right-0 mt-3 w-60 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50">
+                        <div className="px-4 py-3 border-b border-slate-800 mb-1">
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Signed in as</p>
-                            <p className="text-sm font-bold text-slate-900 truncate">{user?.email}</p>
+                            <p className="text-sm font-bold text-slate-200 truncate">{user?.email}</p>
                         </div>
                         <button
                             onClick={() => openProfile(user?._id || user?.id)}
-                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-xl transition-all font-bold"
+                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-all font-bold"
                         >
                             <User size={18} />
                             <span>My Profile Settings</span>
                         </button>
-                        <hr className="my-1 border-slate-50" />
+                        <hr className="my-1 border-slate-800" />
                         <button
                             onClick={handleLogout}
-                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold"
+                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
                         >
                             <LogOut size={18} />
                             <span>Sign Out Portal</span>
@@ -121,7 +121,7 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
                 {/* Mobile Menu Button */}
                 <button
                     onClick={onMobileMenuToggle}
-                    className="lg:hidden p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200"
+                    className="lg:hidden p-2.5 bg-slate-850 text-slate-300 rounded-xl hover:bg-white/10 hover:text-white transition-all border border-slate-700"
                 >
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
@@ -148,12 +148,12 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
             {/* Sidebar — desktop */}
             <aside
                 style={{ transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)' }}
-                className={`hidden lg:flex flex-col fixed top-20 left-0 bottom-0 z-40 bg-white border-r border-slate-200/70 shadow-sm ${collapsed ? 'w-[72px]' : 'w-56'}`}
+                className={`hidden lg:flex flex-col fixed top-20 left-0 bottom-0 z-40 bg-[#0b1329] border-r border-slate-800/80 shadow-md text-white ${collapsed ? 'w-[72px]' : 'w-56'}`}
             >
                 {/* Collapse toggle */}
                 <button
                     onClick={onToggle}
-                    className="absolute -right-3.5 top-6 w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-md hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 text-slate-400 transition-all z-10"
+                    className="absolute -right-3.5 top-6 w-7 h-7 bg-[#0b1329] border border-slate-800 rounded-full flex items-center justify-center shadow-md hover:bg-white/10 hover:text-white text-slate-400 transition-all z-10 cursor-pointer"
                 >
                     {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
@@ -166,11 +166,11 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                                 key={item.name}
                                 onClick={() => navigate(item.path)}
                                 title={collapsed ? item.name : undefined}
-                                className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group
+                                className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
                                     ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
                                     ${active
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                                        ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
+                                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                                     }`}
                             >
                                 <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
@@ -185,7 +185,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                     <button
                         onClick={logout}
                         title={collapsed ? 'Sign Out' : undefined}
-                        className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm text-red-500 hover:bg-red-50
+                        className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm text-red-400 hover:bg-red-950/20 cursor-pointer
                             ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}`}
                     >
                         <LogOut size={20} className="flex-shrink-0" />
@@ -197,9 +197,9 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
             {/* Mobile drawer */}
             <div className={`lg:hidden fixed inset-0 top-20 z-[60] transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
                 {/* Backdrop */}
-                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                 {/* Drawer panel */}
-                <div className={`absolute left-0 top-0 bottom-0 w-64 bg-white shadow-2xl p-6 flex flex-col transition-transform duration-300 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className={`absolute left-0 top-0 bottom-0 w-64 bg-[#0b1329] shadow-2xl p-6 flex flex-col transition-transform duration-300 text-white ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <nav className="flex-1 space-y-2">
                         {menuItems.Admin.map((item) => {
                             const active = isActive(item.path);
@@ -208,8 +208,8 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                                     key={item.name}
                                     onClick={() => navigate(item.path)}
                                     className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold ${active
-                                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
-                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                        ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
+                                        : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
                                     <item.icon size={22} />
@@ -218,10 +218,10 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                             );
                         })}
                     </nav>
-                    <div className="pt-4 border-t border-slate-100">
+                    <div className="pt-4 border-t border-slate-800">
                         <button
                             onClick={logout}
-                            className="flex items-center justify-center space-x-3 w-full p-4 bg-red-50 text-red-600 rounded-2xl font-black text-base transition-all border border-red-100 shadow-sm"
+                            className="flex items-center justify-center space-x-3 w-full p-4 bg-red-950/20 text-red-400 rounded-2xl font-black text-base transition-all border border-red-900/30 shadow-sm"
                         >
                             <LogOut size={22} />
                             <span>Logout from Portal</span>
@@ -247,25 +247,25 @@ const MobileNavDrawer = ({ role, isMobileOpen }) => {
     };
 
     return (
-        <div className={`lg:hidden fixed inset-0 top-20 bg-white z-[60] p-6 transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
+        <div className={`lg:hidden fixed inset-0 top-20 bg-[#0b1329] z-[60] p-6 transition-all duration-300 text-white ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
             <nav className="space-y-3">
                 {menuItems[role]?.map((item) => (
                     <button
                         key={item.name}
                         onClick={() => navigate(item.path)}
                         className={`flex items-center space-x-4 w-full p-5 rounded-2xl transition-all font-bold ${isActive(item.path)
-                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                            ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
+                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
                             }`}
                     >
                         <item.icon size={22} />
                         <span className="text-lg">{item.name}</span>
                     </button>
                 ))}
-                <div className="h-px bg-slate-100 my-6"></div>
+                <div className="h-px bg-slate-800 my-6"></div>
                 <button
                     onClick={logout}
-                    className="flex items-center justify-center space-x-3 w-full p-5 bg-red-50 text-red-600 rounded-2xl font-black text-lg transition-all border border-red-100 shadow-sm"
+                    className="flex items-center justify-center space-x-3 w-full p-5 bg-red-950/20 text-red-400 rounded-2xl font-black text-lg transition-all border border-red-900/30 shadow-sm"
                 >
                     <LogOut size={22} />
                     <span>Logout from Portal</span>

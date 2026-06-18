@@ -163,7 +163,7 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg">
+                        <div className="w-8 h-8 rounded-full bg-[#0b1329] flex items-center justify-center text-white shadow-lg">
                             <Globe size={16} />
                         </div>
                         <h2 className="text-xl font-bold text-slate-800">Publish Options</h2>
@@ -184,15 +184,15 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                             onClick={() => setPublishMode('connected')}
                             className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between h-44 relative overflow-hidden group ${
                                 publishMode === 'connected'
-                                    ? 'border-indigo-600 bg-indigo-50/10 shadow-md ring-2 ring-indigo-500/10'
-                                    : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'
+                                    ? 'border-[#0b1329] bg-slate-100/50 shadow-md ring-2 ring-slate-200/10'
+                                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
                             }`}
                         >
                             <div>
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all mb-4 ${
                                     publishMode === 'connected'
-                                        ? 'bg-indigo-600 border-indigo-700 text-white'
-                                        : 'bg-indigo-50 border-indigo-100 text-indigo-600 group-hover:scale-105'
+                                        ? 'bg-[#0b1329] border-[#152244] text-white'
+                                        : 'bg-slate-100 border-slate-200 text-[#0b1329] group-hover:scale-105'
                                 }`}>
                                     <Link2 size={20} />
                                 </div>
@@ -203,8 +203,8 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                             </div>
                             
                             {publishMode === 'connected' && (
-                                <div className="absolute top-4 right-4 text-indigo-600">
-                                    <CheckCircle2 size={20} fill="currentColor" className="text-white fill-indigo-600" />
+                                <div className="absolute top-4 right-4 text-[#0b1329]">
+                                    <CheckCircle2 size={20} fill="currentColor" className="text-white fill-[#0b1329]" />
                                 </div>
                             )}
                         </div>
@@ -242,9 +242,9 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
 
                     {/* Mode-Specific Detailed Settings */}
                     {publishMode === 'connected' ? (
-                        <div className="bg-indigo-50/20 border border-indigo-100 rounded-2xl p-5 space-y-3">
+                        <div className="bg-slate-100/20 border border-slate-200 rounded-2xl p-5 space-y-3">
                             <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                <Info size={16} className="text-indigo-600" /> LMS Assignment Details
+                                <Info size={16} className="text-[#0b1329]" /> LMS Assignment Details
                             </h4>
                             <p className="text-slate-500 text-xs leading-relaxed">
                                 In Connected mode, this test will only show up inside student dashboards who are enrolled in the configured course, institute, and subject.
@@ -255,7 +255,7 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                                 </span>
                                 <button
                                     onClick={onOpenConnect}
-                                    className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-colors shadow-sm"
+                                    className="px-4 py-2 bg-[#0b1329] text-white font-bold rounded-xl text-xs hover:bg-[#152244] transition-colors shadow-sm"
                                 >
                                     Configure Connection
                                 </button>
@@ -473,7 +473,7 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                         onClick={handleConfirm}
                         className={`px-8 py-3 text-white font-bold rounded-2xl shadow-xl transition-all active:scale-95 text-sm ${
                             publishMode === 'connected'
-                                ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                ? 'bg-[#0b1329] hover:bg-[#152244] shadow-[#0b1329]/15'
                                 : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
                         }`}
                     >
@@ -741,7 +741,7 @@ const BrowseFolderDialog = ({ isOpen, onClose, treeData, onSelect, onUpdateTree 
     const renderEditingInputRow = (depth) => {
         return (
             <div 
-                className="flex items-center gap-1 py-1.5 px-2 bg-indigo-50/50 border border-dashed border-indigo-300 rounded"
+                className="flex items-center gap-1 py-1.5 px-2 bg-slate-100/50 border border-dashed border-slate-300 rounded"
                 style={{ paddingLeft: `${Math.max(8, depth * 16)}px` }}
             >
                 <span className="w-4 h-4 shrink-0" />
@@ -758,7 +758,7 @@ const BrowseFolderDialog = ({ isOpen, onClose, treeData, onSelect, onUpdateTree 
                     type="text"
                     defaultValue={editingNode.tempName}
                     autoFocus
-                    className="px-1.5 py-0.5 border border-indigo-400 outline-none text-xs rounded-sm w-36 bg-white font-normal text-slate-800"
+                    className="px-1.5 py-0.5 border border-slate-350 outline-none text-xs rounded-sm w-36 bg-white font-normal text-slate-800"
                     onFocus={(e) => e.target.select()}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -788,7 +788,7 @@ const BrowseFolderDialog = ({ isOpen, onClose, treeData, onSelect, onUpdateTree 
             <div key={nodePath} className="select-none text-xs">
                 <div 
                     className={`flex items-center gap-1 py-1.5 px-2 cursor-pointer rounded transition-all hover:bg-slate-100 ${
-                        isSelected ? 'bg-indigo-550 border border-dashed border-indigo-400 font-bold text-indigo-800' : 'text-slate-700'
+                        isSelected ? 'bg-slate-100 border border-dashed border-slate-350 font-bold text-[#0b1329]' : 'text-slate-700'
                     }`}
                     style={{ paddingLeft: `${Math.max(8, depth * 16)}px` }}
                     onClick={() => handleSelectNode(nodePath, node.type, pathArr[0], pathArr[1], pathArr[2])}
@@ -866,7 +866,7 @@ const BrowseFolderDialog = ({ isOpen, onClose, treeData, onSelect, onUpdateTree 
                             <div className="flex justify-between items-center w-full min-w-0">
                                 <div className="truncate flex-1 min-w-0 pr-1">
                                     <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold">Selected Folder</span>
-                                    <span className="truncate block mt-0.5 text-indigo-600 font-bold">
+                                    <span className="truncate block mt-0.5 text-[#0b1329] font-bold">
                                         {selectedPath.institute} 
                                         {selectedPath.course && ` > ${selectedPath.course}`}
                                         {selectedPath.subject && ` > ${selectedPath.subject}`}
@@ -903,7 +903,7 @@ const BrowseFolderDialog = ({ isOpen, onClose, treeData, onSelect, onUpdateTree 
                     <div className="flex gap-2">
                         <button
                             onClick={handleConfirm}
-                            className="px-4 py-1.5 bg-indigo-600 text-white hover:bg-indigo-705 rounded-lg text-[10px] font-bold transition-all active:scale-95 shadow-sm"
+                            className="px-4 py-1.5 bg-[#0b1329] text-white hover:bg-[#152244] rounded-lg text-[10px] font-bold transition-all active:scale-95 shadow-sm"
                         >
                             OK
                         </button>

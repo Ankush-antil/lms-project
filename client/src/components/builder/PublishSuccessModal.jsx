@@ -57,7 +57,7 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
                 {/* Share Link Card */}
                 <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3 text-left">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        {publishMode === 'public' ? <Globe size={12} className="text-emerald-500" /> : <Link2 size={12} className="text-indigo-500" />}
+                        {publishMode === 'public' ? <Globe size={12} className="text-emerald-500" /> : <Link2 size={12} className="text-[#0b1329]" />}
                         {publishMode === 'public' ? 'Public Web Link' : 'LMS Connected Link'}
                     </span>
                     
@@ -94,7 +94,7 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
                     
                     <button
                         onClick={onClose}
-                        className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-150 transition-all"
+                        className="py-3 bg-[#0b1329] hover:bg-[#152244] text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0b1329]/15 transition-all"
                     >
                         <span>Go to Dashboard</span>
                         <ArrowRight size={14} />

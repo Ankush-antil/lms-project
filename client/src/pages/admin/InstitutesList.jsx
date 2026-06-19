@@ -62,7 +62,7 @@ const InstitutesList = () => {
     return (
         <DashboardLayout role="Admin">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Institutes Management</h1>
                     <p className="text-slate-500">Manage partner institutions and campuses.</p>

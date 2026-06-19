@@ -8,7 +8,9 @@ const {
     deleteInstitute,
     getCourses,
     createCourse,
-    deleteCourse
+    deleteCourse,
+    approveCourse,
+    declineCourse
 } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor } = require('../../middleware/authMiddleware');
 
@@ -27,5 +29,11 @@ router.route('/courses')
 
 router.route('/courses/:id')
     .delete(protect, adminOrEditor, deleteCourse);
+
+router.route('/courses/:id/approve')
+    .put(protect, admin, approveCourse);
+
+router.route('/courses/:id/decline')
+    .put(protect, admin, declineCourse);
 
 module.exports = router;

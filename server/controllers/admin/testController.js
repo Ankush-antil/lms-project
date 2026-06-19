@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Test = require('../../models/Test');
 const Activity = require('../../models/Activity');
+const User = require('../../models/User');
 
 // @desc    Create new test
 // @route   POST /api/tests
@@ -69,7 +70,19 @@ const createTest = asyncHandler(async (req, res) => {
 // @route   GET /api/tests
 // @access  Private/Admin
 const getTests = asyncHandler(async (req, res) => {
-    const tests = await Test.find({}).sort({ createdAt: -1 });
+    let query = {};
+    if (req.user && req.user.role === 'Editor') {
+        query = {
+            $or: [
+                { createdBy: req.user._id },
+                { collaborators: req.user._id }
+            ]
+        };
+    }
+    const tests = await Test.find(query)
+        .populate('createdBy', 'name email role')
+        .populate('collaborators', 'name email role')
+        .sort({ createdAt: -1 });
     console.log(`[Admin-Tests] Found ${tests.length} tests`);
     res.json(tests);
 });
@@ -134,4 +147,50 @@ const deleteTest = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { createTest, getTests, getTestById, updateTest, deleteTest };
+// @desc    Get editors in the same institute
+// @route   GET /api/tests/editors
+// @access  Private/Editor or Admin
+const getInstituteEditors = asyncHandler(async (req, res) => {
+    if (!req.user || !req.user.institute) {
+        return res.json([]);
+    }
+    const editors = await User.find({
+        role: 'Editor',
+        institute: req.user.institute,
+        _id: { $ne: req.user._id }
+    }).select('name email role');
+    res.json(editors);
+});
+
+// @desc    Update test collaborators
+// @route   PUT /api/tests/:id/collaborate
+// @access  Private/Editor or Admin
+const updateTestCollaborators = asyncHandler(async (req, res) => {
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+        res.status(404);
+        throw new Error('Test not found');
+    }
+
+    // Only creator or admin can update collaboration settings
+    if (test.createdBy && test.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+        res.status(403);
+        throw new Error('Only the creator can manage collaboration');
+    }
+
+    const { collaboratorIds } = req.body; // Array of editor user IDs
+    test.collaborators = collaboratorIds;
+    await test.save();
+
+    res.json({ message: 'Collaboration updated successfully', collaborators: test.collaborators });
+});
+
+module.exports = { 
+    createTest, 
+    getTests, 
+    getTestById, 
+    updateTest, 
+    deleteTest,
+    getInstituteEditors,
+    updateTestCollaborators
+};

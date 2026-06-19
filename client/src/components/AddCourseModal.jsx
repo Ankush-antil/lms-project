@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
+    const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: ''
@@ -19,8 +20,18 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 setInstitutes(data);
             };
             fetchInstitutes();
+
+            setFormData({
+                name: '',
+                code: '',
+                description: '',
+                instituteId: user && user.institute 
+                    ? (typeof user.institute === 'object' ? user.institute._id : user.institute) 
+                    : '',
+                subjects: ''
+            });
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -34,7 +45,12 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
             setLoading(false);
             onClose();
             if (refreshData) refreshData();
-            toast.success('Course Added!');
+            
+            if (user?.role === 'Editor') {
+                toast.success('Course submitted for Admin approval!');
+            } else {
+                toast.success('Course Added!');
+            }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error creating course');
             setLoading(false);
@@ -62,20 +78,29 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all appearance-none cursor-pointer"
-                                    required
-                                    value={formData.instituteId}
-                                    onChange={e => setFormData({ ...formData, instituteId: e.target.value })}
-                                >
-                                    <option value="">Select Institute</option>
-                                    {institutes.map(inst => (
-                                        <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {user?.role === 'Editor' ? (
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                                    <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-500">
+                                        {institutes.find(i => i._id === (typeof user.institute === 'object' ? user.institute._id : user.institute))?.name || 'Loading Institute...'}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all appearance-none cursor-pointer"
+                                        required
+                                        value={formData.instituteId}
+                                        onChange={e => setFormData({ ...formData, instituteId: e.target.value })}
+                                    >
+                                        <option value="">Select Institute</option>
+                                        {institutes.map(inst => (
+                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Name</label>
                                 <input

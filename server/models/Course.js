@@ -16,7 +16,16 @@ const courseSchema = new mongoose.Schema({
         ref: 'Institute',
         required: true
     },
-    subjects: [String] // List of subjects in this course
+    subjects: [String], // List of subjects in this course
+    status: {
+        type: String,
+        enum: ['active', 'pending', 'declined'],
+        default: 'active'
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
 }, {
     timestamps: true
 });

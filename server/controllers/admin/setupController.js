@@ -41,7 +41,7 @@ const getInstituteDetails = asyncHandler(async (req, res) => {
         throw new Error('Institute not found');
     }
 
-    const courses = await Course.find({ institute: req.params.id });
+    const courses = await Course.find({ institute: req.params.id, status: 'active' });
     res.json({ ...institute._doc, courses });
 });
 
@@ -63,7 +63,8 @@ const updateInstitute = asyncHandler(async (req, res) => {
         await Activity.create({
             type: 'INSTITUTE_UPDATED',
             message: 'Institute details updated',
-            detail: `${updatedInstitute.name} (${updatedInstitute.code})`
+            detail: `${updatedInstitute.name} (${updatedInstitute.code})`,
+            user: req.user._id
         });
 
         res.json(updatedInstitute);
@@ -96,7 +97,8 @@ const createInstitute = asyncHandler(async (req, res) => {
     await Activity.create({
         type: 'INSTITUTE_CREATED',
         message: 'New Institute registered',
-        detail: `${institute.name} (${institute.code})`
+        detail: `${institute.name} (${institute.code})`,
+        user: req.user._id
     });
 
     res.status(201).json(institute);
@@ -106,11 +108,17 @@ const createInstitute = asyncHandler(async (req, res) => {
 // @route   GET /api/courses
 // @access  Public
 const getCourses = asyncHandler(async (req, res) => {
-    const { instituteId } = req.query;
+    const { instituteId, status } = req.query;
     const query = instituteId ? { institute: instituteId } : {};
 
-    // Populate institute details
-    const courses = await Course.find(query).populate('institute', 'name code');
+    if (status !== 'all') {
+        query.status = status || 'active';
+    }
+
+    // Populate institute and createdBy details
+    const courses = await Course.find(query)
+        .populate('institute', 'name code')
+        .populate('createdBy', 'name email role');
     res.json(courses);
 });
 
@@ -129,19 +137,36 @@ const createCourse = asyncHandler(async (req, res) => {
     // subjects can be comma separated string or array
     const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
 
+    // Determine status based on user role (req.user is populated by protect middleware)
+    const status = req.user && req.user.role === 'Editor' ? 'pending' : 'active';
+    const createdBy = req.user ? req.user._id : null;
+
+    // Enforce Editor's own institute if creator is Editor
+    const finalInstituteId = (req.user && req.user.role === 'Editor') 
+        ? req.user.institute 
+        : instituteId;
+
+    if (!finalInstituteId) {
+        res.status(400);
+        throw new Error('Institute is required');
+    }
+
     const course = await Course.create({
         name,
         code,
         description,
-        institute: instituteId,
-        subjects: subjectsArray
+        institute: finalInstituteId,
+        subjects: subjectsArray,
+        status,
+        createdBy
     });
 
     // Log Activity
     await Activity.create({
-        type: 'COURSE_CREATED',
-        message: 'New Course added',
-        detail: `${course.name} (${course.code})`
+        type: status === 'pending' ? 'COURSE_SUBMITTED' : 'COURSE_CREATED',
+        message: status === 'pending' ? 'Course submitted for approval' : 'New Course added',
+        detail: `${course.name} (${course.code})`,
+        user: createdBy
     });
 
     res.status(201).json(course);
@@ -159,7 +184,8 @@ const deleteInstitute = asyncHandler(async (req, res) => {
         await Activity.create({
             type: 'INSTITUTE_DELETED',
             message: 'Institute removed',
-            detail: `${institute.name} (${institute.code})`
+            detail: `${institute.name} (${institute.code})`,
+            user: req.user._id
         });
 
         res.json({ message: 'Institute removed' });
@@ -181,10 +207,58 @@ const deleteCourse = asyncHandler(async (req, res) => {
         await Activity.create({
             type: 'COURSE_DELETED',
             message: 'Course removed',
-            detail: `${course.name} (${course.code})`
+            detail: `${course.name} (${course.code})`,
+            user: req.user._id
         });
 
         res.json({ message: 'Course removed' });
+    } else {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+});
+
+// @desc    Approve a course
+// @route   PUT /api/setup/courses/:id/approve
+// @access  Private/Admin
+const approveCourse = asyncHandler(async (req, res) => {
+    const course = await Course.findById(req.params.id);
+
+    if (course) {
+        course.status = 'active';
+        await course.save();
+
+        await Activity.create({
+            type: 'COURSE_APPROVED',
+            message: 'Course approved',
+            detail: `${course.name} (${course.code})`,
+            user: req.user._id
+        });
+
+        res.json({ message: 'Course approved successfully', course });
+    } else {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+});
+
+// @desc    Decline a course (deletes the course)
+// @route   PUT /api/setup/courses/:id/decline
+// @access  Private/Admin
+const declineCourse = asyncHandler(async (req, res) => {
+    const course = await Course.findById(req.params.id);
+
+    if (course) {
+        await course.deleteOne();
+
+        await Activity.create({
+            type: 'COURSE_DECLINED',
+            message: 'Course declined and removed',
+            detail: `${course.name} (${course.code})`,
+            user: req.user._id
+        });
+
+        res.json({ message: 'Course declined and removed' });
     } else {
         res.status(404);
         throw new Error('Course not found');
@@ -199,5 +273,7 @@ module.exports = {
     deleteInstitute,
     getCourses,
     createCourse,
-    deleteCourse
+    deleteCourse,
+    approveCourse,
+    declineCourse
 };

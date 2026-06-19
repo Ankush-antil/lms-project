@@ -323,7 +323,7 @@ const DashboardLayout = ({ children, role, fullWidth = false }) => {
             {/* Main content */}
             <main
                 style={{
-                    paddingLeft: isAdmin ? `${sidebarWidth + 16}px` : undefined,
+                    paddingLeft: isAdmin ? `${sidebarWidth + 40}px` : undefined,
                     transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
                 }}
                 className="flex-1 pt-20 pb-12 px-4 md:px-8 hidden lg:block"

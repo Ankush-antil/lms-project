@@ -4,15 +4,20 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import AddCourseModal from '../../components/AddCourseModal';
-import { BookOpen, FileText, Plus, PenTool, Sparkles, Folder, Calendar, ArrowRight } from 'lucide-react';
+import CollaborateModal from '../../components/CollaborateModal';
+import { useAuth } from '../../context/AuthContext';
+import { BookOpen, FileText, Plus, PenTool, Sparkles, Folder, Calendar, ArrowRight, Users } from 'lucide-react';
 
 const EditorDashboard = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [activeSection, setActiveSection] = useState('tests'); // 'tests' | 'builder'
     const [tests, setTests] = useState([]);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+    const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+    const [selectedTest, setSelectedTest] = useState(null);
 
     const fetchData = async () => {
         try {
@@ -157,11 +162,28 @@ const EditorDashboard = () => {
                                             <h4 className="font-extrabold text-slate-850 text-base mb-2 group-hover:text-purple-600 transition-colors">
                                                 {test.title}
                                             </h4>
-                                            <p className="text-xs text-slate-500 font-bold mb-4">
+                                            <p className="text-xs text-slate-500 font-bold mb-3">
                                                 Course: {test.course || 'N/A'}
                                             </p>
+
+                                            {/* Shared Info or Collab Action */}
+                                            {test.createdBy && (typeof test.createdBy === 'object' ? test.createdBy._id : test.createdBy) !== user?._id ? (
+                                                <div className="text-[10px] text-indigo-650 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1 font-bold inline-flex items-center gap-1 mb-4 w-fit">
+                                                    <Users size={10} /> Shared by: {test.createdBy.name || 'Another Editor'}
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedTest(test);
+                                                        setIsCollabModalOpen(true);
+                                                    }}
+                                                    className="text-[10px] text-slate-500 hover:text-purple-600 border border-slate-200 hover:border-purple-200 bg-slate-50/50 hover:bg-purple-50 px-2.5 py-1 rounded-lg font-bold inline-flex items-center gap-1.5 transition-all mb-4 w-fit active:scale-95"
+                                                >
+                                                    <Users size={10} /> Collaborate ({test.collaborators?.length || 0})
+                                                </button>
+                                            )}
                                         </div>
-                                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-4">
+                                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-2">
                                             <span className="text-xs text-slate-400 font-bold">
                                                 {test.questions?.length || 0} Questions
                                             </span>
@@ -251,6 +273,13 @@ const EditorDashboard = () => {
                 isOpen={isCourseModalOpen}
                 onClose={() => setIsCourseModalOpen(false)}
                 refreshData={handleCreateCourseSuccess}
+            />
+
+            <CollaborateModal
+                isOpen={isCollabModalOpen}
+                onClose={() => setIsCollabModalOpen(false)}
+                test={selectedTest}
+                onSuccess={fetchData}
             />
         </DashboardLayout>
     );

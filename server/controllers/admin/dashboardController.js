@@ -10,7 +10,7 @@ const Activity = require('../../models/Activity');
 const getDashboardStats = asyncHandler(async (req, res) => {
     const studentCount = await User.countDocuments({ role: 'Student' });
     const teacherCount = await User.countDocuments({ role: 'Teacher' });
-    const courseCount = await Course.countDocuments({});
+    const courseCount = await Course.countDocuments({ status: 'active' });
     const testCount = await Test.countDocuments({});
 
     const activities = await Activity.find({})

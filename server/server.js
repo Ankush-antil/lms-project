@@ -72,6 +72,25 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('[SERVER ERROR]', err);
+    let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+    let message = err.message;
+
+    // MongoDB duplicate key error (code 11000)
+    if (err.code === 11000) {
+        statusCode = 400;
+        const field = Object.keys(err.keyValue || {})[0] || 'field';
+        message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists in the database. Please use a different value.`;
+    }
+
+    res.status(statusCode).json({
+        message,
+        stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    });
+});
+
 const http = require('http');
 const server = http.createServer(app);
 const { initSocket } = require('./socket');

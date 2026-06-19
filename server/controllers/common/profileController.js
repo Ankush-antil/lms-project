@@ -8,7 +8,8 @@ const getUserProfile = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id)
         .select('-password')
         .populate('institute', 'name')
-        .populate('studentProfile.course', 'name');
+        .populate('studentProfile.course', 'name')
+        .populate('teacherProfile.assignedCourses', 'name');
     if (user) {
         res.json(user);
     } else {

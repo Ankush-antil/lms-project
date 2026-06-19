@@ -2012,6 +2012,7 @@ const QuestionBuilderCard = ({
 const TestBuilder = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('Edit');
     const [sidebarTab, setSidebarTab] = useState('Elements & Addons');
     const [searchQuery, setSearchQuery] = useState('');
@@ -2275,7 +2276,7 @@ const TestBuilder = () => {
                 } catch (error) {
                     console.error("Error fetching test for edit:", error);
                     toast.error("Error loading test data");
-                    navigate('/admin/tools');
+                    navigate(user?.role === 'Editor' ? '/editor' : '/admin/tools');
                 }
             };
             fetchTest();
@@ -2845,7 +2846,7 @@ const TestBuilder = () => {
                     publishMode: mode
                 });
             } else {
-                navigate('/admin/tests');
+                navigate(user?.role === 'Editor' ? '/editor' : '/admin/tests');
             }
         } catch (error) {
             console.error("Error publishing form:", error);
@@ -2887,7 +2888,7 @@ const TestBuilder = () => {
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/admin')}
+                        onClick={() => navigate(user?.role === 'Editor' ? '/editor' : '/admin')}
                         className="flex items-center gap-2 px-3.5 py-2 border border-slate-800 rounded-xl hover:bg-white/10 text-white font-semibold text-sm transition-all"
                     >
                         <Home size={16} className="text-white" />
@@ -4145,7 +4146,7 @@ const TestBuilder = () => {
                     isOpen={!!publishSuccessInfo}
                     onClose={() => {
                         setPublishSuccessInfo(null);
-                        navigate('/admin/tests');
+                        navigate(user?.role === 'Editor' ? '/editor' : '/admin/tests');
                     }}
                     testId={publishSuccessInfo?.testId}
                     testTitle={publishSuccessInfo?.testTitle}

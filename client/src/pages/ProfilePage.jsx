@@ -135,10 +135,32 @@ const ProfilePage = () => {
                                     <p className="text-sm font-semibold text-slate-700">{user.institute?.name || 'Not assigned'}</p>
                                 </div>
                                 {user.role === 'Student' && (
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Course</p>
-                                        <p className="text-sm font-semibold text-slate-700">{user.studentProfile?.course?.name || 'Not enrolled'}</p>
-                                    </div>
+                                    <>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Course</p>
+                                            <p className="text-sm font-semibold text-slate-700">{user.studentProfile?.course?.name || 'Not enrolled'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned Subject</p>
+                                            <p className="text-sm font-semibold text-slate-700">{user.studentProfile?.subject || 'Not assigned'}</p>
+                                        </div>
+                                    </>
+                                )}
+                                {user.role === 'Teacher' && (
+                                    <>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned Course</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                {user.teacherProfile?.assignedCourses?.map(c => c.name || c).join(', ') || 'Not assigned'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned Subjects</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                {user.teacherProfile?.subjects?.join(', ') || 'Not assigned'}
+                                            </p>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

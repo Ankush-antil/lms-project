@@ -7,9 +7,11 @@ import StudentsList from './pages/admin/StudentsList';
 import StudentDetails from './pages/admin/StudentDetails';
 import TeachersList from './pages/admin/TeachersList';
 import TeacherDetails from './pages/admin/TeacherDetails';
+import EditorsList from './pages/admin/EditorsList';
 
 import TestsList from './pages/admin/TestsList';
 import TestBuilder from './pages/admin/TestBuilder';
+import EditorDashboard from './pages/editor/EditorDashboard';
 // import ToolsPage from './pages/admin/ToolsPage';
 
 import InstitutesList from './pages/admin/InstitutesList';
@@ -45,8 +47,11 @@ const PrivateRoute = ({ children, role }) => {
         return <Navigate to="/" />;
     }
 
-    if (role && user.role !== role) {
-        return <Navigate to="/" />; // Or unauthorized page
+    if (role) {
+        const roles = Array.isArray(role) ? role : [role];
+        if (!roles.includes(user.role)) {
+            return <Navigate to="/" />;
+        }
     }
 
     return children;
@@ -94,6 +99,11 @@ function App() {
                                 <TeacherDetails />
                             </PrivateRoute>
                         } />
+                        <Route path="/admin/editors" element={
+                            <PrivateRoute role="Admin">
+                                <EditorsList />
+                            </PrivateRoute>
+                        } />
 
                         <Route path="/admin/courses" element={
                             <PrivateRoute role="Admin">
@@ -113,13 +123,20 @@ function App() {
 
 
                         <Route path="/admin/tests/builder" element={
-                            <PrivateRoute role="Admin">
+                            <PrivateRoute role={['Admin', 'Editor']}>
                                 <TestBuilder />
                             </PrivateRoute>
                         } />
                         <Route path="/admin/tests/edit/:id" element={
-                            <PrivateRoute role="Admin">
+                            <PrivateRoute role={['Admin', 'Editor']}>
                                 <TestBuilder />
+                            </PrivateRoute>
+                        } />
+
+                        {/* Editor Routes */}
+                        <Route path="/editor" element={
+                            <PrivateRoute role="Editor">
+                                <EditorDashboard />
                             </PrivateRoute>
                         } />
 

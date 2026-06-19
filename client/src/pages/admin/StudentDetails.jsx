@@ -104,6 +104,9 @@ const StudentDetails = () => {
 
     const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
 
+    const selectedCourseObj = courses.find(c => c._id === formData.course);
+    const availableSubjects = selectedCourseObj?.subjects || [];
+
     return (
         <DashboardLayout role="Admin">
             {/* Header */}
@@ -306,7 +309,7 @@ const StudentDetails = () => {
                                         <select
                                             className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-slate-800"
                                             value={formData.course}
-                                            onChange={e => setFormData({ ...formData, course: e.target.value })}
+                                            onChange={e => setFormData({ ...formData, course: e.target.value, subject: '' })}
                                         >
                                             <option value="">Select Course</option>
                                             {courses.map(course => (
@@ -318,13 +321,18 @@ const StudentDetails = () => {
                                         <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
                                             📚 Assigned Subject
                                         </label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Mathematics..."
-                                            className="w-full px-5 py-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-slate-800 placeholder:text-indigo-200"
+                                        <select
+                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-slate-800 appearance-none cursor-pointer disabled:opacity-50"
+                                            required
                                             value={formData.subject}
                                             onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                        />
+                                            disabled={!formData.course}
+                                        >
+                                            <option value="">Select Subject</option>
+                                            {availableSubjects.map(sub => (
+                                                <option key={sub} value={sub}>{sub}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">

@@ -64,16 +64,12 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             await axios.post('/api/auth/logout');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        } finally {
             localStorage.removeItem('authToken');
             setUser(null);
             toast.success('Logged out');
-            window.location.href = '/';
-        } catch (error) {
-            console.error('Logout failed:', error);
-            // Even if the server logout fails, clear local state
-            localStorage.removeItem('authToken');
-            setUser(null);
-            window.location.href = '/';
         }
     };
 

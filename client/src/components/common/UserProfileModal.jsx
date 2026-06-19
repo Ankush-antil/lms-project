@@ -153,15 +153,53 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                 </div>
 
                                 {user?.role === 'Student' && (
-                                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
-                                        <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                            <Book size={14} />
+                                    <>
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                <Book size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Course</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.course?.name || 'N/A'}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Course</p>
-                                            <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.course?.name || 'N/A'}</p>
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                <Book size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Subject</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.subject || 'N/A'}</p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </>
+                                )}
+
+                                {user?.role === 'Teacher' && (
+                                    <>
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                <Book size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Course</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate">
+                                                    {user?.teacherProfile?.assignedCourses?.map(c => c.name || c).join(', ') || 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                <Book size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Subjects</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate">
+                                                    {user?.teacherProfile?.subjects?.join(', ') || 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
 
                                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">

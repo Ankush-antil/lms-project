@@ -100,12 +100,15 @@ const AdminDashboard = () => {
                             <BookOpen size={16} /> Course
                         </button>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="flex gap-2 w-full md:w-auto animate-fade-in">
                         <button onClick={() => openUserModal('Student')} className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
                             <Plus size={18} /> Student
                         </button>
                         <button onClick={() => openUserModal('Teacher')} className="flex-1 px-5 py-2.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
                             <Plus size={18} /> Teacher
+                        </button>
+                        <button onClick={() => openUserModal('Editor')} className="flex-1 px-5 py-2.5 bg-purple-600 text-white rounded-2xl hover:bg-purple-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
+                            <Plus size={18} /> Editor
                         </button>
                     </div>
                 </div>

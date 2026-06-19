@@ -14,6 +14,7 @@ const menuItems = {
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
+        { name: 'Editors', icon: Users, path: '/admin/editors' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Tests', icon: FileText, path: '/admin/tests' },
         { name: 'Test Builder', icon: PenTool, path: '/admin/tests/builder' },
@@ -22,6 +23,9 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
         { name: 'Activities', icon: FileText, path: '/teacher/activities' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
+    ],
+    Editor: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
     ],
     Student: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
@@ -41,7 +45,7 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
     const handleLogout = () => logout();
 
     const isActive = (path) => {
-        if (path === '/admin' || path === '/teacher' || path === '/student') {
+        if (path === '/admin' || path === '/teacher' || path === '/student' || path === '/editor') {
             return location.pathname === path;
         }
         return location.pathname.startsWith(path);
@@ -95,7 +99,10 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
                     </div>
 
                     {/* Desktop Dropdown */}
-                    <div className="absolute top-full right-0 mt-3 w-60 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50">
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-full right-0 mt-3 w-60 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50"
+                    >
                         <div className="px-4 py-3 border-b border-slate-800 mb-1">
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Signed in as</p>
                             <p className="text-sm font-bold text-slate-200 truncate">{user?.email}</p>
@@ -242,7 +249,7 @@ const MobileNavDrawer = ({ role, isMobileOpen }) => {
     const { logout } = useAuth();
 
     const isActive = (path) => {
-        if (path === '/teacher' || path === '/student') return location.pathname === path;
+        if (path === '/teacher' || path === '/student' || path === '/editor') return location.pathname === path;
         return location.pathname.startsWith(path);
     };
 

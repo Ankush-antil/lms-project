@@ -19,9 +19,11 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
 
     useEffect(() => {
         if (isOpen && user) {
+            setSubjectDropdownOpen(false);
             setFormData({
                 name: user.name || '',
                 email: user.email || '',
@@ -88,6 +90,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const filteredCourses = formData.institute
         ? courses.filter(c => c.institute?._id === formData.institute || c.institute === formData.institute)
         : courses;
+
+    const selectedCourseObj = courses.find(c => c._id === formData.course);
+    const availableSubjects = selectedCourseObj?.subjects || [];
 
     if (!isOpen || !user) return null;
 
@@ -181,7 +186,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
                                                 required
                                                 value={formData.course}
-                                                onChange={e => setFormData({ ...formData, course: e.target.value })}
+                                                onChange={e => setFormData({ ...formData, course: e.target.value, subject: '' })}
                                                 disabled={!formData.institute}
                                             >
                                                 <option value="">Select</option>
@@ -192,13 +197,18 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                         </div>
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject</label>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                            <select
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                                required={user.role === 'Student'}
                                                 value={formData.subject}
                                                 onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                placeholder="e.g. Physics"
-                                            />
+                                                disabled={!formData.course}
+                                            >
+                                                <option value="">Select Subject</option>
+                                                {availableSubjects.map(sub => (
+                                                    <option key={sub} value={sub}>{sub}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </>
@@ -212,7 +222,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             <select
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
                                                 value={formData.course}
-                                                onChange={e => setFormData({ ...formData, course: e.target.value })}
+                                                onChange={e => setFormData({ ...formData, course: e.target.value, subjects: '' })}
                                                 disabled={!formData.institute}
                                             >
                                                 <option value="">Select Course</option>
@@ -221,15 +231,64 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <div>
+                                        <div className="relative">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Teaching Subjects</label>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                value={formData.subjects}
-                                                onChange={e => setFormData({ ...formData, subjects: e.target.value })}
-                                                placeholder="e.g. Physics, Maths"
-                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (availableSubjects.length > 0) {
+                                                        setSubjectDropdownOpen(!subjectDropdownOpen);
+                                                    }
+                                                }}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-750 flex justify-between items-center outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all text-left disabled:opacity-50"
+                                                disabled={availableSubjects.length === 0}
+                                            >
+                                                <span className="truncate">
+                                                    {formData.subjects 
+                                                        ? (formData.subjects.split(',').map(s => s.trim()).filter(Boolean).join(', '))
+                                                        : "Select Subjects"
+                                                    }
+                                                </span>
+                                                <svg className={`w-4 h-4 text-slate-400 transition-transform ${subjectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
+
+                                            {subjectDropdownOpen && availableSubjects.length > 0 && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setSubjectDropdownOpen(false)} />
+                                                    <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 max-h-[180px] overflow-y-auto custom-scrollbar p-2">
+                                                        {availableSubjects.map(sub => {
+                                                            const currentSubjects = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                            const isChecked = currentSubjects.includes(sub);
+                                                            return (
+                                                                <label key={sub} className="flex items-center gap-3 cursor-pointer group p-2 rounded-xl hover:bg-slate-50 transition-all select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            let newSubjects;
+                                                                            if (isChecked) {
+                                                                                newSubjects = currentSubjects.filter(s => s !== sub);
+                                                                            } else {
+                                                                                newSubjects = [...currentSubjects, sub];
+                                                                            }
+                                                                            setFormData({ ...formData, subjects: newSubjects.join(', ') });
+                                                                        }}
+                                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 accent-indigo-600 cursor-pointer"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                                                                        {sub}
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {availableSubjects.length === 0 && (
+                                                <p className="mt-1.5 text-[10px] text-slate-400 italic">Select a course to view available subjects.</p>
+                                            )}
                                         </div>
                                     </div>
                                 </>

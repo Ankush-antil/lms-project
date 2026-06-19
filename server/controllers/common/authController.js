@@ -50,7 +50,11 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('-password');
+        const user = await User.findById(req.user._id)
+            .select('-password')
+            .populate('institute', 'name')
+            .populate('studentProfile.course', 'name')
+            .populate('teacherProfile.assignedCourses', 'name');
         if (user) {
             res.json(user);
         } else {

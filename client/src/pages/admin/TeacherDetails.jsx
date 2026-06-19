@@ -16,6 +16,7 @@ const TeacherDetails = () => {
     const [user, setUser] = useState(null);
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -104,6 +105,9 @@ const TeacherDetails = () => {
     if (loading && !user) return <div className="p-10 text-center animate-pulse text-indigo-600 font-bold">Loading Faculty Profile...</div>;
 
     const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
+
+    const selectedCourseObj = courses.find(c => c._id === formData.course);
+    const availableSubjects = selectedCourseObj?.subjects || [];
 
     return (
         <DashboardLayout role="Admin">
@@ -305,7 +309,7 @@ const TeacherDetails = () => {
                                         <select
                                             className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 font-bold transition-all text-slate-800"
                                             value={formData.course}
-                                            onChange={e => setFormData({ ...formData, course: e.target.value })}
+                                            onChange={e => setFormData({ ...formData, course: e.target.value, subjects: '' })}
                                         >
                                             <option value="">Select Course</option>
                                             {courses.map(course => (
@@ -313,15 +317,64 @@ const TeacherDetails = () => {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Subjects (comma separated)</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 font-bold transition-all text-slate-800"
-                                            value={formData.subjects}
-                                            onChange={e => setFormData({ ...formData, subjects: e.target.value })}
-                                            placeholder="e.g. Maths, Science"
-                                        />
+                                    <div className="space-y-2 relative">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Teaching Subjects</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (availableSubjects.length > 0) {
+                                                    setSubjectDropdownOpen(!subjectDropdownOpen);
+                                                }
+                                            }}
+                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl flex justify-between items-center outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold transition-all text-left text-slate-800 disabled:opacity-50"
+                                            disabled={availableSubjects.length === 0}
+                                        >
+                                            <span className="truncate">
+                                                {formData.subjects 
+                                                    ? (formData.subjects.split(',').map(s => s.trim()).filter(Boolean).join(', '))
+                                                    : "Select Subjects"
+                                                }
+                                            </span>
+                                            <svg className={`w-4 h-4 text-slate-400 transition-transform ${subjectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        {subjectDropdownOpen && availableSubjects.length > 0 && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setSubjectDropdownOpen(false)} />
+                                                <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 max-h-[180px] overflow-y-auto custom-scrollbar p-2">
+                                                    {availableSubjects.map(sub => {
+                                                        const currentSubjects = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                        const isChecked = currentSubjects.includes(sub);
+                                                        return (
+                                                            <label key={sub} className="flex items-center gap-3 cursor-pointer group p-2 rounded-xl hover:bg-slate-50 transition-all select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={() => {
+                                                                        let newSubjects;
+                                                                        if (isChecked) {
+                                                                            newSubjects = currentSubjects.filter(s => s !== sub);
+                                                                        } else {
+                                                                            newSubjects = [...currentSubjects, sub];
+                                                                        }
+                                                                        setFormData({ ...formData, subjects: newSubjects.join(', ') });
+                                                                    }}
+                                                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 accent-indigo-600 cursor-pointer"
+                                                                />
+                                                                <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                                                                    {sub}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
+                                        {availableSubjects.length === 0 && (
+                                            <p className="mt-1.5 text-[10px] text-slate-400 italic ml-2">Select a course to view available subjects.</p>
+                                        )}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">

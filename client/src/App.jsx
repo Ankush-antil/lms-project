@@ -184,7 +184,7 @@ function App() {
                             </PrivateRoute>
                         } />
                         <Route path="/student/test-result/:id" element={
-                            <PrivateRoute role={['Student', 'Teacher']}>
+                            <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
                                 <ViewTestResult />
                             </PrivateRoute>
                         } />

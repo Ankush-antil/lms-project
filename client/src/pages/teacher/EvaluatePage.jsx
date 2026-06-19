@@ -595,9 +595,9 @@ const EvaluatePage = () => {
                         <div className="w-[1px] h-4 bg-slate-700"></div>
                         <button
                             onClick={() => {
-                                const textObj = `Teacher Feedback for student "${submission.studentName || 'Student'}" on test "${test?.title || 'Test'}"`;
-                                navigator.clipboard.writeText(textObj);
-                                toast.success('Feedback summary copied to clipboard!');
+                                const url = `${window.location.origin}/student/test-result/${submission._id}`;
+                                navigator.clipboard.writeText(url);
+                                toast.success('Shareable test result URL copied to clipboard!');
                             }}
                             className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors"
                         >
@@ -652,7 +652,7 @@ const EvaluatePage = () => {
                 </div>
             </div>
 
-            <div className="w-full space-y-6">
+            <div className="w-full space-y-3.5">
                 {showInfo && submissions.length > 0 && (
                     <div className="bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 p-6 animate-fade-in relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-16 -mt-16 rounded-full"></div>
@@ -678,15 +678,15 @@ const EvaluatePage = () => {
                 {submissions
                     .filter(sub => !id || sub._id === id)
                     .map((sub) => (
-                        <div key={sub._id} className={`bg-white rounded-3xl shadow-sm border overflow-hidden transition-all duration-300 ${sub.status === 'evaluated' ? 'border-emerald-100 hover:border-emerald-200' : 'border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
+                        <div key={sub._id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 ${sub.status === 'evaluated' ? 'border-emerald-100 hover:border-emerald-200' : 'border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
                             {/* Submission Header */}
                             <div
-                                className="p-6 flex items-center justify-between cursor-pointer group"
+                                className="p-3 px-5 flex items-center justify-between cursor-pointer group"
                                 onClick={() => setExpandedId(expandedId === sub._id ? null : sub._id)}
                             >
-                                <div className="flex items-center gap-5">
+                                <div className="flex items-center gap-3.5">
                                     <div
-                                        className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ring-4 ring-slate-50 group-hover:scale-105 transition-transform duration-300"
+                                        className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-base shadow group-hover:scale-105 transition-transform duration-300"
                                         onClick={(e) => { e.stopPropagation(); openProfile(sub.student?._id || sub.student); }}
                                     >
                                         {sub.studentName?.[0] || sub.student?.name?.[0] || 'S'}
@@ -694,7 +694,7 @@ const EvaluatePage = () => {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <p
-                                                className="font-black text-slate-900 text-lg group-hover:text-indigo-600 transition-colors"
+                                                className="font-bold text-slate-900 text-base group-hover:text-indigo-600 transition-colors"
                                                 onClick={(e) => { e.stopPropagation(); openProfile(sub.student?._id || sub.student); }}
                                             >
                                                 {sub.studentName || sub.student?.name}
@@ -705,7 +705,7 @@ const EvaluatePage = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                                                 <BookOpen size={12} className="text-indigo-400" /> {sub.test?.title || 'Test'}
                                             </span>
@@ -716,15 +716,6 @@ const EvaluatePage = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-6">
-                                    {sub.status === 'evaluated' && (
-                                        <div className="text-right">
-                                            <p className="text-2xl font-black text-emerald-600 leading-none">{sub.totalMarks}</p>
-                                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Final Score</p>
-                                        </div>
-                                    )}
-                                    <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${sub.status === 'evaluated' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                        {sub.status === 'evaluated' ? 'PASSED' : 'PENDING'}
-                                    </div>
                                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                                         {expandedId === sub._id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                     </div>
@@ -733,11 +724,11 @@ const EvaluatePage = () => {
 
                             {/* Expanded Answers */}
                             {expandedId === sub._id && (
-                                <div className={`border-t border-slate-50 ${isFeedbackMode ? 'p-3 space-y-4' : 'p-6 space-y-8'} bg-slate-50/30`}>
+                                <div className={`border-t border-slate-50 ${isFeedbackMode ? 'p-3 space-y-3' : 'p-4 space-y-4'} bg-slate-50/30`}>
                                     {sub.answers.map((ans, qi) => (
-                                        <div key={qi} className={`bg-white rounded-2xl border border-slate-100 ${isFeedbackMode ? 'p-4' : 'p-6'} shadow-sm relative group overflow-hidden`}>
+                                        <div key={qi} className={`bg-white rounded-2xl border border-slate-100 ${isFeedbackMode ? 'p-3.5' : 'p-4'} shadow-sm relative group overflow-hidden`}>
                                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                            <div className={`flex items-start justify-between ${isFeedbackMode ? 'mb-3' : 'mb-6'}`}>
+                                            <div className={`flex items-start justify-between ${isFeedbackMode ? 'mb-2' : 'mb-3.5'}`}>
                                                 <div className="flex-1 pr-4">
                                                     <div className="flex items-center gap-3 mb-2">
                                                         <span className="w-6 h-6 bg-slate-900 text-white rounded-md flex items-center justify-center text-[10px] font-bold">Q{qi + 1}</span>
@@ -747,11 +738,11 @@ const EvaluatePage = () => {
                                                 </div>
                                             </div>
 
-                                            <div className={`space-y-4 ${isFeedbackMode ? 'mb-4' : 'mb-8'}`}>
+                                            <div className={`space-y-3.5 ${isFeedbackMode ? 'mb-3' : 'mb-4'}`}>
                                                 {/* Text Answer */}
                                                 {ans.textAnswer && (
-                                                    <div className="p-5 bg-white rounded-2xl border border-slate-100 ring-1 ring-slate-50">
-                                                        <div className="flex items-center gap-2 mb-3">
+                                                    <div className="p-4 bg-white rounded-xl border border-slate-100 ring-1 ring-slate-50">
+                                                        <div className="flex items-center gap-2 mb-2">
                                                             <FileText size={14} className="text-indigo-500" />
                                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Student Response</span>
                                                         </div>
@@ -761,7 +752,7 @@ const EvaluatePage = () => {
 
                                                 {/* Recording */}
                                                 {ans.audioData && (
-                                                    <div className="p-5 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                                    <div className="p-4 bg-indigo-50/30 rounded-xl border border-indigo-100/50">
                                                         <div className="flex items-center gap-2 mb-3">
                                                             <Mic size={14} className="text-indigo-600" />
                                                             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-[0.2em]">Voice Feedback</span>
@@ -809,7 +800,7 @@ const EvaluatePage = () => {
 
                                                 {/* Conversation Thread Display */}
                                                 {(sub.status === 'evaluated' || ans.reaction || marks[sub._id]?.[qi] || feedback[sub._id]?.[qi] || (ans.conversation && ans.conversation.length > 0)) ? (
-                                                    <div className="mt-8 space-y-4">
+                                                    <div className="mt-4 space-y-3">
                                                         <div
                                                             className="flex items-center justify-between mb-2 cursor-pointer group/toggle"
                                                             onClick={() => setCollapsedFeedback(prev => ({ ...prev, [`${sub._id}-${qi}`]: !prev[`${sub._id}-${qi}`] }))}
@@ -833,12 +824,12 @@ const EvaluatePage = () => {
                                                                 {(ans.conversation || []).map((msg, mi) => (
                                                                     <div
                                                                         key={mi}
-                                                                        className={`flex items-start gap-2 max-w-[90%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
+                                                                        className={`flex items-start gap-1.5 max-w-[90%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
                                                                     >
-                                                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                                                                        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
                                                                             {msg.role === 'Teacher' ? 'T' : (sub.studentName?.[0]?.toUpperCase() || 'S')}
                                                                         </div>
-                                                                        <div className={`p-3 rounded-xl shadow-sm border ${msg.role === 'Teacher'
+                                                                        <div className={`py-1.5 px-3 rounded-lg shadow-sm border ${msg.role === 'Teacher'
                                                                             ? 'bg-indigo-50 border-indigo-100 rounded-tl-none'
                                                                             : 'bg-emerald-50 border-emerald-100 rounded-tr-none'
                                                                             }`}>
@@ -850,7 +841,7 @@ const EvaluatePage = () => {
                                                                                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                                 </span>
                                                                             </div>
-                                                                            <p className={`text-xs text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
+                                                                            <p className={`text-[11px] text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
                                                                                 {msg.message}
                                                                             </p>
                                                                         </div>
@@ -858,12 +849,12 @@ const EvaluatePage = () => {
                                                                 ))}
 
                                                                 {/* Teacher's Current Input Area */}
-                                                                <div className="flex items-start gap-3 max-w-[95%] pt-2 text-left">
-                                                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
+                                                                <div className="flex items-start gap-2 max-w-[95%] pt-2 text-left">
+                                                                    <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-[9px] shrink-0 shadow-sm">
                                                                         T
                                                                     </div>
-                                                                    <div className="bg-white border border-slate-200 rounded-2xl p-3 w-full shadow-sm">
-                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                                                    <div className="bg-white border border-slate-200 rounded-xl p-2 px-3 w-full shadow-sm">
+                                                                        <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                                                                             {isFeedbackMode ? 'Reply to Student Feedback' : 'Add Note / Adjust Marks'}
                                                                         </p>
                                                                         {isFeedbackMode ? (
@@ -874,45 +865,45 @@ const EvaluatePage = () => {
                                                                                         type="text"
                                                                                         value={feedback[sub._id]?.[qi] ?? ''}
                                                                                         onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
-                                                                                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
+                                                                                        className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
                                                                                         placeholder="Type your reply..."
                                                                                     />
                                                                                     <button
                                                                                         onClick={() => saveSingleFeedback(sub, qi)}
                                                                                         disabled={saving === `${sub._id}-${qi}` || !feedback[sub._id]?.[qi]?.trim()}
-                                                                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                                                                                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
                                                                                     >
                                                                                         {saving === `${sub._id}-${qi}` ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
                                                                                     </button>
                                                                                 </div>
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                                                <div className="md:col-span-1 space-y-1 text-left">
-                                                                                    <label className="text-[8px] font-bold text-slate-400 uppercase">Score</label>
+                                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                                                                <div className="md:col-span-1 space-y-0.5 text-left">
+                                                                                    <label className="text-[7.5px] font-bold text-slate-400 uppercase">Score</label>
                                                                                     <input
                                                                                         type="number"
                                                                                         min="0"
                                                                                         value={marks[sub._id]?.[qi] ?? ans.marks ?? ''}
                                                                                         onChange={e => setMark(sub._id, qi, e.target.value)}
-                                                                                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
                                                                                         placeholder="Marks"
                                                                                     />
                                                                                 </div>
-                                                                                <div className="md:col-span-3 space-y-1 text-left">
-                                                                                    <label className="text-[8px] font-bold text-slate-400 uppercase">Next Feedback Note</label>
+                                                                                <div className="md:col-span-3 space-y-0.5 text-left">
+                                                                                    <label className="text-[7.5px] font-bold text-slate-400 uppercase">Next Feedback Note</label>
                                                                                     <div className="relative">
                                                                                         <input
                                                                                             type="text"
                                                                                             value={feedback[sub._id]?.[qi] ?? ''}
                                                                                             onChange={e => setFeedbackText(sub._id, qi, e.target.value)}
-                                                                                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
+                                                                                            className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 pr-10"
                                                                                             placeholder="Type notes for student..."
                                                                                         />
                                                                                         <button
                                                                                             onClick={() => saveSingleFeedback(sub, qi)}
                                                                                             disabled={saving === `${sub._id}-${qi}` || (!feedback[sub._id]?.[qi]?.trim() && marks[sub._id]?.[qi] === undefined)}
-                                                                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                                                                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
                                                                                         >
                                                                                             {saving === `${sub._id}-${qi}` ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
                                                                                         </button>
@@ -967,20 +958,20 @@ const EvaluatePage = () => {
 
                                     {/* Save Evaluation Button */}
                                     {!isFeedbackMode && (
-                                        <div className="flex justify-end pt-4">
+                                        <div className="flex justify-end pt-2">
                                             <button
                                                 onClick={() => submitEvaluation(sub)}
                                                 disabled={saving === sub._id}
-                                                className={`px-10 py-4 font-black rounded-2xl transition-all shadow-xl hover:-translate-y-1 active:scale-95 disabled:opacity-60 flex items-center gap-3 tracking-widest text-xs uppercase ${sub.status === 'evaluated'
-                                                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200'
-                                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                                                className={`px-4 py-1.5 font-bold rounded-lg transition-all shadow-sm hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 flex items-center gap-1.5 tracking-wider text-[11px] uppercase ${sub.status === 'evaluated'
+                                                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200/50'
+                                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200/50'
                                                     }`}
                                             >
                                                 {saving === sub._id ? (
-                                                    <RefreshCw size={18} className="animate-spin" />
+                                                    <RefreshCw size={14} className="animate-spin" />
                                                 ) : (
                                                     <>
-                                                        <CheckCircle2 size={18} />
+                                                        <CheckCircle2 size={14} />
                                                         {sub.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
                                                     </>
                                                 )}

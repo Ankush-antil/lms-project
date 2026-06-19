@@ -84,6 +84,32 @@ const getSubmissionById = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Submission not found');
     }
+
+    // Load logged-in user's institute
+    const user = await User.findById(req.user._id).populate('institute');
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
+
+    if (!user.institute) {
+        res.status(403);
+        throw new Error('Not authorized: You do not belong to any institute');
+    }
+
+    const userInstituteName = user.institute.name?.trim().toLowerCase();
+    const testInstituteName = submission.test?.institute?.trim().toLowerCase();
+
+    if (!testInstituteName) {
+        res.status(403);
+        throw new Error('Not authorized: Test does not belong to any institute');
+    }
+
+    if (userInstituteName !== testInstituteName) {
+        res.status(403);
+        throw new Error('Not authorized: This test result belongs to a different institute');
+    }
+
     res.json(submission);
 });
 

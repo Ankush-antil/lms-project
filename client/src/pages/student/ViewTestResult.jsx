@@ -101,9 +101,9 @@ const ViewTestResult = () => {
     };
 
     const handleShareOverall = () => {
-        const textObj = `I have received feedback for my test "${test?.title || 'Test'}"! Total Score: ${submission?.totalMarks || 0} Marks. Check out the LMS Portal for details.`;
-        navigator.clipboard.writeText(textObj);
-        toast.success('Overall test result details copied to clipboard!');
+        const url = `${window.location.origin}/student/test-result/${id}`;
+        navigator.clipboard.writeText(url);
+        toast.success('Shareable test result URL copied to clipboard!');
     };
 
     const handleToggleAllComments = () => {
@@ -231,7 +231,7 @@ const ViewTestResult = () => {
     const { dateStr: formattedDate, timeStr: formattedTime } = getFormattedDateTime();
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={userInfo?.role || 'Student'} fullWidth={true}>
             {/* Single cohesive outer container */}
             <div className="max-w-5xl mx-auto w-full bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 {/* Header */}

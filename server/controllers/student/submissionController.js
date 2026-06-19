@@ -67,15 +67,23 @@ const updateStudentComment = asyncHandler(async (req, res) => {
         throw new Error('Submission not found');
     }
 
+    const commentRole = (req.user.role === 'Teacher' || req.user.role === 'Admin') ? 'Teacher' : 'Student';
+
     if (answers && Array.isArray(answers)) {
         answers.forEach((a, i) => {
-            if (submission.answers[i] && a.studentComment) {
-                // Append the student's new comment to the conversation array
-                submission.answers[i].conversation.push({
-                    role: 'Student',
-                    message: a.studentComment,
-                    timestamp: new Date()
-                });
+            if (submission.answers[i]) {
+                if (a.studentComment) {
+                    // Append the comment to the conversation array with the dynamic role
+                    submission.answers[i].conversation.push({
+                        role: commentRole,
+                        message: a.studentComment,
+                        timestamp: new Date()
+                    });
+                }
+                if (a.reaction !== undefined) {
+                    // Update reaction field in database
+                    submission.answers[i].reaction = a.reaction;
+                }
             }
         });
     }

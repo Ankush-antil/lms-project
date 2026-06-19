@@ -6,7 +6,7 @@ import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
-    Sparkles
+    Sparkles, Eye, ThumbsUp
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -231,6 +231,14 @@ const TeacherActivities = () => {
         }).length;
     }, [selectedGroup, submissionMap]);
 
+    const feedbackCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
     const activeTests = useMemo(() => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
@@ -241,6 +249,8 @@ const TeacherActivities = () => {
                 return sub && sub.status !== 'evaluated';
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
+            } else if (viewMode === 'student-feedback') {
+                return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
             }
             return false;
         });
@@ -428,6 +438,7 @@ const TeacherActivities = () => {
                                         { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
                                         { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
@@ -713,47 +724,46 @@ const TeacherActivities = () => {
                                             return (
                                                 <div
                                                     key={test._id}
-                                                    className="bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-32 relative group"
+                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
                                                 >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setInfoModalData(test);
-                                                        }}
-                                                        className="absolute top-3 right-3 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0 z-10"
-                                                    >
-                                                        RI Details
-                                                    </button>
-
-                                                    <div className="flex items-start gap-2.5 min-w-0 pr-20">
-                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                            }`} />
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
-                                                            {test.activity && (
-                                                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded-md inline-block mt-1 w-max">
-                                                                    {getCategoryDisplayName(test.activity)}
-                                                                </span>
-                                                            )}
-                                                            <p className="text-[9px] font-black text-slate-405 mt-1.5 uppercase tracking-wider truncate">
-                                                                Subject: {test.subject || 'N/A'}
-                                                            </p>
-                                                        </div>
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                        }`} />
+                                                        <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                            {test.title}
+                                                        </h3>
                                                     </div>
 
-                                                    {sub && (
-                                                        <div className="flex items-center justify-end mt-2 border-t border-slate-50 pt-2" onClick={e => e.stopPropagation()}>
+                                                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setInfoModalData(test);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                                                            title="RI Details"
+                                                        >
+                                                            <Eye size={14} />
+                                                        </button>
+
+                                                        {sub ? (
                                                             <button
-                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}`)}
-                                                                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                    ? 'bg-slate-105 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                    : 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
-                                                                    }`}
+                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                    isEvaluated
+                                                                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                }`}
                                                             >
-                                                                {isEvaluated ? 'Re-evaluate' : 'Evaluate Item'}
+                                                                {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        ) : (
+                                                            <span className="text-[9px] font-black uppercase text-slate-400 select-none mr-1">
+                                                                Pending Submit
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })}

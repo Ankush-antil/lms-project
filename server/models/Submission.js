@@ -9,6 +9,7 @@ const answerSchema = new mongoose.Schema({
     audioData: { type: String, default: '' },  // base64 audio/webm
     videoData: { type: String, default: '' },  // base64 video/webm
     marks: { type: Number, default: 0 },       // filled by teacher
+    reaction: { type: String, default: '' },   // student feedback reaction (like/dislike)
     conversation: [{
         role: { type: String, enum: ['Teacher', 'Student'] },
         message: { type: String },

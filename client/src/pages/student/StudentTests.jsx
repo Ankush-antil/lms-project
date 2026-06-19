@@ -8,7 +8,7 @@ import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
-    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info
+    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye
 } from 'lucide-react';
 
 const getDisplayTitle = (title) => {
@@ -525,71 +525,64 @@ const StudentTests = () => {
                                 ) : (
                                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                                         {activeTests.map(test => {
-                                            const sub = submissionMap.get(test._id);
-                                            const isEvaluated = sub && sub.status === 'evaluated';
-
-                                            return (
-                                                <div
-                                                    key={test._id}
-                                                    onClick={() => {
-                                                        if (!sub) {
-                                                            navigate(`/student/take-test/${test._id}`);
-                                                        } else {
-                                                            navigate(`/student/test-result/${sub._id}`);
-                                                        }
-                                                    }}
-                                                    className="bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-32 relative group"
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setInfoModalData(test);
-                                                        }}
-                                                        className="absolute top-3 right-3 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors shrink-0 z-10"
-                                                    >
-                                                        RI Details
-                                                    </button>
-
-                                                    <div className="flex items-start gap-2.5 min-w-0 pr-20">
-                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                        }`} />
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-2 uppercase tracking-tight">{test.title}</h3>
-                                                            {test.activity && (
-                                                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded-md inline-block mt-1 w-max">
-                                                                    {getCategoryDisplayName(test.activity)}
-                                                                </span>
-                                                            )}
-                                                            <p className="text-[9px] font-black text-slate-405 mt-1.5 uppercase tracking-wider truncate">
-                                                                Subject: {test.subject || 'N/A'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-end mt-2 border-t border-slate-50 pt-2" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (!sub) {
-                                                                    navigate(`/student/take-test/${test._id}`);
-                                                                } else {
-                                                                    navigate(`/student/test-result/${sub._id}`);
-                                                                }
-                                                            }}
-                                                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                !sub
-                                                                    ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700'
-                                                                    : isEvaluated
-                                                                        ? 'bg-[#ECFDF5] text-emerald-800 border border-emerald-250 hover:bg-emerald-100'
-                                                                        : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                            }`}
-                                                        >
-                                                            {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                             const sub = submissionMap.get(test._id);
+                                             const isEvaluated = sub && sub.status === 'evaluated';
+ 
+                                             return (
+                                                 <div
+                                                     key={test._id}
+                                                     onClick={() => {
+                                                         if (!sub) {
+                                                             navigate(`/student/take-test/${test._id}`);
+                                                         } else {
+                                                             navigate(`/student/test-result/${sub._id}`);
+                                                         }
+                                                     }}
+                                                     className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group"
+                                                 >
+                                                     <div className="flex items-center gap-2 min-w-0">
+                                                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                             !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                         }`} />
+                                                         <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                             {test.title}
+                                                         </h3>
+                                                     </div>
+ 
+                                                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                         <button
+                                                             onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 setInfoModalData(test);
+                                                             }}
+                                                             className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                                                             title="RI Details"
+                                                         >
+                                                             <Eye size={14} />
+                                                         </button>
+ 
+                                                         <button
+                                                             onClick={() => {
+                                                                 if (!sub) {
+                                                                     navigate(`/student/take-test/${test._id}`);
+                                                                 } else {
+                                                                     navigate(`/student/test-result/${sub._id}`);
+                                                                 }
+                                                             }}
+                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                 !sub
+                                                                     ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                     : isEvaluated
+                                                                         ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                         : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                             }`}
+                                                         >
+                                                             {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                         </button>
+                                                     </div>
+                                                 </div>
+                                             );
+                                         })}
                                     </div>
                                 )}
                             </div>

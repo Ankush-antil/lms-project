@@ -46,15 +46,17 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, placeholde
                         ))}
                     </div>
                     {/* Create New Button */}
-                    <div
-                        className="px-3 py-2.5 bg-slate-50 border-t border-slate-100 text-indigo-600 text-sm font-semibold cursor-pointer hover:bg-indigo-50 flex items-center gap-2 transition-colors sticky bottom-0"
-                        onClick={() => {
-                            setIsOpen(false);
-                            onCreateNew();
-                        }}
-                    >
-                        <Plus size={16} /> Create New
-                    </div>
+                    {onCreateNew && (
+                        <div
+                            className="px-3 py-2.5 bg-slate-50 border-t border-slate-100 text-indigo-600 text-sm font-semibold cursor-pointer hover:bg-indigo-50 flex items-center gap-2 transition-colors sticky bottom-0"
+                            onClick={() => {
+                                setIsOpen(false);
+                                onCreateNew();
+                            }}
+                        >
+                            <Plus size={16} /> Create New
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -194,7 +196,6 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             value={formData.institute}
                             options={options.institute}
                             onChange={(val) => setFormData(prev => ({ ...prev, institute: val }))}
-                            onCreateNew={() => handleCreateNew('Institute Name', 'institute')}
                             placeholder="Select Institute"
                         />
 
@@ -203,7 +204,6 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             value={formData.course}
                             options={options.course}
                             onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
-                            onCreateNew={() => handleCreateNew('Course Name', 'course')}
                             placeholder="Select Course"
                         />
 

@@ -25,7 +25,7 @@ const LoginPage = () => {
             // Redirect based on Role
             if (data.role === 'Admin') navigate('/admin');
             else if (data.role === 'Teacher') navigate('/teacher');
-            else if (data.role === 'Student') navigate('/student');
+            else if (data.role === 'Student') navigate('/student/tests');
             else if (data.role === 'Editor') navigate('/editor');
 
             setLoading(false);

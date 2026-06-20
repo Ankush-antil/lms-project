@@ -198,6 +198,7 @@ function App() {
                         {/* Public: shared test link — handles auth internally */}
                         <Route path="/take-test/:id" element={<TakeTestPage />} />
                         <Route path="/public-test/:id" element={<PublicTestPage />} />
+                        <Route path="/shared/test-result/:id" element={<ViewTestResult isSharedView={true} />} />
 
                         {/* 404 – catch all unmatched routes */}
                         <Route path="*" element={<NotFoundPage />} />

@@ -57,7 +57,7 @@ const NotFoundPage = () => {
         if (!user) return navigate('/');
         if (user.role === 'Admin') return navigate('/admin');
         if (user.role === 'Teacher') return navigate('/teacher');
-        if (user.role === 'Student') return navigate('/student');
+        if (user.role === 'Student') return navigate('/student/tests');
         navigate('/');
     };
 

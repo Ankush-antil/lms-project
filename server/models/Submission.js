@@ -10,8 +10,10 @@ const answerSchema = new mongoose.Schema({
     videoData: { type: String, default: '' },  // base64 video/webm
     marks: { type: Number, default: 0 },       // filled by teacher
     reaction: { type: String, default: '' },   // student feedback reaction (like/dislike)
+    likes: { type: [String], default: [] },
+    dislikes: { type: [String], default: [] },
     conversation: [{
-        role: { type: String, enum: ['Teacher', 'Student'] },
+        role: { type: String, enum: ['Teacher', 'Student', 'Guest'] },
         message: { type: String },
         timestamp: { type: Date, default: Date.now }
     }]

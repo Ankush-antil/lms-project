@@ -45,12 +45,40 @@ const admin = (req, res, next) => {
 };
 
 const adminOrEditor = (req, res, next) => {
-    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Editor')) {
+    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Editor' || req.user.role === 'Institute')) {
         next();
     } else {
-        console.warn(`ADMIN/EDITOR UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
-        res.status(401).json({ message: 'Not authorized as admin or editor' });
+        console.warn(`ADMIN/EDITOR/INSTITUTE UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
+        res.status(401).json({ message: 'Not authorized as admin, editor or institute' });
     }
 };
 
-module.exports = { protect, admin, adminOrEditor };
+const adminOrInstitute = (req, res, next) => {
+    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+        next();
+    } else {
+        console.warn(`ADMIN/INSTITUTE UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
+        res.status(401).json({ message: 'Not authorized as admin or institute admin' });
+    }
+};
+
+const parseUserOptional = async (req, res, next) => {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+    }
+
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = await User.findById(decoded.id).select('-password');
+        } catch (error) {
+            console.error(`[AUTH] Optional token verification failed:`, error.message);
+        }
+    }
+    next();
+};
+
+module.exports = { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional };

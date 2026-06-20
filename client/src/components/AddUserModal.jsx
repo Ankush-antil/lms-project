@@ -6,6 +6,7 @@ import { X, Copy, Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -27,7 +28,19 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         if (isOpen) {
             // Auto-generate a password on open
             const randomPass = Math.random().toString(36).slice(-8);
-            setFormData(prev => ({ ...prev, password: randomPass }));
+            const userInstId = user && user.institute 
+                ? (typeof user.institute === 'object' ? user.institute._id : user.institute) 
+                : '';
+            setFormData({
+                name: '',
+                email: '',
+                password: randomPass,
+                course: '',
+                institute: userInstId,
+                subjects: '',
+                subject: '',
+                mobileNumber: ''
+            });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
 
@@ -46,7 +59,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
             };
             fetchData();
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -68,8 +81,6 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     };
 
     const copyToClipboard = () => {
-    const { user } = useAuth();
-    const userInfo = user;
         const text = `LMS Login Credentials:\nRole: ${role}\nEmail: ${createdUser.email}\nPassword: ${createdUser.password}`;
         navigator.clipboard.writeText(text);
         setCopied(true);
@@ -108,7 +119,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     {!createdUser ? (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 gap-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                {user?.role === 'Institute' || user?.role === 'Editor' ? (
                                     <div>
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
                                         <input
@@ -120,21 +131,35 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                             placeholder="John Doe"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
-                                        <select
-                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                                            required
-                                            value={formData.institute}
-                                            onChange={e => setFormData({ ...formData, institute: e.target.value, course: '' })}
-                                        >
-                                            <option value="">Select Institute</option>
-                                            {institutes.map(inst => (
-                                                <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                            ))}
-                                        </select>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
+                                            <input
+                                                required
+                                                type="text"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                value={formData.name}
+                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                placeholder="John Doe"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                                            <select
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                required
+                                                value={formData.institute}
+                                                onChange={e => setFormData({ ...formData, institute: e.target.value, course: '' })}
+                                            >
+                                                <option value="">Select Institute</option>
+                                                {institutes.map(inst => (
+                                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Email Address</label>

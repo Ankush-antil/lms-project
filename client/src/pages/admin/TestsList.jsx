@@ -16,6 +16,7 @@ const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
+    const basePath = userInfo?.role === 'Institute' ? '/institute' : '/admin';
 
     // Search and tab filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -812,7 +813,7 @@ const TestsList = () => {
         const activeSubmission = filteredSubmissions[individualIndex];
 
         return (
-            <DashboardLayout role="Admin">
+            <DashboardLayout role={userInfo?.role || 'Admin'}>
                 <div className="max-w-7xl mx-auto px-4 py-2 font-sans">
                     {/* Back to list */}
                     <button
@@ -1824,7 +1825,7 @@ const TestsList = () => {
     }
 
     return (
-        <DashboardLayout role="Admin">
+        <DashboardLayout role={userInfo?.role || 'Admin'}>
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -1833,7 +1834,7 @@ const TestsList = () => {
                     <p className="text-slate-500 text-sm">Manage LMS tests and configure public testing web links.</p>
                 </div>
                 <button
-                    onClick={() => navigate('/admin/tests/builder')}
+                    onClick={() => navigate(`${basePath}/tests/builder`)}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95"
                 >
                     <Plus size={20} /> Create New Assessment
@@ -1988,7 +1989,7 @@ const TestsList = () => {
                                                     {copiedId === test._id ? <Check size={15} /> : <Link2 size={15} />}
                                                 </button>
                                                 <button
-                                                    onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
+                                                    onClick={() => navigate(`${basePath}/tests/edit/${test._id}`)}
                                                     className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
                                                     title="Edit Test"
                                                 >
@@ -2101,7 +2102,7 @@ const TestsList = () => {
                                                 </td>
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                     <button
-                                                        onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
+                                                        onClick={() => navigate(`${basePath}/tests/edit/${test._id}`)}
                                                         className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
                                                         title="Edit Test"
                                                     >

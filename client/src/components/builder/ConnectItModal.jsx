@@ -64,6 +64,7 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, placeholde
 };
 
 const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         institute: '',
         course: '',
@@ -102,7 +103,24 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                         course: courseRes.data.map(c => c.name)
                     }));
 
-                    // Remove auto-setting defaults to keep inputs empty for new tests
+                    // If user is Institute or Editor, auto-fill the institute name from the fetched list
+                    if (user?.role === 'Institute' || user?.role === 'Editor') {
+                        const userInstId = user && user.institute 
+                            ? (typeof user.institute === 'object' ? user.institute._id : user.institute) 
+                            : '';
+                        const matchingInst = instRes.data.find(i => i._id === userInstId);
+                        if (matchingInst) {
+                            setFormData(prev => ({
+                                ...prev,
+                                institute: prev.institute || matchingInst.name
+                            }));
+                        } else if (user?.institute?.name) {
+                            setFormData(prev => ({
+                                ...prev,
+                                institute: prev.institute || user.institute.name
+                            }));
+                        }
+                    }
 
                 } catch (error) {
                     console.error("Error fetching setup data:", error);
@@ -110,14 +128,19 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
             };
             fetchData();
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
 
 
     useEffect(() => {
         if (isOpen) {
+            let defaultInstName = '';
+            if (user?.role === 'Institute' || user?.role === 'Editor') {
+                defaultInstName = typeof user.institute === 'object' ? (user.institute.name || '') : '';
+            }
+
             if (initialData) {
                 setFormData({
-                    institute: initialData.institute || '',
+                    institute: initialData.institute || defaultInstName,
                     course: initialData.course || '',
                     subject: initialData.subject || '',
                     date: initialData.date || new Date().toISOString().split('T')[0],
@@ -127,7 +150,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 });
             } else {
                 setFormData({
-                    institute: '',
+                    institute: defaultInstName,
                     course: '',
                     subject: '',
                     date: '',
@@ -137,7 +160,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 });
             }
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, user]);
 
     // Update subjects when course changes
     useEffect(() => {
@@ -191,13 +214,15 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 {/* Body */}
                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-8">
                     <div className="space-y-6">
-                        <CustomSelect
-                            label="Institute Name"
-                            value={formData.institute}
-                            options={options.institute}
-                            onChange={(val) => setFormData(prev => ({ ...prev, institute: val }))}
-                            placeholder="Select Institute"
-                        />
+                        {user?.role !== 'Institute' && user?.role !== 'Editor' && (
+                            <CustomSelect
+                                label="Institute Name"
+                                value={formData.institute}
+                                options={options.institute}
+                                onChange={(val) => setFormData(prev => ({ ...prev, institute: val }))}
+                                placeholder="Select Institute"
+                            />
+                        )}
 
                         <CustomSelect
                             label="Course Name"

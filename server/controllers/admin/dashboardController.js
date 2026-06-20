@@ -3,6 +3,7 @@ const User = require('../../models/User');
 const Course = require('../../models/Course');
 const Test = require('../../models/Test');
 const Activity = require('../../models/Activity');
+const Institute = require('../../models/Institute');
 
 // @desc    Get dashboard stats and activities
 // @route   GET /api/dashboard/stats
@@ -12,6 +13,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const teacherCount = await User.countDocuments({ role: 'Teacher' });
     const courseCount = await Course.countDocuments({ status: 'active' });
     const testCount = await Test.countDocuments({});
+    const instituteCount = await Institute.countDocuments({});
 
     const activities = await Activity.find({})
         .sort({ createdAt: -1 })
@@ -23,7 +25,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             students: studentCount,
             teachers: teacherCount,
             courses: courseCount,
-            tests: testCount
+            tests: testCount,
+            institutes: instituteCount
         },
         activities
     });

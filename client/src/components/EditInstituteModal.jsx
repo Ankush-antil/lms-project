@@ -9,6 +9,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [address, setAddress] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -16,6 +18,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
             setName(institute.name || '');
             setCode(institute.code || '');
             setAddress(institute.address || '');
+            setContactEmail(institute.contactEmail || '');
+            setPassword(''); // Keep blank to avoid changing password unless typed
         }
     }, [institute]);
 
@@ -23,15 +27,17 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
         e.preventDefault();
         setLoading(true);
         try {
-
+            const payload = { name, code, address, contactEmail };
+            if (password) {
+                payload.password = password;
+            }
             
-
-            await axios.put(`/api/setup/institutes/${institute._id}`, { name, code, address });
+            await axios.put(`/api/setup/institutes/${institute._id}`, payload);
 
             setLoading(false);
             onClose();
             if (refreshData) refreshData();
-            toast.success('Institute Updated!');
+            toast.success('Institute Details Updated!');
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error updating institute');
             setLoading(false);
@@ -70,16 +76,29 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                     placeholder="e.g. Global Tech University"
                                 />
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute Code</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
-                                    required
-                                    value={code}
-                                    onChange={e => setCode(e.target.value)}
-                                    placeholder="e.g. GTU-01"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute Code</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
+                                        required
+                                        value={code}
+                                        onChange={e => setCode(e.target.value)}
+                                        placeholder="e.g. GTU-01"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Contact Email (Gmail)</label>
+                                    <input
+                                        type="email"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
+                                        required
+                                        value={contactEmail}
+                                        onChange={e => setContactEmail(e.target.value)}
+                                        placeholder="e.g. contact@institute.com"
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Campus Address</label>
@@ -90,13 +109,27 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                     placeholder="Enter full address..."
                                 />
                             </div>
+                            <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none block">Change Password</label>
+                                    <span className="text-[10px] text-slate-400 font-medium font-mono">Optional</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-750 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="Leave blank to keep password unchanged"
+                                />
+                            </div>
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50"
+                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
+                            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
                             {loading ? 'Updating Institute...' : 'Save Changes'}
                         </button>
                     </form>

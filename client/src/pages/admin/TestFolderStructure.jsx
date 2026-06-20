@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
     X, Search, FolderOpen, School, Book, Layers, LayoutGrid, ChevronDown,
@@ -9,6 +10,7 @@ import {
 
 
 const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete }) => {
+    const { user } = useAuth();
     const navigate = useNavigate();
 
     // Folder Explorer state
@@ -362,7 +364,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(`/admin/tests/edit/${test._id}`);
+                                                            navigate(`${user?.role === 'Institute' ? '/institute' : '/admin'}/tests/edit/${test._id}`);
                                                         }}
                                                         className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"
@@ -598,7 +600,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(`/admin/tests/edit/${test._id}`);
+                                                            navigate(`${user?.role === 'Institute' ? '/institute' : '/admin'}/tests/edit/${test._id}`);
                                                         }}
                                                         className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"

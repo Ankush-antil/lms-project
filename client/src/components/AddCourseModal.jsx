@@ -78,14 +78,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 gap-4">
-                            {user?.role === 'Editor' ? (
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
-                                    <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-500">
-                                        {institutes.find(i => i._id === (typeof user.institute === 'object' ? user.institute._id : user.institute))?.name || 'Loading Institute...'}
-                                    </div>
-                                </div>
-                            ) : (
+                            {user?.role !== 'Institute' && user?.role !== 'Editor' && (
                                 <div>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
                                     <select

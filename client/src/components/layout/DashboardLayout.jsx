@@ -19,6 +19,15 @@ const menuItems = {
         { name: 'Tests', icon: FileText, path: '/admin/tests' },
         { name: 'Test Builder', icon: PenTool, path: '/admin/tests/builder' },
     ],
+    Institute: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
+        { name: 'Students', icon: Users, path: '/institute/students' },
+        { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
+        { name: 'Editors', icon: Users, path: '/institute/editors' },
+        { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
+        { name: 'Tests', icon: FileText, path: '/institute/tests' },
+        { name: 'Test Builder', icon: PenTool, path: '/institute/tests/builder' },
+    ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
         { name: 'Activities', icon: FileText, path: '/teacher/activities' },

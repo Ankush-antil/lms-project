@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import InstituteDashboard from './pages/institute/InstituteDashboard';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentsList from './pages/admin/StudentsList';
@@ -65,7 +67,50 @@ function App() {
                     <UserProfileProvider>
                         <Toaster position="top-right" reverseOrder={false} />
                         <Routes>
-                        <Route path="/" element={<LoginPage />} />
+                        <Route path="/" element={<LandingPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+
+                        {/* Institute Routes */}
+                        <Route path="/institute" element={
+                            <PrivateRoute role="Institute">
+                                <InstituteDashboard />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/students" element={
+                            <PrivateRoute role="Institute">
+                                <StudentsList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/teachers" element={
+                            <PrivateRoute role="Institute">
+                                <TeachersList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/editors" element={
+                            <PrivateRoute role="Institute">
+                                <EditorsList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/courses" element={
+                            <PrivateRoute role="Institute">
+                                <CoursesList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/tests" element={
+                            <PrivateRoute role="Institute">
+                                <TestsList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/tests/builder" element={
+                            <PrivateRoute role="Institute">
+                                <TestBuilder />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/institute/tests/edit/:id" element={
+                            <PrivateRoute role="Institute">
+                                <TestBuilder />
+                            </PrivateRoute>
+                        } />
 
                         {/* Admin Routes */}
                         <Route path="/admin" element={

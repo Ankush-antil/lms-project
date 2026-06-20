@@ -48,6 +48,14 @@ const createTest = asyncHandler(async (req, res) => {
 
     validateWebpageQuestions(questions);
 
+    // Enforce institute name for Institute role
+    if (req.user && req.user.role === 'Institute') {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        if (userWithInst && userWithInst.institute) {
+            testDetails.institute = userWithInst.institute.name;
+        }
+    }
+
     const test = await Test.create({
         ...testDetails,
         settings,
@@ -66,7 +74,7 @@ const createTest = asyncHandler(async (req, res) => {
     res.status(201).json(test);
 });
 
-// @desc    Get all tests (for Admin/Teacher)
+// @desc    Get all tests (for Admin/Teacher/Institute)
 // @route   GET /api/tests
 // @access  Private/Admin
 const getTests = asyncHandler(async (req, res) => {
@@ -78,6 +86,14 @@ const getTests = asyncHandler(async (req, res) => {
                 { collaborators: req.user._id }
             ]
         };
+    } else if (req.user && req.user.role === 'Institute') {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        if (userWithInst && userWithInst.institute) {
+            const escapedName = userWithInst.institute.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            query.institute = { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') };
+        } else {
+            query.institute = 'NON_EXISTENT_INSTITUTE';
+        }
     }
     const tests = await Test.find(query)
         .populate('createdBy', 'name email role')
@@ -110,6 +126,21 @@ const updateTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
 
     if (test) {
+        // Enforce institute ownership for Institute role
+        if (req.user && req.user.role === 'Institute') {
+            const userWithInst = await User.findById(req.user._id).populate('institute');
+            const instName = userWithInst?.institute?.name?.trim().toLowerCase();
+            const testInstName = test.institute?.trim().toLowerCase();
+            if (!instName || instName !== testInstName) {
+                res.status(403);
+                throw new Error('Not authorized to update tests of other institutes');
+            }
+            // Enforce their own institute name on update
+            if (testDetails.institute !== undefined && userWithInst?.institute) {
+                testDetails.institute = userWithInst.institute.name;
+            }
+        }
+
         if (testDetails.title !== undefined) test.title = testDetails.title;
         if (testDetails.institute !== undefined) test.institute = testDetails.institute;
         if (testDetails.course !== undefined) test.course = testDetails.course;
@@ -139,6 +170,17 @@ const updateTest = asyncHandler(async (req, res) => {
 const deleteTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
     if (test) {
+        // Enforce institute ownership for Institute role
+        if (req.user && req.user.role === 'Institute') {
+            const userWithInst = await User.findById(req.user._id).populate('institute');
+            const instName = userWithInst?.institute?.name?.trim().toLowerCase();
+            const testInstName = test.institute?.trim().toLowerCase();
+            if (!instName || instName !== testInstName) {
+                res.status(403);
+                throw new Error('Not authorized to delete tests of other institutes');
+            }
+        }
+
         await test.deleteOne();
         res.json({ message: 'Test removed' });
     } else {

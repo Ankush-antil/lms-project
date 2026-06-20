@@ -9,6 +9,12 @@ const Course = require('../../models/Course');
 const getUsers = asyncHandler(async (req, res) => {
     const role = req.query.role;
     const query = role ? { role } : {};
+    
+    // Isolate by institute for Institute role
+    if (req.user && req.user.role === 'Institute') {
+        query.institute = req.user.institute;
+    }
+    
     console.log(`[API] Fetching users with query:`, query);
 
     const users = await User.find(query)
@@ -21,11 +27,17 @@ const getUsers = asyncHandler(async (req, res) => {
     res.json(users);
 });
 
-// @desc    Create User (Admin only)
+// @desc    Create User (Admin / Institute)
 // @route   POST /api/users
-// @access  Private/Admin
+// @access  Private/Admin or Institute
 const createUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role, course, subjects, institute, subject, mobileNumber } = req.body;
+    const { name, email, password, role, course, subjects, subject, mobileNumber } = req.body;
+    let institute = req.body.institute;
+
+    // Enforce creator's institute for Institute users
+    if (req.user && req.user.role === 'Institute') {
+        institute = req.user.institute;
+    }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -92,6 +104,12 @@ const createUser = asyncHandler(async (req, res) => {
 const deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (user) {
+        // Enforce institute isolation
+        if (req.user && req.user.role === 'Institute' && user.institute?.toString() !== req.user.institute?.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to delete users belonging to other institutes');
+        }
+
         await user.deleteOne();
         res.json({ message: 'User removed' });
     } else {
@@ -102,15 +120,26 @@ const deleteUser = asyncHandler(async (req, res) => {
 
 // @desc    Update user
 // @route   PUT /api/users/:id
-// @access  Private/Admin
+// @access  Private/Admin or Institute
 const updateUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
 
     if (user) {
+        // Enforce institute isolation
+        if (req.user && req.user.role === 'Institute' && user.institute?.toString() !== req.user.institute?.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to update users belonging to other institutes');
+        }
+
         user.name = req.body.name !== undefined ? req.body.name : user.name;
         user.email = req.body.email !== undefined ? req.body.email : user.email;
         user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
-        user.institute = req.body.institute !== undefined ? req.body.institute : user.institute;
+        
+        // Prevent Institute users from changing user's institute
+        if (req.user.role !== 'Institute') {
+            user.institute = req.body.institute !== undefined ? req.body.institute : user.institute;
+        }
+        
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
 
         if (req.body.password && req.body.password.trim() !== '') {

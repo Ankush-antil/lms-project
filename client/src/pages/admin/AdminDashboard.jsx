@@ -41,7 +41,7 @@ const AdminDashboard = () => {
     const [modalRole, setModalRole] = useState('Student');
     const [isInstituteModalOpen, setIsInstituteModalOpen] = useState(false);
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-    const [stats, setStats] = useState({ students: 0, teachers: 0, courses: 0, tests: 0 });
+    const [stats, setStats] = useState({ students: 0, teachers: 0, courses: 0, tests: 0, institutes: 0 });
     const [activities, setActivities] = useState([]);
     const { openProfile } = useUserProfile();
     const [loading, setLoading] = useState(true);
@@ -115,7 +115,8 @@ const AdminDashboard = () => {
             </div>
 
             {/* Main Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <StatCard title="Total Institutes" value={stats.institutes} icon={Building2} color="bg-amber-500 text-amber-500" onClick={() => navigate('/admin/institutes')} />
                 <StatCard title="Total Students" value={stats.students} icon={Users} color="bg-indigo-600 text-indigo-600" onClick={() => navigate('/admin/students')} />
                 <StatCard title="Total Teachers" value={stats.teachers} icon={CheckCircle} color="bg-emerald-500 text-emerald-500" onClick={() => navigate('/admin/teachers')} />
                 <StatCard title="Active Courses" value={stats.courses} icon={BookOpen} color="bg-blue-500 text-blue-500" onClick={() => navigate('/admin/courses')} />
@@ -204,7 +205,7 @@ const AdminDashboard = () => {
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Status</p>
                             </div>
                             <div className="w-12 h-8 flex items-end gap-1">
-                                {[stats.students, stats.teachers, stats.courses, stats.tests].map((val, i) => (
+                                {[stats.institutes, stats.students, stats.teachers, stats.courses, stats.tests].map((val, i) => (
                                     <div key={i} className="bg-white/20 w-1.5 rounded-full transition-all duration-500" style={{ height: `${Math.min((val + 1) * 20, 100)}%` }}></div>
                                 ))}
                             </div>

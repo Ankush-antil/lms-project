@@ -5,6 +5,7 @@ import { X, Save, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
+    const { user: currentUser } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -124,7 +125,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                         )}
 
                         <div className="grid grid-cols-1 gap-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            {currentUser?.role === 'Institute' || currentUser?.role === 'Editor' ? (
                                 <div>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
                                     <input
@@ -135,21 +136,34 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                                        required
-                                        value={formData.institute}
-                                        onChange={e => setFormData({ ...formData, institute: e.target.value, course: '' })}
-                                    >
-                                        <option value="">Select Institute</option>
-                                        {institutes.map(inst => (
-                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                        ))}
-                                    </select>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                                        <select
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                            required
+                                            value={formData.institute}
+                                            onChange={e => setFormData({ ...formData, institute: e.target.value, course: '' })}
+                                        >
+                                            <option value="">Select Institute</option>
+                                            {institutes.map(inst => (
+                                                <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

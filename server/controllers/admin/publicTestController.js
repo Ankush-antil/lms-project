@@ -136,11 +136,22 @@ const deletePublicSubmission = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'Submission deleted successfully' });
 });
 
+// @desc    Get all guest responses (submissions) (Admin only)
+// @route   GET /api/public-tests/admin/submissions
+// @access  Private/Admin
+const getAllPublicSubmissions = asyncHandler(async (req, res) => {
+    const submissions = await PublicSubmission.find({})
+        .populate('test', 'title')
+        .sort({ submittedAt: -1 });
+    res.json(submissions);
+});
+
 module.exports = {
     getPublicTestsDashboard,
     getPublicTestStats,
     getPublicTestSubmissions,
     togglePublicTestStatus,
     updatePublicTestSettings,
-    deletePublicSubmission
+    deletePublicSubmission,
+    getAllPublicSubmissions
 };

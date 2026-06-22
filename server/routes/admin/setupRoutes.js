@@ -9,15 +9,14 @@ const {
     getCourses,
     createCourse,
     deleteCourse,
-    approveCourse,
-    declineCourse,
     submitApplication,
     getApplications,
     sendOtp,
     verifyOtp,
     getInstituteApplications,
     updateApplicationStatus,
-    registerStudent
+    registerStudent,
+    getSubjects
 } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
 
@@ -34,14 +33,13 @@ router.route('/courses')
     .get(parseUserOptional, getCourses)
     .post(protect, adminOrEditor, createCourse);
 
+router.route('/subjects')
+    .get(protect, admin, getSubjects);
+
 router.route('/courses/:id')
     .delete(protect, adminOrEditor, deleteCourse);
 
-router.route('/courses/:id/approve')
-    .put(protect, admin, approveCourse);
 
-router.route('/courses/:id/decline')
-    .put(protect, admin, declineCourse);
 
 // Public landing page application routes
 router.route('/apply')

@@ -92,25 +92,9 @@ const AdminDashboard = () => {
                     <p className="text-slate-500 mt-1">Real-time overview of your educational ecosystem.</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                    <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100 w-full md:w-auto">
-                        <button onClick={() => setIsInstituteModalOpen(true)} className="flex-1 px-4 py-2 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
-                            <Building2 size={16} /> Institute
-                        </button>
-                        <button onClick={() => setIsCourseModalOpen(true)} className="flex-1 px-4 py-2 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
-                            <BookOpen size={16} /> Course
-                        </button>
-                    </div>
-                    <div className="flex gap-2 w-full md:w-auto animate-fade-in">
-                        <button onClick={() => openUserModal('Student')} className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
-                            <Plus size={18} /> Student
-                        </button>
-                        <button onClick={() => openUserModal('Teacher')} className="flex-1 px-5 py-2.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
-                            <Plus size={18} /> Teacher
-                        </button>
-                        <button onClick={() => openUserModal('Editor')} className="flex-1 px-5 py-2.5 bg-purple-600 text-white rounded-2xl hover:bg-purple-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
-                            <Plus size={18} /> Editor
-                        </button>
-                    </div>
+                    <button onClick={() => setIsInstituteModalOpen(true)} className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95">
+                        <Building2 size={16} /> Add Institute
+                    </button>
                 </div>
             </div>
 

@@ -10,6 +10,8 @@ import StudentDetails from './pages/admin/StudentDetails';
 import TeachersList from './pages/admin/TeachersList';
 import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
+import UsersList from './pages/admin/UsersList';
+import SubjectsList from './pages/admin/SubjectsList';
 
 import TestsList from './pages/admin/TestsList';
 import TestBuilder from './pages/admin/TestBuilder';
@@ -116,6 +118,16 @@ function App() {
                         <Route path="/admin" element={
                             <PrivateRoute role="Admin">
                                 <AdminDashboard />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/admin/users" element={
+                            <PrivateRoute role="Admin">
+                                <UsersList />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/admin/subjects" element={
+                            <PrivateRoute role="Admin">
+                                <SubjectsList />
                             </PrivateRoute>
                         } />
                         <Route path="/admin/institutes" element={

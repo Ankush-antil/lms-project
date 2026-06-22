@@ -6,11 +6,13 @@ const {
     getPublicTestSubmissions,
     togglePublicTestStatus,
     updatePublicTestSettings,
-    deletePublicSubmission
+    deletePublicSubmission,
+    getAllPublicSubmissions
 } = require('../../controllers/admin/publicTestController');
 const { protect, admin } = require('../../middleware/authMiddleware');
 
 router.get('/admin/dashboard', protect, admin, getPublicTestsDashboard);
+router.get('/admin/submissions', protect, admin, getAllPublicSubmissions);
 router.get('/admin/:id/stats', protect, admin, getPublicTestStats);
 router.get('/admin/:id/submissions', protect, admin, getPublicTestSubmissions);
 router.put('/admin/:id/toggle-status', protect, admin, togglePublicTestStatus);

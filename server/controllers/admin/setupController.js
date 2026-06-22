@@ -210,7 +210,7 @@ const createCourse = asyncHandler(async (req, res) => {
     const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
 
     // Determine status based on user role (req.user is populated by protect middleware)
-    const status = req.user && req.user.role === 'Editor' ? 'pending' : 'active';
+    const status = 'active';
     const createdBy = req.user ? req.user._id : null;
 
     // Enforce Editor's or Institute's own institute if creator is Editor or Institute
@@ -235,8 +235,8 @@ const createCourse = asyncHandler(async (req, res) => {
 
     // Log Activity
     await Activity.create({
-        type: status === 'pending' ? 'COURSE_SUBMITTED' : 'COURSE_CREATED',
-        message: status === 'pending' ? 'Course submitted for approval' : 'New Course added',
+        type: 'COURSE_CREATED',
+        message: 'New Course added',
         detail: `${course.name} (${course.code})`,
         user: createdBy
     });
@@ -295,52 +295,7 @@ const deleteCourse = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Approve a course
-// @route   PUT /api/setup/courses/:id/approve
-// @access  Private/Admin
-const approveCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id);
 
-    if (course) {
-        course.status = 'active';
-        await course.save();
-
-        await Activity.create({
-            type: 'COURSE_APPROVED',
-            message: 'Course approved',
-            detail: `${course.name} (${course.code})`,
-            user: req.user._id
-        });
-
-        res.json({ message: 'Course approved successfully', course });
-    } else {
-        res.status(404);
-        throw new Error('Course not found');
-    }
-});
-
-// @desc    Decline a course (deletes the course)
-// @route   PUT /api/setup/courses/:id/decline
-// @access  Private/Admin
-const declineCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id);
-
-    if (course) {
-        await course.deleteOne();
-
-        await Activity.create({
-            type: 'COURSE_DECLINED',
-            message: 'Course declined and removed',
-            detail: `${course.name} (${course.code})`,
-            user: req.user._id
-        });
-
-        res.json({ message: 'Course declined and removed' });
-    } else {
-        res.status(404);
-        throw new Error('Course not found');
-    }
-});
 
 // @desc    Submit a course application
 // @route   POST /api/setup/apply
@@ -616,6 +571,79 @@ const registerStudent = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get all subjects aggregated with course, institute, teacher and test details
+// @route   GET /api/setup/subjects
+// @access  Private/Admin
+const getSubjects = asyncHandler(async (req, res) => {
+    const Test = require('../../models/Test');
+    const courses = await Course.find({ status: 'active' }).populate('institute', 'name');
+    const teachers = await User.find({ role: 'Teacher' });
+    const tests = await Test.find({});
+
+    const subjectsList = [];
+
+    courses.forEach(course => {
+        if (!course.subjects || course.subjects.length === 0) return;
+
+        course.subjects.forEach(subName => {
+            // Find teachers teaching this subject in this course
+            const teachingTeachers = teachers.filter(t => {
+                const assignedCourses = t.teacherProfile?.assignedCourses || [];
+                const tSubjects = t.teacherProfile?.subjects || [];
+
+                const hasCourse = assignedCourses.some(cId => cId.toString() === course._id.toString());
+                const hasSubject = tSubjects.some(sName => sName.toLowerCase() === subName.toLowerCase());
+
+                return hasCourse && hasSubject;
+            });
+
+            // Find tests created for this subject (check name or id matching)
+            const subjectTests = tests.filter(t => {
+                const courseMatch = t.course === course.name || (t.course && t.course.toString() === course._id.toString());
+                const subjectMatch = t.subject?.toLowerCase() === subName.toLowerCase();
+                return courseMatch && subjectMatch;
+            });
+
+            // Count assignments: questions of type 'Assignment' or type containing 'assign'
+            let assignmentCount = 0;
+            subjectTests.forEach(t => {
+                const hasAssignmentQuestion = t.questions?.some(q => q.type === 'Assignment' || q.type?.toLowerCase().includes('assign'));
+                if (hasAssignmentQuestion) {
+                    assignmentCount++;
+                }
+            });
+
+            subjectsList.push({
+                name: subName,
+                course: {
+                    _id: course._id,
+                    name: course.name
+                },
+                institute: course.institute ? {
+                    _id: course.institute._id,
+                    name: course.institute.name
+                } : null,
+                teachers: teachingTeachers.map(t => ({
+                    _id: t._id,
+                    name: t.name,
+                    email: t.email
+                })),
+                testCount: subjectTests.length,
+                assignmentCount: assignmentCount,
+                tests: subjectTests.map(t => ({
+                    _id: t._id,
+                    title: t.title,
+                    questionsCount: t.questions?.length || 0,
+                    status: t.status,
+                    publishMode: t.publishMode
+                }))
+            });
+        });
+    });
+
+    res.json(subjectsList);
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -625,13 +653,13 @@ module.exports = {
     getCourses,
     createCourse,
     deleteCourse,
-    approveCourse,
-    declineCourse,
+
     submitApplication,
     getApplications,
     sendOtp,
     verifyOtp,
     getInstituteApplications,
     updateApplicationStatus,
-    registerStudent
+    registerStudent,
+    getSubjects
 };

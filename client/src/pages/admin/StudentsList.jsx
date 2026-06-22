@@ -17,6 +17,8 @@ const StudentsList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterClass, setFilterClass] = useState('All');
     const [filterSubject, setFilterSubject] = useState('All');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const [students, setStudents] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -24,6 +26,10 @@ const StudentsList = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterClass, filterSubject]);
 
     const fetchData = async () => {
         try {
@@ -68,6 +74,10 @@ const StudentsList = () => {
             student._id.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
+
     const uniqueSubjects = [...new Set(students.map(s => s.studentProfile?.subject).filter(Boolean))];
 
     return (
@@ -78,12 +88,14 @@ const StudentsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Students Management</h1>
                     <p className="text-slate-500">Manage student enrollment and details.</p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="btn-primary flex items-center gap-2"
-                >
-                    <Plus size={20} /> Add New Student
-                </button>
+                {user?.role !== 'Admin' && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <Plus size={20} /> Add New Student
+                    </button>
+                )}
             </div>
 
             {/* Filters */}
@@ -149,8 +161,8 @@ const StudentsList = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredStudents.length > 0 ? (
-                                filteredStudents.map((student) => (
+                             {paginatedStudents.length > 0 ? (
+                                paginatedStudents.map((student) => (
                                     <tr key={student._id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
@@ -194,16 +206,18 @@ const StudentsList = () => {
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
 
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedUser(student);
-                                                    setIsEditModalOpen(true);
-                                                }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
-                                                title="Edit Student"
-                                            >
-                                                <Edit size={20} />
-                                            </button>
+                                            {user?.role !== 'Admin' && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedUser(student);
+                                                        setIsEditModalOpen(true);
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                    title="Edit Student"
+                                                >
+                                                    <Edit size={20} />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => handleDelete(student._id)}
                                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
@@ -225,14 +239,70 @@ const StudentsList = () => {
                     </table>
                 </div>
 
-                {/* Pagination (Mock) */}
-                <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm text-slate-500">
-                    <span>Showing {filteredStudents.length} of {students.length} entries</span>
-                    <div className="flex gap-2">
-                        <button className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50" disabled>Previous</button>
-                        <button className="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50" disabled>Next</button>
+                {/* Pagination Controls */}
+                {filteredStudents.length > 0 && (
+                    <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                        <div className="text-sm font-semibold text-slate-500">
+                            Showing <span className="text-slate-700">{startIndex + 1}</span> to{' '}
+                            <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, filteredStudents.length)}</span> of{' '}
+                            <span className="text-slate-700">{filteredStudents.length}</span> entries
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                Previous
+                            </button>
+                            <div className="flex gap-1">
+                                {(() => {
+                                    const pages = [];
+                                    const maxVisible = 5;
+                                    if (totalPages <= maxVisible) {
+                                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                    } else {
+                                        pages.push(1);
+                                        let start = Math.max(2, currentPage - 1);
+                                        let end = Math.min(totalPages - 1, currentPage + 1);
+                                        if (currentPage <= 2) {
+                                            end = 4;
+                                        } else if (currentPage >= totalPages - 1) {
+                                            start = totalPages - 3;
+                                        }
+                                        if (start > 2) pages.push('...');
+                                        for (let i = start; i <= end; i++) pages.push(i);
+                                        if (end < totalPages - 1) pages.push('...');
+                                        pages.push(totalPages);
+                                    }
+                                    return pages.map((p, idx) => (
+                                        <button
+                                            key={idx}
+                                            disabled={p === '...'}
+                                            onClick={() => p !== '...' && setCurrentPage(p)}
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
+                                                p === '...'
+                                                    ? 'text-slate-400 cursor-default bg-transparent'
+                                                    : currentPage === p
+                                                        ? 'bg-[#0b1329] text-white shadow-md'
+                                                        : 'text-slate-600 hover:bg-slate-100 bg-transparent'
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ));
+                                })()}
+                            </div>
+                            <button
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
             <AddUserModal
                 isOpen={isModalOpen}

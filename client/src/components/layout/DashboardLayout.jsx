@@ -11,13 +11,15 @@ import { useUserProfile } from '../common/UserProfileContext';
 const menuItems = {
     Admin: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+        { name: 'Users', icon: User, path: '/admin/users' },
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
-        { name: 'Tests', icon: FileText, path: '/admin/tests' },
-        { name: 'Test Builder', icon: PenTool, path: '/admin/tests/builder' },
+        { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
+        { name: 'Class Content', icon: FileText, path: '/admin/tests' },
+        { name: 'Tools', icon: PenTool, path: '/admin/tests/builder' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -45,48 +47,22 @@ const menuItems = {
 /* ─────────────────────────────────────────
    Shared Header (branding + user profile)
 ───────────────────────────────────────── */
-const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
+const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const navigate = useNavigate();
-    const location = useLocation();
     const { openProfile } = useUserProfile();
     const { logout, user } = useAuth();
 
     const handleLogout = () => logout();
-
-    const isActive = (path) => {
-        if (path === '/admin' || path === '/teacher' || path === '/student' || path === '/editor') {
-            return location.pathname === path;
-        }
-        return location.pathname.startsWith(path);
-    };
+    const safeRole = role || 'Admin';
 
     return (
         <header className="h-16 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
-            {/* Logo + Non-admin desktop nav */}
+            {/* Logo */}
             <div className="flex items-center space-x-6 xl:space-x-12">
-                <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${role.toLowerCase()}`)}>
+                <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${safeRole.toLowerCase()}`)}>
                     <div className="w-10 h-10 bg-white text-[#0b1329] rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-black/10 group-hover:scale-110 transition-transform duration-300">L</div>
                     <span className="text-xl font-black text-white tracking-tight hidden sm:block">LMS<span className="text-slate-300">Portal</span></span>
                 </div>
-
-                {/* Desktop nav — only for non-admin roles */}
-                {role !== 'Admin' && (
-                    <nav className="hidden lg:flex items-center space-x-1">
-                        {menuItems[role]?.map((item) => (
-                            <button
-                                key={item.name}
-                                onClick={() => navigate(item.path)}
-                                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 font-bold text-sm ${isActive(item.path)
-                                    ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
-                            >
-                                <item.icon size={18} strokeWidth={isActive(item.path) ? 2.5 : 2} />
-                                <span>{item.name}</span>
-                            </button>
-                        ))}
-                    </nav>
-                )}
             </div>
 
             {/* User Profile & Mobile Toggle */}
@@ -108,7 +84,7 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
                     </div>
 
                     {/* Desktop Dropdown */}
-                    <div 
+                    <div
                         onClick={(e) => e.stopPropagation()}
                         className="absolute top-full right-0 mt-3 w-60 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50"
                     >
@@ -147,15 +123,19 @@ const Header = ({ role, onMobileMenuToggle, isMobileMenuOpen }) => {
 };
 
 /* ─────────────────────────────────────────
-   Admin Left Sidebar
+   Left Sidebar (unified for all roles)
 ───────────────────────────────────────── */
-const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
+const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout } = useAuth();
 
+    const safeRole = role || 'Admin';
+    const items = menuItems[safeRole] || [];
+
     const isActive = (path) => {
-        if (path === '/admin') return location.pathname === path;
+        const baseRolePath = `/${safeRole.toLowerCase()}`;
+        if (path === baseRolePath) return location.pathname === path;
         return location.pathname.startsWith(path);
     };
 
@@ -175,7 +155,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                 </button>
 
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-                    {menuItems.Admin.map((item) => {
+                    {items.map((item) => {
                         const active = isActive(item.path);
                         return (
                             <button
@@ -197,7 +177,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                 </nav>
 
                 {/* Logout at bottom */}
-                <div className={`px-3 pb-6 ${collapsed ? '' : ''}`}>
+                <div className="px-3 pb-6">
                     <button
                         onClick={logout}
                         title={collapsed ? 'Sign Out' : undefined}
@@ -217,7 +197,7 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
                 {/* Drawer panel */}
                 <div className={`absolute left-0 top-0 bottom-0 w-64 bg-[#0b1329] shadow-2xl p-6 flex flex-col transition-transform duration-300 text-white ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <nav className="flex-1 space-y-2">
-                        {menuItems.Admin.map((item) => {
+                        {items.map((item) => {
                             const active = isActive(item.path);
                             return (
                                 <button
@@ -250,89 +230,45 @@ const AdminSidebar = ({ collapsed, onToggle, isMobileOpen }) => {
 };
 
 /* ─────────────────────────────────────────
-   Non-admin Mobile Drawer
-───────────────────────────────────────── */
-const MobileNavDrawer = ({ role, isMobileOpen }) => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { logout } = useAuth();
-
-    const isActive = (path) => {
-        if (path === '/teacher' || path === '/student' || path === '/editor') return location.pathname === path;
-        return location.pathname.startsWith(path);
-    };
-
-    return (
-        <div className={`lg:hidden fixed inset-0 top-16 bg-[#0b1329] z-[60] p-6 transition-all duration-300 text-white ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none translate-x-full'}`}>
-            <nav className="space-y-3">
-                {menuItems[role]?.map((item) => (
-                    <button
-                        key={item.name}
-                        onClick={() => navigate(item.path)}
-                        className={`flex items-center space-x-4 w-full p-5 rounded-2xl transition-all font-bold ${isActive(item.path)
-                            ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
-                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                    >
-                        <item.icon size={22} />
-                        <span className="text-lg">{item.name}</span>
-                    </button>
-                ))}
-                <div className="h-px bg-slate-800 my-6"></div>
-                <button
-                    onClick={logout}
-                    className="flex items-center justify-center space-x-3 w-full p-5 bg-red-950/20 text-red-400 rounded-2xl font-black text-lg transition-all border border-red-900/30 shadow-sm"
-                >
-                    <LogOut size={22} />
-                    <span>Logout from Portal</span>
-                </button>
-            </nav>
-        </div>
-    );
-};
-
-/* ─────────────────────────────────────────
    Main DashboardLayout
 ───────────────────────────────────────── */
-const DashboardLayout = ({ children, role, fullWidth = false }) => {
+const DashboardLayout = ({ children, role = 'Admin', fullWidth = false }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
-    const isAdmin = role === 'Admin';
+
+    const safeRole = role || 'Admin';
+    const hasSidebar = !!menuItems[safeRole];
 
     // Close mobile menu on route change
     useEffect(() => {
         setIsMobileMenuOpen(false);
     }, [location.pathname]);
 
-    const sidebarWidth = isAdmin ? (sidebarCollapsed ? 72 : 224) : 0;
+    const sidebarWidth = hasSidebar ? (sidebarCollapsed ? 72 : 224) : 0;
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Header
-                role={role}
+                role={safeRole}
                 onMobileMenuToggle={() => setIsMobileMenuOpen(prev => !prev)}
                 isMobileMenuOpen={isMobileMenuOpen}
             />
 
-            {/* Admin sidebar */}
-            {isAdmin && (
-                <AdminSidebar
+            {/* Left sidebar & mobile drawer */}
+            {hasSidebar && (
+                <Sidebar
+                    role={safeRole}
                     collapsed={sidebarCollapsed}
                     onToggle={() => setSidebarCollapsed(prev => !prev)}
                     isMobileOpen={isMobileMenuOpen}
                 />
             )}
 
-            {/* Non-admin mobile drawer */}
-            {!isAdmin && (
-                <MobileNavDrawer role={role} isMobileOpen={isMobileMenuOpen} />
-            )}
-
             {/* Main content */}
             <main
                 style={{
-                    paddingLeft: isAdmin ? `${sidebarWidth + 40}px` : undefined,
+                    paddingLeft: hasSidebar ? `${sidebarWidth + 40}px` : undefined,
                     transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
                 }}
                 className="flex-1 pt-20 pb-12 px-4 md:px-8 hidden lg:block"

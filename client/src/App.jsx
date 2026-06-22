@@ -26,6 +26,7 @@ import ViewTestResult from './pages/student/ViewTestResult';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import ProfilePage from './pages/ProfilePage';
+import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
 import PublicTestPage from './pages/student/PublicTestPage';
@@ -218,6 +219,11 @@ function App() {
                                 <EvaluatePage />
                             </PrivateRoute>
                         } />
+                        <Route path="/teacher/chat" element={
+                            <PrivateRoute role="Teacher">
+                                <ChatPage />
+                            </PrivateRoute>
+                        } />
 
                         {/* Student Routes */}
                         <Route path="/student" element={
@@ -238,6 +244,11 @@ function App() {
                         <Route path="/student/take-test/:id" element={
                             <PrivateRoute role="Student">
                                 <ShortAnswerTest />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/chat" element={
+                            <PrivateRoute role="Student">
+                                <ChatPage />
                             </PrivateRoute>
                         } />
                         <Route path="/student/test-result/:id" element={

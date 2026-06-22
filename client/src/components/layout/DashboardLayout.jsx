@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../common/UserProfileContext';
@@ -34,6 +34,7 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
         { name: 'Activities', icon: FileText, path: '/teacher/activities' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
+        { name: 'Chat', icon: MessageSquare, path: '/teacher/chat' },
     ],
     Editor: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
@@ -41,6 +42,7 @@ const menuItems = {
     Student: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
         { name: 'My Tests', icon: FileText, path: '/student/tests' },
+        { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
     ]
 };
 

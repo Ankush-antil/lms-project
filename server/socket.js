@@ -159,6 +159,56 @@ const initSocket = (server) => {
             }
         });
 
+        // Chat Events
+        socket.on('send-message', ({ receiverId, text, _id, createdAt }) => {
+            const receiverSocketId = onlineUsers[receiverId];
+            if (receiverSocketId) {
+                console.log(`[SOCKET] Forwarding message from ${socket.userId} to receiver ${receiverId}`);
+                io.to(receiverSocketId).emit('receive-message', {
+                    sender: socket.userId,
+                    receiver: receiverId,
+                    text,
+                    _id,
+                    createdAt
+                });
+            } else {
+                console.log(`[SOCKET] Receiver ${receiverId} is offline. Message saved to DB only.`);
+            }
+        });
+
+        socket.on('edit-message', ({ messageId, receiverId, text, isEdited, originalText }) => {
+            const receiverSocketId = onlineUsers[receiverId];
+            if (receiverSocketId) {
+                console.log(`[SOCKET] Forwarding message edit from ${socket.userId} to receiver ${receiverId}`);
+                io.to(receiverSocketId).emit('message-edited', {
+                    messageId,
+                    text,
+                    isEdited,
+                    originalText
+                });
+            }
+        });
+
+        socket.on('typing', ({ targetId }) => {
+            const targetSocketId = onlineUsers[targetId];
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('typing-status', {
+                    senderId: socket.userId,
+                    isTyping: true
+                });
+            }
+        });
+
+        socket.on('stop-typing', ({ targetId }) => {
+            const targetSocketId = onlineUsers[targetId];
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('typing-status', {
+                    senderId: socket.userId,
+                    isTyping: false
+                });
+            }
+        });
+
         // Handle disconnect
         socket.on('disconnect', async () => {
             console.log(`[SOCKET] Socket disconnected: ${socket.id}`);

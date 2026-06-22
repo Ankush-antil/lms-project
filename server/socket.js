@@ -160,16 +160,15 @@ const initSocket = (server) => {
         });
 
         // Chat Events
-        socket.on('send-message', ({ receiverId, text, _id, createdAt }) => {
+        socket.on('send-message', (payload) => {
+            const { receiverId } = payload;
             const receiverSocketId = onlineUsers[receiverId];
             if (receiverSocketId) {
                 console.log(`[SOCKET] Forwarding message from ${socket.userId} to receiver ${receiverId}`);
                 io.to(receiverSocketId).emit('receive-message', {
+                    ...payload,
                     sender: socket.userId,
-                    receiver: receiverId,
-                    text,
-                    _id,
-                    createdAt
+                    receiver: receiverId
                 });
             } else {
                 console.log(`[SOCKET] Receiver ${receiverId} is offline. Message saved to DB only.`);

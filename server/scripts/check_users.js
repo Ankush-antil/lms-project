@@ -1,16 +1,17 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
-const User = require('../models/User');
 
-const checkDB = async () => {
+const checkUsers = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
         console.log('Connected to DB');
-        const users = await User.find({}, 'name email role password');
-        console.log('Users in DB:');
+        
+        const users = await mongoose.connection.db.collection('users').find({}).toArray();
+        console.log(`Found ${users.length} users:`);
         users.forEach(u => {
-            console.log(`- ${u.name} (${u.email}) [${u.role}] password_hash: ${u.password.substring(0, 10)}...`);
+            console.log(`- ID: ${u._id}, Name: ${u.name}, Email: ${u.email}, Role: ${u.role}`);
         });
+
         process.exit();
     } catch (err) {
         console.error(err);
@@ -18,4 +19,4 @@ const checkDB = async () => {
     }
 };
 
-checkDB();
+checkUsers();

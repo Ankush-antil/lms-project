@@ -26,6 +26,21 @@ const messageSchema = new mongoose.Schema({
     originalText: {
         type: String,
         default: ''
+    },
+    test: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Test'
+    },
+    testTitle: {
+        type: String,
+        default: ''
+    },
+    questionIndex: {
+        type: Number
+    },
+    questionText: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

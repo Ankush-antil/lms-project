@@ -53,7 +53,7 @@ const ShortAnswerTest = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { user } = useAuth();
-    const { callUser, callState, onlineUsers } = useSocket();
+    const { socket, callUser, callState, onlineUsers } = useSocket();
     const [teachersList, setTeachersList] = useState([]);
     const [selectedTeachers, setSelectedTeachers] = useState({});
     const [test, setTest] = useState(null);
@@ -125,6 +125,53 @@ const ShortAnswerTest = () => {
         };
         fetchTeachers();
     }, []);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleReceiveMessage = (msg) => {
+            if (msg.test === id && msg.questionIndex !== undefined) {
+                const idx = msg.questionIndex;
+                const newMsg = { sender: 'teacher', text: msg.text, createdAt: msg.createdAt };
+                setChatMessages(prev => ({
+                    ...prev,
+                    [idx]: [...(prev[idx] || []), newMsg]
+                }));
+            }
+        };
+
+        socket.on('receive-message', handleReceiveMessage);
+        return () => {
+            socket.off('receive-message', handleReceiveMessage);
+        };
+    }, [socket, id]);
+
+    useEffect(() => {
+        const activeIdx = Object.keys(activeQuestionTab || {}).find(k => activeQuestionTab[k] === 'chat');
+        if (activeIdx === undefined || !test || !user) return;
+        
+        const idx = Number(activeIdx);
+        const receiverId = test.createdBy?._id || test.createdBy;
+        if (!receiverId) return;
+
+        const loadChatHistory = async () => {
+            try {
+                const { data } = await axios.get(`/api/chat/messages/${receiverId}?test=${test._id}&questionIndex=${idx}`);
+                setChatMessages(prev => ({
+                    ...prev,
+                    [idx]: data.map(m => ({
+                        sender: m.sender === user._id || m.sender?._id === user._id ? 'student' : 'teacher',
+                        text: m.text,
+                        createdAt: m.createdAt
+                    }))
+                }));
+            } catch (error) {
+                console.error("Error loading chat history:", error);
+            }
+        };
+
+        loadChatHistory();
+    }, [activeQuestionTab, test, user]);
 
 
 
@@ -588,30 +635,54 @@ const ShortAnswerTest = () => {
         }
     };
 
-    const sendChatMessage = (idx) => {
+    const sendChatMessage = async (idx) => {
         const input = chatInput[idx] || '';
         if (!input.trim()) return;
 
-        const userMsg = { sender: 'student', text: input };
-        setChatMessages(prev => ({
-            ...prev,
-            [idx]: [...(prev[idx] || []), userMsg]
-        }));
-        setChatInput(prev => ({ ...prev, [idx]: '' }));
+        const receiverId = test?.createdBy?._id || test?.createdBy;
+        if (!receiverId) {
+            toast.error("No teacher available to chat with.");
+            return;
+        }
 
-        setTimeout(() => {
-            const replies = [
-                "A computer is composed of both hardware (physical parts) and software (instructions). Think about how they work together.",
-                "Let's focus on the inputs and outputs. An input would be a keyboard, whereas an output is a monitor.",
-                "Make sure you define the processing unit (CPU) as the brain of the computer.",
-                "Remember, short answer questions require concise responses. Focus on the core meaning!"
-            ];
-            const teacherMsg = { sender: 'teacher', text: replies[Math.floor(Math.random() * replies.length)] };
+        try {
+            const qTitle = test?.questions?.[idx]?.text ? test.questions[idx].text.replace(/<[^>]*>/g, '').trim() : `Question ${idx + 1}`;
+            
+            // Save to DB first
+            const { data } = await axios.post('/api/chat/messages', {
+                receiver: receiverId,
+                text: input,
+                test: test._id,
+                testTitle: test.title,
+                questionIndex: idx,
+                questionText: qTitle
+            });
+
+            // Emit socket event for real-time delivery
+            if (socket) {
+                socket.emit('send-message', {
+                    receiverId,
+                    text: input,
+                    _id: data._id,
+                    createdAt: data.createdAt,
+                    test: test._id,
+                    testTitle: test.title,
+                    questionIndex: idx,
+                    questionText: qTitle
+                });
+            }
+
+            // Append locally
+            const userMsg = { sender: 'student', text: input, createdAt: data.createdAt };
             setChatMessages(prev => ({
                 ...prev,
-                [idx]: [...(prev[idx] || []), teacherMsg]
+                [idx]: [...(prev[idx] || []), userMsg]
             }));
-        }, 1000);
+            setChatInput(prev => ({ ...prev, [idx]: '' }));
+        } catch (error) {
+            console.error("Failed to send chat message:", error);
+            toast.error("Failed to send message");
+        }
     };
 
     const handleTTS = (text) => {

@@ -2,6 +2,10 @@ const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const Test = require('../models/Test');
+const Institute = require('../models/Institute');
+const Course = require('../models/Course');
+
 
 // @desc    Get contacts list for chat
 // @route   GET /api/chat/contacts
@@ -108,12 +112,21 @@ const getMessages = asyncHandler(async (req, res) => {
     const currentUserId = req.user._id;
     const targetUserId = req.params.userId;
 
-    const messages = await Message.find({
+    let query = {
         $or: [
             { sender: currentUserId, receiver: targetUserId },
             { sender: targetUserId, receiver: currentUserId }
         ]
-    }).sort({ createdAt: 1 });
+    };
+
+    if (req.query.test !== undefined) {
+        query.test = req.query.test || null;
+    }
+    if (req.query.questionIndex !== undefined) {
+        query.questionIndex = Number(req.query.questionIndex);
+    }
+
+    const messages = await Message.find(query).sort({ createdAt: 1 });
 
     res.json(messages);
 });
@@ -122,7 +135,7 @@ const getMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/chat/messages
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
-    const { receiver, text } = req.body;
+    const { receiver, text, test, testTitle, questionIndex, questionText } = req.body;
     const sender = req.user._id;
 
     if (!receiver || !text) {
@@ -133,7 +146,11 @@ const sendMessage = asyncHandler(async (req, res) => {
         sender,
         receiver,
         text,
-        isRead: false
+        isRead: false,
+        test: test || null,
+        testTitle: testTitle || '',
+        questionIndex: questionIndex !== undefined ? Number(questionIndex) : undefined,
+        questionText: questionText || ''
     });
 
     res.status(201).json(message);
@@ -189,10 +206,87 @@ const editMessage = asyncHandler(async (req, res) => {
     res.json(message);
 });
 
+// @desc    Get assigned tests for a student (for teacher/admin view in chat)
+// @route   GET /api/chat/student-tests/:studentId
+// @access  Private
+const getStudentTests = asyncHandler(async (req, res) => {
+    const studentId = req.params.studentId;
+    const student = await User.findById(studentId)
+        .populate('institute')
+        .populate('studentProfile.course');
+
+    if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+    }
+
+    const studentInstitute = student.institute?.name?.trim();
+    const studentCourse = student.studentProfile?.course?.name?.trim();
+    const studentSubject = student.studentProfile?.subject?.trim();
+
+    if (!studentInstitute) {
+        return res.json([]);
+    }
+
+    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let query = {};
+
+    query.institute = { $regex: new RegExp(`^\\s*${escapeRegex(studentInstitute)}\\s*$`, 'i') };
+
+    if (studentSubject) {
+        const subjects = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
+        if (subjects.length > 0) {
+            query.subject = {
+                $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
+            };
+        } else {
+            query.subject = { $in: [null, '', undefined] };
+        }
+    } else {
+        query.subject = { $in: [null, '', undefined] };
+    }
+
+    if (studentCourse) {
+        query.$or = [
+            { course: { $in: [null, '', undefined] } },
+            { course: { $regex: new RegExp(`^\\s*${escapeRegex(studentCourse)}\\s*$`, 'i') } }
+        ];
+    }
+
+    const tests = await Test.find(query).sort({ createdAt: -1 });
+    res.json(tests);
+});
+
+// @desc    Get all doubt messages for a specific test + student (ignores which teacher/creator is receiver)
+// @route   GET /api/chat/test-doubt-messages/:studentId/:testId
+// @access  Private (Teacher)
+const getTestDoubtMessages = asyncHandler(async (req, res) => {
+    const { studentId, testId } = req.params;
+    const { questionIndex } = req.query;
+
+    // Fetch all messages where this student sent a doubt about this test (to any receiver)
+    // OR where any user sent a reply to this student about this test
+    let query = {
+        test: testId,
+        $or: [
+            { sender: studentId },
+            { receiver: studentId }
+        ]
+    };
+
+    if (questionIndex !== undefined) {
+        query.questionIndex = Number(questionIndex);
+    }
+
+    const messages = await Message.find(query).sort({ createdAt: 1 });
+    res.json(messages);
+});
+
 module.exports = {
     getContacts,
     getMessages,
     sendMessage,
     markAsRead,
-    editMessage
+    editMessage,
+    getStudentTests,
+    getTestDoubtMessages
 };

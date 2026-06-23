@@ -86,7 +86,10 @@ const getContacts = asyncHandler(async (req, res) => {
             lastMessage: lastMessage ? {
                 text: lastMessage.text,
                 sender: lastMessage.sender,
-                createdAt: lastMessage.createdAt
+                createdAt: lastMessage.createdAt,
+                fileUrl: lastMessage.fileUrl,
+                fileName: lastMessage.fileName,
+                fileType: lastMessage.fileType
             } : null,
             unreadCount
         };
@@ -126,6 +129,52 @@ const getMessages = asyncHandler(async (req, res) => {
         query.questionIndex = Number(req.query.questionIndex);
     }
 
+    // Apply search keyword filter
+    if (req.query.search) {
+        query.text = { $regex: req.query.search, $options: 'i' };
+    }
+
+    // Apply date filter (YYYY-MM-DD)
+    if (req.query.date) {
+        const startOfDay = new Date(req.query.date + "T00:00:00.000Z");
+        const endOfDay = new Date(req.query.date + "T23:59:59.999Z");
+        query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    } else if (!req.query.search) {
+        // Apply day-wise pagination if not searching
+        const limitDays = Number(req.query.limitDays) || 3;
+        
+        let matchQuery = {
+            $or: [
+                { sender: currentUserId, receiver: new mongoose.Types.ObjectId(targetUserId) },
+                { sender: new mongoose.Types.ObjectId(targetUserId), receiver: currentUserId }
+            ]
+        };
+
+        if (req.query.test !== undefined) {
+            matchQuery.test = (req.query.test && req.query.test !== 'null') ? new mongoose.Types.ObjectId(req.query.test) : null;
+        }
+        if (req.query.questionIndex !== undefined) {
+            matchQuery.questionIndex = Number(req.query.questionIndex);
+        }
+
+        const dates = await Message.aggregate([
+            { $match: matchQuery },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }
+                }
+            },
+            { $sort: { "_id": -1 } },
+            { $limit: limitDays }
+        ]);
+
+        if (dates.length > 0) {
+            const earliestDayStr = dates[dates.length - 1]._id;
+            const startOfEarliestDay = new Date(earliestDayStr + "T00:00:00.000Z");
+            query.createdAt = { $gte: startOfEarliestDay };
+        }
+    }
+
     const messages = await Message.find(query).sort({ createdAt: 1 });
 
     res.json(messages);
@@ -135,22 +184,25 @@ const getMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/chat/messages
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
-    const { receiver, text, test, testTitle, questionIndex, questionText } = req.body;
+    const { receiver, text, test, testTitle, questionIndex, questionText, fileUrl, fileName, fileType } = req.body;
     const sender = req.user._id;
 
-    if (!receiver || !text) {
-        return res.status(400).json({ message: 'Receiver and text are required' });
+    if (!receiver || (!text && !fileUrl)) {
+        return res.status(400).json({ message: 'Receiver and either text or file are required' });
     }
 
     const message = await Message.create({
         sender,
         receiver,
-        text,
+        text: text || '',
         isRead: false,
         test: test || null,
         testTitle: testTitle || '',
         questionIndex: questionIndex !== undefined ? Number(questionIndex) : undefined,
-        questionText: questionText || ''
+        questionText: questionText || '',
+        fileUrl: fileUrl || '',
+        fileName: fileName || '',
+        fileType: fileType || ''
     });
 
     res.status(201).json(message);
@@ -261,7 +313,7 @@ const getStudentTests = asyncHandler(async (req, res) => {
 // @access  Private (Teacher)
 const getTestDoubtMessages = asyncHandler(async (req, res) => {
     const { studentId, testId } = req.params;
-    const { questionIndex } = req.query;
+    const { questionIndex, search, date, limitDays } = req.query;
 
     // Fetch all messages where this student sent a doubt about this test (to any receiver)
     // OR where any user sent a reply to this student about this test
@@ -277,8 +329,68 @@ const getTestDoubtMessages = asyncHandler(async (req, res) => {
         query.questionIndex = Number(questionIndex);
     }
 
+    // Apply search keyword filter
+    if (search) {
+        query.text = { $regex: search, $options: 'i' };
+    }
+
+    // Apply date filter (YYYY-MM-DD)
+    if (date) {
+        const startOfDay = new Date(date + "T00:00:00.000Z");
+        const endOfDay = new Date(date + "T23:59:59.999Z");
+        query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    } else if (!search) {
+        // Apply day-wise pagination if not searching
+        const limit = Number(limitDays) || 3;
+        
+        let matchQuery = {
+            test: new mongoose.Types.ObjectId(testId),
+            $or: [
+                { sender: new mongoose.Types.ObjectId(studentId) },
+                { receiver: new mongoose.Types.ObjectId(studentId) }
+            ]
+        };
+
+        if (questionIndex !== undefined) {
+            matchQuery.questionIndex = Number(questionIndex);
+        }
+
+        const dates = await Message.aggregate([
+            { $match: matchQuery },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }
+                }
+            },
+            { $sort: { "_id": -1 } },
+            { $limit: limit }
+        ]);
+
+        if (dates.length > 0) {
+            const earliestDayStr = dates[dates.length - 1]._id;
+            const startOfEarliestDay = new Date(earliestDayStr + "T00:00:00.000Z");
+            query.createdAt = { $gte: startOfEarliestDay };
+        }
+    }
+
     const messages = await Message.find(query).sort({ createdAt: 1 });
     res.json(messages);
+});
+
+// @desc    Upload file attachment for chat
+// @route   POST /api/chat/upload
+// @access  Private
+const uploadFile = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/attachments/${req.file.filename}`;
+    res.json({
+        fileUrl,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype
+    });
 });
 
 module.exports = {
@@ -288,5 +400,6 @@ module.exports = {
     markAsRead,
     editMessage,
     getStudentTests,
-    getTestDoubtMessages
+    getTestDoubtMessages,
+    uploadFile
 };

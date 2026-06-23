@@ -7,13 +7,16 @@ const {
     markAsRead,
     editMessage,
     getStudentTests,
-    getTestDoubtMessages
+    getTestDoubtMessages,
+    uploadFile
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
+const uploadAttachment = require('../middleware/uploadAttachment');
 
 router.get('/contacts', protect, getContacts);
 router.get('/messages/:userId', protect, getMessages);
 router.post('/messages', protect, sendMessage);
+router.post('/upload', protect, uploadAttachment.single('file'), uploadFile);
 router.put('/messages/:userId/read', protect, markAsRead);
 router.put('/messages/:id', protect, editMessage);
 router.get('/student-tests/:studentId', protect, getStudentTests);

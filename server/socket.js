@@ -16,11 +16,12 @@ const initSocket = (server) => {
         console.log(`[SOCKET] Socket connected: ${socket.id}`);
 
         // Register user
-        socket.on('register', ({ userId, role }) => {
+        socket.on('register', ({ userId, role, name }) => {
             if (userId) {
                 onlineUsers[userId] = socket.id;
                 socket.userId = userId;
                 socket.userRole = role;
+                socket.userName = name || '';
                 console.log(`[SOCKET] User registered: ${userId} (${role})`);
                 io.emit('online-status-update', Object.keys(onlineUsers));
             }
@@ -168,6 +169,7 @@ const initSocket = (server) => {
                 io.to(receiverSocketId).emit('receive-message', {
                     ...payload,
                     sender: socket.userId,
+                    senderName: socket.userName || payload.senderName || '',
                     receiver: receiverId
                 });
             } else {
@@ -188,20 +190,24 @@ const initSocket = (server) => {
             }
         });
 
-        socket.on('typing', ({ targetId }) => {
+        socket.on('typing', (data) => {
+            const { targetId } = data || {};
             const targetSocketId = onlineUsers[targetId];
             if (targetSocketId) {
                 io.to(targetSocketId).emit('typing-status', {
+                    ...data,
                     senderId: socket.userId,
                     isTyping: true
                 });
             }
         });
 
-        socket.on('stop-typing', ({ targetId }) => {
+        socket.on('stop-typing', (data) => {
+            const { targetId } = data || {};
             const targetSocketId = onlineUsers[targetId];
             if (targetSocketId) {
                 io.to(targetSocketId).emit('typing-status', {
+                    ...data,
                     senderId: socket.userId,
                     isTyping: false
                 });

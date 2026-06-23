@@ -13,7 +13,19 @@ const messageSchema = new mongoose.Schema({
     },
     text: {
         type: String,
-        required: true
+        default: ''
+    },
+    fileUrl: {
+        type: String,
+        default: ''
+    },
+    fileName: {
+        type: String,
+        default: ''
+    },
+    fileType: {
+        type: String,
+        default: ''
     },
     isRead: {
         type: Boolean,

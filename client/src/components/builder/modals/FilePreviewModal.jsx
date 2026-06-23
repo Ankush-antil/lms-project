@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X, FileText, Download } from 'lucide-react';
 
 const FilePreviewModal = ({
@@ -23,7 +24,7 @@ const FilePreviewModal = ({
         return 'Unsupported text format or failed to read content.';
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
                 {/* Modal Header */}
@@ -125,7 +126,8 @@ const FilePreviewModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

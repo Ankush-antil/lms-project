@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,7 +33,7 @@ const LogicalSettingsModal = ({
         toast.success('Logical settings saved!');
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-2">
             <div className="bg-white rounded-2xl max-w-[380px] w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
                 {/* Modal Header */}
@@ -150,7 +151,8 @@ const LogicalSettingsModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

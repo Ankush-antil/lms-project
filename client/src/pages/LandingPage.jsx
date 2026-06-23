@@ -7,7 +7,7 @@ import {
     BookOpen, Building, GraduationCap, Lock, Mail, Phone, Key, 
     CheckCircle, Clock, ArrowRight, ChevronDown, LogOut, Compass, 
     FileText, User, MapPin, Send, HelpCircle, X, ShieldAlert,
-    Sparkles, Shield, Award, MessageSquare, Video
+    Sparkles, Shield, Award, MessageSquare, Video, Eye, EyeOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -54,6 +54,7 @@ const LandingPage = () => {
     // Login Form State
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
+    const [showLoginPassword, setShowLoginPassword] = useState(false);
     const [loginLoading, setLoginLoading] = useState(false);
     const [loginError, setLoginError] = useState('');
 
@@ -1352,13 +1353,20 @@ const LandingPage = () => {
                                                     <div className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5">
                                                         <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Password</label>
                                                         <input
-                                                            type="password"
+                                                            type={showLoginPassword ? "text" : "password"}
                                                             value={loginPassword}
                                                             onChange={(e) => setLoginPassword(e.target.value)}
                                                             required
                                                             placeholder="Enter password"
-                                                            className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-1 placeholder-slate-300"
+                                                            className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-1 pr-8 placeholder-slate-300"
                                                         />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                                            className="absolute right-0 bottom-1.5 text-slate-400 hover:text-[#0b1329] transition-colors"
+                                                        >
+                                                            {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                        </button>
                                                     </div>
                                                 </div>
 

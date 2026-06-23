@@ -13,8 +13,25 @@ import { useAuth } from '../context/AuthContext';
 
 const LandingPage = () => {
     const navigate = useNavigate();
-    const { user, login, logout } = useAuth();
+    const { user, loading, login, logout } = useAuth();
     
+    // Redirect authenticated users (e.g. Student) to their dashboard
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role === 'Student') {
+                navigate('/student/tests');
+            } else if (user.role === 'Admin') {
+                navigate('/admin');
+            } else if (user.role === 'Teacher') {
+                navigate('/teacher');
+            } else if (user.role === 'Editor') {
+                navigate('/editor');
+            } else if (user.role === 'Institute') {
+                navigate('/institute');
+            }
+        }
+    }, [user, loading, navigate]);
+
     // Guest Session state
     const [guestSession, setGuestSession] = useState(() => {
         const saved = localStorage.getItem('lms_guest_session');
@@ -342,6 +359,14 @@ const LandingPage = () => {
             setApplyLoading(false);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans select-none relative overflow-x-hidden">

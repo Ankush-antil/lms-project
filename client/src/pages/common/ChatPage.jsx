@@ -1,17 +1,20 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
     Search, Send, Phone, Video, MessageSquare, 
-    MoreVertical, User, Circle, ArrowLeft, Pencil 
+    MoreVertical, User, Circle, ArrowLeft, Pencil,
+    Paperclip, File, Download, X, Loader2
 } from 'lucide-react';
 
 const ChatPage = () => {
     const { user } = useAuth();
-    const { socket, onlineUsers, callUser } = useSocket();
+    const { socket, onlineUsers, callUser, setChatNotifications } = useSocket();
+    const location = useLocation();
 
     const [contacts, setContacts] = useState([]);
     const [selectedContact, setSelectedContact] = useState(null);
@@ -21,6 +24,7 @@ const ChatPage = () => {
     const [loadingContacts, setLoadingContacts] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [isDoubtTyping, setIsDoubtTyping] = useState(false);
     const [mobileActiveTab, setMobileActiveTab] = useState('list'); // 'list' | 'chat'
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [showOriginalMap, setShowOriginalMap] = useState({});
@@ -44,6 +48,41 @@ const ChatPage = () => {
 
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const pendingContactIdRef = useRef(null);   // holds openContactId from notification
+    const pendingDoubtRef = useRef(null);        // holds { testId, questionIndex } from doubt notification
+
+    // File attachment states & refs
+    const [attachedFile, setAttachedFile] = useState(null);
+    const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const [uploadingFileName, setUploadingFileName] = useState('');
+    const fileInputRef = useRef(null);
+    const scrollContainerRef = useRef(null);
+
+    // Infinite pagination & Search states
+    const [limitDays, setLimitDays] = useState(3);
+    const [doubtLimitDays, setDoubtLimitDays] = useState(3);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchKeyword, setSearchKeyword] = useState('');
+    const [searchDate, setSearchDate] = useState('');
+
+    const prevLimitDays = useRef(3);
+    const prevDoubtLimitDays = useRef(3);
+
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const oldScrollHeightRef = useRef(0);
+
+    // Refs to keep socket handler always reading current state (avoids stale closure)
+    const selectedContactRef = useRef(null);
+    const selectedTestIdRef = useRef(null);
+    const selectedQuestionIndexRef = useRef(null);
+    const userRef = useRef(user);
+
+
+    // Keep refs in sync with current state
+    useEffect(() => { selectedContactRef.current = selectedContact; }, [selectedContact]);
+    useEffect(() => { selectedTestIdRef.current = selectedTestId; }, [selectedTestId]);
+    useEffect(() => { selectedQuestionIndexRef.current = selectedQuestionIndex; }, [selectedQuestionIndex]);
+    useEffect(() => { userRef.current = user; }, [user]);
 
     // Fetch contacts list
     const fetchContacts = async () => {
@@ -52,6 +91,21 @@ const ChatPage = () => {
             const { data } = await axios.get('/api/chat/contacts');
             setContacts(data);
             setLoadingContacts(false);
+            // If navigated from a notification, auto-select the contact immediately
+            // (no extra render cycle — eliminates blink)
+            const pendingId = pendingContactIdRef.current;
+            if (pendingId) {
+                const match = data.find(c => String(c._id) === String(pendingId));
+                if (match) {
+                    setSelectedContact(match);
+                    setMobileActiveTab('chat');
+                    // If it's a doubt notification, open the test sidebar right away
+                    if (pendingDoubtRef.current) {
+                        setShowSidebarTests(true);
+                    }
+                }
+                pendingContactIdRef.current = null;
+            }
         } catch (error) {
             console.error("Error loading chat contacts:", error);
             toast.error("Failed to load contacts");
@@ -60,39 +114,67 @@ const ChatPage = () => {
     };
 
     useEffect(() => {
+        // Capture openContactId (and doubt context) from notification BEFORE fetching
+        pendingContactIdRef.current = location.state?.openContactId || null;
+        if (location.state?.isDoubt && location.state?.testId != null) {
+            pendingDoubtRef.current = {
+                testId: String(location.state.testId),
+                questionIndex: location.state.questionIndex
+            };
+        }
         fetchContacts();
+        // Clear all chat notifications — user is now on the chat page
+        setChatNotifications([]);
     }, []);
 
-    // Load messages when contact is selected
+    // Handle notification click when user is ALREADY on the chat page
+    // (component doesn't remount so the above useEffect[] won't run again)
+    useEffect(() => {
+        const openId = location.state?.openContactId;
+        if (!openId) return;
+
+        // Clear the notification
+        setChatNotifications(prev => prev.filter(n => String(n.senderId) !== String(openId)));
+
+        // If it's a doubt notification, store the context
+        if (location.state?.isDoubt && location.state?.testId != null) {
+            pendingDoubtRef.current = {
+                testId: String(location.state.testId),
+                questionIndex: location.state.questionIndex
+            };
+        } else {
+            pendingDoubtRef.current = null;
+        }
+
+        if (contacts.length > 0) {
+            // Contacts already loaded — select immediately
+            const match = contacts.find(c => String(c._id) === String(openId));
+            if (match) {
+                setSelectedContact(match);
+                setMobileActiveTab('chat');
+                // If doubt, open the test sidebar (student tests fetch will fire)
+                if (pendingDoubtRef.current) {
+                    setShowSidebarTests(true);
+                }
+            }
+        } else {
+            // Contacts not yet loaded — store for fetchContacts to pick up
+            pendingContactIdRef.current = openId;
+        }
+    }, [location.state?.openContactId]); // eslint-disable-line
+
+
+    // Reset states when contact is selected
     useEffect(() => {
         if (!selectedContact) return;
-
-        const fetchMessages = async () => {
-            try {
-                setLoadingMessages(true);
-                const { data } = await axios.get(`/api/chat/messages/${selectedContact._id}`);
-                setMessages(data);
-                setLoadingMessages(false);
-                
-                // Mark as read
-                await axios.put(`/api/chat/messages/${selectedContact._id}/read`);
-                
-                // Reset unread count locally
-                setContacts(prev => prev.map(c => 
-                    c._id === selectedContact._id ? { ...c, unreadCount: 0 } : c
-                ));
-
-                // Scroll to bottom
-                scrollToBottom();
-            } catch (error) {
-                console.error("Error loading message history:", error);
-                toast.error("Failed to load chat history");
-                setLoadingMessages(false);
-            }
-        };
-
-        fetchMessages();
-        setIsTyping(false); // Reset typing status when switching contacts
+        setMessages([]); // Clear previous messages
+        setLimitDays(3);
+        setDoubtLimitDays(3);
+        setSearchKeyword('');
+        setSearchDate('');
+        setShowSearch(false);
+        setIsTyping(false);
+        setIsDoubtTyping(false);
         setSelectedTestId(null);
         setSelectedQuestionIndex(null);
         setShowSidebarTests(false);
@@ -103,23 +185,97 @@ const ChatPage = () => {
         setDoubtMessages([]);
         setAllStudentTestMessages([]);
         setTestDoubtCounts({});
+        setAttachedFile(null);
+        setIsUploadingFile(false);
+        prevLimitDays.current = 3;
+        prevDoubtLimitDays.current = 3;
     }, [selectedContact]);
 
-    // Load student tests when "Test Relevant Chat" is enabled
+    // Load messages when contact, limitDays, or search queries change
     useEffect(() => {
-        if (!showSidebarTests || !selectedContact || selectedContact.role !== 'Student' || user.role !== 'Teacher') {
+        if (!selectedContact) return;
+
+        const fetchMessages = async () => {
+            try {
+                const isInitial = limitDays === 3;
+                if (isInitial || searchKeyword || searchDate) {
+                    setLoadingMessages(true);
+                } else {
+                    setIsFetchingMore(true);
+                }
+
+                let url = `/api/chat/messages/${selectedContact._id}?limitDays=${limitDays}`;
+                if (searchKeyword) url += `&search=${encodeURIComponent(searchKeyword)}`;
+                if (searchDate) url += `&date=${searchDate}`;
+
+                const { data } = await axios.get(url);
+
+                setMessages(data);
+
+                // Scroll to bottom on initial fetch or search update
+                if (limitDays === 3 || searchKeyword || searchDate) {
+                    scrollToBottom();
+                }
+
+                // Mark as read (only if not searching)
+                if (!searchKeyword && !searchDate) {
+                    await axios.put(`/api/chat/messages/${selectedContact._id}/read`);
+                    setContacts(prev => prev.map(c => 
+                        c._id === selectedContact._id ? { ...c, unreadCount: 0 } : c
+                    ));
+                }
+            } catch (error) {
+                console.error("Error loading message history:", error);
+                toast.error("Failed to load chat history");
+            } finally {
+                setLoadingMessages(false);
+                setIsFetchingMore(false);
+            }
+        };
+
+        fetchMessages();
+    }, [selectedContact, limitDays, searchKeyword, searchDate]);
+
+    // Load student tests when "Test Relevant Chat" is enabled
+    // Works for both Teacher (viewing student's tests) and Student (viewing their own tests)
+    useEffect(() => {
+        const isTeacherViewingStudent = showSidebarTests && selectedContact && selectedContact.role === 'Student' && user.role === 'Teacher';
+        const isStudentViewingOwn = showSidebarTests && user.role === 'Student' && selectedContact && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin');
+
+        if (!isTeacherViewingStudent && !isStudentViewingOwn) {
             return;
         }
+
+        // For teacher: fetch the selected student's tests. For student: fetch their own tests.
+        const targetStudentId = user.role === 'Student' ? user._id : selectedContact._id;
 
         const fetchStudentTests = async () => {
             try {
                 setLoadingStudentTests(true);
-                const { data } = await axios.get(`/api/chat/student-tests/${selectedContact._id}`);
+                const { data } = await axios.get(`/api/chat/student-tests/${targetStudentId}`);
                 setStudentTests(data);
                 setLoadingStudentTests(false);
+
+                // If we came from a doubt notification, auto-select the test+question
+                const pending = pendingDoubtRef.current;
+                if (pending && pending.testId) {
+                    const matchTest = data.find(t => String(t._id) === pending.testId);
+                    if (matchTest) {
+                        // Expand the inbox that contains this test
+                        const inboxId = matchTest.index || 'No Index';
+                        setSelectedInboxId(inboxId);
+                        setExpandedInboxId(inboxId);
+                        setExpandedTestId(String(matchTest._id));
+                        setSelectedTestId(String(matchTest._id));
+                        if (pending.questionIndex !== null && pending.questionIndex !== undefined) {
+                            setSelectedQuestionIndex(pending.questionIndex);
+                        }
+                    }
+                    pendingDoubtRef.current = null;
+                }
             } catch (error) {
                 console.error("Error loading student tests:", error);
-                toast.error("Failed to load student's assigned tests");
+                toast.error("Failed to load assigned tests");
                 setLoadingStudentTests(false);
             }
         };
@@ -127,52 +283,81 @@ const ChatPage = () => {
         fetchStudentTests();
     }, [showSidebarTests, selectedContact, user]);
 
-    // Load all test messages for this student (for detecting active doubts in inbox grid)
+    // Load all test messages for active doubt detection in inbox grid
     useEffect(() => {
-        if (!showSidebarTests || !selectedContact || selectedContact.role !== 'Student' || user.role !== 'Teacher') {
+        const isTeacherViewingStudent = showSidebarTests && selectedContact && selectedContact.role === 'Student' && user.role === 'Teacher';
+        const isStudentViewingOwn = showSidebarTests && user.role === 'Student' && selectedContact && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin');
+
+        if (!isTeacherViewingStudent && !isStudentViewingOwn) {
             return;
         }
 
+        const contactId = selectedContact._id;
         const fetchAllTestMessages = async () => {
             try {
-                // Fetch ALL messages for this student that have test context using a broad query
-                // We get this from the general messages endpoint but also via the test endpoint
-                // Use a broad query by getting messages with test field set
-                const { data } = await axios.get(`/api/chat/messages/${selectedContact._id}`);
+                const { data } = await axios.get(`/api/chat/messages/${contactId}`);
                 setAllStudentTestMessages(data.filter(m => m.test));
             } catch (error) {
-                console.error('Error loading student test messages for active doubt detection:', error);
+                console.error('Error loading test messages for active doubt detection:', error);
             }
         };
 
         fetchAllTestMessages();
     }, [showSidebarTests, selectedContact, user]);
 
-    // Load doubt messages when a specific test question is selected (uses new broad endpoint)
+    // Reset doubt limits when test or question index changes
     useEffect(() => {
+        setDoubtLimitDays(3);
+        setDoubtMessages([]);
+        setIsDoubtTyping(false);
+        prevDoubtLimitDays.current = 3;
+    }, [selectedTestId, selectedQuestionIndex]);
+
+    // Load doubt messages when a specific test question is selected
+    // For teacher: fetch by student (selectedContact._id)
+    // For student: fetch by their own ID
+    useEffect(() => {
+        setAttachedFile(null);
+        setIsUploadingFile(false);
         if (!selectedContact || selectedTestId === null || selectedQuestionIndex === null) {
             setDoubtMessages([]);
             return;
         }
 
+        const targetStudentId = user.role === 'Student' ? user._id : selectedContact._id;
+
         const fetchDoubtMessages = async () => {
             try {
-                setLoadingDoubtMessages(true);
-                const { data } = await axios.get(
-                    `/api/chat/test-doubt-messages/${selectedContact._id}/${selectedTestId}?questionIndex=${selectedQuestionIndex}`
-                );
+                const isInitial = doubtLimitDays === 3;
+                if (isInitial || searchKeyword || searchDate) {
+                    setLoadingDoubtMessages(true);
+                } else {
+                    setIsFetchingMore(true);
+                }
+
+                let url = `/api/chat/test-doubt-messages/${targetStudentId}/${selectedTestId}?questionIndex=${selectedQuestionIndex}&limitDays=${doubtLimitDays}`;
+                if (searchKeyword) url += `&search=${encodeURIComponent(searchKeyword)}`;
+                if (searchDate) url += `&date=${searchDate}`;
+
+                const { data } = await axios.get(url);
+
                 setDoubtMessages(data);
-                setLoadingDoubtMessages(false);
-                scrollToBottom();
+
+                // Scroll to bottom on initial load or search update
+                if (doubtLimitDays === 3 || searchKeyword || searchDate) {
+                    scrollToBottom();
+                }
             } catch (error) {
                 console.error('Error loading doubt messages:', error);
                 toast.error('Failed to load doubt chat');
+            } finally {
                 setLoadingDoubtMessages(false);
+                setIsFetchingMore(false);
             }
         };
 
         fetchDoubtMessages();
-    }, [selectedContact, selectedTestId, selectedQuestionIndex]);
+    }, [selectedContact, selectedTestId, selectedQuestionIndex, doubtLimitDays, searchKeyword, searchDate, user]);
 
     // Also fetch ALL messages for the student across all tests (so inbox grid can detect active doubts)
     // We do this separately by querying test-doubt-messages for each test in the inbox
@@ -181,6 +366,9 @@ const ChatPage = () => {
     // Populate testDoubtCounts when the inbox changes or studentTests loads
     useEffect(() => {
         if (!selectedContact || !selectedInboxId || studentTests.length === 0) return;
+
+        // For teacher: look up by student (selectedContact._id). For student: use own ID.
+        const targetStudentId = user.role === 'Student' ? user._id : selectedContact._id;
 
         const inbox = studentTests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
@@ -196,7 +384,7 @@ const ChatPage = () => {
             await Promise.all(testsInInbox.map(async (test) => {
                 try {
                     const { data } = await axios.get(
-                        `/api/chat/test-doubt-messages/${selectedContact._id}/${test._id}`
+                        `/api/chat/test-doubt-messages/${targetStudentId}/${test._id}`
                     );
                     if (data.length > 0) {
                         const qMap = {};
@@ -217,7 +405,7 @@ const ChatPage = () => {
         };
 
         fetchCounts();
-    }, [selectedContact, selectedInboxId, studentTests]);
+    }, [selectedContact, selectedInboxId, studentTests, user]);
 
     const getDisplayTitle = (title) => {
         if (!title) return 'Inbox No';
@@ -253,18 +441,25 @@ const ChatPage = () => {
     }, [studentTests]);
 
     // Handle real-time socket events for chat
+    // Uses refs so the handler always has current values without re-registering on every state change
     useEffect(() => {
         if (!socket) return;
 
         const handleReceiveMessage = (msg) => {
-            // If it's a test doubt message from the currently selected student
-            if (selectedContact && msg.sender === selectedContact._id && msg.test) {
-                // If the teacher is currently viewing this exact doubt question, append to doubtMessages
-                if (String(msg.test) === String(selectedTestId) && msg.questionIndex === selectedQuestionIndex) {
+            const curContact = selectedContactRef.current;
+            const curTestId = selectedTestIdRef.current;
+            const curQIndex = selectedQuestionIndexRef.current;
+            const curUser = userRef.current;
+
+            // If it's a test doubt message
+            const isDoubtMsgFromContact = curContact && msg.sender === curContact._id && msg.test;
+            const isDoubtReplyToStudent = curUser?.role === 'Student' && msg.receiver === curUser._id && msg.test && String(msg.test) === String(curTestId);
+
+            if (isDoubtMsgFromContact || isDoubtReplyToStudent) {
+                if (String(msg.test) === String(curTestId) && msg.questionIndex === curQIndex) {
                     setDoubtMessages(prev => [...prev, msg]);
                     scrollToBottom();
                 }
-                // Also bump the testDoubtCounts for real-time indicator update
                 if (msg.questionIndex !== undefined) {
                     setTestDoubtCounts(prev => {
                         const testId = String(msg.test);
@@ -281,52 +476,58 @@ const ChatPage = () => {
                 return;
             }
 
-            // Check if message is from the currently active contact (general chat)
-            if (selectedContact && msg.sender === selectedContact._id && !msg.test) {
+            // General chat message from the currently open contact
+            if (curContact && msg.sender === curContact._id && !msg.test) {
                 setMessages(prev => [...prev, msg]);
                 scrollToBottom();
-                
-                // Mark this message as read in database
-                axios.put(`/api/chat/messages/${selectedContact._id}/read`).catch(err => {
-                    console.error("Error marking message as read:", err);
+                axios.put(`/api/chat/messages/${curContact._id}/read`).catch(err => {
+                    console.error('Error marking message as read:', err);
                 });
-            } else if (!selectedContact || msg.sender !== selectedContact._id) {
-                // Increment unread count for that contact in the list
+            } else {
+                // Message from someone else — bump unread count
                 setContacts(prev => prev.map(c => {
                     if (c._id === msg.sender) {
-                        return { 
-                            ...c, 
+                        return {
+                            ...c,
                             unreadCount: (c.unreadCount || 0) + 1,
                             lastMessage: {
-                                text: msg.text,
+                                text: msg.text || (msg.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document'),
                                 sender: msg.sender,
-                                createdAt: msg.createdAt
+                                createdAt: msg.createdAt,
+                                fileUrl: msg.fileUrl,
+                                fileName: msg.fileName,
+                                fileType: msg.fileType
                             }
                         };
                     }
                     return c;
                 }));
-                // Try playing alert sound or show a toast notification
-                toast.success(`New message from contact!`);
             }
         };
 
-        const handleTypingStatus = ({ senderId, isTyping: typing }) => {
-            if (selectedContact && senderId === selectedContact._id) {
-                setIsTyping(typing);
+        const handleTypingStatus = (data) => {
+            console.log("[SOCKET] Received typing-status:", data);
+            const { senderId, isTyping: typing, test, questionIndex } = data || {};
+            console.log("[SOCKET] Current Refs: contactId =", selectedContactRef.current?._id, "testId =", selectedTestIdRef.current, "qIndex =", selectedQuestionIndexRef.current);
+            if (selectedContactRef.current && senderId === selectedContactRef.current._id) {
+                if (test && questionIndex !== undefined) {
+                    const matchTest = String(test) === String(selectedTestIdRef.current);
+                    const matchQ = String(questionIndex) === String(selectedQuestionIndexRef.current);
+                    console.log("[SOCKET] Doubt typing check: matchTest =", matchTest, "matchQ =", matchQ);
+                    if (matchTest && matchQ) {
+                        setIsDoubtTyping(typing);
+                    } else {
+                        setIsDoubtTyping(false);
+                    }
+                } else {
+                    setIsTyping(typing);
+                }
             }
         };
 
         const handleMessageEdited = ({ messageId, text, isEdited, originalText }) => {
             setMessages(prev => prev.map(m => {
-                if (m._id === messageId) {
-                    return {
-                        ...m,
-                        text,
-                        isEdited,
-                        originalText
-                    };
-                }
+                if (m._id === messageId) return { ...m, text, isEdited, originalText };
                 return m;
             }));
         };
@@ -340,14 +541,106 @@ const ChatPage = () => {
             socket.off('typing-status', handleTypingStatus);
             socket.off('message-edited', handleMessageEdited);
         };
-    }, [socket, selectedContact]);
+    }, [socket]); // Only re-register when socket itself changes — refs handle the rest
+
+
+    const prevMessagesLength = useRef(0);
+    const prevDoubtLength = useRef(0);
 
     // Auto-scroll logic
-    const scrollToBottom = () => {
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+    const scrollToBottom = (behavior = 'smooth') => {
+        const doScroll = () => {
+            const container = scrollContainerRef.current;
+            const end = messagesEndRef.current;
+            if (container) {
+                if (behavior === 'auto') {
+                    container.scrollTop = container.scrollHeight;
+                } else {
+                    container.scrollTo({
+                        top: container.scrollHeight,
+                        behavior
+                    });
+                }
+            }
+            // Double fallback using scrollIntoView
+            end?.scrollIntoView({ behavior: behavior === 'auto' ? 'auto' : 'smooth' });
+        };
+
+        // Scroll immediately
+        doScroll();
+        
+        // Scroll again progressively to account for DOM layout passes, style applications, and image/media loading
+        setTimeout(doScroll, 50);
+        setTimeout(doScroll, 150);
+        setTimeout(doScroll, 300);
+        setTimeout(doScroll, 600);
+        setTimeout(doScroll, 1000);
     };
+
+    const handleScroll = (e) => {
+        const container = e.currentTarget;
+        if (container.scrollTop === 0 && !loadingMessages && !loadingDoubtMessages && !isFetchingMore && !searchKeyword && !searchDate) {
+            const isDoubt = selectedTestId !== null && selectedQuestionIndex !== null;
+            if (isDoubt) {
+                if (container.scrollHeight > container.clientHeight) {
+                    oldScrollHeightRef.current = container.scrollHeight;
+                    setDoubtLimitDays(prev => prev + 1);
+                }
+            } else {
+                if (container.scrollHeight > container.clientHeight) {
+                    oldScrollHeightRef.current = container.scrollHeight;
+                    setLimitDays(prev => prev + 1);
+                }
+            }
+        }
+    };
+
+    // Auto scroll when general messages update
+    useEffect(() => {
+        if (!loadingMessages && messages.length > 0) {
+            if (limitDays === prevLimitDays.current) {
+                const behavior = messages.length - prevMessagesLength.current === 1 ? 'smooth' : 'auto';
+                scrollToBottom(behavior);
+            }
+        }
+        prevMessagesLength.current = messages.length;
+        prevLimitDays.current = limitDays;
+    }, [loadingMessages, messages, limitDays]);
+
+    // Auto scroll when doubt messages update
+    useEffect(() => {
+        if (!loadingDoubtMessages && doubtMessages.length > 0) {
+            if (doubtLimitDays === prevDoubtLimitDays.current) {
+                const behavior = doubtMessages.length - prevDoubtLength.current === 1 ? 'smooth' : 'auto';
+                scrollToBottom(behavior);
+            }
+        }
+        prevDoubtLength.current = doubtMessages.length;
+        prevDoubtLimitDays.current = doubtLimitDays;
+    }, [loadingDoubtMessages, doubtMessages, doubtLimitDays]);
+
+    // Auto scroll to bottom when typing status starts
+    useEffect(() => {
+        if (isTyping) {
+            scrollToBottom('smooth');
+        }
+    }, [isTyping]);
+
+    useEffect(() => {
+        if (isDoubtTyping) {
+            scrollToBottom('smooth');
+        }
+    }, [isDoubtTyping]);
+
+    // Zero-jitter Scroll Restoration for pagination prepending
+    useLayoutEffect(() => {
+        const container = scrollContainerRef.current;
+        if (container && oldScrollHeightRef.current > 0) {
+            const newHeight = container.scrollHeight;
+            container.scrollTop = newHeight - oldScrollHeightRef.current;
+            oldScrollHeightRef.current = 0; // reset
+        }
+    }, [messages, doubtMessages]);
 
     const startEditing = (msg) => {
         setEditingMessageId(msg._id);
@@ -360,15 +653,60 @@ const ChatPage = () => {
         handleStopTyping();
     };
 
+    // File upload logic
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Reset file input value so same file can be selected again
+        e.target.value = '';
+
+        if (file.size > 50 * 1024 * 1024) {
+            toast.error("File size cannot exceed 50MB");
+            return;
+        }
+
+        setUploadingFileName(file.name);
+        setIsUploadingFile(true);
+        setAttachedFile(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { data } = await axios.post('/api/chat/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            setAttachedFile({
+                fileUrl: data.fileUrl,
+                fileName: data.fileName,
+                fileType: data.fileType
+            });
+            toast.success("File uploaded successfully");
+        } catch (error) {
+            console.error("File upload failed:", error);
+            toast.error(error.response?.data?.message || "File upload failed");
+        } finally {
+            setIsUploadingFile(false);
+        }
+    };
+
+    const clearAttachment = () => {
+        setAttachedFile(null);
+        setIsUploadingFile(false);
+        setUploadingFileName('');
+    };
+
     // Send or edit chat message
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedContact) return;
-
-        const messageText = newMessage;
-        setNewMessage('');
-
         if (editingMessageId) {
+            if (!newMessage.trim()) return;
+            const messageText = newMessage;
+            setNewMessage('');
             try {
                 const originalMsg = messages.find(m => m._id === editingMessageId);
                 const originalTextVal = originalMsg ? (originalMsg.originalText || originalMsg.text) : '';
@@ -412,17 +750,30 @@ const ChatPage = () => {
             return;
         }
 
+        if (!newMessage.trim() && !attachedFile) return;
+        if (!selectedContact) return;
+
+        const messageText = newMessage;
+        setNewMessage('');
+
+        const currentAttachment = attachedFile;
+        setAttachedFile(null);
+
         try {
             const isDoubtChat = selectedTestId !== null && selectedQuestionIndex !== null;
 
-            // For doubt chats: the student originally sent to the test creator (could be Admin/Teacher)
-            // We reply directly to the student so they receive it in their test drawer
-            const receiverId = isDoubtChat ? selectedContact._id : selectedContact._id;
+            const receiverId = selectedContact._id;
 
             const payload = {
                 receiver: receiverId,
                 text: messageText
             };
+
+            if (currentAttachment) {
+                payload.fileUrl = currentAttachment.fileUrl;
+                payload.fileName = currentAttachment.fileName;
+                payload.fileType = currentAttachment.fileType;
+            }
 
             if (isDoubtChat) {
                 const activeTest = studentTests.find(t => String(t._id) === String(selectedTestId));
@@ -453,6 +804,9 @@ const ChatPage = () => {
                     _id: data._id,
                     createdAt: data.createdAt,
                     sender: user._id,
+                    fileUrl: data.fileUrl,
+                    fileName: data.fileName,
+                    fileType: data.fileType,
                     ...(isDoubtChat ? {
                         test: selectedTestId,
                         testTitle: payload.testTitle,
@@ -468,9 +822,12 @@ const ChatPage = () => {
                     return {
                         ...c,
                         lastMessage: {
-                            text: messageText,
+                            text: messageText || (data.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document'),
                             sender: user._id,
-                            createdAt: data.createdAt
+                            createdAt: data.createdAt,
+                            fileUrl: data.fileUrl,
+                            fileName: data.fileName,
+                            fileType: data.fileType
                         }
                     };
                 }
@@ -482,6 +839,7 @@ const ChatPage = () => {
         } catch (error) {
             console.error("Failed to send message:", error);
             toast.error("Message could not be sent");
+            setAttachedFile(currentAttachment);
         }
     };
 
@@ -490,8 +848,15 @@ const ChatPage = () => {
         setNewMessage(e.target.value);
         if (!socket || !selectedContact) return;
 
-        // Emit typing status
-        socket.emit('typing', { targetId: selectedContact._id });
+        // Emit typing status using refs to prevent stale closure bugs
+        const currentTestId = selectedTestIdRef.current;
+        const currentQIndex = selectedQuestionIndexRef.current;
+        const isDoubt = currentTestId !== null && currentQIndex !== null;
+        console.log("[SOCKET] Emitting typing: target =", selectedContact._id, "isDoubt =", isDoubt, "test =", currentTestId, "qIndex =", currentQIndex);
+        socket.emit('typing', { 
+            targetId: selectedContact._id,
+            ...(isDoubt ? { test: currentTestId, questionIndex: currentQIndex } : {})
+        });
 
         // Throttle/Timeout to stop typing status after inactivity
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -502,13 +867,21 @@ const ChatPage = () => {
 
     const handleStopTyping = () => {
         if (socket && selectedContact) {
-            socket.emit('stop-typing', { targetId: selectedContact._id });
+            const currentTestId = selectedTestIdRef.current;
+            const currentQIndex = selectedQuestionIndexRef.current;
+            const isDoubt = currentTestId !== null && currentQIndex !== null;
+            socket.emit('stop-typing', { 
+                targetId: selectedContact._id,
+                ...(isDoubt ? { test: currentTestId, questionIndex: currentQIndex } : {})
+            });
         }
     };
 
     const selectContactHandler = (contact) => {
         setSelectedContact(contact);
         setMobileActiveTab('chat');
+        setSelectedTestId(null);
+        setSelectedQuestionIndex(null);
     };
 
     // Filters contacts based on search keyword
@@ -525,6 +898,22 @@ const ChatPage = () => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const renderHighlightedText = (text, keyword) => {
+        if (!keyword || !text) return text;
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+        const parts = text.split(regex);
+        return parts.map((part, index) => 
+            regex.test(part) ? (
+                <mark key={index} className="bg-yellow-200 text-slate-950 rounded-sm px-0.5 font-black">
+                    {part}
+                </mark>
+            ) : (
+                part
+            )
+        );
     };
 
     const formatContactDate = (dateStr) => {
@@ -595,10 +984,10 @@ const ChatPage = () => {
                                 Back to Directory
                             </button>
                             <h1 className="text-sm font-black text-slate-800 truncate">
-                                Test Relevant Chats
+                                {user.role === 'Student' ? 'My Test Doubts' : 'Test Relevant Chats'}
                             </h1>
                             <p className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 truncate">
-                                For: {selectedContact.name}
+                                {user.role === 'Student' ? `With: ${selectedContact.name}` : `For: ${selectedContact.name}`}
                             </p>
                         </div>
                     ) : (
@@ -623,7 +1012,9 @@ const ChatPage = () => {
                     <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
                         {showSidebarTests && selectedContact ? (
                             <div className="p-4 space-y-3 bg-slate-50/10">
-                                <span className="text-[10px] font-black uppercase text-indigo-650 tracking-wider block mb-1">ASSIGNED INBOXES</span>
+                                <span className="text-[10px] font-black uppercase text-indigo-650 tracking-wider block mb-1">
+                                    {user.role === 'Student' ? 'MY INBOXES' : 'ASSIGNED INBOXES'}
+                                </span>
                                 {loadingStudentTests ? (
                                     <div className="p-8 text-center text-slate-400 text-xs">
                                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -661,7 +1052,7 @@ const ChatPage = () => {
                                     </div>
                                 ) : (
                                     <div className="p-8 text-center text-slate-400 text-xs">
-                                        No assigned tests/inboxes found for this student.
+                                        {user.role === 'Student' ? 'No inboxes found for your account.' : 'No assigned tests/inboxes found for this student.'}
                                     </div>
                                 )}
                             </div>
@@ -683,11 +1074,7 @@ const ChatPage = () => {
                                     >
                                         {/* Clickable Header Info card */}
                                         <div
-                                            onClick={() => {
-                                                setSelectedContact(c);
-                                                setSelectedTestId(null);
-                                                setSelectedQuestionIndex(null);
-                                            }}
+                                            onClick={() => selectContactHandler(c)}
                                             className="p-4 flex items-center gap-3 cursor-pointer"
                                         >
                                             <div className="relative flex-shrink-0">
@@ -715,9 +1102,11 @@ const ChatPage = () => {
                                                 <p className="text-xs text-slate-400 truncate pr-6">
                                                     {c.lastMessage ? (
                                                         c.lastMessage.sender === user._id ? (
-                                                            <span className="font-medium text-slate-500">You: {c.lastMessage.text}</span>
+                                                            <span className="font-medium text-slate-500">
+                                                                You: {c.lastMessage.text || (c.lastMessage.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document')}
+                                                            </span>
                                                         ) : (
-                                                            c.lastMessage.text
+                                                            c.lastMessage.text || (c.lastMessage.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document')
                                                         )
                                                     ) : (
                                                         <span className="italic opacity-60">No messages yet</span>
@@ -790,7 +1179,8 @@ const ChatPage = () => {
 
                                 {/* Call Quick Action System */}
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                                            {user.role === 'Teacher' && selectedContact.role === 'Student' && (
+                                            {((user.role === 'Teacher' && selectedContact.role === 'Student') ||
+                                              (user.role === 'Student' && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin'))) && (
                                                 <button
                                                     onClick={() => {
                                                         if (selectedTestId !== null || selectedInboxId !== null) {
@@ -804,9 +1194,26 @@ const ChatPage = () => {
                                                     }}
                                                     className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
                                                 >
-                                                    {(selectedTestId !== null || selectedInboxId !== null) ? 'Show General Chat' : (showSidebarTests ? 'Hide Test Chat' : 'Test Relevant Chat')}
+                                                    {(selectedTestId !== null || selectedInboxId !== null) 
+                                                        ? 'Show General Chat' 
+                                                        : (showSidebarTests 
+                                                            ? (user.role === 'Student' ? 'Hide My Doubts' : 'Hide Test Chat') 
+                                                            : (user.role === 'Student' ? 'My Test Doubts' : 'Test Relevant Chat')
+                                                        )
+                                                    }
                                                 </button>
                                             )}
+                                    <button
+                                        onClick={() => setShowSearch(prev => !prev)}
+                                        className={`p-2.5 rounded-xl transition-all active:scale-95 shadow-sm border ${
+                                            showSearch 
+                                                ? 'bg-indigo-50 border-indigo-200 text-indigo-650' 
+                                                : 'bg-white border-slate-100 text-slate-550 hover:bg-slate-50'
+                                        }`}
+                                        title="Search Chat History"
+                                    >
+                                        <Search size={16} />
+                                    </button>
                                     <button
                                         onClick={() => callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio')}
                                         className="p-2.5 text-slate-550 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white"
@@ -823,6 +1230,45 @@ const ChatPage = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Search filters panel */}
+                            {showSearch && (
+                                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex flex-wrap gap-2.5 items-center justify-between animate-fade-in flex-shrink-0">
+                                    <div className="flex flex-1 gap-2.5 min-w-[280px]">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                            <input
+                                                type="text"
+                                                placeholder="Search messages..."
+                                                value={searchKeyword}
+                                                onChange={(e) => setSearchKeyword(e.target.value)}
+                                                className="w-full bg-white border border-slate-150 rounded-xl py-1.5 pl-9 pr-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50"
+                                            />
+                                        </div>
+                                        <div className="relative w-36 sm:w-44 flex-shrink-0">
+                                            <input
+                                                type="date"
+                                                value={searchDate}
+                                                onChange={(e) => setSearchDate(e.target.value)}
+                                                className="w-full bg-white border border-slate-150 rounded-xl py-1.5 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50"
+                                            />
+                                        </div>
+                                    </div>
+                                    {(searchKeyword || searchDate) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearchKeyword('');
+                                                setSearchDate('');
+                                            }}
+                                            className="text-xs font-black text-red-500 hover:text-red-700 flex items-center gap-1 bg-red-50 hover:bg-red-100/50 px-2.5 py-1.5 rounded-xl transition-all"
+                                        >
+                                            <X size={12} />
+                                            Clear Filters
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             {selectedTestId !== null && selectedQuestionIndex !== null ? (
                                 <>
@@ -850,39 +1296,125 @@ const ChatPage = () => {
                                     </div>
 
                                     {/* Chat Messages Scrolling Pane */}
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                        {activeQuestionMessages.map(msg => {
-                                            const isSelf = msg.sender === user._id;
-                                            return (
-                                                <div key={msg._id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${
-                                                        isSelf 
-                                                            ? 'bg-indigo-600 text-white rounded-tr-none' 
-                                                            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
-                                                    }`}>
-                                                        <p className="text-sm font-medium leading-relaxed break-words">{msg.text}</p>
-                                                        <span className={`text-[8px] font-bold block text-right mt-1 ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                                            {formatMessageTime(msg.createdAt)}
-                                                        </span>
+                                    <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+                                        {activeQuestionMessages.length === 0 ? (
+                                            <div className="text-center py-20 select-none">
+                                                <MessageSquare size={48} className="mx-auto text-slate-200 mb-3 animate-pulse" />
+                                                <h4 className="font-bold text-slate-700 text-sm">
+                                                    {(searchKeyword || searchDate) ? "No doubts found" : "No doubts raised"}
+                                                </h4>
+                                                <p className="text-slate-405 text-xs mt-1">
+                                                    {(searchKeyword || searchDate)
+                                                        ? "Try clearing your search filters to see all doubt messages."
+                                                        : "Send a message below to start discussion about this question."
+                                                    }
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            activeQuestionMessages.map(msg => {
+                                                const isSelf = msg.sender === user._id;
+                                                return (
+                                                    <div key={msg._id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${
+                                                            isSelf 
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none' 
+                                                                : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
+                                                        }`}>
+                                                            {msg.fileUrl && (
+                                                                <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
+                                                                    {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                            <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
+                                                                        </a>
+                                                                    ) : (
+                                                                        <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                                                                            <File size={24} className={isSelf ? 'text-indigo-200' : 'text-indigo-600'} />
+                                                                            <div className="flex-1 min-w-0 text-left">
+                                                                                <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
+                                                                                <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
+                                                                            </div>
+                                                                            <a 
+                                                                                href={msg.fileUrl} 
+                                                                                download={msg.fileName}
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-600'}`}
+                                                                                title="Download file"
+                                                                            >
+                                                                                <Download size={16} />
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderHighlightedText(msg.text, searchKeyword)}</p>}
+                                                            <span className={`text-[8px] font-bold block text-right mt-1 ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                                                {formatMessageTime(msg.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        {isDoubtTyping && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-white border border-slate-100 rounded-3xl rounded-tl-none px-4 py-3 flex items-center shadow-sm">
+                                                    <div className="flex gap-1 items-center select-none py-0.5">
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></span>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
+                                            </div>
+                                        )}
                                         <div ref={messagesEndRef} />
                                     </div>
 
+                                    {/* Attachment Preview Box */}
+                                    {(isUploadingFile || attachedFile) && (
+                                        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 animate-fade-in flex-shrink-0">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                {isUploadingFile ? (
+                                                    <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
+                                                ) : (
+                                                    <File size={16} className="text-indigo-600 flex-shrink-0" />
+                                                )}
+                                                <span className="text-xs font-semibold text-slate-600 truncate text-left">
+                                                    {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={clearAttachment}
+                                                className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors"
+                                                title="Remove attachment"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {/* Composer Form */}
                                     <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-100 flex gap-3 items-center flex-shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploadingFile}
+                                            className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
+                                            title="Attach File"
+                                        >
+                                            <Paperclip size={16} />
+                                        </button>
                                         <input
                                             type="text"
-                                            placeholder={`Reply to student doubt on Q${selectedQuestionIndex + 1}...`}
+                                            placeholder={user.role === 'Student' ? `Ask your doubt on Q${selectedQuestionIndex + 1}...` : `Reply to student doubt on Q${selectedQuestionIndex + 1}...`}
                                             value={newMessage}
                                             onChange={handleInputChange}
                                             className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                                         />
                                         <button
                                             type="submit"
-                                            disabled={!newMessage.trim()}
+                                            disabled={(!newMessage.trim() && !attachedFile) || isUploadingFile}
                                             className="p-3.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
                                         >
                                             <Send size={16} className="fill-current" />
@@ -906,7 +1438,10 @@ const ChatPage = () => {
                                                 {studentTests.find(t => String(t._id) === String(selectedTestId))?.title || testMap[selectedTestId]?.title || 'Untitled Test'}
                                             </h3>
                                             <p className="text-xs text-slate-400 mt-1">
-                                                Below are the questions from this test where the student has raised doubts. Select one to open the chat window.
+                                                {user.role === 'Student'
+                                                    ? 'Below are questions where you raised doubts. Select one to open the chat.'
+                                                    : 'Below are the questions from this test where the student has raised doubts. Select one to open the chat window.'
+                                                }
                                             </p>
                                         </div>
                                     </div>
@@ -967,7 +1502,10 @@ const ChatPage = () => {
                                                 {studentInboxes.find(inbox => inbox.id === selectedInboxId)?.title || `Inbox No ${selectedInboxId}`}
                                             </h3>
                                             <p className="text-xs text-slate-400 mt-1">
-                                                Select a test below to view the student's doubts and chat messages.
+                                                {user.role === 'Student'
+                                                    ? 'Select a test below to view your doubts and continue conversations.'
+                                                    : "Select a test below to view the student's doubts and chat messages."
+                                                }
                                             </p>
                                         </div>
                                     </div>
@@ -1037,7 +1575,9 @@ const ChatPage = () => {
                                                                 }`}
                                                             >
                                                                 <MessageSquare size={14} />
-                                                                {hasDoubts ? 'View Test Doubts' : 'No Doubts Raised'}
+                                                                {hasDoubts 
+                                                                    ? (user.role === 'Student' ? 'View My Doubts' : 'View Test Doubts') 
+                                                                    : 'No Doubts Raised'}
                                                             </button>
                                                         </div>
                                                     );
@@ -1049,7 +1589,7 @@ const ChatPage = () => {
                             ) : (
                                 <>
                                     {/* Message scrolling panel */}
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
                                         {loadingMessages ? (
                                             <div className="py-20 text-center text-slate-450 text-xs">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -1078,12 +1618,39 @@ const ChatPage = () => {
                                                                 ? 'bg-indigo-600 text-white rounded-tr-none' 
                                                                 : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
                                                         }`}>
-                                                            <p className="text-sm font-medium leading-relaxed break-words">{msg.text}</p>
+                                                            {msg.fileUrl && (
+                                                                <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
+                                                                    {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                            <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
+                                                                        </a>
+                                                                    ) : (
+                                                                        <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                                                                            <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-600'} />
+                                                                            <div className="flex-1 min-w-0 text-left">
+                                                                                <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
+                                                                                <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
+                                                                            </div>
+                                                                            <a 
+                                                                                href={msg.fileUrl} 
+                                                                                download={msg.fileName}
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-600'}`}
+                                                                                title="Download file"
+                                                                            >
+                                                                                <Download size={16} />
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderHighlightedText(msg.text, searchKeyword)}</p>}
                                                             
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
                                                                 <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left">
                                                                     <span className="font-bold block text-[9px] uppercase tracking-wider text-indigo-300 mb-0.5">Original message</span>
-                                                                    {msg.originalText}
+                                                                    {renderHighlightedText(msg.originalText, searchKeyword)}
                                                                 </div>
                                                             )}
 
@@ -1120,20 +1687,26 @@ const ChatPage = () => {
                                         ) : (
                                             <div className="text-center py-20 select-none">
                                                 <MessageSquare size={48} className="mx-auto text-slate-200 mb-3" />
-                                                <h4 className="font-bold text-slate-700 text-sm">Start conversation!</h4>
-                                                <p className="text-slate-400 text-xs mt-1">Send a message to start conversation with {selectedContact.name}.</p>
+                                                <h4 className="font-bold text-slate-700 text-sm">
+                                                    {(searchKeyword || searchDate) ? "No messages found" : "Start conversation!"}
+                                                </h4>
+                                                <p className="text-slate-400 text-xs mt-1">
+                                                    {(searchKeyword || searchDate)
+                                                        ? "Try clearing your search filters to see all messages."
+                                                        : `Send a message to start conversation with ${selectedContact.name}.`
+                                                    }
+                                                </p>
                                             </div>
                                         )}
 
                                         {/* Typing indicator panel */}
                                         {isTyping && (
                                             <div className="flex justify-start">
-                                                <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none px-4 py-2.5 flex items-center gap-1.5 shadow-sm text-slate-500">
-                                                    <span className="text-xs font-bold">{selectedContact.name} is typing</span>
-                                                    <div className="flex gap-0.5 items-center mt-1 select-none">
-                                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></span>
-                                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></span>
+                                                <div className="bg-white border border-slate-100 rounded-3xl rounded-tl-none px-4 py-3 flex items-center shadow-sm">
+                                                    <div className="flex gap-1 items-center select-none py-0.5">
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1159,11 +1732,44 @@ const ChatPage = () => {
                                         </div>
                                     )}
 
+                                    {/* Attachment Preview Box */}
+                                    {(isUploadingFile || attachedFile) && (
+                                        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 animate-fade-in flex-shrink-0">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                {isUploadingFile ? (
+                                                    <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
+                                                ) : (
+                                                    <File size={16} className="text-indigo-600 flex-shrink-0" />
+                                                )}
+                                                <span className="text-xs font-semibold text-slate-650 truncate text-left">
+                                                    {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={clearAttachment}
+                                                className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors"
+                                                title="Remove attachment"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {/* Message composer box */}
                                     <form 
                                         onSubmit={handleSendMessage} 
                                         className="p-4 bg-white border-t border-slate-100 flex gap-3 items-center flex-shrink-0"
                                     >
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploadingFile}
+                                            className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
+                                            title="Attach File"
+                                        >
+                                            <Paperclip size={16} />
+                                        </button>
                                         <input
                                             type="text"
                                             placeholder="Type message here..."
@@ -1173,7 +1779,7 @@ const ChatPage = () => {
                                         />
                                         <button
                                             type="submit"
-                                            disabled={!newMessage.trim()}
+                                            disabled={(!newMessage.trim() && !attachedFile) || isUploadingFile}
                                             className="p-3.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
                                         >
                                             <Send size={16} className="fill-current" />
@@ -1195,6 +1801,12 @@ const ChatPage = () => {
                     )}
                 </div>
             </div>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+            />
         </DashboardLayout>
     );
 };

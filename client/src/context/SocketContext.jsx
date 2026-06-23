@@ -11,6 +11,8 @@ export const SocketProvider = ({ children }) => {
     const [guestInfo, setGuestInfo] = useState(null);
     const [socket, setSocket] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState([]);
+    // Global chat notifications (visible in notification bar across all pages)
+    const [chatNotifications, setChatNotifications] = useState([]);
 
     const registerGuest = (name, email) => {
         const guestId = 'guest_' + email.replace(/[^a-zA-Z0-9]/g, '_');
@@ -307,6 +309,32 @@ export const SocketProvider = ({ children }) => {
             s.emit('register', { userId: activeUser._id, role: activeUser.role, name: activeUser.name });
             s.emit('get-online-users', (users) => {
                 setOnlineUsers(users);
+            });
+        });
+
+        // Global incoming message notification (for the notification bar on all pages)
+        s.on('receive-message', (msg) => {
+            const activeUser = user || guestInfo;
+            if (!activeUser) return;
+            // Only show notification bar for messages sent TO me
+            if (msg.receiver && msg.receiver !== activeUser._id) return;
+            const senderName = msg.senderName || 'Someone';
+            const preview = msg.text ? (msg.text.length > 60 ? msg.text.slice(0, 60) + '…' : msg.text) : 'Sent a message';
+            const notif = {
+                id: msg._id || Date.now().toString(),
+                senderId: msg.sender,
+                senderName,
+                text: preview,
+                isDoubt: !!msg.test,
+                testId: msg.test ? String(msg.test) : null,
+                testTitle: msg.testTitle || null,
+                questionIndex: msg.questionIndex !== undefined ? msg.questionIndex : null,
+                createdAt: msg.createdAt || new Date().toISOString()
+            };
+            setChatNotifications(prev => {
+                // Avoid duplicate by id
+                if (prev.some(n => n.id === notif.id)) return prev;
+                return [notif, ...prev].slice(0, 20); // Keep last 20
             });
         });
 
@@ -797,6 +825,8 @@ export const SocketProvider = ({ children }) => {
         <SocketContext.Provider value={{
             socket,
             onlineUsers,
+            chatNotifications,
+            setChatNotifications,
             callState,
             callInfo,
             callDuration,

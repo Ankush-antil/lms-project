@@ -12,6 +12,7 @@
     "dependencies": {
         "axios": "^1.6.2",
         "framer-motion": "^10.16.5",
+        "html2canvas": "^1.4.1",
         "lucide-react": "^0.294.0",
         "plyr": "^3.8.4",
         "plyr-react": "^6.0.0",

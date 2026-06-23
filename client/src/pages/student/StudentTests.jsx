@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
+import toast from 'react-hot-toast';
 import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
-    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye
+    Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
+    Camera, MonitorPlay, Phone
 } from 'lucide-react';
 
 const getDisplayTitle = (title) => {
@@ -367,52 +369,61 @@ const StudentTests = () => {
                             </div>
                         ) : viewMode === 'practice' ? (
                             /* --- PRACTICE TAB --- */
-                            <div className="animate-fade-in space-y-6">
+                            <div className="animate-fade-in space-y-6 text-left">
                                 <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
                                     <div className="relative z-10">
                                         <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-full tracking-widest">Interactive Practice</span>
                                         <h2 className="text-xl font-bold mt-2">Practice Through Tools</h2>
-                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Boost your performance by generating practice quizzes, flashcards, and concept maps for the current inbox syllabus.</p>
+                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Boost your performance by using our built-in screen/audio recorders, screenshot tool, and mock calling simulators.</p>
                                     </div>
                                     <div className="absolute right-4 bottom-0 opacity-10 pointer-events-none transform translate-y-4">
                                         <Sparkles size={180} />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
                                     {[
                                         {
-                                            title: "AI Quiz Generator",
-                                            desc: "Generate custom, interactive practice multiple-choice questions based on this index.",
-                                            icon: Sparkles,
-                                            color: "text-purple-600 bg-purple-50 border-purple-100"
+                                            title: "Screenshot Tool",
+                                            icon: Camera,
+                                            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
+                                            path: "/student/practice-tools/screenshot"
                                         },
                                         {
-                                            title: "Smart Flashcards",
-                                            desc: "Quickly review key terms, details, and core course concepts using interactive decks.",
-                                            icon: Layers,
-                                            color: "text-indigo-600 bg-indigo-50 border-indigo-100"
+                                            title: "Screen Recorder",
+                                            icon: Video,
+                                            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
+                                            path: "/student/practice-tools/screen-recorder"
                                         },
                                         {
-                                            title: "Mindmap Builder",
-                                            desc: "Generate mindmaps to visually map out relationships between topics in this inbox.",
-                                            icon: GitBranch,
-                                            color: "text-teal-600 bg-teal-50 border-teal-100"
+                                            title: "Voice Recorder",
+                                            icon: Mic,
+                                            color: "text-blue-600 bg-blue-50 border-blue-150 hover:border-blue-300",
+                                            path: "/student/practice-tools/voice-recorder"
+                                        },
+                                        {
+                                            title: "Video Recorder",
+                                            icon: MonitorPlay,
+                                            color: "text-purple-600 bg-purple-50 border-purple-150 hover:border-purple-300",
+                                            path: "/student/practice-tools/video-recorder"
+                                        },
+                                        {
+                                            title: "Web-Calling Tool",
+                                            icon: Phone,
+                                            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
+                                            path: "/student/practice-tools/web-calling"
                                         }
                                     ].map((tool, idx) => (
-                                        <div key={idx} className="bg-white p-4.5 rounded-2xl border border-slate-200 hover:border-[#3E3ADD] hover:shadow-md transition-all flex flex-col justify-between group">
+                                        <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between group hover:-translate-y-0.5 duration-200">
                                             <div>
-                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${tool.color} mb-3 group-hover:scale-110 transition-all`}>
-                                                    <tool.icon size={18} />
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} mb-4 group-hover:scale-105 transition-all duration-200`}>
+                                                    <tool.icon size={22} />
                                                 </div>
-                                                <h3 className="font-bold text-slate-800 text-xs">{tool.title}</h3>
-                                                <p className="text-slate-500 text-[11px] mt-1 leading-relaxed font-medium">{tool.desc}</p>
+                                                <h3 className="font-extrabold text-slate-800 text-xs tracking-tight">{tool.title}</h3>
                                             </div>
                                             <button
-                                                onClick={() => {
-                                                    alert(`${tool.title} is ready! Generating simulator...`);
-                                                }}
-                                                className="mt-4 w-full py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider"
+                                                onClick={() => navigate(tool.path)}
+                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-655 text-white rounded-xl text-[10px] font-black transition-all uppercase tracking-wider"
                                             >
                                                 Launch Tool
                                             </button>

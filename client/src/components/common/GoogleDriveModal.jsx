@@ -1,0 +1,1202 @@
+import React, { useState, useEffect } from 'react';
+import { 
+    X, CheckCircle2, ChevronRight, Lock, Eye, AlertCircle, Trash, 
+    Folder, FolderOpen, ArrowLeft, RefreshCw, LogOut, Camera, Video, 
+    Mic, Phone, FileText, Download, Loader2 
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+
+const TARGET_FOLDERS = [
+    "Screenshot Tool",
+    "Screen Recorder",
+    "Voice Recorder",
+    "Video Recorder",
+    "Web-Calling Tool"
+];
+
+const FOLDER_ICONS = {
+    "Screenshot Tool": Camera,
+    "Screen Recorder": Video,
+    "Voice Recorder": Mic,
+    "Video Recorder": Video,
+    "Web-Calling Tool": Phone
+};
+
+const FOLDER_COLORS = {
+    "Screenshot Tool": "bg-indigo-50 border-indigo-150 text-indigo-700",
+    "Screen Recorder": "bg-emerald-50 border-emerald-150 text-emerald-700",
+    "Voice Recorder": "bg-blue-50 border-blue-150 text-blue-700",
+    "Video Recorder": "bg-purple-50 border-purple-150 text-purple-700",
+    "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700"
+};
+
+const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }) => {
+    const { user } = useAuth();
+    const [step, setStep] = useState(1); // 1: Connect Account, 2: Workspace / Dashboard
+    const [selectedAccount, setSelectedAccount] = useState('');
+    const [accessToken, setAccessToken] = useState('');
+    const [googleUser, setGoogleUser] = useState(null);
+
+    // Folders & Upload state
+    const [foldersMap, setFoldersMap] = useState({}); // { name: id }
+    const [loadingFolders, setLoadingFolders] = useState(false);
+    const [selectedFolderId, setSelectedFolderId] = useState('');
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadState, setUploadState] = useState('idle'); // 'idle' | 'uploading' | 'success' | 'error'
+    const [driveFileId, setDriveFileId] = useState('');
+
+    // Tabs & History state
+    const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'history'
+    const [historyFiles, setHistoryFiles] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Multi-level History state
+    const [historyLevel, setHistoryLevel] = useState(0); // 0: Date Folders list, 1: Tool Folders list, 2: Files list
+    const [selectedDateFolder, setSelectedDateFolder] = useState(null); // { id, name }
+    const [selectedToolFolder, setSelectedToolFolder] = useState(null); // { id, name }
+    const [dateFolders, setDateFolders] = useState([]); // List of date folders in LMS folder
+
+    // Preview state
+    const [previewFile, setPreviewFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState('');
+    const [previewText, setPreviewText] = useState('');
+    const [loadingPreview, setLoadingPreview] = useState(false);
+
+    // Load GSI SDK
+    useEffect(() => {
+        const id = 'google-gsi-client';
+        if (!document.getElementById(id)) {
+            const script = document.createElement('script');
+            script.id = id;
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+    }, []);
+
+    // Set initial step and check token
+    useEffect(() => {
+        if (isOpen) {
+            // Reset states
+            setUploadProgress(0);
+            setUploadState('idle');
+            setDriveFileId('');
+            setPreviewFile(null);
+            setPreviewUrl('');
+            setPreviewText('');
+            
+            // Reset multi-level history states
+            setHistoryLevel(0);
+            setSelectedDateFolder(null);
+            setSelectedToolFolder(null);
+            setDateFolders([]);
+
+            const savedToken = localStorage.getItem('lms_google_access_token');
+            const savedUserStr = localStorage.getItem('lms_google_user');
+
+            if (savedToken && savedUserStr) {
+                try {
+                    const savedUser = JSON.parse(savedUserStr);
+                    setAccessToken(savedToken);
+                    setGoogleUser(savedUser);
+                    setSelectedAccount(savedUser.email);
+                    setStep(2);
+                    setActiveTab(fileBlob ? 'upload' : 'history');
+                    
+                    if (fileBlob) {
+                        autoSaveFlow(savedToken);
+                    } else {
+                        loadHistoryRoot(savedToken);
+                    }
+                } catch (e) {
+                    console.error("Error parsing saved Google user info:", e);
+                    clearGoogleAuth();
+                }
+            } else {
+                setStep(1);
+                setSelectedAccount('');
+                setAccessToken('');
+                setGoogleUser(null);
+            }
+        }
+    }, [isOpen, fileBlob]);
+
+    // Clean up preview URLs
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
+    const clearGoogleAuth = () => {
+        localStorage.removeItem('lms_google_access_token');
+        localStorage.removeItem('lms_google_user');
+        setAccessToken('');
+        setGoogleUser(null);
+        setSelectedAccount('');
+        setFoldersMap({});
+        setHistoryLevel(0);
+        setSelectedDateFolder(null);
+        setSelectedToolFolder(null);
+        setDateFolders([]);
+        setStep(1);
+    };
+
+    const handleGoogleSignIn = (forceSelect = false) => {
+        if (!window.google) {
+            toast.error("Google Client SDK is still loading. Please try again.");
+            return;
+        }
+
+        try {
+            const client = window.google.accounts.oauth2.initTokenClient({
+                client_id: '1091703484552-ogtcuj2470cnoh22bvke65ul96a0n5hc.apps.googleusercontent.com',
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                callback: async (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        const token = tokenResponse.access_token;
+                        setAccessToken(token);
+                        localStorage.setItem('lms_google_access_token', token);
+                        
+                        try {
+                            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                            const data = await res.json();
+                            
+                            const googleUserData = {
+                                name: data.name,
+                                email: data.email,
+                                picture: data.picture
+                            };
+                            setGoogleUser(googleUserData);
+                            localStorage.setItem('lms_google_user', JSON.stringify(googleUserData));
+                            setSelectedAccount(data.email);
+                            setStep(2);
+                            setActiveTab(fileBlob ? 'upload' : 'history');
+                            
+                            if (fileBlob) {
+                                autoSaveFlow(token);
+                            } else {
+                                loadHistoryRoot(token);
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch Google profile info:", err);
+                            const fallbackUser = {
+                                name: user?.name || 'Google User',
+                                email: user?.email || 'student.lms@gmail.com',
+                                picture: ''
+                            };
+                            setGoogleUser(fallbackUser);
+                            localStorage.setItem('lms_google_user', JSON.stringify(fallbackUser));
+                            setSelectedAccount(fallbackUser.email);
+                            setStep(2);
+                            setActiveTab(fileBlob ? 'upload' : 'history');
+                            
+                            if (fileBlob) {
+                                autoSaveFlow(token);
+                            } else {
+                                loadHistoryRoot(token);
+                            }
+                        }
+                    }
+                },
+            });
+            
+            client.requestAccessToken(forceSelect ? { prompt: 'select_account' } : undefined);
+        } catch (err) {
+            console.error("GSI token client initialization failed:", err);
+            toast.error("Failed to initialize Google Authentication.");
+        }
+    };
+
+    // Reorganize Google Drive structure and get/create directories (LMS -> date -> 5 tools)
+    const getOrCreateLmsStructure = async (token) => {
+        // 1. Check or create LMS folder in root
+        let lmsFolderId = '';
+        const lmsQuery = encodeURIComponent("name = 'LMS' and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false");
+        const lmsRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${lmsQuery}&fields=files(id)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!lmsRes.ok) throw new Error(`LMS folder query error: ${lmsRes.status}`);
+        const lmsData = await lmsRes.json();
+        if (lmsData.files && lmsData.files.length > 0) {
+            lmsFolderId = lmsData.files[0].id;
+        } else {
+            const createLms = await fetch('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: 'LMS',
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: ['root']
+                })
+            });
+            if (!createLms.ok) throw new Error(`LMS folder creation error: ${createLms.status}`);
+            const newLms = await createLms.json();
+            lmsFolderId = newLms.id;
+        }
+
+        // 2. Check or create date folder (DD-MM-YYYY) inside LMS folder
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        const todayStr = `${dd}-${mm}-${yyyy}`;
+
+        let dateFolderId = '';
+        const dateQuery = encodeURIComponent(`name = '${todayStr}' and mimeType = 'application/vnd.google-apps.folder' and '${lmsFolderId}' in parents and trashed = false`);
+        const dateRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${dateQuery}&fields=files(id)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!dateRes.ok) throw new Error(`Date folder query error: ${dateRes.status}`);
+        const dateData = await dateRes.json();
+        if (dateData.files && dateData.files.length > 0) {
+            dateFolderId = dateData.files[0].id;
+        } else {
+            const createDate = await fetch('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: todayStr,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [lmsFolderId]
+                })
+            });
+            if (!createDate.ok) throw new Error(`Date folder creation error: ${createDate.status}`);
+            const newDate = await createDate.json();
+            dateFolderId = newDate.id;
+        }
+
+        // 3. Check or create the 5 tool folders inside dateFolderId
+        const toolQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and '${dateFolderId}' in parents and trashed = false`);
+        const toolRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${toolQuery}&fields=files(id, name)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!toolRes.ok) throw new Error(`Tool folders query error: ${toolRes.status}`);
+        const toolData = await toolRes.json();
+        const existingTools = toolData.files || [];
+        const tempMap = {};
+        existingTools.forEach(f => {
+            if (TARGET_FOLDERS.includes(f.name)) {
+                tempMap[f.name] = f.id;
+            }
+        });
+
+        for (const folderName of TARGET_FOLDERS) {
+            if (!tempMap[folderName]) {
+                const createTool = await fetch('https://www.googleapis.com/drive/v3/files', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: folderName,
+                        mimeType: 'application/vnd.google-apps.folder',
+                        parents: [dateFolderId]
+                    })
+                });
+                if (!createTool.ok) throw new Error(`Tool folder creation error [${folderName}]: ${createTool.status}`);
+                const newTool = await createTool.json();
+                tempMap[folderName] = newTool.id;
+            }
+        }
+
+        return { lmsFolderId, dateFolderId, foldersMap: tempMap };
+    };
+
+    const detectDefaultFolder = (name) => {
+        if (!name) return "Screenshot Tool";
+        const lower = name.toLowerCase();
+        if (lower.includes('screenshot') || lower.includes('.png') || lower.includes('.jpg')) {
+            return "Screenshot Tool";
+        } else if (lower.includes('screen_recording') || (lower.includes('screen') && lower.includes('rec'))) {
+            return "Screen Recorder";
+        } else if (lower.includes('video_recording') || lower.includes('video') || lower.includes('.webm') || lower.includes('.mp4')) {
+            return "Video Recorder";
+        } else if (lower.includes('voice_recording') || lower.includes('voice') || lower.includes('audio') || lower.includes('.wav') || lower.includes('.mp3')) {
+            return "Voice Recorder";
+        } else if (lower.includes('call_log') || lower.includes('call') || lower.includes('.txt')) {
+            return "Web-Calling Tool";
+        }
+        return "Screenshot Tool";
+    };
+
+    // Auto save flow (creates dirs, checks files count for f1/f2/f3 index, and uploads)
+    const autoSaveFlow = async (token) => {
+        setUploadState('uploading');
+        setUploadProgress(5);
+        try {
+            // 1. Reorganize directory structure and get today's folders
+            const { foldersMap: tempMap } = await getOrCreateLmsStructure(token);
+            setFoldersMap(tempMap);
+            setUploadProgress(20);
+
+            // 2. Select default tool folder based on type
+            const defaultFolder = detectDefaultFolder(fileName);
+            const targetFolderId = tempMap[defaultFolder];
+            if (!targetFolderId) {
+                throw new Error(`Failed to map target folder for ${defaultFolder}`);
+            }
+
+            // 3. Count existing files in folder to calculate next sequential index (f1, f2...)
+            const filesQuery = encodeURIComponent(`'${targetFolderId}' in parents and trashed = false`);
+            const filesRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${filesQuery}&fields=files(id,name)`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!filesRes.ok) throw new Error(`Files listing error: ${filesRes.status}`);
+            const filesData = await filesRes.json();
+            const existingFiles = filesData.files || [];
+            
+            const nextIndex = existingFiles.length + 1;
+            const extension = fileName ? fileName.split('.').pop() : (fileBlob.type?.split('/')?.[1] || 'png');
+            const finalName = `f${nextIndex}_${defaultFolder}.${extension}`;
+
+            setUploadProgress(40);
+
+            // 4. Perform upload
+            await performUpload(token, targetFolderId, finalName);
+        } catch (err) {
+            console.error("Auto save flow error:", err);
+            setUploadState('error');
+            toast.error(err.message || "Failed to auto-save to Google Drive");
+        }
+    };
+
+    const performUpload = (token, folderId, finalName) => {
+        return new Promise((resolve, reject) => {
+            let toolType = 'screenshot';
+            const nameLower = finalName ? finalName.toLowerCase() : '';
+            if (nameLower.includes('video_recording') || nameLower.includes('video')) {
+                toolType = 'video-recorder';
+            } else if (nameLower.includes('voice_recording') || nameLower.includes('voice') || nameLower.includes('audio')) {
+                toolType = 'voice-recorder';
+            } else if (nameLower.includes('screen_recording') || nameLower.includes('screen')) {
+                toolType = 'screen-recorder';
+            } else if (nameLower.includes('call_log')) {
+                toolType = 'web-calling';
+            }
+
+            const metadata = {
+                name: finalName,
+                mimeType: fileBlob.type,
+                parents: [folderId]
+            };
+
+            const boundary = 'lms_google_drive_upload_boundary';
+            const delimiter = `\r\n--${boundary}\r\n`;
+            const closeDelimiter = `\r\n--${boundary}--`;
+
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(fileBlob);
+            reader.onload = function (e) {
+                const fileBytes = new Uint8Array(e.target.result);
+                const encoder = new TextEncoder();
+                
+                const metadataPart = 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata);
+                const mediaPartHeader = `Content-Type: ${fileBlob.type}\r\n\r\n`;
+                
+                const part1 = encoder.encode(delimiter + metadataPart + delimiter + mediaPartHeader);
+                const part2 = fileBytes;
+                const part3 = encoder.encode(closeDelimiter);
+                
+                const bodyBlob = new Blob([part1, part2, part3], { type: `multipart/related; boundary=${boundary}` });
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const pct = Math.round((event.loaded * 100) / event.total);
+                        setUploadProgress(Math.round(40 + pct * 0.6)); // Scale from 40% to 100%
+                    }
+                };
+                
+                xhr.onload = async () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const driveData = JSON.parse(xhr.responseText);
+                            setDriveFileId(driveData.id);
+
+                            // Sync local database record
+                            const formData = new FormData();
+                            formData.append('file', fileBlob, finalName);
+                            formData.append('toolType', toolType);
+                            formData.append('resolution', '1080p');
+                            formData.append('format', finalName.toLowerCase().endsWith('.jpg') ? 'JPG' : (finalName.toLowerCase().endsWith('.txt') ? 'TXT' : (finalName.toLowerCase().endsWith('.webm') ? 'WEBM' : 'PNG')));
+                            formData.append('googleDriveEmail', selectedAccount);
+
+                            await axios.post('/api/practice-files/upload', formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
+                            });
+
+                            setUploadProgress(100);
+                            setUploadState('success');
+                            if (onSaveSuccess) onSaveSuccess();
+                            resolve(driveData);
+                        } catch (err) {
+                            console.error("LMS server local registration failed:", err);
+                            // Still mark as success since Google Drive upload succeeded
+                            setUploadProgress(100);
+                            setUploadState('success');
+                            if (onSaveSuccess) onSaveSuccess();
+                            resolve({ id: driveData.id });
+                        }
+                    } else {
+                        console.error("Google Drive upload API failed:", xhr.status, xhr.responseText);
+                        setUploadState('error');
+                        reject(new Error(`Drive Upload Error (${xhr.status})`));
+                    }
+                };
+                
+                xhr.onerror = () => {
+                    setUploadState('error');
+                    reject(new Error("Network error during Drive upload."));
+                };
+                
+                xhr.send(bodyBlob);
+            };
+            
+            reader.onerror = () => {
+                setUploadState('error');
+                reject(new Error("Failed to read file buffer."));
+            };
+        });
+    };
+
+    // Load History Root (Level 0: Dates)
+    const loadHistoryRoot = async (token) => {
+        setLoadingHistory(true);
+        setHistoryLevel(0);
+        setSelectedDateFolder(null);
+        setSelectedToolFolder(null);
+        setDateFolders([]);
+        try {
+            // Find LMS folder first
+            const lmsQuery = encodeURIComponent("name = 'LMS' and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false");
+            const lmsRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${lmsQuery}&fields=files(id)`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!lmsRes.ok) throw new Error(`LMS check error: ${lmsRes.status}`);
+            const lmsData = await lmsRes.json();
+            if (!lmsData.files || lmsData.files.length === 0) {
+                setDateFolders([]);
+                return;
+            }
+            const lmsFolderId = lmsData.files[0].id;
+
+            // Fetch all date folders inside LMS folder
+            const datesQuery = encodeURIComponent(`'${lmsFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+            const datesRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${datesQuery}&fields=files(id,name,createdTime)&orderBy=name+desc`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!datesRes.ok) throw new Error(`Date folders fetch error: ${datesRes.status}`);
+            const datesData = await datesRes.json();
+            setDateFolders(datesData.files || []);
+        } catch (err) {
+            console.error("Failed to load history root:", err);
+            toast.error(`History Load Error: ${err.message}`);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    // Open Date Folder (Level 1: Tool Folders)
+    const handleOpenDateFolder = async (dateFolder) => {
+        setSelectedDateFolder(dateFolder);
+        setHistoryLevel(1);
+        setSelectedToolFolder(null);
+        setLoadingHistory(true);
+        try {
+            // Fetch tool folders inside this date folder
+            const toolQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and '${dateFolder.id}' in parents and trashed = false`);
+            const toolRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${toolQuery}&fields=files(id,name)`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (!toolRes.ok) throw new Error(`Tool folders fetch error: ${toolRes.status}`);
+            const toolData = await toolRes.json();
+            const existingFolders = toolData.files || [];
+            
+            const tempMap = {};
+            existingFolders.forEach(f => {
+                if (TARGET_FOLDERS.includes(f.name)) {
+                    tempMap[f.name] = f.id;
+                }
+            });
+            setFoldersMap(tempMap);
+        } catch (err) {
+            console.error("Failed to fetch tool folders:", err);
+            toast.error(`Failed to open date folder: ${err.message}`);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    // Open Tool Folder (Level 2: Files list)
+    const handleOpenToolFolder = async (folderName, folderId) => {
+        setSelectedToolFolder({ id: folderId, name: folderName });
+        setHistoryLevel(2);
+        setHistoryFiles([]);
+        setLoadingHistory(true);
+        try {
+            const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+            const fields = encodeURIComponent("files(id, name, mimeType, webViewLink, thumbnailLink, createdTime, size)");
+            
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`HTTP error ${res.status}: ${errText}`);
+            }
+            
+            const data = await res.json();
+            
+            // Sort files numerically by index f1, f2, f3...
+            const sortedFiles = (data.files || []).sort((a, b) => {
+                return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+            });
+            
+            setHistoryFiles(sortedFiles);
+        } catch (err) {
+            console.error("Failed to fetch folder history files:", err);
+            toast.error(`Failed to retrieve files: ${err.message}`);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    // Fetch and Preview File content directly inside the popup using alt=media
+    const handlePreviewFile = async (file) => {
+        setPreviewFile(file);
+        setLoadingPreview(true);
+        setPreviewText('');
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl('');
+        }
+
+        try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`HTTP error ${res.status}: ${errText}`);
+            }
+
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            setPreviewUrl(objectUrl);
+
+            // Read as text if file is text/log
+            if (file.mimeType.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.log')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    setPreviewText(e.target.result);
+                };
+                reader.readAsText(blob);
+            }
+        } catch (err) {
+            console.error("Failed to preview Google Drive file content:", err);
+            toast.error(`Failed to load file preview: ${err.message}`);
+            setPreviewFile(null);
+        } finally {
+            setLoadingPreview(false);
+        }
+    };
+
+    // Delete file from Google Drive
+    const handleDeleteFile = async (fileId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this file from Google Drive?");
+        if (!confirmDelete) return;
+
+        try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`HTTP error ${res.status}: ${errText}`);
+            }
+            
+            toast.success("File deleted from Google Drive!");
+            // Reload folder files
+            if (selectedToolFolder) {
+                handleOpenToolFolder(selectedToolFolder.name, selectedToolFolder.id);
+            }
+        } catch (err) {
+            console.error("Delete file from Drive failed:", err);
+            toast.error(`Failed to delete file: ${err.message}`);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]">
+                
+                {/* Header */}
+                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-2">
+                        <svg className="w-6 h-6" viewBox="0 0 48 48">
+                            <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                            <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                            <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                        </svg>
+                        <div>
+                            <span className="font-extrabold text-slate-800 text-sm tracking-tight block">Google Drive Storage</span>
+                            {googleUser && (
+                                <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
+                                    Connected: {googleUser.email}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {step === 2 && (
+                            <button 
+                                onClick={clearGoogleAuth} 
+                                className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-655 rounded-xl transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-wider border border-transparent hover:border-red-200"
+                                title="Disconnect Google Drive"
+                            >
+                                <LogOut size={13} />
+                                <span className="hidden sm:inline">Disconnect</span>
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors">
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Tabs Selector (Shown only when logged in and we have a staged file) */}
+                {step === 2 && fileBlob && uploadState !== 'uploading' && uploadState !== 'success' && (
+                    <div className="flex bg-slate-50 border-b border-slate-100 p-1.5 shrink-0 gap-1.5">
+                        <button
+                            onClick={() => {
+                                setActiveTab('upload');
+                                setPreviewFile(null);
+                            }}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-center flex items-center justify-center gap-2 ${
+                                activeTab === 'upload'
+                                    ? 'bg-[#3E3ADD] text-white shadow-md'
+                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                            }`}
+                        >
+                            <FolderOpen size={14} />
+                            Save File
+                        </button>
+                        <button
+                            onClick={() => {
+                                setActiveTab('history');
+                                setPreviewFile(null);
+                                loadHistoryRoot(accessToken);
+                            }}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-center flex items-center justify-center gap-2 ${
+                                activeTab === 'history'
+                                    ? 'bg-[#3E3ADD] text-white shadow-md'
+                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                            }`}
+                        >
+                            <RefreshCw size={14} />
+                            Drive History
+                        </button>
+                    </div>
+                )}
+
+                {/* Scrollable Main Content */}
+                <div className="flex-1 overflow-y-auto p-6 min-h-[300px]">
+                    
+                    {/* STEP 1: Connect Account */}
+                    {step === 1 && (
+                        <div className="space-y-6 py-6 text-center max-w-sm mx-auto animate-fade-in">
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-black text-slate-900 leading-tight">Sign in with Google</h3>
+                                <p className="text-xs text-slate-500 font-medium">Connect Google Drive to save and browse your practice history folders.</p>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <button
+                                    onClick={() => handleGoogleSignIn(false)}
+                                    className="w-full flex items-center justify-between p-4 border border-slate-200 hover:border-[#3E3ADD] hover:bg-[#3E3ADD]/5 rounded-2xl transition-all text-left shadow-sm cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                                            {user?.name?.[0].toUpperCase() || 'G'}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800">{user?.name || 'Google Account'}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold">{user?.email || 'Click to link'}</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={18} className="text-slate-450" />
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleGoogleSignIn(true)}
+                                    className="w-full flex items-center gap-3 p-4 border border-dashed border-slate-200 hover:border-slate-350 hover:bg-slate-50 rounded-2xl transition-all text-left cursor-pointer"
+                                >
+                                    <div className="w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-500 flex items-center justify-center font-bold text-base">
+                                        +
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-655">Use another device/account</span>
+                                </button>
+                            </div>
+                            
+                            <p className="text-[10px] text-slate-400 font-semibold leading-relaxed border-t border-slate-100 pt-4 text-left">
+                                LMS Portal requires access to upload files to your Google Drive (`drive.file` scope) and view user info. Google will share your profile parameters.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* STEP 2: Dashboard Content */}
+                    {step === 2 && (
+                        <div className="h-full">
+                            
+                            {/* TAB: UPLOAD FILE */}
+                            {activeTab === 'upload' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    {(uploadState === 'idle' || uploadState === 'uploading') && (
+                                        <div className="space-y-6 py-8 text-center animate-fade-in">
+                                            <div className="w-16 h-16 border-4 border-indigo-50 border-t-[#3E3ADD] rounded-full animate-spin mx-auto"></div>
+                                            <div className="space-y-2">
+                                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                                                    {uploadState === 'idle' ? 'Coordinating Google Drive Folders...' : 'Uploading practice file...'}
+                                                </h3>
+                                                <p className="text-xs text-slate-500 truncate max-w-sm mx-auto font-medium">Filename: {fileName}</p>
+                                            </div>
+                                            {uploadState === 'uploading' && (
+                                                <>
+                                                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200 max-w-sm mx-auto">
+                                                        <div className="bg-[#3E3ADD] h-full transition-all duration-150" style={{ width: `${uploadProgress}%` }}></div>
+                                                    </div>
+                                                    <span className="text-xs font-black text-indigo-700 block">{uploadProgress}% Uploaded</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Success upload view */}
+                                    {uploadState === 'success' && (
+                                        <div className="space-y-6 text-center py-6 animate-fade-in max-w-md mx-auto">
+                                            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100 shadow-md">
+                                                <CheckCircle2 size={36} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight">Uploaded Successfully!</h3>
+                                                <p className="text-xs text-slate-500 font-medium leading-relaxed">Your practice file has been uploaded into your selected Google Drive folder.</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-left space-y-2">
+                                                <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    <span>Target File Detail</span>
+                                                    <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-black">ACTIVE</span>
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-700 truncate">{fileName}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold">Uploaded in: <b>{detectDefaultFolder(fileName)}</b></p>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => window.open(`https://drive.google.com/file/d/${driveFileId}/view`, '_blank')}
+                                                    className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                                                >
+                                                    <Eye size={14} /> Open in Drive
+                                                </button>
+                                                <button
+                                                    onClick={onClose}
+                                                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-black transition-all uppercase tracking-wider cursor-pointer"
+                                                >
+                                                    Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Error upload view */}
+                                    {uploadState === 'error' && (
+                                        <div className="space-y-6 text-center py-6 animate-fade-in max-w-md mx-auto">
+                                            <div className="w-16 h-16 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto border border-red-100 shadow-md">
+                                                <AlertCircle size={36} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight">Upload Failed</h3>
+                                                <p className="text-xs text-slate-500 font-medium leading-relaxed">Something went wrong during folder mapping or data transfer to Google Drive.</p>
+                                            </div>
+                                            <div className="flex gap-3 mt-4">
+                                                <button
+                                                    onClick={() => autoSaveFlow(accessToken)}
+                                                    className="flex-1 py-3 bg-[#3E3ADD] hover:bg-indigo-650 text-white rounded-xl text-xs font-black transition-all uppercase tracking-wider cursor-pointer shadow-md"
+                                                >
+                                                    Retry Upload
+                                                </button>
+                                                <button
+                                                    onClick={onClose}
+                                                    className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-655 rounded-xl text-xs font-black transition-all uppercase tracking-wider cursor-pointer"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* TAB: BROWSE DRIVE HISTORY */}
+                            {activeTab === 'history' && (
+                                <div className="h-full animate-fade-in flex flex-col">
+                                    
+                                    {/* Level 0: Date Folders List */}
+                                    {historyLevel === 0 && !previewFile && (
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Drive History (Dates)</h3>
+                                                <button 
+                                                    onClick={() => loadHistoryRoot(accessToken)}
+                                                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
+                                                    title="Refresh Dates"
+                                                >
+                                                    <RefreshCw size={14} />
+                                                </button>
+                                            </div>
+
+                                            {loadingHistory ? (
+                                                <div className="flex flex-col items-center justify-center py-10 space-y-3 text-slate-400">
+                                                    <Loader2 size={24} className="animate-spin text-[#3E3ADD]" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Loading Dates...</span>
+                                                </div>
+                                            ) : dateFolders.length === 0 ? (
+                                                <div className="text-center py-12 text-slate-400">
+                                                    <FolderOpen size={32} className="mx-auto text-slate-300 mb-2" />
+                                                    <p className="text-xs italic font-medium">No history found.</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Upload practice files to see history by day</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[350px] overflow-y-auto pr-1">
+                                                    {dateFolders.map((dateFolder) => (
+                                                        <button
+                                                            key={dateFolder.id}
+                                                            onClick={() => handleOpenDateFolder(dateFolder)}
+                                                            className="p-4 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 text-left flex items-center justify-between group transition-all cursor-pointer outline-none"
+                                                        >
+                                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-150 text-indigo-700 group-hover:scale-105 transition-transform">
+                                                                    <FolderOpen size={18} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{dateFolder.name}</h4>
+                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Day Folder</p>
+                                                                </div>
+                                                            </div>
+                                                            <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Level 1: Tool Folders inside selectedDateFolder */}
+                                    {historyLevel === 1 && !previewFile && selectedDateFolder && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                                <button
+                                                    onClick={() => {
+                                                        setHistoryLevel(0);
+                                                        setSelectedDateFolder(null);
+                                                    }}
+                                                    className="flex items-center gap-1.5 text-xs font-black text-slate-505 hover:text-slate-800 transition-colors uppercase tracking-wider"
+                                                >
+                                                    <ArrowLeft size={14} />
+                                                    Back to Dates
+                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-extrabold text-xs text-slate-800 uppercase tracking-tight">LMS / {selectedDateFolder.name}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-center mt-2">
+                                                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Practice Tools</h3>
+                                                {loadingHistory && <Loader2 size={14} className="animate-spin text-indigo-600" />}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                                {TARGET_FOLDERS.map((folderName) => {
+                                                    const folderId = foldersMap[folderName];
+                                                    const IconComponent = FOLDER_ICONS[folderName] || Folder;
+                                                    const folderStyle = FOLDER_COLORS[folderName] || "bg-slate-50 border-slate-155 text-slate-700";
+
+                                                    return (
+                                                        <button
+                                                            key={folderName}
+                                                            disabled={!folderId || loadingHistory}
+                                                            onClick={() => handleOpenToolFolder(folderName, folderId)}
+                                                            className={`p-4 rounded-2xl border text-left flex items-center justify-between group transition-all outline-none ${
+                                                                folderId
+                                                                    ? 'border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 cursor-pointer'
+                                                                    : 'border-slate-100 bg-slate-50/50 opacity-40 cursor-not-allowed'
+                             }`}
+                                                        >
+                                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                                <div className={`p-3 rounded-xl ${folderStyle} ${folderId ? 'group-hover:scale-105' : ''} transition-transform`}>
+                                                                    <IconComponent size={18} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{folderName}</h4>
+                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                                        {folderId ? 'View files' : 'No uploads today'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            {folderId && (
+                                                                <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Level 2: Files listing inside selectedToolFolder */}
+                                    {historyLevel === 2 && !previewFile && selectedToolFolder && selectedDateFolder && (
+                                        <div className="space-y-4 flex flex-col h-full">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                                <button
+                                                    onClick={() => handleOpenDateFolder(selectedDateFolder)}
+                                                    className="flex items-center gap-1.5 text-xs font-black text-slate-550 hover:text-slate-800 transition-colors uppercase tracking-wider"
+                                                >
+                                                    <ArrowLeft size={14} />
+                                                    Back to Tools
+                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">{selectedDateFolder.name}</span>
+                                                    <span className="text-slate-300">/</span>
+                                                    <span className="font-extrabold text-xs text-slate-800 uppercase tracking-tight">{selectedToolFolder.name}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 min-h-[220px]">
+                                                {loadingHistory ? (
+                                                    <div className="flex flex-col items-center justify-center py-10 space-y-3 text-slate-400">
+                                                        <Loader2 size={24} className="animate-spin text-[#3E3ADD]" />
+                                                        <span className="text-xs font-bold uppercase tracking-wider">Loading Files from Drive...</span>
+                                                    </div>
+                                                ) : historyFiles.length === 0 ? (
+                                                    <div className="text-center py-12 text-slate-400">
+                                                        <FolderOpen size={32} className="mx-auto text-slate-300 mb-2" />
+                                                        <p className="text-xs italic font-medium">This folder is empty.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+                                                        {historyFiles.map(file => {
+                                                            const isImage = file.mimeType.startsWith('image/');
+                                                            return (
+                                                                <div 
+                                                                    key={file.id} 
+                                                                    className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-150 rounded-xl hover:border-slate-300 transition-colors gap-3"
+                                                                >
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        {isImage && file.thumbnailLink ? (
+                                                                            <img
+                                                                                src={file.thumbnailLink}
+                                                                                alt="thumbnail"
+                                                                                className="w-12 h-9 object-cover rounded-lg border border-slate-200 bg-white"
+                                                                                referrerPolicy="no-referrer"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-12 h-9 rounded-lg bg-slate-200 flex items-center justify-center text-slate-505 shrink-0">
+                                                                                <FileText size={16} />
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <h5 className="text-[11px] font-black text-slate-700 truncate leading-tight">{file.name}</h5>
+                                                                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                                                                                {file.size ? `${(parseInt(file.size) / 1024).toFixed(1)} KB` : 'Unknown Size'} • {new Date(file.createdTime).toLocaleDateString()}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <button
+                                                                            onClick={() => handlePreviewFile(file)}
+                                                                            className="p-1.5 hover:bg-slate-200 rounded text-slate-550 hover:text-slate-800"
+                                                                            title="Preview File"
+                                                                        >
+                                                                            <Eye size={13} />
+                                                                        </button>
+                                                                        <a
+                                                                            href={file.webViewLink}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="p-1.5 hover:bg-slate-200 rounded text-slate-555 hover:text-slate-800"
+                                                                            title="Open in Drive Web"
+                                                                        >
+                                                                            <Download size={13} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteFile(file.id)}
+                                                                            className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-650"
+                                                                            title="Delete File"
+                                                                        >
+                                                                            <Trash size={13} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Sub-View: Direct Media Preview */}
+                                    {previewFile && (
+                                        <div className="space-y-4 animate-fade-in flex flex-col">
+                                            {/* Preview header navigation */}
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                                <button
+                                                    onClick={() => {
+                                                        setPreviewFile(null);
+                                                        setPreviewUrl('');
+                                                        setPreviewText('');
+                                                    }}
+                                                    className="flex items-center gap-1.5 text-xs font-black text-slate-505 hover:text-slate-800 transition-colors uppercase tracking-wider"
+                                                >
+                                                    <ArrowLeft size={14} />
+                                                    Back to List
+                                                </button>
+                                                <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">
+                                                    File Preview
+                                                </span>
+                                            </div>
+
+                                            <div className="text-center py-2">
+                                                <h4 className="text-xs font-black text-slate-800 truncate mb-1">{previewFile.name}</h4>
+                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    Type: {previewFile.mimeType} • Size: {previewFile.size ? `${(parseInt(previewFile.size) / 1024).toFixed(1)} KB` : 'N/A'}
+                                                </p>
+                                            </div>
+
+                                            {/* Display container */}
+                                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center min-h-[220px] max-h-[320px] overflow-hidden relative">
+                                                {loadingPreview ? (
+                                                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                                                        <Loader2 size={24} className="animate-spin text-[#3E3ADD]" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider">Loading Preview...</span>
+                                                    </div>
+                                                ) : previewUrl ? (
+                                                    <>
+                                                        {previewFile.mimeType.startsWith('image/') && (
+                                                            <img 
+                                                                src={previewUrl} 
+                                                                alt="preview" 
+                                                                className="max-w-full max-h-[280px] object-contain rounded-xl shadow-sm"
+                                                            />
+                                                        )}
+                                                        {previewFile.mimeType.startsWith('video/') && (
+                                                            <video 
+                                                                src={previewUrl} 
+                                                                controls 
+                                                                className="max-w-full max-h-[280px] rounded-xl shadow-sm"
+                                                            />
+                                                        )}
+                                                        {previewFile.mimeType.startsWith('audio/') && (
+                                                            <div className="w-full max-w-sm text-center space-y-4 py-8">
+                                                                <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[#3E3ADD] mx-auto shadow-sm">
+                                                                    <Mic size={20} />
+                                                                </div>
+                                                                <audio src={previewUrl} controls className="w-full" />
+                                                            </div>
+                                                        )}
+                                                        {(previewFile.mimeType.startsWith('text/') || previewFile.name.endsWith('.txt') || previewFile.name.endsWith('.log')) && (
+                                                            <pre className="w-full text-left font-mono text-[10px] bg-[#0b1329] text-slate-250 p-4 rounded-xl overflow-auto max-h-[280px] leading-relaxed shadow-inner">
+                                                                {previewText || 'No text content available.'}
+                                                            </pre>
+                                                        )}
+                                                        {!previewFile.mimeType.startsWith('image/') && 
+                                                         !previewFile.mimeType.startsWith('video/') && 
+                                                         !previewFile.mimeType.startsWith('audio/') && 
+                                                         !previewFile.mimeType.startsWith('text/') && 
+                                                         !previewFile.name.endsWith('.txt') && 
+                                                         !previewFile.name.endsWith('.log') && (
+                                                            <div className="text-center space-y-3 py-6">
+                                                                <FileText size={40} className="mx-auto text-slate-350" />
+                                                                <p className="text-xs font-bold text-slate-655 leading-relaxed">
+                                                                    Direct preview is not supported for this file type.
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <div className="text-slate-400 text-xs italic font-medium">Failed to construct file preview URL.</div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex gap-3 pt-2">
+                                                <button
+                                                    onClick={() => window.open(previewFile.webViewLink, '_blank')}
+                                                    className="flex-1 py-3 bg-[#3E3ADD] hover:bg-indigo-655 text-white rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                                                >
+                                                    <Eye size={13} /> View on Google Drive
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const fileId = previewFile.id;
+                                                        setPreviewFile(null);
+                                                        setPreviewUrl('');
+                                                        setPreviewText('');
+                                                        handleDeleteFile(fileId);
+                                                    }}
+                                                    className="py-3 px-4 bg-red-50 border border-red-200 hover:bg-red-100 text-red-650 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <Trash size={13} /> Delete File
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div>
+                            )}
+
+                        </div>
+                    )}
+
+                </div>
+            </div>
+            
+            <style dangerouslySetInnerHTML={{__html: `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+            `}} />
+        </div>
+    );
+};
+
+export default GoogleDriveModal;

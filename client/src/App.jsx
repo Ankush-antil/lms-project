@@ -30,9 +30,15 @@ import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
 import PublicTestPage from './pages/student/PublicTestPage';
+import ScreenshotToolPage from './pages/student/tools/ScreenshotToolPage';
+import ScreenRecorderPage from './pages/student/tools/ScreenRecorderPage';
+import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
+import VideoRecorderPage from './pages/student/tools/VideoRecorderPage';
+import WebCallingPage from './pages/student/tools/WebCallingPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ScreenshotProvider } from './context/ScreenshotContext';
 import { Toaster } from 'react-hot-toast';
 
 
@@ -68,8 +74,9 @@ function App() {
             <AuthProvider>
                 <SocketProvider>
                     <UserProfileProvider>
-                        <Toaster position="top-right" reverseOrder={false} />
-                        <Routes>
+                        <ScreenshotProvider>
+                            <Toaster position="top-right" reverseOrder={false} />
+                            <Routes>
                         <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<LoginPage />} />
 
@@ -256,6 +263,31 @@ function App() {
                                 <ViewTestResult />
                             </PrivateRoute>
                         } />
+                        <Route path="/student/practice-tools/screenshot" element={
+                            <PrivateRoute role="Student">
+                                <ScreenshotToolPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/screen-recorder" element={
+                            <PrivateRoute role="Student">
+                                <ScreenRecorderPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/voice-recorder" element={
+                            <PrivateRoute role="Student">
+                                <VoiceRecorderPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/video-recorder" element={
+                            <PrivateRoute role="Student">
+                                <VideoRecorderPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/web-calling" element={
+                            <PrivateRoute role="Student">
+                                <WebCallingPage />
+                            </PrivateRoute>
+                        } />
 
                         <Route path="/profile" element={
                             <PrivateRoute>
@@ -272,6 +304,7 @@ function App() {
                         <Route path="*" element={<NotFoundPage />} />
 
                     </Routes>
+                        </ScreenshotProvider>
                 </UserProfileProvider>
                 </SocketProvider>
             </AuthProvider>

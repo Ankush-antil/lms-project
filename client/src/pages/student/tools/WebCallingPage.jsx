@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare } from 'lucide-react';
+import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import { useSocket } from '../../../context/SocketContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 
 const WebCallingPage = () => {
     const navigate = useNavigate();
@@ -37,6 +38,18 @@ const WebCallingPage = () => {
     const [localStream, setLocalStream] = useState(null);
 
     const [callLogs, setCallLogs] = useState([]);
+
+    // Google Drive Modal State
+    const [driveModalOpen, setDriveModalOpen] = useState(false);
+    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', blob: null });
+
+    // Active Gallery View: 'local' | 'cloud'
+    const [galleryTab, setGalleryTab] = useState('local');
+
+    // Cloud files state
+    const [cloudFiles, setCloudFiles] = useState([]);
+    const [cloudSpace, setCloudSpace] = useState({ used: 0, limit: 300 * 1024 * 1024 });
+    const [cloudLoading, setCloudLoading] = useState(false);
 
     // AI Scenarios definition
     const aiScenarios = {
@@ -90,24 +103,50 @@ const WebCallingPage = () => {
         }
     };
 
+    // Fetch cloud files
+    const fetchCloudFiles = async () => {
+        try {
+            setCloudLoading(true);
+            const res = await axios.get('/api/practice-files');
+            // Filter files by toolType
+            const toolFiles = res.data.files.filter(f => f.toolType === 'web-calling');
+            setCloudFiles(toolFiles);
+            setCloudSpace({
+                used: res.data.usedBytes,
+                limit: res.data.limitBytes
+            });
+        } catch (err) {
+            console.error("Failed to fetch cloud files:", err);
+        } finally {
+            setCloudLoading(false);
+        }
+    };
+
     // Load call logs
     useEffect(() => {
         const savedLogs = localStorage.getItem('practice_call_logs');
         if (savedLogs) {
             try {
-                setCallLogs(JSON.parse(savedLogs));
+                const parsed = JSON.parse(savedLogs);
+                // Ensure synced field exists
+                const formatted = parsed.map(log => ({
+                    ...log,
+                    synced: log.synced !== undefined ? log.synced : false
+                }));
+                setCallLogs(formatted);
             } catch (e) {
                 console.error(e);
             }
         } else {
             // Mock initial logs
             const initialLogs = [
-                { id: '1', name: 'Dr. Sarah (Instructor)', type: 'Voice Call', duration: '04:12', status: 'Completed', date: '2026-06-21 14:20' },
-                { id: '2', name: 'Mock AI Interviewer', type: 'Simulated Call', duration: '05:00', status: 'Completed', date: '2026-06-22 10:15' }
+                { id: '1', name: 'Dr. Sarah (Instructor)', type: 'Voice Call', duration: '04:12', status: 'Completed', date: '2026-06-21 14:20', synced: false },
+                { id: '2', name: 'Mock AI Interviewer', type: 'Simulated Call', duration: '05:00', status: 'Completed', date: '2026-06-22 10:15', synced: false }
             ];
             setCallLogs(initialLogs);
             localStorage.setItem('practice_call_logs', JSON.stringify(initialLogs));
         }
+        fetchCloudFiles();
     }, []);
 
     // Load available teachers
@@ -197,7 +236,8 @@ const WebCallingPage = () => {
             type: 'Simulated Call',
             duration: formatTime(simTime),
             status: 'Completed',
-            date: new Date().toLocaleString()
+            date: new Date().toLocaleString(),
+            synced: false
         };
 
         setCallLogs(prev => {
@@ -289,16 +329,99 @@ const WebCallingPage = () => {
         localStorage.setItem('practice_call_logs', JSON.stringify(updated));
     };
 
+    // Save latest log to Google Drive (Open Modal)
+    const handleSaveToDriveClick = () => {
+        if (callLogs.length === 0) {
+            toast.error("No call logs to save. Make a call first.");
+            return;
+        }
+        const latest = callLogs[0];
+        const logContent = `LMS CALL LOG\n====================\nName: ${latest.name}\nType: ${latest.type}\nDuration: ${latest.duration}\nStatus: ${latest.status}\nDate: ${latest.date}`;
+        const blob = new Blob([logContent], { type: 'text/plain' });
+        
+        setDriveFileMeta({
+            name: `call_log_${latest.id || Date.now()}.txt`,
+            blob: blob
+        });
+        setDriveModalOpen(true);
+    };
+
+    // Delete cloud file
+    const handleDeleteCloudFile = async (id) => {
+        try {
+            await axios.delete(`/api/practice-files/${id}`);
+            toast.success("Call log deleted from cloud storage!");
+            fetchCloudFiles();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to delete file from cloud.");
+        }
+    };
+
+    // Sync local unsynced logs with cloud
+    const handleSyncWithCloud = async () => {
+        const unsynced = callLogs.filter(log => !log.synced);
+        if (unsynced.length === 0) {
+            toast.success("All local logs are already synced!");
+            return;
+        }
+
+        const toastId = toast.loading(`Syncing ${unsynced.length} logs to cloud...`);
+        let successCount = 0;
+
+        for (const item of unsynced) {
+            try {
+                const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
+                const blob = new Blob([logContent], { type: 'text/plain' });
+
+                const formData = new FormData();
+                formData.append('file', blob, `call_log_${item.id}.txt`);
+                formData.append('toolType', 'web-calling');
+                formData.append('duration', item.duration);
+                formData.append('format', 'TXT');
+
+                const res = await axios.post('/api/practice-files/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                item.synced = true;
+                successCount++;
+            } catch (err) {
+                console.error("Sync error for log:", item.id, err);
+                const errMsg = err.response?.data?.message || '';
+                if (errMsg.toLowerCase().includes('limit exceeded') || errMsg.toLowerCase().includes('space')) {
+                    toast.error(`Sync aborted: ${errMsg}`, { id: toastId });
+                    saveToLocalStorage(callLogs);
+                    fetchCloudFiles();
+                    return;
+                }
+            }
+        }
+
+        saveToLocalStorage(callLogs);
+        await fetchCloudFiles();
+        
+        if (successCount > 0) {
+            toast.success(`Successfully synced ${successCount} call logs to cloud!`, { id: toastId });
+        } else {
+            toast.error("Failed to sync call logs to cloud.", { id: toastId });
+        }
+    };
+
+    const saveToLocalStorage = (list) => {
+        localStorage.setItem('practice_call_logs', JSON.stringify(list));
+    };
+
     return (
         <DashboardLayout role="Student" fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
                 {/* Back Link */}
                 <button
-                    onClick={() => navigate('/student/practice-tools')}
+                    onClick={() => navigate('/student/tests')}
                     className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
                 >
                     <ArrowLeft size={16} />
-                    Back to Practice Tools
+                    Back to My Tests
                 </button>
 
                 {/* Header */}
@@ -669,88 +792,203 @@ const WebCallingPage = () => {
 
                     {/* Column 3: Data & Call logs */}
                     <div className="lg:col-span-3 space-y-6">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data</h3>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
                             
                             <div className="space-y-2">
+                                {/* Save in Google Drive */}
                                 <button
-                                    onClick={() => toast.success("Logs synchronized")}
+                                    onClick={handleSaveToDriveClick}
                                     className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
                                 >
-                                    <Cloud className="text-pink-600" size={18} />
+                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
+                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                    </svg>
                                     <div className="text-left flex-1">
-                                        <p>Save Screenshot to Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Default: Local</span>
+                                        <p>Save in Google Drive</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Log</span>
                                     </div>
                                 </button>
                                 
+                                {/* Go to Local Data */}
                                 <button
-                                    onClick={() => toast.success("Redirected to Local Logs")}
-                                    className="w-full flex items-center gap-3 p-3 bg-pink-50/40 hover:bg-pink-50 border border-pink-100 rounded-xl text-xs font-bold text-pink-850 transition-colors"
+                                    onClick={() => {
+                                        setGalleryTab('local');
+                                        toast.success("Switched to Local Logs");
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
+                                        galleryTab === 'local'
+                                            ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                    }`}
                                 >
-                                    <Folder className="text-pink-600" size={18} />
+                                    <Folder className="text-pink-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-pink-600 font-bold uppercase tracking-wider">{callLogs.length} Local Logs</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {callLogs.length} Call Logs • Local
+                                        </span>
                                     </div>
                                 </button>
 
+                                {/* Go to Cloud Data */}
                                 <button
-                                    onClick={() => toast.success("Accessing cloud space...")}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    onClick={async () => {
+                                        setGalleryTab('cloud');
+                                        await fetchCloudFiles();
+                                        toast.success("Switched to Cloud Storage");
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
+                                        galleryTab === 'cloud'
+                                            ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                    }`}
                                 >
-                                    <Database className="text-pink-600" size={18} />
+                                    <Database className="text-pink-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Cloud Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">0 logs</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {cloudFiles.length} Cloud Logs • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
+                                        </span>
                                     </div>
                                 </button>
 
+                                {/* Sync with Cloud */}
                                 <button
-                                    onClick={() => toast.success("Synchronizing local files...")}
+                                    onClick={handleSyncWithCloud}
                                     className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
                                 >
-                                    <RefreshCw className="text-pink-600" size={18} />
+                                    <RefreshCw className="text-pink-600 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Sync with Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{callLogs.length} files not synced</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {callLogs.filter(log => !log.synced).length} logs not synced
+                                        </span>
                                     </div>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Recent Call Logs */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Recent Logs</h3>
-                            {callLogs.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic text-center py-4">No recent calls.</p>
-                            ) : (
-                                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                                    {callLogs.map(log => (
-                                        <div key={log.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors relative">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-left">
-                                                    <h4 className="text-[11px] font-bold text-slate-700">{log.name}</h4>
-                                                    <p className="text-[9px] text-slate-400 mt-0.5">{log.type} • {log.duration}</p>
-                                                    <span className="text-[8px] text-slate-300 block mt-1">{log.date}</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeleteLog(log.id)}
-                                                    className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600"
-                                                    title="Delete"
-                                                >
-                                                    <Trash size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                        {/* Recent Call Logs / Cloud space limit and items list */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
+                                    {galleryTab === 'local' ? 'Local Logs' : 'Cloud Logs'}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-655 font-black text-[9px] uppercase tracking-wider">
+                                    {galleryTab === 'local' ? 'Offline' : 'Server'}
+                                </span>
+                            </div>
+
+                            {/* Cloud Space limit bar if on cloud tab */}
+                            {galleryTab === 'cloud' && (
+                                <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-150 rounded-xl">
+                                    <div className="flex justify-between items-center text-[9px] text-slate-450 font-black uppercase tracking-wider">
+                                        <span>Cloud Space Limit</span>
+                                        <span>{(cloudSpace.used / (1024 * 1024)).toFixed(1)}MB / 300MB</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300">
+                                        <div
+                                            className="bg-pink-600 h-full transition-all duration-300"
+                                            style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
+                                        ></div>
+                                    </div>
                                 </div>
+                            )}
+
+                            {galleryTab === 'local' ? (
+                                callLogs.length === 0 ? (
+                                    <p className="text-xs text-slate-400 italic text-center py-4">No recent call logs.</p>
+                                ) : (
+                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                        {callLogs.map(log => (
+                                            <div key={log.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors relative text-left">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="text-left">
+                                                        <h4 className="text-[11px] font-bold text-slate-700">{log.name}</h4>
+                                                        <p className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                                                            <span>{log.type} • {log.duration}</span>
+                                                            {log.synced && <span className="text-emerald-500 font-extrabold text-[8px] uppercase tracking-wide">✓ Synced</span>}
+                                                        </p>
+                                                        <span className="text-[8px] text-slate-300 block mt-1">{log.date}</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeleteLog(log.id)}
+                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            ) : (
+                                cloudLoading ? (
+                                    <div className="text-xs text-slate-500 text-center py-10 font-medium">Loading cloud logs...</div>
+                                ) : cloudFiles.length === 0 ? (
+                                    <p className="text-xs text-slate-400 italic text-center py-4">No synced cloud logs.</p>
+                                ) : (
+                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                        {cloudFiles.map(file => (
+                                            <div key={file._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors relative text-left">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="text-left">
+                                                        <h4 className="text-[11px] font-bold text-slate-700">{file.filename}</h4>
+                                                        <p className="text-[9px] text-slate-400 mt-0.5">
+                                                            Duration: {file.metadata?.duration || 'N/A'} • Size: {(file.size / 1024).toFixed(1)} KB
+                                                        </p>
+                                                        <span className="text-[8px] text-slate-350 block mt-1">{new Date(file.createdAt).toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex gap-1.5 items-center">
+                                                        <a
+                                                            href={file.fileUrl}
+                                                            download={file.filename}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="p-1 hover:bg-slate-200 rounded text-slate-450 hover:text-slate-700"
+                                                            title="Download File"
+                                                        >
+                                                            <Download size={12} />
+                                                        </a>
+                                                        <button
+                                                            onClick={() => handleDeleteCloudFile(file._id)}
+                                                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
+                                                            title="Delete from Cloud"
+                                                        >
+                                                            <Trash size={12} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
                             )}
                         </div>
                     </div>
-
                 </div>
             </div>
+            
+            {/* Google Drive Simulation Modal */}
+            <GoogleDriveModal
+                isOpen={driveModalOpen}
+                onClose={() => setDriveModalOpen(false)}
+                fileName={driveFileMeta.name}
+                fileBlob={driveFileMeta.blob}
+                onSaveSuccess={() => {
+                    // Update latest call log synced status locally
+                    if (callLogs.length > 0) {
+                        const updated = [...callLogs];
+                        updated[0].synced = true;
+                        setCallLogs(updated);
+                        localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+                    }
+                }}
+            />
         </DashboardLayout>
     );
 };

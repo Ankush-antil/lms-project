@@ -3,11 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
-<<<<<<< Updated upstream
     ChevronLeft, ChevronRight, MessageSquare
-=======
-    ChevronLeft, ChevronRight, Wrench
->>>>>>> Stashed changes
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../common/UserProfileContext';
@@ -46,11 +42,7 @@ const menuItems = {
     Student: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
         { name: 'My Tests', icon: FileText, path: '/student/tests' },
-<<<<<<< Updated upstream
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
-=======
-        { name: 'Practice Tools', icon: Wrench, path: '/student/practice-tools' },
->>>>>>> Stashed changes
     ]
 };
 

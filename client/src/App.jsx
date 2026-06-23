@@ -30,7 +30,6 @@ import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
 import PublicTestPage from './pages/student/PublicTestPage';
-import PracticeToolsPage from './pages/student/PracticeToolsPage';
 import ScreenshotToolPage from './pages/student/tools/ScreenshotToolPage';
 import ScreenRecorderPage from './pages/student/tools/ScreenRecorderPage';
 import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
@@ -260,11 +259,6 @@ function App() {
                         <Route path="/student/test-result/:id" element={
                             <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
                                 <ViewTestResult />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools" element={
-                            <PrivateRoute role="Student">
-                                <PracticeToolsPage />
                             </PrivateRoute>
                         } />
                         <Route path="/student/practice-tools/screenshot" element={

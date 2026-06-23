@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { MonitorPlay, Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
 
 const VideoRecorderPage = () => {
     const navigate = useNavigate();
@@ -35,16 +38,144 @@ const VideoRecorderPage = () => {
     const chunksRef = useRef([]);
     const timerRef = useRef(null);
 
-    // Load saved video recordings
+    // Google Drive Modal State
+    const [driveModalOpen, setDriveModalOpen] = useState(false);
+    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', blob: null });
+
+    // Active Gallery View: 'local' | 'cloud'
+    const [galleryTab, setGalleryTab] = useState('local');
+
+    // Cloud files state
+    const [cloudFiles, setCloudFiles] = useState([]);
+    const [cloudSpace, setCloudSpace] = useState({ used: 0, limit: 300 * 1024 * 1024 });
+    const [cloudLoading, setCloudLoading] = useState(false);
+
+    // Fetch cloud files
+    const fetchCloudFiles = async () => {
+        try {
+            setCloudLoading(true);
+            const res = await axios.get('/api/practice-files');
+            // Filter files by toolType
+            const toolFiles = res.data.files.filter(f => f.toolType === 'video-recorder');
+            setCloudFiles(toolFiles);
+            setCloudSpace({
+                used: res.data.usedBytes,
+                limit: res.data.limitBytes
+            });
+        } catch (err) {
+            console.error("Failed to fetch cloud files:", err);
+        } finally {
+            setCloudLoading(false);
+        }
+    };
+
+    // Load cloud files on mount
     useEffect(() => {
-        const saved = localStorage.getItem('practice_videos');
-        if (saved) {
+        fetchCloudFiles();
+    }, []);
+
+    // Save latest recording to Google Drive
+    const handleSaveToDriveClick = async () => {
+        if (videos.length === 0) {
+            toast.error("No recordings to save. Record something first.");
+            return;
+        }
+        const latest = videos[0];
+        const blob = await getLocalBlob(latest.id);
+        if (!blob) {
+            toast.error("Recording file not found locally.");
+            return;
+        }
+        setDriveFileMeta({
+            name: `video_recording_${Date.now()}.webm`,
+            blob: blob
+        });
+        setDriveModalOpen(true);
+    };
+
+    // Delete cloud file
+    const handleDeleteCloudFile = async (id) => {
+        try {
+            await axios.delete(`/api/practice-files/${id}`);
+            toast.success("File deleted from cloud storage!");
+            fetchCloudFiles();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to delete file from cloud.");
+        }
+    };
+
+    // Sync local unsynced recordings with cloud
+    const handleSyncWithCloud = async () => {
+        const unsynced = videos.filter(v => !v.synced);
+        if (unsynced.length === 0) {
+            toast.success("All local recordings are synced!");
+            return;
+        }
+
+        const toastId = toast.loading(`Syncing ${unsynced.length} recordings...`);
+        let successCount = 0;
+
+        for (const item of unsynced) {
             try {
-                setVideos(JSON.parse(saved));
-            } catch (e) {
-                console.error(e);
+                const blob = await getLocalBlob(item.id);
+                if (!blob) continue;
+
+                const formData = new FormData();
+                formData.append('file', blob, `video_recording_${item.id}.webm`);
+                formData.append('toolType', 'video-recorder');
+                formData.append('duration', item.duration);
+                formData.append('resolution', item.resolution);
+
+                await axios.post('/api/practice-files/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                item.synced = true;
+                successCount++;
+            } catch (err) {
+                console.error("Sync error for item:", item.id, err);
+                const errMsg = err.response?.data?.message || '';
+                if (errMsg.toLowerCase().includes('limit exceeded') || errMsg.toLowerCase().includes('space')) {
+                    toast.error(`Sync aborted: ${errMsg}`, { id: toastId });
+                    localStorage.setItem('practice_videos', JSON.stringify(videos.map(v => ({ ...v, url: '' }))));
+                    fetchCloudFiles();
+                    return;
+                }
             }
         }
+
+        localStorage.setItem('practice_videos', JSON.stringify(videos.map(v => ({ ...v, url: '' }))));
+        await fetchCloudFiles();
+        
+        if (successCount > 0) {
+            toast.success(`Successfully synced ${successCount} recordings!`, { id: toastId });
+        } else {
+            toast.error("Failed to sync recordings.", { id: toastId });
+        }
+    };
+
+    // Load metadata AND restore blobs from IndexedDB
+    useEffect(() => {
+        const loadLocalRecordings = async () => {
+            const saved = localStorage.getItem('practice_videos');
+            if (saved) {
+                try {
+                    const list = JSON.parse(saved);
+                    const hydrated = await Promise.all(list.map(async (r) => {
+                        const blob = await getLocalBlob(r.id);
+                        if (blob) {
+                            return { ...r, url: URL.createObjectURL(blob) };
+                        }
+                        return r;
+                    }));
+                    setVideos(hydrated);
+                } catch (e) {
+                    console.error("Failed to load or hydrate local video recordings:", e);
+                }
+            }
+        };
+        loadLocalRecordings();
     }, []);
 
     // Get media devices
@@ -178,17 +309,21 @@ const VideoRecorderPage = () => {
                 }
             };
 
-            recorder.onstop = () => {
+            recorder.onstop = async () => {
                 const blob = new Blob(chunksRef.current, { type: 'video/webm' });
                 const blobUrl = URL.createObjectURL(blob);
+                const recId = 'vid_' + Date.now();
+
+                await saveLocalBlob(recId, blob);
                 
                 const newVideo = {
-                    id: 'vid_' + Date.now(),
+                    id: recId,
                     timestamp: new Date().toLocaleString(),
                     url: blobUrl,
                     size: (blob.size / (1024 * 1024)).toFixed(2) + ' MB',
                     duration: formatTime(recordingTime),
-                    resolution: resolution
+                    resolution: resolution,
+                    synced: false
                 };
 
                 setVideos(prev => {
@@ -231,10 +366,11 @@ const VideoRecorderPage = () => {
         return `${m}:${s}`;
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         const updated = videos.filter(v => v.id !== id);
         setVideos(updated);
         localStorage.setItem('practice_videos', JSON.stringify(updated.map(v => ({ ...v, url: '' }))));
+        await deleteLocalBlob(id);
         toast.success("Video deleted.");
     };
 
@@ -243,11 +379,11 @@ const VideoRecorderPage = () => {
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
                 {/* Back Link */}
                 <button
-                    onClick={() => navigate('/student/practice-tools')}
+                    onClick={() => navigate('/student/tests')}
                     className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
                 >
                     <ArrowLeft size={16} />
-                    Back to Practice Tools
+                    Back to My Tests
                 </button>
 
                 {/* Header */}
@@ -499,109 +635,224 @@ const VideoRecorderPage = () => {
                     </div>
 
                     {/* Right Column: Data Actions & Recordings List */}
-                    <div className="lg:col-span-3 space-y-6">
+                    <div className="lg:col-span-3 space-y-6 text-left">
                         {/* Data Panel */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data</h3>
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
                             
                             <div className="space-y-2">
+                                {/* Save in Google Drive */}
                                 <button
-                                    onClick={() => toast.success("Screenshot/Video uploaded to cloud!")}
+                                    onClick={handleSaveToDriveClick}
                                     className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
                                 >
-                                    <Cloud className="text-purple-600" size={18} />
+                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
+                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                    </svg>
                                     <div className="text-left flex-1">
-                                        <p>Save Screenshot to Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Default: Local</span>
+                                        <p>Save in Google Drive</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Clip</span>
                                     </div>
                                 </button>
                                 
+                                {/* Go to Local Data */}
                                 <button
-                                    onClick={() => toast.success("Opening local videos directory")}
-                                    className="w-full flex items-center gap-3 p-3 bg-purple-50/40 hover:bg-purple-50 border border-purple-100 rounded-xl text-xs font-bold text-purple-855 transition-colors"
+                                    onClick={() => {
+                                        setGalleryTab('local');
+                                        toast.success("Switched to Local Storage Gallery");
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
+                                        galleryTab === 'local'
+                                            ? 'bg-indigo-55 bg-opacity-30 border-purple-200 text-purple-850 shadow-sm'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                    }`}
                                 >
-                                    <Folder className="text-purple-600" size={18} />
+                                    <Folder className="text-purple-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-purple-650 font-bold uppercase tracking-wider">{videos.length} Videos</span>
+                                        <span className="text-[9px] text-purple-650 font-bold uppercase tracking-wider">
+                                            {videos.length} Videos • Local Only
+                                        </span>
                                     </div>
                                 </button>
-
+                                
+                                {/* Go to Cloud Data */}
                                 <button
-                                    onClick={() => toast.success("Accessing cloud media stream data")}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    onClick={async () => {
+                                        setGalleryTab('cloud');
+                                        await fetchCloudFiles();
+                                        toast.success("Switched to Cloud Storage Gallery");
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
+                                        galleryTab === 'cloud'
+                                            ? 'bg-indigo-55 bg-opacity-30 border-purple-200 text-purple-850 shadow-sm'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                    }`}
                                 >
-                                    <Database className="text-purple-600" size={18} />
+                                    <Database className="text-purple-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Cloud Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">0 files • 0 MB</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {cloudFiles.length} Cloud Videos • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
+                                        </span>
                                     </div>
                                 </button>
-
+                                
+                                {/* Sync with Cloud */}
                                 <button
-                                    onClick={() => toast.success("Videos synchronized successfully")}
+                                    onClick={handleSyncWithCloud}
                                     className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
                                 >
-                                    <RefreshCw className="text-purple-600" size={18} />
+                                    <RefreshCw className="text-purple-600 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Sync with Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{videos.length} files not synced</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {videos.filter(v => !v.synced).length} files not synced
+                                        </span>
                                     </div>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Local Video Clips List */}
+                        {/* Local vs Cloud Gallery */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Video Clips</h3>
-                            {videos.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic text-center py-4">No video captures recorded yet.</p>
-                            ) : (
-                                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                                    {videos.map(v => (
-                                        <div key={v.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
-                                            <div className="flex justify-between items-start">
-                                                <div className="min-w-0 text-left">
-                                                    <p className="text-[10px] font-bold text-slate-700 truncate">{v.timestamp}</p>
-                                                    <p className="text-[9px] text-slate-400 mt-0.5">Length: {v.duration} • {v.size}</p>
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
+                                    {galleryTab === 'local' ? 'Local Videos' : 'Cloud Videos'}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-650 font-black text-[9px] uppercase tracking-wider">
+                                    {galleryTab === 'local' ? 'Offline' : 'Server'}
+                                </span>
+                            </div>
+
+                            {/* Cloud Space limit bar if on cloud tab */}
+                            {galleryTab === 'cloud' && (
+                                <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-150 rounded-xl">
+                                    <div className="flex justify-between items-center text-[9px] text-slate-450 font-black uppercase tracking-wider">
+                                        <span>Cloud Space Limit</span>
+                                        <span>{(cloudSpace.used / (1024 * 1024)).toFixed(1)}MB / 300MB</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300">
+                                        <div
+                                            className="bg-indigo-600 h-full transition-all duration-300"
+                                            style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Gallery Lists */}
+                            {galleryTab === 'local' ? (
+                                videos.length === 0 ? (
+                                    <p className="text-xs text-slate-450 italic text-center py-4">No local videos recorded yet.</p>
+                                ) : (
+                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                        {videos.map(v => (
+                                            <div key={v.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="min-w-0 text-left">
+                                                        <p className="text-[10px] font-bold text-slate-700 truncate">{v.timestamp}</p>
+                                                        <p className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                                                            <span>Length: {v.duration} • {v.size}</span>
+                                                            {v.synced && <span className="text-emerald-500 font-extrabold text-[8px] uppercase tracking-wide">✓ Synced</span>}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDelete(v.id)}
+                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleDelete(v.id)}
-                                                    className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
-                                                    title="Delete"
-                                                >
-                                                    <Trash size={14} />
-                                                </button>
+                                                
+                                                {v.url && (
+                                                    <div className="flex gap-2">
+                                                        <a
+                                                            href={v.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold transition-colors text-center font-bold"
+                                                        >
+                                                            <Play size={10} fill="currentColor" /> Play
+                                                        </a>
+                                                        <a
+                                                            href={v.url}
+                                                            download={`video_${v.id}.webm`}
+                                                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[10px] font-bold transition-colors text-center"
+                                                        >
+                                                            <Download size={10} /> Save
+                                                        </a>
+                                                    </div>
+                                                )}
                                             </div>
-                                            
-                                            {v.url && (
+                                        ))}
+                                    </div>
+                                )
+                            ) : (
+                                /* Cloud Gallery List */
+                                cloudLoading ? (
+                                    <div className="text-center py-6 text-xs text-slate-450 animate-pulse font-bold uppercase tracking-wider">Loading Cloud Data...</div>
+                                ) : cloudFiles.length === 0 ? (
+                                    <p className="text-xs text-slate-450 italic text-center py-4">No cloud videos found. Click "Sync with Cloud" to upload.</p>
+                                ) : (
+                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                        {cloudFiles.map(c => (
+                                            <div key={c._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="min-w-0 text-left">
+                                                        <p className="text-[10px] font-bold text-slate-700 truncate">{c.filename}</p>
+                                                        <p className="text-[9px] text-slate-400 mt-0.5">Length: {c.metadata?.duration || '00:00'} • {(c.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeleteCloudFile(c._id)}
+                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
+                                                        title="Delete from Cloud"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
+                                                </div>
+                                                
                                                 <div className="flex gap-2">
                                                     <a
-                                                        href={v.url}
+                                                        href={c.fileUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold transition-colors"
+                                                        className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-755 rounded-lg text-[10px] font-bold transition-colors text-center"
                                                     >
                                                         <Play size={10} fill="currentColor" /> Play
                                                     </a>
                                                     <a
-                                                        href={v.url}
-                                                        download={`video_${Date.now()}.webm`}
-                                                        className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[10px] font-bold transition-colors"
+                                                        href={c.fileUrl}
+                                                        download={c.filename}
+                                                        className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[10px] font-bold transition-colors text-center"
                                                     >
-                                                        <Download size={10} /> Save
+                                                        <Download size={10} /> Download
                                                     </a>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
                             )}
                         </div>
                     </div>
 
                 </div>
             </div>
+
+            {/* Google Drive Simulation Modal */}
+            <GoogleDriveModal
+                isOpen={driveModalOpen}
+                onClose={() => setDriveModalOpen(false)}
+                fileName={driveFileMeta.name}
+                fileBlob={driveFileMeta.blob}
+                onSaveSuccess={() => {
+                    toast.success("Saved to Google Drive folder!");
+                }}
+            />
         </DashboardLayout>
     );
 };

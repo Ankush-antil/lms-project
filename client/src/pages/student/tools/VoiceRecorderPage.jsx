@@ -5,6 +5,7 @@ import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
 import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
 
 const VoiceRecorderPage = () => {
@@ -42,6 +43,9 @@ const VoiceRecorderPage = () => {
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);
     const [driveFileMeta, setDriveFileMeta] = useState({ name: '', blob: null });
+
+    // Local History Modal State
+    const [localHistoryModalOpen, setLocalHistoryModalOpen] = useState(false);
 
     // Active Gallery View: 'local' | 'cloud'
     const [galleryTab, setGalleryTab] = useState('local');
@@ -156,25 +160,28 @@ const VoiceRecorderPage = () => {
     };
 
     // Load metadata AND restore blobs from IndexedDB
-    useEffect(() => {
-        const loadLocalRecordings = async () => {
-            const saved = localStorage.getItem('practice_audios');
-            if (saved) {
-                try {
-                    const list = JSON.parse(saved);
-                    const hydrated = await Promise.all(list.map(async (r) => {
-                        const blob = await getLocalBlob(r.id);
-                        if (blob) {
-                            return { ...r, url: URL.createObjectURL(blob) };
-                        }
-                        return r;
-                    }));
-                    setAudios(hydrated);
-                } catch (e) {
-                    console.error("Failed to load or hydrate local voice recordings:", e);
-                }
+    const loadLocalRecordings = async () => {
+        const saved = localStorage.getItem('practice_audios');
+        if (saved) {
+            try {
+                const list = JSON.parse(saved);
+                const hydrated = await Promise.all(list.map(async (r) => {
+                    const blob = await getLocalBlob(r.id);
+                    if (blob) {
+                        return { ...r, url: URL.createObjectURL(blob) };
+                    }
+                    return r;
+                }));
+                setAudios(hydrated);
+            } catch (e) {
+                console.error("Failed to load or hydrate local voice recordings:", e);
             }
-        };
+        } else {
+            setAudios([]);
+        }
+    };
+
+    useEffect(() => {
         loadLocalRecordings();
     }, []);
 
@@ -685,24 +692,38 @@ const VoiceRecorderPage = () => {
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Clip</span>
                                     </div>
                                 </button>
+
+                                {/* Go to Drive History */}
+                                <button
+                                    onClick={() => {
+                                        setDriveFileMeta({ name: '', blob: null });
+                                        setDriveModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                >
+                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
+                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                    </svg>
+                                    <div className="text-left flex-1">
+                                        <p>Go to Drive History</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            View & Manage Drive Folders
+                                        </span>
+                                    </div>
+                                </button>
                                 
                                 {/* Go to Local Data */}
                                 <button
-                                    onClick={() => {
-                                        setGalleryTab('local');
-                                        toast.success("Switched to Local Storage Gallery");
-                                    }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
-                                        galleryTab === 'local'
-                                            ? 'bg-[#3e3add]/10 border-indigo-200 text-indigo-850 shadow-sm'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                    }`}
+                                    onClick={() => setLocalHistoryModalOpen(true)}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-700 rounded-xl text-xs font-bold transition-colors"
                                 >
                                     <Folder className="text-indigo-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {audios.length} Voice Logs • Local Only
+                                            {audios.length} Voice Logs • View structured folders
                                         </span>
                                     </div>
                                 </button>
@@ -774,38 +795,21 @@ const VoiceRecorderPage = () => {
 
                             {/* Gallery Lists */}
                             {galleryTab === 'local' ? (
-                                audios.length === 0 ? (
-                                    <p className="text-xs text-slate-450 italic text-center py-4">No local recordings made yet.</p>
-                                ) : (
-                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {audios.map(a => (
-                                            <div key={a.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="min-w-0">
-                                                        <p className="text-[10px] font-bold text-slate-700 truncate">{a.timestamp}</p>
-                                                        <p className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                                            <span>Length: {a.duration} • {a.size}</span>
-                                                            {a.synced && <span className="text-emerald-500 font-extrabold text-[8px] uppercase tracking-wide">✓ Synced</span>}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleDelete(a.id)}
-                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash size={14} />
-                                                    </button>
-                                                </div>
-                                                
-                                                {a.url && (
-                                                    <div className="flex gap-2">
-                                                        <audio src={a.url} controls className="w-full h-8 scale-95 opacity-90 rounded-md"></audio>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl text-center space-y-3.5">
+                                    <Folder className="w-10 h-10 text-indigo-500 mx-auto" />
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Structured Offline History</p>
+                                        <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                                            Your offline files are structured inside date folders and sequential names: <b>LMS / [Date] / Voice Recorder</b>.
+                                        </p>
                                     </div>
-                                )
+                                    <button
+                                        onClick={() => setLocalHistoryModalOpen(true)}
+                                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
+                                    >
+                                        Browse Local Folders
+                                    </button>
+                                </div>
                             ) : (
                                 /* Cloud Gallery List */
                                 cloudLoading ? (
@@ -852,6 +856,18 @@ const VoiceRecorderPage = () => {
                 fileBlob={driveFileMeta.blob}
                 onSaveSuccess={() => {
                     toast.success("Saved to Google Drive folder!");
+                }}
+            />
+
+            {/* Local Storage Virtual History Modal */}
+            <LocalHistoryModal
+                isOpen={localHistoryModalOpen}
+                onClose={() => {
+                    setLocalHistoryModalOpen(false);
+                    loadLocalRecordings();
+                }}
+                onRefresh={() => {
+                    loadLocalRecordings();
                 }}
             />
         </DashboardLayout>

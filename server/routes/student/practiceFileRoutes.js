@@ -36,7 +36,11 @@ const upload = multer({
 // @access  Private (Student)
 router.get('/', protect, async (req, res) => {
     try {
-        const files = await PracticeFile.find({ user: req.user._id }).sort({ createdAt: -1 });
+        const filter = { user: req.user._id };
+        if (req.query.googleDriveEmail) {
+            filter.googleDriveEmail = req.query.googleDriveEmail;
+        }
+        const files = await PracticeFile.find(filter).sort({ createdAt: -1 });
         
         // Calculate total space used
         const totalUsedBytes = files.reduce((sum, file) => sum + file.size, 0);
@@ -62,7 +66,7 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded.' });
         }
 
-        const { toolType, duration, resolution, format } = req.body;
+        const { toolType, duration, resolution, format, googleDriveEmail } = req.body;
         if (!toolType) {
             fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'Tool type is required.' });
@@ -90,6 +94,7 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
             fileUrl,
             size: req.file.size,
             mimeType: req.file.mimetype,
+            googleDriveEmail: googleDriveEmail || '',
             metadata: {
                 duration,
                 resolution,

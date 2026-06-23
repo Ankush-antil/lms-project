@@ -5,6 +5,7 @@ import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
 import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
 
 const VideoRecorderPage = () => {
@@ -41,6 +42,9 @@ const VideoRecorderPage = () => {
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);
     const [driveFileMeta, setDriveFileMeta] = useState({ name: '', blob: null });
+
+    // Local History Modal State
+    const [localHistoryModalOpen, setLocalHistoryModalOpen] = useState(false);
 
     // Active Gallery View: 'local' | 'cloud'
     const [galleryTab, setGalleryTab] = useState('local');
@@ -156,25 +160,28 @@ const VideoRecorderPage = () => {
     };
 
     // Load metadata AND restore blobs from IndexedDB
-    useEffect(() => {
-        const loadLocalRecordings = async () => {
-            const saved = localStorage.getItem('practice_videos');
-            if (saved) {
-                try {
-                    const list = JSON.parse(saved);
-                    const hydrated = await Promise.all(list.map(async (r) => {
-                        const blob = await getLocalBlob(r.id);
-                        if (blob) {
-                            return { ...r, url: URL.createObjectURL(blob) };
-                        }
-                        return r;
-                    }));
-                    setVideos(hydrated);
-                } catch (e) {
-                    console.error("Failed to load or hydrate local video recordings:", e);
-                }
+    const loadLocalRecordings = async () => {
+        const saved = localStorage.getItem('practice_videos');
+        if (saved) {
+            try {
+                const list = JSON.parse(saved);
+                const hydrated = await Promise.all(list.map(async (r) => {
+                    const blob = await getLocalBlob(r.id);
+                    if (blob) {
+                        return { ...r, url: URL.createObjectURL(blob) };
+                    }
+                    return r;
+                }));
+                setVideos(hydrated);
+            } catch (e) {
+                console.error("Failed to load or hydrate local video recordings:", e);
             }
-        };
+        } else {
+            setVideos([]);
+        }
+    };
+
+    useEffect(() => {
         loadLocalRecordings();
     }, []);
 
@@ -656,24 +663,40 @@ const VideoRecorderPage = () => {
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Clip</span>
                                     </div>
                                 </button>
+
+                                {/* Go to Drive History */}
+                                <button
+                                    onClick={() => {
+                                        setDriveFileMeta({ name: '', blob: null });
+                                        setDriveModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                >
+                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
+                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                    </svg>
+                                    <div className="text-left flex-1">
+                                        <p>Go to Drive History</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            View & Manage Drive Folders
+                                        </span>
+                                    </div>
+                                </button>
                                 
                                 {/* Go to Local Data */}
                                 <button
                                     onClick={() => {
-                                        setGalleryTab('local');
-                                        toast.success("Switched to Local Storage Gallery");
+                                        setLocalHistoryModalOpen(true);
                                     }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
-                                        galleryTab === 'local'
-                                            ? 'bg-indigo-55 bg-opacity-30 border-purple-200 text-purple-850 shadow-sm'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                    }`}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-700 rounded-xl text-xs font-bold transition-colors"
                                 >
                                     <Folder className="text-purple-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-purple-650 font-bold uppercase tracking-wider">
-                                            {videos.length} Videos • Local Only
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {videos.length} Videos • View structured folders
                                         </span>
                                     </div>
                                 </button>
@@ -745,52 +768,21 @@ const VideoRecorderPage = () => {
 
                             {/* Gallery Lists */}
                             {galleryTab === 'local' ? (
-                                videos.length === 0 ? (
-                                    <p className="text-xs text-slate-450 italic text-center py-4">No local videos recorded yet.</p>
-                                ) : (
-                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {videos.map(v => (
-                                            <div key={v.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="min-w-0 text-left">
-                                                        <p className="text-[10px] font-bold text-slate-700 truncate">{v.timestamp}</p>
-                                                        <p className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                                            <span>Length: {v.duration} • {v.size}</span>
-                                                            {v.synced && <span className="text-emerald-500 font-extrabold text-[8px] uppercase tracking-wide">✓ Synced</span>}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleDelete(v.id)}
-                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash size={14} />
-                                                    </button>
-                                                </div>
-                                                
-                                                {v.url && (
-                                                    <div className="flex gap-2">
-                                                        <a
-                                                            href={v.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold transition-colors text-center font-bold"
-                                                        >
-                                                            <Play size={10} fill="currentColor" /> Play
-                                                        </a>
-                                                        <a
-                                                            href={v.url}
-                                                            download={`video_${v.id}.webm`}
-                                                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[10px] font-bold transition-colors text-center"
-                                                        >
-                                                            <Download size={10} /> Save
-                                                        </a>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl text-center space-y-3.5">
+                                    <Folder className="w-10 h-10 text-indigo-500 mx-auto" />
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Structured Offline History</p>
+                                        <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                                            Your offline files are structured inside date folders and sequential names: <b>LMS / [Date] / Video Recorder</b>.
+                                        </p>
                                     </div>
-                                )
+                                    <button
+                                        onClick={() => setLocalHistoryModalOpen(true)}
+                                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
+                                    >
+                                        Browse Local Folders
+                                    </button>
+                                </div>
                             ) : (
                                 /* Cloud Gallery List */
                                 cloudLoading ? (
@@ -851,6 +843,18 @@ const VideoRecorderPage = () => {
                 fileBlob={driveFileMeta.blob}
                 onSaveSuccess={() => {
                     toast.success("Saved to Google Drive folder!");
+                }}
+            />
+
+            {/* Local Storage Virtual History Modal */}
+            <LocalHistoryModal
+                isOpen={localHistoryModalOpen}
+                onClose={() => {
+                    setLocalHistoryModalOpen(false);
+                    loadLocalRecordings();
+                }}
+                onRefresh={() => {
+                    loadLocalRecordings();
                 }}
             />
         </DashboardLayout>

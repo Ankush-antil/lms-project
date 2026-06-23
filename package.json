@@ -10,6 +10,7 @@
     "seed": "cd server && npm run seed"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "concurrently": "^8.2.2"
   }
 }

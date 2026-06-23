@@ -38,6 +38,7 @@ import WebCallingPage from './pages/student/tools/WebCallingPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ScreenshotProvider } from './context/ScreenshotContext';
 import { Toaster } from 'react-hot-toast';
 
 
@@ -73,8 +74,9 @@ function App() {
             <AuthProvider>
                 <SocketProvider>
                     <UserProfileProvider>
-                        <Toaster position="top-right" reverseOrder={false} />
-                        <Routes>
+                        <ScreenshotProvider>
+                            <Toaster position="top-right" reverseOrder={false} />
+                            <Routes>
                         <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<LoginPage />} />
 
@@ -302,6 +304,7 @@ function App() {
                         <Route path="*" element={<NotFoundPage />} />
 
                     </Routes>
+                        </ScreenshotProvider>
                 </UserProfileProvider>
                 </SocketProvider>
             </AuthProvider>

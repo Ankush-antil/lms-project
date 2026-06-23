@@ -31,6 +31,10 @@ const practiceFileSchema = new mongoose.Schema({
         duration: String, // for audio/video
         resolution: String, // for images/video
         format: String
+    },
+    googleDriveEmail: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

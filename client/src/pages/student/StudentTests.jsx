@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
+import toast from 'react-hot-toast';
 import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
     Mic, Video, FileText, Star, MessageSquare,
@@ -422,7 +423,7 @@ const StudentTests = () => {
                                             </div>
                                             <button
                                                 onClick={() => navigate(tool.path)}
-                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-650 text-white rounded-xl text-[10px] font-black transition-all uppercase tracking-wider"
+                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-655 text-white rounded-xl text-[10px] font-black transition-all uppercase tracking-wider"
                                             >
                                                 Launch Tool
                                             </button>

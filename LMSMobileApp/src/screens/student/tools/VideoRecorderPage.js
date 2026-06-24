@@ -7,7 +7,8 @@ import {
     FlatList,
     ActivityIndicator,
     Alert,
-    Share
+    Share,
+    Linking
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,11 +18,22 @@ import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors'
 import { AppHeader } from '../../../components/common/UIComponents';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 import Toast from 'react-native-toast-message';
+import { BASE_URL } from '../../../config/api';
+import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 
 const VideoRecorderPage = ({ route, navigation }) => {
     const { date: dateParam } = route.params || {};
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
+
+    const playVideo = async (url) => {
+        try {
+            await Linking.openURL(url);
+        } catch (err) {
+            console.error("Failed to play video:", err);
+            Alert.alert("Error", "Could not open video player.");
+        }
+    };
 
     // States
     const [localVideos, setLocalVideos] = useState([]);
@@ -30,6 +42,10 @@ const VideoRecorderPage = ({ route, navigation }) => {
     const [activeTab, setActiveTab] = useState('local'); // 'local' | 'cloud'
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+
+    // Google Drive state
+    const [driveModalOpen, setDriveModalOpen] = useState(false);
+    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -225,6 +241,11 @@ const VideoRecorderPage = ({ route, navigation }) => {
                 title="Video Recorder"
                 showBack={true}
                 backAction={() => navigation.goBack()}
+                rightIcon="logo-google"
+                rightAction={() => {
+                    setDriveFileMeta({ name: '', uri: '' });
+                    setDriveModalOpen(true);
+                }}
             />
 
             {/* Top Workspace Date indicator */}
@@ -322,14 +343,18 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     renderItem={({ item }) => {
                         const isCloud = activeTab === 'cloud';
                         const fileId = isCloud ? item._id : item.id;
-                        const fileUrl = isCloud ? `${axios.defaults.baseURL.replace('/api', '')}${item.fileUrl}` : item.uri;
+                        const fileUrl = isCloud ? `${BASE_URL}${item.fileUrl}` : item.uri;
                         const isSynced = isCloud ? true : item.synced;
 
                         return (
                             <View style={styles.fileItem}>
-                                <View style={styles.videoIconContainer}>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => playVideo(fileUrl)}
+                                    style={styles.videoIconContainer}
+                                >
                                     <Ionicons name="play-circle-outline" size={32} color={colors.accent} />
-                                </View>
+                                </TouchableOpacity>
                                 <View style={styles.fileDetails}>
                                     <Text style={styles.fileName} numberOfLines={1}>
                                         {isCloud ? item.filename : item.filename || `video_${fileId}.mp4`}
@@ -357,6 +382,18 @@ const VideoRecorderPage = ({ route, navigation }) => {
 
                                 <View style={styles.actionButtons}>
                                     <TouchableOpacity
+                                        onPress={() => {
+                                            setDriveFileMeta({
+                                                name: isCloud ? item.filename : item.filename || `video_${fileId}.mp4`,
+                                                uri: fileUrl
+                                            });
+                                            setDriveModalOpen(true);
+                                        }}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="logo-google" size={18} color={colors.accent} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
                                         onPress={() => shareFile(fileUrl, isCloud ? item.filename : 'video.mp4')}
                                         style={styles.actionButton}
                                     >
@@ -376,6 +413,17 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     }}
                 />
             )}
+
+            <GoogleDriveModal
+                isOpen={driveModalOpen}
+                onClose={() => setDriveModalOpen(false)}
+                fileName={driveFileMeta.name}
+                fileUri={driveFileMeta.uri}
+                toolType="video-recorder"
+                onSaveSuccess={() => {
+                    fetchCloudFiles();
+                }}
+            />
         </View>
     );
 };

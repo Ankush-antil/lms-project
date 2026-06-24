@@ -17,6 +17,8 @@ import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors'
 import { AppHeader } from '../../../components/common/UIComponents';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 import Toast from 'react-native-toast-message';
+import { BASE_URL } from '../../../config/api';
+import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 
 const VoiceRecorderPage = ({ route, navigation }) => {
     const { date: dateParam } = route.params || {};
@@ -33,6 +35,10 @@ const VoiceRecorderPage = ({ route, navigation }) => {
     const [activeTab, setActiveTab] = useState('local'); // 'local' | 'cloud'
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
+
+    // Google Drive state
+    const [driveModalOpen, setDriveModalOpen] = useState(false);
+    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
     
     // Playback state
     const [playingId, setPlayingId] = useState(null);
@@ -327,6 +333,11 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                 title="Voice Recorder"
                 showBack={true}
                 backAction={() => navigation.goBack()}
+                rightIcon="logo-google"
+                rightAction={() => {
+                    setDriveFileMeta({ name: '', uri: '' });
+                    setDriveModalOpen(true);
+                }}
             />
 
             {/* Top Workspace Date indicator */}
@@ -440,7 +451,7 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                         const fileId = isCloud ? item._id : item.id;
                         const isPlaying = playingId === fileId;
                         const durationSec = isCloud ? (item.metadata?.duration || 0) : item.duration;
-                        const fileUrl = isCloud ? `${axios.defaults.baseURL.replace('/api', '')}${item.fileUrl}` : item.uri;
+                        const fileUrl = isCloud ? `${BASE_URL}${item.fileUrl}` : item.uri;
                         const isSynced = isCloud ? true : item.synced;
 
                         return (
@@ -481,6 +492,18 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                                 </View>
 
                                 <View style={styles.actionButtons}>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            setDriveFileMeta({
+                                                name: isCloud ? item.filename : `voice_recording_${fileId}.m4a`,
+                                                uri: fileUrl
+                                            });
+                                            setDriveModalOpen(true);
+                                        }}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="logo-google" size={18} color={colors.accent} />
+                                    </TouchableOpacity>
                                     {isCloud && (
                                         <TouchableOpacity
                                             onPress={() => shareFile(fileUrl, item.filename)}
@@ -503,6 +526,17 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                     }}
                 />
             )}
+
+            <GoogleDriveModal
+                isOpen={driveModalOpen}
+                onClose={() => setDriveModalOpen(false)}
+                fileName={driveFileMeta.name}
+                fileUri={driveFileMeta.uri}
+                toolType="voice-recorder"
+                onSaveSuccess={() => {
+                    fetchCloudFiles();
+                }}
+            />
         </View>
     );
 };

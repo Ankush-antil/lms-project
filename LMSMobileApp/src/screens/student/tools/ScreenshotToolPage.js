@@ -18,6 +18,8 @@ import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors'
 import { AppHeader } from '../../../components/common/UIComponents';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 import Toast from 'react-native-toast-message';
+import { BASE_URL } from '../../../config/api';
+import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 
 const ScreenshotToolPage = ({ route, navigation }) => {
     const { date: dateParam } = route.params || {};
@@ -31,6 +33,10 @@ const ScreenshotToolPage = ({ route, navigation }) => {
     const [activeTab, setActiveTab] = useState('local'); // 'local' | 'cloud'
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+
+    // Google Drive state
+    const [driveModalOpen, setDriveModalOpen] = useState(false);
+    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -226,6 +232,11 @@ const ScreenshotToolPage = ({ route, navigation }) => {
                 title="Screenshot Tool"
                 showBack={true}
                 backAction={() => navigation.goBack()}
+                rightIcon="logo-google"
+                rightAction={() => {
+                    setDriveFileMeta({ name: '', uri: '' });
+                    setDriveModalOpen(true);
+                }}
             />
 
             {/* Top Workspace Date indicator */}
@@ -324,13 +335,25 @@ const ScreenshotToolPage = ({ route, navigation }) => {
                     renderItem={({ item }) => {
                         const isCloud = activeTab === 'cloud';
                         const fileId = isCloud ? item._id : item.id;
-                        const fileUrl = isCloud ? `${axios.defaults.baseURL.replace('/api', '')}${item.fileUrl}` : item.uri;
+                        const fileUrl = isCloud ? `${BASE_URL}${item.fileUrl}` : item.uri;
                         const isSynced = isCloud ? true : item.synced;
 
                         return (
                             <View style={styles.galleryItem}>
                                 <Image source={{ uri: fileUrl }} style={styles.screenshotImage} />
                                 <View style={styles.overlayButtons}>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            setDriveFileMeta({
+                                                name: isCloud ? item.filename : item.filename || `screenshot_${fileId}.jpg`,
+                                                uri: fileUrl
+                                            });
+                                            setDriveModalOpen(true);
+                                        }}
+                                        style={[styles.overlayBtn, { backgroundColor: colors.accent }]}
+                                    >
+                                        <Ionicons name="logo-google" size={16} color={colors.white} />
+                                    </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={() => shareFile(fileUrl, isCloud ? item.filename : 'screenshot.jpg')}
                                         style={styles.overlayBtn}
@@ -356,6 +379,17 @@ const ScreenshotToolPage = ({ route, navigation }) => {
                     }}
                 />
             )}
+
+            <GoogleDriveModal
+                isOpen={driveModalOpen}
+                onClose={() => setDriveModalOpen(false)}
+                fileName={driveFileMeta.name}
+                fileUri={driveFileMeta.uri}
+                toolType="screenshot"
+                onSaveSuccess={() => {
+                    fetchCloudFiles();
+                }}
+            />
         </View>
     );
 };

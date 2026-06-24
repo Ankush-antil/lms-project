@@ -14,14 +14,14 @@ const ScreenshotToolPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const scrollReportRef = useRef(null);
-    
+
     // Parse selected date and inbox param
     const searchParams = new URLSearchParams(location.search);
     const dateParam = searchParams.get('date');
     const inboxParam = searchParams.get('inbox');
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
-    
+
     // Page local states
     const [countdown, setCountdown] = useState(0); // 0, 3, 5, 10
     const [countdownActive, setCountdownActive] = useState(false);
@@ -231,7 +231,7 @@ const ScreenshotToolPage = () => {
 
         localStorage.setItem('practice_screenshots', JSON.stringify(screenshots));
         await fetchCloudFiles();
-        
+
         if (successCount > 0) {
             toast.success(`Successfully synced ${successCount} files to cloud!`, { id: toastId });
         } else {
@@ -329,11 +329,10 @@ const ScreenshotToolPage = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={() => setCaptureSource('webpage')}
-                                        className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                                            captureSource === 'webpage'
+                                        className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${captureSource === 'webpage'
                                                 ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
                                                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                        }`}
+                                            }`}
                                     >
                                         <Monitor size={14} />
                                         <span>Webpage</span>
@@ -348,11 +347,10 @@ const ScreenshotToolPage = () => {
                                                 await connectScreenShare();
                                             }
                                         }}
-                                        className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                                            captureSource === 'desktop'
+                                        className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${captureSource === 'desktop'
                                                 ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
                                                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                        }`}
+                                            }`}
                                     >
                                         <Layers size={14} />
                                         <span>Desktop</span>
@@ -372,13 +370,12 @@ const ScreenshotToolPage = () => {
                                             key={t.id}
                                             disabled={t.disabled}
                                             onClick={() => setSourceType(t.id)}
-                                            className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-3.5 ${
-                                                t.disabled
+                                            className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-3.5 ${t.disabled
                                                     ? 'opacity-40 cursor-not-allowed bg-slate-150 border-slate-200 text-slate-400'
                                                     : sourceType === t.id
                                                         ? 'bg-indigo-55 border-indigo-300 text-indigo-800 shadow-sm'
                                                         : 'bg-slate-50 border-slate-200 text-slate-550 hover:bg-slate-100'
-                                            }`}
+                                                }`}
                                             title={t.disabled ? 'Long screenshot is only supported in Webpage mode' : ''}
                                         >
                                             {t.icon}
@@ -397,22 +394,20 @@ const ScreenshotToolPage = () => {
                                     <div className="grid grid-cols-2 gap-2 mt-1">
                                         <button
                                             onClick={() => setCropShape('rect')}
-                                            className={`py-2 px-1 rounded-xl border text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-                                                cropShape === 'rect'
+                                            className={`py-2 px-1 rounded-xl border text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${cropShape === 'rect'
                                                     ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
                                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-55'
-                                            }`}
+                                                }`}
                                         >
                                             <Square size={12} />
                                             <span>Rectangle</span>
                                         </button>
                                         <button
                                             onClick={() => setCropShape('custom')}
-                                            className={`py-2 px-1 rounded-xl border text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-                                                cropShape === 'custom'
+                                            className={`py-2 px-1 rounded-xl border text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${cropShape === 'custom'
                                                     ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
                                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-55'
-                                            }`}
+                                                }`}
                                         >
                                             <Activity size={12} />
                                             <span>Custom Shape</span>
@@ -487,17 +482,16 @@ const ScreenshotToolPage = () => {
                                 </h3>
                                 <button
                                     onClick={openPipWindow}
-                                    className={`px-3.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                                        pipActive
+                                    className={`px-3.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${pipActive
                                             ? 'bg-red-50 border-red-200 text-red-600 shadow-sm shadow-red-100'
                                             : 'bg-indigo-50 border-indigo-250 text-indigo-700 hover:bg-indigo-100 shadow-sm shadow-indigo-100'
-                                    }`}
+                                        }`}
                                 >
                                     <Layers size={12} />
                                     <span>{pipActive ? 'Close Floating Bar' : 'Open Floating Toolbar'}</span>
                                 </button>
                             </div>
-                            
+
                             {/* Flash Overlay */}
                             <div className={`absolute inset-0 bg-white transition-opacity z-20 pointer-events-none duration-150 ${flashActive ? 'opacity-100' : 'opacity-0'}`}></div>
 
@@ -517,7 +511,7 @@ const ScreenshotToolPage = () => {
                                                 This mode renders the entire LMS webpage layout from the very top to the bottom. Ready to capture the scrollable layout.
                                             </p>
                                         </div>
-                                        
+
                                         {scrollingActive && (
                                             <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center z-30 p-6 space-y-4 animate-fade-in">
                                                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -575,7 +569,7 @@ const ScreenshotToolPage = () => {
                                             alt="latest capture"
                                             className="max-h-[320px] max-w-full w-auto h-auto rounded-xl object-contain shadow-2xl border border-slate-850"
                                         />
-                                        
+
                                         {countdownActive && (
                                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
                                                 <div className="w-20 h-20 bg-indigo-650 text-white rounded-full flex items-center justify-center text-4xl font-black animate-ping">
@@ -583,7 +577,7 @@ const ScreenshotToolPage = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        
+
                                         <div className="absolute bottom-3 left-3 bg-black/75 px-3 py-1.5 rounded-xl border border-white/10 text-[9px] font-black text-slate-350 uppercase tracking-wider z-20 flex items-center gap-1.5">
                                             <span>Latest Capture: {filteredLocalScreenshots[0].timestamp}</span>
                                         </div>
@@ -656,13 +650,12 @@ const ScreenshotToolPage = () => {
                             <button
                                 disabled={isReadOnly}
                                 onClick={openPipWindow}
-                                className={`w-full py-4 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-4 ${
-                                    isReadOnly
+                                className={`w-full py-4 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-4 ${isReadOnly
                                         ? 'bg-slate-300 border-slate-350 text-slate-500 cursor-not-allowed opacity-60 shadow-none'
-                                        : pipActive 
-                                            ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10 hover:shadow-red-500/20' 
+                                        : pipActive
+                                            ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10 hover:shadow-red-500/20'
                                             : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
-                                }`}
+                                    }`}
                             >
                                 <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></span>
                                 {isReadOnly ? 'Workspace Read-Only' : pipActive ? 'Close Screenshot Toolbar' : 'Take Screenshot'}
@@ -674,16 +667,15 @@ const ScreenshotToolPage = () => {
                     <div className="lg:col-span-3 space-y-6 text-left">
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
-                            
+
                             {/* Sync Actions */}
                             <div className="space-y-2">
                                 {/* Save in Google Drive */}
                                 <button
                                     disabled={isReadOnly}
                                     onClick={handleSaveToDriveClick}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
-                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                        }`}
                                 >
                                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
                                         <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
@@ -693,44 +685,6 @@ const ScreenshotToolPage = () => {
                                     <div className="text-left flex-1">
                                         <p>Save in Google Drive</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Snap</span>
-                                    </div>
-                                </button>
-                                
-                                {/* Go to Local Data */}
-                                <button
-                                    onClick={() => {
-                                        setLocalHistoryModalOpen(true);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
-                                >
-                                    <Folder className="text-indigo-650 shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredLocalScreenshots.length} captures • view structured folders
-                                        </span>
-                                    </div>
-                                </button>
-                                
-                                {/* Go to Cloud Data */}
-                                <button
-                                    onClick={async () => {
-                                        setGalleryTab('cloud');
-                                        await fetchCloudFiles();
-                                        toast.success("Switched to Cloud Storage Gallery");
-                                    }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
-                                        galleryTab === 'cloud'
-                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-850 shadow-sm'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                    }`}
-                                >
-                                    <Database className="text-indigo-600 shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Cloud Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredCloudFiles.length} Cloud Snaps • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
-                                        </span>
                                     </div>
                                 </button>
 
@@ -754,14 +708,50 @@ const ScreenshotToolPage = () => {
                                         </span>
                                     </div>
                                 </button>
-                                
+
+                                {/* Go to Local Data */}
+                                <button
+                                    onClick={() => {
+                                        setLocalHistoryModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                >
+                                    <Folder className="text-indigo-650 shrink-0" size={18} />
+                                    <div className="text-left flex-1">
+                                        <p>Go to Local Data</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {filteredLocalScreenshots.length} captures • view structured folders
+                                        </span>
+                                    </div>
+                                </button>
+
+                                {/* Go to Cloud Data */}
+                                <button
+                                    onClick={async () => {
+                                        setGalleryTab('cloud');
+                                        await fetchCloudFiles();
+                                        toast.success("Switched to Cloud Storage Gallery");
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${galleryTab === 'cloud'
+                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-850 shadow-sm'
+                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                        }`}
+                                >
+                                    <Database className="text-indigo-600 shrink-0" size={18} />
+                                    <div className="text-left flex-1">
+                                        <p>Go to Cloud Data</p>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {filteredCloudFiles.length} Cloud Snaps • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
+                                        </span>
+                                    </div>
+                                </button>
+
                                 {/* Sync with Cloud */}
                                 <button
                                     disabled={isReadOnly}
                                     onClick={handleSyncWithCloud}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
-                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                        }`}
                                 >
                                     <RefreshCw className="text-indigo-650 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
@@ -868,7 +858,7 @@ const ScreenshotToolPage = () => {
 
                 </div>
             </div>
-            
+
             {/* Google Drive Simulation Modal */}
             <GoogleDriveModal
                 isOpen={driveModalOpen}

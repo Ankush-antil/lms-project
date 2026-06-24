@@ -366,7 +366,7 @@ const WebCallingPage = () => {
             return;
         }
         // Check if teacher is online
-        const isOnline = onlineUsers.some(user => user.userId === teacher._id);
+        const isOnline = onlineUsers.includes(teacher._id);
         if (!isOnline && teacher._id !== 't1' && teacher._id !== 't2') { // Let mock teachers trigger dialing
             toast.error(`${teacher.name} is currently offline.`);
             return;
@@ -784,7 +784,7 @@ const WebCallingPage = () => {
                                         ) : (
                                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                                                 {teachers.map(teacher => {
-                                                    const isOnline = onlineUsers.some(u => u.userId === teacher._id) || teacher._id === 't1' || teacher._id === 't2'; // simulate online status for dr. sarah and prof. james
+                                                    const isOnline = onlineUsers.includes(teacher._id) || teacher._id === 't1' || teacher._id === 't2'; // simulate online status for dr. sarah and prof. james
                                                     return (
                                                         <div 
                                                             key={teacher._id}

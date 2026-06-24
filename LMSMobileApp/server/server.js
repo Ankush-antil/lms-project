@@ -48,49 +48,17 @@ app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/submissions', require('./routes/submissionRoutes'));
 app.use('/api/public-tests', require('./routes/publicTestRoutes'));
 app.use('/api/calls', require('./routes/teacher/callRoutes'));
-app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/messages', require('./routes/common/messageRoutes'));
 app.use('/api/practice-files', require('./routes/student/practiceFileRoutes'));
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-    // Serve React static files
-    app.use(express.static(path.join(__dirname, '../client/dist')));
-
-    // Catch-all: only serve index.html for non-API routes
-    app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api/')) {
-            return next(); // Let API 404 handler respond
-        }
-        res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
-    });
-} else {
-    app.get('/', (req, res) => {
-        const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-        res.json({
-            message: 'LMS API is running',
-            database: dbStatus,
-            version: '1.0.0'
-        });
-    });
-}
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('[SERVER ERROR]', err);
-    let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-    let message = err.message;
-
-    // MongoDB duplicate key error (code 11000)
-    if (err.code === 11000) {
-        statusCode = 400;
-        const field = Object.keys(err.keyValue || {})[0] || 'field';
-        message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists in the database. Please use a different value.`;
-    }
-
-    res.status(statusCode).json({
-        message,
-        stack: process.env.NODE_ENV === 'production' ? null : err.stack
+// API-only server (Mobile App) — no static file serving
+app.get('/', (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+    res.json({
+        message: 'LMS Mobile API is running ✅',
+        database: dbStatus,
+        version: '1.0.0',
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 

@@ -28,6 +28,7 @@ const VideoRecorderPage = () => {
     const [selectedAudio, setSelectedAudio] = useState('');
     
     const [cameraEnabled, setCameraEnabled] = useState(true);
+    const [previewActive, setPreviewActive] = useState(false); // Camera preview is OFF by default
     const [audioEnabled, setAudioEnabled] = useState(true);
     const [countdown, setCountdown] = useState(3); // Default to 3 seconds as in Image 2
     const [countdownActive, setCountdownActive] = useState(false);
@@ -43,6 +44,7 @@ const VideoRecorderPage = () => {
     const [recordingTime, setRecordingTime] = useState(0);
     const [videos, setVideos] = useState([]);
     const [error, setError] = useState(null);
+    const [lastRecordingUrl, setLastRecordingUrl] = useState(null); // Show last recorded video in preview after stop
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -234,21 +236,20 @@ const VideoRecorderPage = () => {
         loadLocalRecordings();
     }, []);
 
-    // Get media devices
+    // Get media devices — enumerate without triggering camera permission
     useEffect(() => {
         const getDevices = async () => {
             try {
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(s => {
-                    s.getTracks().forEach(t => t.stop());
-                }).catch(() => {});
-
+                // Just enumerate — no getUserMedia here to avoid triggering camera on page load
+                // Labels may be empty until user grants permission (that's fine)
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoInputs = devices.filter(d => d.kind === 'videoinput');
                 const audioInputs = devices.filter(d => d.kind === 'audioinput');
-                
-                setVideoDevices(videoInputs);
-                setAudioDevices(audioInputs);
-                
+
+                // Fallback if no devices found yet (labels need permission first)
+                setVideoDevices(videoInputs.length > 0 ? videoInputs : [{ deviceId: 'default', label: 'Default Camera' }]);
+                setAudioDevices(audioInputs.length > 0 ? audioInputs : [{ deviceId: 'default', label: 'Default Microphone' }]);
+
                 if (videoInputs.length > 0) setSelectedVideo(videoInputs[0].deviceId);
                 if (audioInputs.length > 0) setSelectedAudio(audioInputs[0].deviceId);
             } catch (err) {
@@ -261,9 +262,9 @@ const VideoRecorderPage = () => {
         getDevices();
     }, []);
 
-    // Manage WebRTC Camera Feed
+    // Manage WebRTC Camera Feed — only start when previewActive is true
     useEffect(() => {
-        if (!cameraEnabled) {
+        if (!cameraEnabled || !previewActive) {
             stopStream();
             return;
         }
@@ -283,10 +284,17 @@ const VideoRecorderPage = () => {
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
                 }
+                // Re-enumerate after permission granted to get proper device labels
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoInputs = devices.filter(d => d.kind === 'videoinput');
+                const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                if (videoInputs.length > 0) setVideoDevices(videoInputs);
+                if (audioInputs.length > 0) setAudioDevices(audioInputs);
             } catch (err) {
                 console.error("Error accessing video stream:", err);
                 setError("Camera permission denied or camera is occupied.");
                 setCameraEnabled(false);
+                setPreviewActive(false);
             }
         };
 
@@ -295,7 +303,7 @@ const VideoRecorderPage = () => {
         return () => {
             stopStream();
         };
-    }, [selectedVideo, cameraEnabled, audioEnabled, selectedAudio]);
+    }, [selectedVideo, cameraEnabled, audioEnabled, selectedAudio, previewActive]);
 
     const stopStream = () => {
         if (stream) {
@@ -320,6 +328,20 @@ const VideoRecorderPage = () => {
             handleStopRecording();
             toast.success("Video recording saved!");
         } else {
+            // Ensure camera preview is active before recording
+            if (!previewActive) {
+                setPreviewActive(true);
+                // Small delay to let stream initialize, then start recording
+                setTimeout(() => {
+                    if (countdown > 0) {
+                        setCountdownActive(true);
+                        setSecondsLeft(countdown);
+                    } else {
+                        startRecordingProcess();
+                    }
+                }, 800);
+                return;
+            }
             if (countdown > 0) {
                 setCountdownActive(true);
                 setSecondsLeft(countdown);
@@ -394,6 +416,8 @@ const VideoRecorderPage = () => {
                     localStorage.setItem('practice_videos', JSON.stringify(list.map(v => ({ ...v, url: '' }))));
                     return list;
                 });
+                // Show the just-recorded video in the center preview (like screenshot tool)
+                setLastRecordingUrl(blobUrl);
                 setRecordingTime(0);
             };
 
@@ -421,6 +445,9 @@ const VideoRecorderPage = () => {
             timerRef.current = null;
         }
         setRecording(false);
+        // Turn off camera after recording stops
+        setPreviewActive(false);
+        stopStream();
     };
 
     const formatTime = (secs) => {
@@ -490,12 +517,12 @@ const VideoRecorderPage = () => {
                                         {cameraEnabled ? 'ON' : 'OFF'}
                                     </span>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 min-w-0">
                                     <select
                                         disabled={!cameraEnabled}
                                         value={selectedVideo}
                                         onChange={(e) => setSelectedVideo(e.target.value)}
-                                        className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50"
+                                        className="flex-1 min-w-0 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50 truncate"
                                     >
                                         {videoDevices.map(d => (
                                             <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${d.deviceId.slice(0, 5)}`}</option>
@@ -518,12 +545,12 @@ const VideoRecorderPage = () => {
                                         {audioEnabled ? 'ON' : 'OFF'}
                                     </span>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 min-w-0">
                                     <select
                                         disabled={!audioEnabled}
                                         value={selectedAudio}
                                         onChange={(e) => setSelectedAudio(e.target.value)}
-                                        className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50"
+                                        className="flex-1 min-w-0 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50 truncate"
                                     >
                                         {audioDevices.map(d => (
                                             <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 5)}`}</option>
@@ -590,7 +617,7 @@ const VideoRecorderPage = () => {
                     <div className="lg:col-span-6 space-y-6">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
-                                <span>Camera Preview</span>
+                                <span>{lastRecordingUrl && !previewActive ? 'Last Recording' : 'Camera Preview'}</span>
                                 {recording && (
                                     <span className="flex items-center gap-1 text-red-500 font-black text-xs animate-pulse">
                                         <span className="w-2.5 h-2.5 bg-red-600 rounded-full"></span>
@@ -599,9 +626,9 @@ const VideoRecorderPage = () => {
                                 )}
                             </h3>
 
-                            {/* Camera Video Stream */}
+                            {/* Camera Video Stream / Last Recording */}
                             <div className="flex-1 my-4 bg-slate-900 rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-800 min-h-[280px]">
-                                {cameraEnabled && !error ? (
+                                {cameraEnabled && previewActive && !error ? (
                                     <>
                                         <video
                                             ref={videoRef}
@@ -617,16 +644,55 @@ const VideoRecorderPage = () => {
                                                 </div>
                                             </div>
                                         )}
+                                        {/* Stop Preview button overlay */}
+                                        <button
+                                            onClick={() => { setPreviewActive(false); }}
+                                            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-colors z-10"
+                                        >
+                                            Stop Preview
+                                        </button>
+                                    </>
+                                ) : lastRecordingUrl ? (
+                                    // Show last recorded video (like screenshot tool shows captured image)
+                                    <>
+                                        <video
+                                            src={lastRecordingUrl}
+                                            controls
+                                            playsInline
+                                            className="w-full h-full object-contain"
+                                        ></video>
+                                        <button
+                                            onClick={() => setLastRecordingUrl(null)}
+                                            className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-colors z-10"
+                                        >
+                                            ✕ Close
+                                        </button>
                                     </>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-3">
                                         <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-400">
                                             <Camera size={32} />
                                         </div>
-                                        <div>
-                                            <p className="font-extrabold text-slate-400 text-sm uppercase tracking-wider">Camera is Off</p>
-                                            <p className="text-xs text-slate-500 mt-1 max-w-xs">Enable camera in the left pane to begin capturing your video stream.</p>
-                                        </div>
+                                        {!cameraEnabled ? (
+                                            <div>
+                                                <p className="font-extrabold text-slate-400 text-sm uppercase tracking-wider">Camera is Off</p>
+                                                <p className="text-xs text-slate-500 mt-1 max-w-xs">Toggle camera ON in the left pane to begin capturing.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div>
+                                                    <p className="font-extrabold text-slate-300 text-sm uppercase tracking-wider">Preview Ready</p>
+                                                    <p className="text-xs text-slate-500 mt-1 max-w-xs">Click below to enable camera preview before recording.</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setPreviewActive(true)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-colors shadow-md"
+                                                >
+                                                    <Camera size={14} />
+                                                    Enable Camera Preview
+                                                </button>
+                                            </div>
+                                        )}
                                         {error && (
                                             <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-950/20 border border-red-900/30 px-3 py-1.5 rounded-xl font-medium mt-2">
                                                 <AlertTriangle size={14} />

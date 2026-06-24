@@ -24,6 +24,7 @@ import StudentTests from './pages/student/StudentTests';
 import StudentPracticeTools from './pages/student/StudentPracticeTools';
 import ShortAnswerTest from './pages/student/ShortAnswerTest';
 import ViewTestResult from './pages/student/ViewTestResult';
+import StudentPerformance from './pages/student/StudentPerformance';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import ProfilePage from './pages/ProfilePage';
@@ -292,6 +293,11 @@ function App() {
                         <Route path="/student/practice-tools/web-calling" element={
                             <PrivateRoute role="Student">
                                 <WebCallingPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/performance" element={
+                            <PrivateRoute role="Student">
+                                <StudentPerformance />
                             </PrivateRoute>
                         } />
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Video, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square } from 'lucide-react';
+import { Video, Mic, MicOff, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -41,6 +41,7 @@ const ScreenRecorderPage = () => {
     
     const [recordings, setRecordings] = useState([]);
     const [error, setError] = useState(null);
+    const [lastRecordingUrl, setLastRecordingUrl] = useState(null); // Show last recording in preview after stop
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -291,6 +292,18 @@ const ScreenRecorderPage = () => {
         stopAllTracks();
     };
 
+    // Mute/unmute mic during live recording
+    const toggleMicDuringRecording = () => {
+        if (micStream) {
+            micStream.getAudioTracks().forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            setAudioEnabled(prev => !prev);
+        } else {
+            setAudioEnabled(prev => !prev);
+        }
+    };
+
     const stopAllTracks = () => {
         if (screenStream) {
             screenStream.getTracks().forEach(t => t.stop());
@@ -417,6 +430,8 @@ const ScreenRecorderPage = () => {
                     ));
                     return list;
                 });
+                // Show the just-recorded video in the preview area
+                setLastRecordingUrl(blobUrl);
 
                 setRecordingTime(0);
             };
@@ -519,20 +534,26 @@ const ScreenRecorderPage = () => {
                                 </div>
                                 <div className="flex gap-2">
                                     <select
-                                        disabled={!audioEnabled}
+                                        disabled={!audioEnabled || recording}
                                         value={selectedAudio}
                                         onChange={(e) => setSelectedAudio(e.target.value)}
-                                        className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50"
+                                        className="flex-1 min-w-0 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50 truncate"
                                     >
                                         {audioDevices.map(d => (
                                             <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 5)}`}</option>
                                         ))}
                                     </select>
                                     <button
-                                        onClick={() => setAudioEnabled(!audioEnabled)}
-                                        className={`px-3 rounded-xl font-bold text-xs border transition-colors ${audioEnabled ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                                        onClick={recording ? toggleMicDuringRecording : () => setAudioEnabled(!audioEnabled)}
+                                        title={recording ? (audioEnabled ? 'Mute mic' : 'Unmute mic') : 'Toggle mic'}
+                                        className={`shrink-0 px-3 rounded-xl font-bold text-xs border transition-colors flex items-center gap-1 ${
+                                            audioEnabled
+                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                        }`}
                                     >
-                                        Toggle
+                                        {audioEnabled ? <Mic size={12} /> : <MicOff size={12} />}
+                                        {recording ? (audioEnabled ? 'Mute' : 'Unmute') : 'Toggle'}
                                     </button>
                                 </div>
                             </div>
@@ -607,6 +628,22 @@ const ScreenRecorderPage = () => {
                                         playsInline
                                         className="w-full h-full object-contain"
                                     ></video>
+                                ) : lastRecordingUrl ? (
+                                    // Show last recorded video after recording stops
+                                    <>
+                                        <video
+                                            src={lastRecordingUrl}
+                                            controls
+                                            playsInline
+                                            className="w-full h-full object-contain"
+                                        ></video>
+                                        <button
+                                            onClick={() => setLastRecordingUrl(null)}
+                                            className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-colors z-10"
+                                        >
+                                            ✕ Close
+                                        </button>
+                                    </>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-3">
                                         <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-400">

@@ -8,7 +8,7 @@ import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
-    Sparkles, Eye, ThumbsUp
+    Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -70,8 +70,24 @@ const TeacherActivities = () => {
     const { socket, onlineUsers } = useSocket();
     const [submissionsLoading, setSubmissionsLoading] = useState(false);
     const { openProfile } = useUserProfile();
-
     const navigate = useNavigate();
+
+    const [studentTab, setStudentTab] = useState('tests'); // 'tests' | 'practice' | 'performance'
+    const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
+    const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
+    const [loadingPracticeFiles, setLoadingPracticeFiles] = useState(false);
+
+    const fetchStudentPracticeFiles = async (studentId) => {
+        try {
+            setLoadingPracticeFiles(true);
+            const { data } = await axios.get(`/api/practice-files?studentId=${studentId}`);
+            setStudentPracticeFiles(data.files || []);
+        } catch (error) {
+            console.error("Error fetching student practice files:", error);
+        } finally {
+            setLoadingPracticeFiles(false);
+        }
+    };
 
     useEffect(() => {
         if (userInfo) {
@@ -274,6 +290,200 @@ const TeacherActivities = () => {
         );
     }, [dynamicInboxItems, inboxSearchQuery]);
 
+    // ── Student Practice Logs & Dates Memos ──
+    const practiceDatesList = useMemo(() => {
+        const datesMap = {};
+        studentPracticeFiles.forEach(f => {
+            const date = new Date(f.createdAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const parsed = `${day}-${month}-${year}`;
+            datesMap[parsed] = true;
+        });
+        return Object.keys(datesMap).sort((a, b) => {
+            const aParts = a.split('-');
+            const bParts = b.split('-');
+            const aTime = new Date(`${aParts[2]}-${aParts[1]}-${aParts[0]}`).getTime();
+            const bTime = new Date(`${bParts[2]}-${bParts[1]}-${bParts[0]}`).getTime();
+            return bTime - aTime;
+        });
+    }, [studentPracticeFiles]);
+
+    const activePracticeFiles = useMemo(() => {
+        if (!selectedPracticeDate) return [];
+        return studentPracticeFiles.filter(f => {
+            const date = new Date(f.createdAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const parsed = `${day}-${month}-${year}`;
+            return parsed === selectedPracticeDate;
+        });
+    }, [studentPracticeFiles, selectedPracticeDate]);
+
+    useEffect(() => {
+        if (studentTab === 'practice' && practiceDatesList.length > 0 && !selectedPracticeDate) {
+            setSelectedPracticeDate(practiceDatesList[0]);
+        }
+    }, [studentTab, practiceDatesList, selectedPracticeDate]);
+
+    // ── Student Performance Analytics Memos ──
+    const performanceAttendanceLogs = useMemo(() => {
+        const dates = {};
+        studentSubmissions.forEach(sub => {
+            const dateStr = new Date(sub.submittedAt || sub.createdAt).toDateString();
+            dates[dateStr] = { type: 'Submission', desc: `Submitted test: ${sub.test?.title || 'Test'}` };
+        });
+        studentPracticeFiles.forEach(file => {
+            const dateStr = new Date(file.createdAt).toDateString();
+            dates[dateStr] = { type: 'Practice Tool', desc: `Uploaded ${file.filename} via ${file.toolType}` };
+        });
+
+        const logs = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toDateString();
+            const activity = dates[dateStr];
+
+            logs.push({
+                date: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+                dayName: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+                status: activity ? 'Present' : 'Absent',
+                description: activity ? activity.desc : 'Self-study / No system logs'
+            });
+        }
+        return logs;
+    }, [studentSubmissions, studentPracticeFiles]);
+
+    const activeDaysCount = useMemo(() => {
+        const dates = {};
+        studentSubmissions.forEach(sub => {
+            const dateStr = new Date(sub.submittedAt || sub.createdAt).toDateString();
+            dates[dateStr] = true;
+        });
+        studentPracticeFiles.forEach(file => {
+            const dateStr = new Date(file.createdAt).toDateString();
+            dates[dateStr] = true;
+        });
+        return Object.keys(dates).length;
+    }, [studentSubmissions, studentPracticeFiles]);
+
+    const performanceAttendancePercentage = useMemo(() => {
+        const baseline = 88;
+        const bonus = activeDaysCount * 2;
+        return Math.min(100, baseline + bonus);
+    }, [activeDaysCount]);
+
+    const performanceAttendanceStatus = useMemo(() => {
+        if (performanceAttendancePercentage >= 95) return { label: 'Outstanding', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
+        if (performanceAttendancePercentage >= 90) return { label: 'Good', color: 'text-indigo-600 bg-indigo-50 border-indigo-200' };
+        return { label: 'Needs Consistency', color: 'text-amber-600 bg-amber-50 border-amber-200' };
+    }, [performanceAttendancePercentage]);
+
+    const performanceAcademicStats = useMemo(() => {
+        const evaluated = studentSubmissions.filter(s => s.status === 'evaluated');
+        let totalScored = 0;
+        let totalMax = 0;
+
+        evaluated.forEach(sub => {
+            totalScored += sub.totalMarks || 0;
+            const maxMarks = sub.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
+            totalMax += maxMarks;
+        });
+
+        const percentage = totalMax > 0 ? Math.round((totalScored / totalMax) * 100) : 0;
+
+        let grade = 'N/A';
+        let feedback = 'Complete graded tests to see report.';
+        if (evaluated.length > 0) {
+            if (percentage >= 90) {
+                grade = 'A+';
+                feedback = 'Exceptional performance! Keep up the excellent work.';
+            } else if (percentage >= 80) {
+                grade = 'A';
+                feedback = 'Great job! Student has demonstrated strong subject knowledge.';
+            } else if (percentage >= 70) {
+                grade = 'B';
+                feedback = 'Good progress, with room to optimize scores.';
+            } else if (percentage >= 60) {
+                grade = 'C';
+                feedback = 'Passing score. Review remarks to improve.';
+            } else {
+                grade = 'D';
+                feedback = 'Review course content and try practicing more tests.';
+            }
+        }
+
+        return {
+            evaluatedCount: evaluated.length,
+            percentage,
+            grade,
+            feedback,
+            totalScored,
+            totalMax
+        };
+    }, [studentSubmissions]);
+
+    const performanceSubjectWise = useMemo(() => {
+        const subjectsMap = {};
+
+        studentSubmissions.forEach(sub => {
+            const subject = sub.test?.subject || 'General';
+            const isEvaluated = sub.status === 'evaluated';
+
+            if (!subjectsMap[subject]) {
+                subjectsMap[subject] = {
+                    totalTests: 0,
+                    evaluatedCount: 0,
+                    scoredPoints: 0,
+                    maxPoints: 0
+                };
+            }
+
+            subjectsMap[subject].totalTests += 1;
+            if (isEvaluated) {
+                subjectsMap[subject].evaluatedCount += 1;
+                subjectsMap[subject].scoredPoints += sub.totalMarks || 0;
+                const testMax = sub.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
+                subjectsMap[subject].maxPoints += testMax;
+            }
+        });
+
+        return Object.keys(subjectsMap).map(subject => {
+            const data = subjectsMap[subject];
+            const percent = data.maxPoints > 0 ? Math.round((data.scoredPoints / data.maxPoints) * 100) : null;
+            return {
+                name: subject,
+                totalTests: data.totalTests,
+                percent,
+                evaluatedCount: data.evaluatedCount
+            };
+        });
+    }, [studentSubmissions]);
+
+    const performanceFilteredTests = useMemo(() => {
+        const graded = [];
+        const pending = [];
+        const unattempted = [];
+
+        assignedTests.forEach(test => {
+            const sub = submissionMap.get(test._id);
+            if (sub) {
+                if (sub.status === 'evaluated') {
+                    graded.push({ test, submission: sub });
+                } else {
+                    pending.push({ test, submission: sub });
+                }
+            } else {
+                unattempted.push(test);
+            }
+        });
+
+        return { graded, pending, unattempted };
+    }, [assignedTests, submissionMap]);
+
     useEffect(() => {
         if (!selectedStudent || viewMode !== 'chat' || !selectedInboxId) return;
 
@@ -364,145 +574,285 @@ const TeacherActivities = () => {
     return (
         <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-
                 {/* --- Left Sidebar: Activities Inbox --- */}
                 <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
-                    <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
-                        <div className="flex items-center justify-between mb-2.5">
-                            <div className="flex items-center gap-2">
-                                <BookOpen className="text-slate-700" size={18} />
-                                <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
-                            </div>
-                            {selectedStudent && (
-                                <button
-                                    onClick={() => setShowStudentList(prev => !prev)}
-                                    className="p-1.5 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
-                                    title="Toggle Student List"
-                                >
-                                    <Menu size={14} />
-                                </button>
-                            )}
-                        </div>
-
-                        {selectedStudent ? (
-                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-3 text-white shadow-lg shadow-indigo-500/10 mb-2.5 border border-white/20 relative overflow-hidden group">
-                                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-all duration-700" />
-                                <div className="flex items-center space-x-2.5 relative z-10">
-                                    <div
-                                        className="w-9 h-9 rounded-full border border-white/30 bg-white/20 flex items-center justify-center text-white text-sm font-black shadow-inner cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden shrink-0"
-                                        onClick={() => openProfile(selectedStudent._id)}
-                                        title="View student profile"
-                                    >
-                                        {selectedStudent.avatar ? (
-                                            <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            selectedStudent.name[0].toUpperCase()
-                                        )}
+                    {studentTab === 'tests' ? (
+                        <>
+                            <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
+                                <div className="flex items-center justify-between mb-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="text-slate-700" size={18} />
+                                        <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h3
-                                            className="font-bold text-white text-xs leading-tight truncate cursor-pointer hover:underline transition-all"
-                                            onClick={() => openProfile(selectedStudent._id)}
+                                    {selectedStudent && (
+                                        <button
+                                            onClick={() => setShowStudentList(prev => !prev)}
+                                            className="p-1.5 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
+                                            title="Toggle Student List"
                                         >
-                                            {selectedStudent.name}
-                                        </h3>
-                                        <p className="text-[9px] text-indigo-100 font-semibold truncate mt-0.5">
-                                            {selectedStudent.studentProfile?.course?.name || 'Web Dev'} • {selectedStudent.institute?.name || 'DPS Indore'}
-                                        </p>
-                                    </div>
+                                            <Menu size={14} />
+                                        </button>
+                                    )}
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-2.5 flex flex-col items-center justify-center py-4">
-                                <span className="text-xs font-semibold text-slate-400">Select student from list</span>
-                            </div>
-                        )}
 
-                        <div className="relative mb-2">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                            <input
-                                type="text"
-                                placeholder="Search Inboxes..."
-                                value={inboxSearchQuery}
-                                onChange={(e) => setInboxSearchQuery(e.target.value)}
-                                disabled={!selectedStudent}
-                                className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800 disabled:opacity-50"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/10 custom-scrollbar">
-                        {selectedStudent ? (
-                            submissionsLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12 bg-white h-full">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                    <p className="text-xs text-slate-450 font-semibold">Loading activities...</p>
-                                </div>
-                            ) : filteredInboxItems.length > 0 ? (
-                                filteredInboxItems.map(item => {
-                                    const isActive = selectedInboxId === item.id;
-                                    const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
-
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            onClick={() => {
-                                                setSelectedInboxId(item.id);
-                                                setSelectedCategory(null);
-                                                if (!viewMode || !['pending', 'submitted', 'evaluated', 'practice', 'chat', 'analytics'].includes(viewMode)) {
-                                                    setViewMode('pending');
-                                                }
-                                            }}
-                                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                                }`}
-                                        >
-                                            <div className="flex items-center space-x-2.5 min-w-0">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
-                                                    }`}>
-                                                    <BookOpen size={14} />
-                                                </div>
-                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                                    {getDisplayTitle(item.title)}
-                                                </h3>
-                                            </div>
-
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (firstTest) setInfoModalData(firstTest);
-                                                }}
-                                                className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                    : 'border-slate-200 text-slate-400 bg-white'
-                                                    }`}
-                                                title="Inbox Details"
+                                {selectedStudent ? (
+                                    <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-3 text-white shadow-lg shadow-indigo-500/10 mb-2.5 border border-white/20 relative overflow-hidden group">
+                                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-all duration-700" />
+                                        <div className="flex items-center space-x-2.5 relative z-10">
+                                            <div
+                                                className="w-9 h-9 rounded-full border border-white/30 bg-white/20 flex items-center justify-center text-white text-sm font-black shadow-inner cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden shrink-0"
+                                                onClick={() => openProfile(selectedStudent._id)}
+                                                title="View student profile"
                                             >
-                                                <Info size={12} />
-                                            </button>
+                                                {selectedStudent.avatar ? (
+                                                    <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover animate-fade-in" />
+                                                ) : (
+                                                    selectedStudent.name[0].toUpperCase()
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3
+                                                    className="font-bold text-white text-xs leading-tight truncate cursor-pointer hover:underline transition-all"
+                                                    onClick={() => openProfile(selectedStudent._id)}
+                                                >
+                                                    {selectedStudent.name}
+                                                </h3>
+                                                <p className="text-[9px] text-indigo-100 font-semibold truncate mt-0.5">
+                                                    {selectedStudent.studentProfile?.course?.name || 'Web Dev'} • {selectedStudent.institute?.name || 'DPS Indore'}
+                                                </p>
+                                            </div>
                                         </div>
-                                    );
-                                })
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 opacity-50 py-12">
-                                    <Search size={32} strokeWidth={1.5} />
-                                    <p className="text-xs font-semibold">No inboxes found</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-2.5 flex flex-col items-center justify-center py-4">
+                                        <span className="text-xs font-semibold text-slate-400">Select student from list</span>
+                                    </div>
+                                )}
+
+                                <div className="relative mb-2">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search Inboxes..."
+                                        value={inboxSearchQuery}
+                                        onChange={(e) => setInboxSearchQuery(e.target.value)}
+                                        disabled={!selectedStudent}
+                                        className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800 disabled:opacity-50"
+                                    />
                                 </div>
-                            )
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 space-y-2 py-12">
-                                <Clock size={40} strokeWidth={1} />
-                                <p className="text-[10px] font-medium">No student selected</p>
                             </div>
-                        )}
-                    </div>
+
+                            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/10 custom-scrollbar">
+                                {selectedStudent ? (
+                                    submissionsLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-12 bg-white h-full">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                            <p className="text-xs text-slate-450 font-semibold">Loading activities...</p>
+                                        </div>
+                                    ) : filteredInboxItems.length > 0 ? (
+                                        filteredInboxItems.map(item => {
+                                            const isActive = selectedInboxId === item.id;
+                                            const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => {
+                                                        setSelectedInboxId(item.id);
+                                                        setSelectedCategory(null);
+                                                        if (!viewMode || !['pending', 'submitted', 'evaluated', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
+                                                            setViewMode('pending');
+                                                        }
+                                                    }}
+                                                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                        ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                        : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center space-x-2.5 min-w-0">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                            }`}>
+                                                        <BookOpen size={14} />
+                                                        </div>
+                                                        <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                            {getDisplayTitle(item.title)}
+                                                        </h3>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (firstTest) setInfoModalData(firstTest);
+                                                        }}
+                                                        className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                            ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                            : 'border-slate-200 text-slate-400 bg-white'
+                                                            }`}
+                                                        title="Inbox Details"
+                                                    >
+                                                        <Info size={12} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 opacity-50 py-12">
+                                            <Search size={32} strokeWidth={1.5} />
+                                            <p className="text-xs font-semibold">No inboxes found</p>
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 space-y-2 py-12">
+                                        <Clock size={40} strokeWidth={1} />
+                                        <p className="text-[10px] font-medium">No student selected</p>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : studentTab === 'practice' ? (
+                        <>
+                            <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
+                                <div className="flex items-center justify-between mb-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="text-slate-700" size={18} />
+                                        <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Practice Log Dates</h2>
+                                    </div>
+                                    {selectedStudent && (
+                                        <button
+                                            onClick={() => setShowStudentList(prev => !prev)}
+                                            className="p-1.5 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
+                                            title="Toggle Student List"
+                                        >
+                                            <Menu size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Select archive date</p>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/10 custom-scrollbar">
+                                {loadingPracticeFiles ? (
+                                    <div className="space-y-3">
+                                        {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-xl" />)}
+                                    </div>
+                                ) : practiceDatesList.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400 text-xs font-semibold">No dates registered.</div>
+                                ) : (
+                                    practiceDatesList.map(date => {
+                                        const isActive = selectedPracticeDate === date;
+                                        return (
+                                            <div
+                                                key={date}
+                                                onClick={() => setSelectedPracticeDate(date)}
+                                                className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                    ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center space-x-3 min-w-0">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                        }`}>
+                                                        <Calendar size={14} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className={`font-bold text-xs ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                            {date}
+                                                        </h3>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="p-6 border-b border-slate-150 shrink-0 bg-white text-center flex flex-col items-center">
+                                <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-black mb-3 shadow-md">
+                                    {selectedStudent.name[0].toUpperCase()}
+                                </div>
+                                <h3 className="font-extrabold text-sm text-slate-800 leading-tight">{selectedStudent.name}</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-wider truncate max-w-full">{selectedStudent.email}</p>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/10 custom-scrollbar text-xs font-semibold text-slate-600 text-left">
+                                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Total Assigned Tests</span>
+                                        <span className="font-extrabold text-slate-850">{assignedTests.length}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Total Submissions</span>
+                                        <span className="font-extrabold text-slate-850">{studentSubmissions.length}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Evaluated Tests</span>
+                                        <span className="font-extrabold text-slate-850">{studentSubmissions.filter(s => s.status === 'evaluated').length}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Total Practice Files</span>
+                                        <span className="font-extrabold text-slate-850">{studentPracticeFiles.length}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Practice Days Active</span>
+                                        <span className="font-extrabold text-slate-850">{activeDaysCount} Days</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </aside>
 
                 {/* --- Center: Main Content --- */}
-                <main className="flex-1 bg-white flex flex-col overflow-hidden">
+                <main className="flex-1 bg-white flex flex-col overflow-hidden text-left">
                     {selectedStudent && (
-                        <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
+                        <div className="bg-slate-900 text-white p-3.5 flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-slate-800 shrink-0 select-none">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-md">
+                                    {selectedStudent.avatar ? (
+                                        <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover rounded-xl" />
+                                    ) : (
+                                        selectedStudent.name[0].toUpperCase()
+                                    )}
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="font-extrabold text-xs tracking-tight leading-none text-white">{selectedStudent.name}</h2>
+                                    <p className="text-[9px] text-slate-400 font-semibold mt-1 leading-none">{selectedStudent.email}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex bg-white/10 p-1 rounded-xl gap-1 border border-white/5 shrink-0">
+                                {[
+                                    { id: 'tests', label: 'My Tests', icon: FileText },
+                                    { id: 'practice', label: 'Practice Tool', icon: Settings },
+                                    { id: 'performance', label: 'My Performance', icon: BarChart3 }
+                                ].map(tab => {
+                                    const TabIcon = tab.icon;
+                                    const isTabActive = studentTab === tab.id;
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setStudentTab(tab.id)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                                                isTabActive 
+                                                    ? 'bg-white text-slate-900 shadow-md animate-fade-in' 
+                                                    : 'text-slate-355 hover:text-white hover:bg-white/5'
+                                            }`}
+                                        >
+                                            <TabIcon size={12} />
+                                            <span>{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {selectedStudent && studentTab === 'tests' && (
+                        <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0 select-none">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
                                     <BookOpen size={16} />
@@ -524,7 +874,6 @@ const TeacherActivities = () => {
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
                                         { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
-                                        { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                     ].map(tab => {
@@ -554,7 +903,7 @@ const TeacherActivities = () => {
 
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                         {!selectedStudent ? (
-                            <div className="h-full flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-6">
+                            <div className="h-full flex flex-col items-center justify-center max-w-sm mx-auto text-center space-y-6 animate-fade-in">
                                 <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center shadow-inner">
                                     <Users size={32} className="text-indigo-500" />
                                 </div>
@@ -565,307 +914,522 @@ const TeacherActivities = () => {
                                     </p>
                                 </div>
                             </div>
-                        ) : !selectedInboxId ? (
-                            <div className="h-full flex items-center justify-center">
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
-                                    <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
-                                    <p className="text-slate-400 text-xs leading-relaxed">
-                                        This student does not have any assigned activities matching their course/subjects.
-                                    </p>
+                        ) : studentTab === 'tests' ? (
+                            !selectedInboxId ? (
+                                <div className="h-full flex items-center justify-center">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                        <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
+                                        <p className="text-slate-400 text-xs leading-relaxed">
+                                            This student does not have any assigned activities matching their course/subjects.
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : viewMode === 'chat' ? (
-                            /* --- CHAT TAB --- */
-                            <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative shrink-0">
-                                            <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
-                                                {selectedStudent.avatar ? (
-                                                    <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                            ) : viewMode === 'chat' ? (
+                                /* --- CHAT TAB --- */
+                                <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                                    {selectedStudent.avatar ? (
+                                                        <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                    )}
+                                                </div>
+                                                {onlineUsers.includes(selectedStudent._id) ? (
+                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
                                                 ) : (
-                                                    selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
                                                 )}
                                             </div>
-                                            {onlineUsers.includes(selectedStudent._id) ? (
-                                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
-                                            ) : (
-                                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
-                                            )}
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
+                                                <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
-                                            <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                        <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
+                                            Inbox Chat View
                                         </div>
                                     </div>
-                                    <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
-                                        Inbox Chat View
-                                    </div>
-                                </div>
 
-                                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                    {loadingChat ? (
-                                        <div className="h-full flex items-center justify-center">
-                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                        </div>
-                                    ) : chatMessages.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
-                                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
-                                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
-                                            <p className="text-slate-400 text-[11px] mt-1">
-                                                Send a message to start conversation with {selectedStudent.name}.
-                                            </p>
+                                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                                        {loadingChat ? (
+                                            <div className="h-full flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                            </div>
+                                        ) : chatMessages.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                                <MessageSquare size={36} className="text-slate-355 mb-2 opacity-60 animate-pulse" />
+                                                <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                                <p className="text-slate-400 text-[11px] mt-1">
+                                                    Send a message to start conversation with {selectedStudent.name}.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            chatMessages.map((msg, index) => {
+                                                const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                                const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                                return (
+                                                    <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                            ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                            : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
+                                                            }`}>
+                                                            <p className="font-semibold">{msg.text}</p>
+                                                            <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                                                }`}>
+                                                                {formattedTime}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        <div ref={messagesEndRef} />
+                                    </div>
+
+                                    <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                        <input
+                                            type="text"
+                                            value={chatInput}
+                                            onChange={e => setChatInput(e.target.value)}
+                                            placeholder="Type your message to the student..."
+                                            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                            disabled={!chatInput.trim()}
+                                        >
+                                            Send
+                                        </button>
+                                    </form>
+                                </div>
+                            ) : viewMode === 'analytics' ? (
+                                /* --- ANALYTICS TAB --- */
+                                <div className="animate-fade-in space-y-6">
+                                    {(() => {
+                                        const totalTests = selectedGroup.tests.length;
+                                        const evaluatedTests = (selectedGroup.tests || []).filter(t => {
+                                            const sub = submissionMap.get(t._id);
+                                            return sub && sub.status === 'evaluated';
+                                        }).length;
+                                        const submittedTests = (selectedGroup.tests || []).filter(t => {
+                                            const sub = submissionMap.get(t._id);
+                                            return sub && sub.status !== 'evaluated';
+                                        }).length;
+                                        const unattemptedTests = totalTests - evaluatedTests - submittedTests;
+
+                                        const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
+                                        const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
+                                        const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
+
+                                        return (
+                                            <>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                        <div>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
+                                                        </div>
+                                                        <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
+                                                    </div>
+                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                        <div>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated Items</span>
+                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{evaluatedTests}</span>
+                                                        </div>
+                                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
+                                                    </div>
+                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                        <div>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Pending Evaluation</span>
+                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{submittedTests}</span>
+                                                        </div>
+                                                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
+                                                    </div>
+                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                        <div>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted Items</span>
+                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{unattemptedTests}</span>
+                                                        </div>
+                                                        <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                    <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Completion Analytics</h3>
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                <span>Evaluated Completion Rate</span>
+                                                                <span>{evaluatedPct}%</span>
+                                                            </div>
+                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${evaluatedPct}%` }} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                <span>Pending Evaluation Rate</span>
+                                                                <span>{submittedPct}%</span>
+                                                            </div>
+                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                <span>Unattempted Items Rate</span>
+                                                                <span>{unattemptedPct}%</span>
+                                                            </div>
+                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            ) : (
+                                /* --- DIRECT TESTS GRID --- */
+                                <div className="animate-fade-in space-y-4">
+                                    {!activeTests.length ? (
+                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                            <div className="text-4xl mb-2">🎉</div>
+                                            <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                            <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
                                         </div>
                                     ) : (
-                                        chatMessages.map((msg, index) => {
-                                            const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
-                                            const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
-                                            return (
-                                                <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
-                                                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
-                                                        : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
-                                                        }`}>
-                                                        <p className="font-semibold">{msg.text}</p>
-                                                        <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
-                                                            }`}>
-                                                            {formattedTime}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                    <div ref={messagesEndRef} />
-                                </div>
+                                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                            {activeTests.map(test => {
+                                                const sub = submissionMap.get(test._id);
+                                                const isEvaluated = sub && sub.status === 'evaluated';
 
-                                <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
-                                    <input
-                                        type="text"
-                                        value={chatInput}
-                                        onChange={e => setChatInput(e.target.value)}
-                                        placeholder="Type your message to the student..."
-                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
-                                        disabled={!chatInput.trim()}
-                                    >
-                                        Send
-                                    </button>
-                                </form>
-                            </div>
-                        ) : viewMode === 'practice' ? (
-                            /* --- PRACTICE TAB --- */
-                            <div className="animate-fade-in space-y-6">
-                                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
-                                    <div className="relative z-10">
-                                        <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-full tracking-widest">Student Practice Details</span>
-                                        <h2 className="text-xl font-bold mt-2">Practice Tools Analytics</h2>
-                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Review this student's learning and practice tool activities generated under the current inbox syllabus.</p>
-                                    </div>
-                                    <div className="absolute right-4 bottom-0 opacity-10 pointer-events-none transform translate-y-4">
-                                        <Sparkles size={180} />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {[
-                                        {
-                                            title: "AI Quiz Generator",
-                                            metrics: [
-                                                { label: "Attempted Quizzes", value: "3 Quizzes" },
-                                                { label: "Average Score", value: "85%" },
-                                                { label: "Mastery Level", value: "Excellent" }
-                                            ],
-                                            color: "text-purple-600 bg-purple-50 border-purple-100"
-                                        },
-                                        {
-                                            title: "Smart Flashcards",
-                                            metrics: [
-                                                { label: "Decks Reviewed", value: "2 Decks" },
-                                                { label: "Total Cards Read", value: "24 Cards" },
-                                                { label: "Retention Rate", value: "90%" }
-                                            ],
-                                            color: "text-indigo-600 bg-indigo-50 border-indigo-100"
-                                        },
-                                        {
-                                            title: "Mindmap Builder",
-                                            metrics: [
-                                                { label: "Mindmaps Generated", value: "1 Mindmap" },
-                                                { label: "Visual Nodes mapped", value: "8 Nodes" },
-                                                { label: "Last Created", value: "Yesterday" }
-                                            ],
-                                            color: "text-teal-600 bg-teal-50 border-teal-100"
-                                        }
-                                    ].map((tool, idx) => (
-                                        <div key={idx} className="bg-white p-4.5 rounded-2xl border border-slate-200 hover:border-[#3E3ADD] hover:shadow-md transition-all flex flex-col justify-between group">
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-105 pb-1.5 mb-3">{tool.title}</h3>
-                                                <div className="space-y-2.5">
-                                                    {tool.metrics.map((m, mIdx) => (
-                                                        <div key={mIdx} className="flex justify-between items-center text-[11px]">
-                                                            <span className="text-slate-400 font-semibold">{m.label}</span>
-                                                            <span className="text-slate-700 font-bold">{m.value}</span>
+                                                return (
+                                                    <div
+                                                        key={test._id}
+                                                        className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                                !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                            }`} />
+                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                                {test.title}
+                                                            </h3>
                                                         </div>
-                                                    ))}
-                                                </div>
+
+                                                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setInfoModalData(test);
+                                                                }}
+                                                                className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                                                                title="RI Details"
+                                                            >
+                                                                <Eye size={14} />
+                                                            </button>
+
+                                                            {sub ? (
+                                                                <button
+                                                                    onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                        isEvaluated
+                                                                            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                            : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                    }`}
+                                                                >
+                                                                    {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[9px] font-black uppercase text-slate-400 select-none mr-1">
+                                                                    Pending Submit
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        ) : studentTab === 'practice' ? (
+                            /* --- PRACTICE WORKSPACE REVIEW --- */
+                            <div className="animate-fade-in space-y-6">
+                                <div className="bg-white border-b border-slate-200 pb-4 flex flex-col gap-2.5 shrink-0">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                                <Settings size={18} />
+                                            </div>
+                                            <div>
+                                                <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
+                                                    Practice Workspace: {selectedPracticeDate || 'Select a Date'}
+                                                </h1>
                                             </div>
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    <div className="p-3.5 rounded-2xl border flex items-start gap-3 mt-2 text-xs leading-relaxed bg-amber-50/70 border-amber-100 text-amber-900">
+                                        <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                                        <div>
+                                            <p className="font-bold">Student Practice Log Archive (Read-Only Preview)</p>
+                                            <p className="text-amber-800/80 text-[11px] font-medium mt-0.5">
+                                                You are inspecting the screenshots, recordings, and calling sessions created by {selectedStudent.name} on this date.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : viewMode === 'analytics' ? (
-                            /* --- ANALYTICS TAB --- */
-                            <div className="animate-fade-in space-y-6">
-                                {(() => {
-                                    const totalTests = selectedGroup.tests.length;
-                                    const evaluatedTests = (selectedGroup.tests || []).filter(t => {
-                                        const sub = submissionMap.get(t._id);
-                                        return sub && sub.status === 'evaluated';
-                                    }).length;
-                                    const submittedTests = (selectedGroup.tests || []).filter(t => {
-                                        const sub = submissionMap.get(t._id);
-                                        return sub && sub.status !== 'evaluated';
-                                    }).length;
-                                    const unattemptedTests = totalTests - evaluatedTests - submittedTests;
 
-                                    const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
-                                    const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
-                                    const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
-
-                                    return (
-                                        <>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                                        <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
-                                                    </div>
-                                                    <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
-                                                </div>
-                                                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated</span>
-                                                        <span className="text-2xl font-black text-emerald-600 mt-1 block">{evaluatedTests}</span>
-                                                    </div>
-                                                    <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
-                                                </div>
-                                                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted</span>
-                                                        <span className="text-2xl font-black text-blue-600 mt-1 block">{submittedTests}</span>
-                                                    </div>
-                                                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
-                                                </div>
-                                                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted</span>
-                                                        <span className="text-2xl font-black text-[#EF4444] mt-1 block">{unattemptedTests}</span>
-                                                    </div>
-                                                    <div className="p-2.5 bg-rose-50 text-[#EF4444] rounded-lg"><Hourglass size={16} /></div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                                <h3 className="font-bold text-slate-800 text-sm">Overall Inbox Completion Progress</h3>
-                                                <div>
-                                                    <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-2">
-                                                        <span>Student Status Breakdown</span>
-                                                        <span className="text-[#3E3ADD] font-bold">
-                                                            {evaluatedPct}% Graded
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
-                                                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${evaluatedPct}%` }} title={`Evaluated: ${evaluatedPct}%`} />
-                                                        <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${submittedPct}%` }} title={`Submitted for grading: ${submittedPct}%`} />
-                                                        <div className="bg-[#EF4444] h-full transition-all duration-500" style={{ width: `${unattemptedPct}%` }} title={`Unattempted: ${unattemptedPct}%`} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-wrap gap-4 pt-2 text-xs font-bold text-slate-500 border-t border-slate-100">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-3 h-3 bg-emerald-500 rounded-full" />
-                                                        <span>Evaluated / Graded ({evaluatedTests})</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-3 h-3 bg-blue-500 rounded-full" />
-                                                        <span>Submitted for Grading ({submittedTests})</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-3 h-3 bg-[#EF4444] rounded-full" />
-                                                        <span>Unattempted ({unattemptedTests})</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        ) : (
-                            /* --- DIRECT TESTS GRID --- */
-                            <div className="animate-fade-in space-y-4">
-                                {!activeTests.length ? (
-                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                        <div className="text-4xl mb-2">🎉</div>
-                                        <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
+                                {!selectedPracticeDate ? (
+                                    <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
+                                        Select a date from the left sidebar to view the practice files.
+                                    </div>
+                                ) : activePracticeFiles.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
+                                        No practice uploads recorded on this date.
                                     </div>
                                 ) : (
-                                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                        {activeTests.map(test => {
-                                            const sub = submissionMap.get(test._id);
-                                            const isEvaluated = sub && sub.status === 'evaluated';
+                                    <div className="space-y-6 max-w-4xl">
+                                        {['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
+                                            const files = activePracticeFiles.filter(f => f.toolType === type);
+                                            if (files.length === 0) return null;
+
+                                            const typeLabels = {
+                                                'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                                'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                                'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                                'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                                'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' }
+                                            };
+                                            const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                            const ToolIcon = labelConfig.icon;
 
                                             return (
-                                                <div
-                                                    key={test._id}
-                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
-                                                >
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                            !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                        }`} />
-                                                        <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                            {test.title}
-                                                        </h3>
+                                                <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                            <ToolIcon size={16} />
+                                                        </div>
+                                                        <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setInfoModalData(test);
-                                                            }}
-                                                            className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                            title="RI Details"
-                                                        >
-                                                            <Eye size={14} />
-                                                        </button>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {files.map((file, fileIdx) => (
+                                                            <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                        {file.filename}
+                                                                    </p>
+                                                                    <p className="text-[10px] text-slate-450 font-semibold uppercase tracking-wider">
+                                                                        Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                                                    </p>
+                                                                </div>
 
-                                                        {sub ? (
-                                                            <button
-                                                                onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
-                                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                    isEvaluated
-                                                                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                }`}
-                                                            >
-                                                                {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-[9px] font-black uppercase text-slate-400 select-none mr-1">
-                                                                Pending Submit
-                                                            </span>
-                                                        )}
+                                                                <div className="pt-2">
+                                                                    {type === 'screenshot' && (
+                                                                        <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                            <img 
+                                                                                src={file.fileUrl} 
+                                                                                alt="Screenshot Preview" 
+                                                                                className="w-full max-h-48 object-contain bg-slate-900"
+                                                                            />
+                                                                            <a 
+                                                                                href={file.fileUrl} 
+                                                                                target="_blank" 
+                                                                                rel="noreferrer"
+                                                                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
+                                                                            >
+                                                                                Open in New Tab
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                    {type === 'voice-recorder' && (
+                                                                        <audio controls src={file.fileUrl} className="w-full mt-1.5 focus:outline-none" />
+                                                                    )}
+                                                                    {(type === 'screen-recorder' || type === 'video-recorder') && (
+                                                                        <video controls src={file.fileUrl} className="w-full max-h-56 bg-slate-950 rounded-xl border border-slate-200 mt-1.5" />
+                                                                    )}
+                                                                    {type === 'web-calling' && (
+                                                                        <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] font-semibold text-slate-500 space-y-1">
+                                                                            <div className="flex justify-between">
+                                                                                <span>Duration</span>
+                                                                                <span className="font-bold text-slate-800">{file.metadata?.duration || 'N/A'} mins</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between">
+                                                                                <span>Calling Format</span>
+                                                                                <span className="font-bold text-slate-800 uppercase">{file.metadata?.format || 'Audio'}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 )}
+                            </div>
+                        ) : (
+                            /* --- STUDENT PERFORMANCE DASHBOARD --- */
+                            <div className="animate-fade-in space-y-8 text-left">
+                                <div className="bg-white pb-4 border-b border-slate-200 flex flex-col gap-2.5 shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                            <BarChart3 size={18} />
+                                        </div>
+                                        <div>
+                                            <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
+                                                Student Performance Dashboard
+                                            </h1>
+                                            <p className="text-slate-500 text-xs mt-1">
+                                                Detailed grades, attendance, and activity records for {selectedStudent.name}.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* CARD 1: Attendance Rate */}
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Attendance Rate</span>
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${performanceAttendanceStatus.color}`}>
+                                                    {performanceAttendanceStatus.label}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 my-2">
+                                                <div className="relative w-16 h-16 shrink-0">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                                        <path className="text-slate-100" strokeWidth="3.5" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                        <path className="text-indigo-650" strokeWidth="3.5" strokeDasharray={`${performanceAttendancePercentage}, 100`} strokeLinecap="round" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                    </svg>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-xs font-black text-slate-800">{performanceAttendancePercentage}%</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xl font-black text-slate-800">{activeDaysCount} Days</h4>
+                                                    <p className="text-slate-500 text-[10px] font-semibold uppercase">Active Logs</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* CARD 2: Grades */}
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Overall Grades</span>
+                                                <span className="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">
+                                                    Grade: {performanceAcademicStats.grade}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 my-2">
+                                                <div className="relative w-16 h-16 shrink-0">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                                        <path className="text-slate-100" strokeWidth="3.5" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                        <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${performanceAcademicStats.percentage}, 100`} strokeLinecap="round" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                    </svg>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-xs font-black text-slate-800">{performanceAcademicStats.percentage}%</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xl font-black text-slate-800">
+                                                        {performanceAcademicStats.totalScored} <span className="text-[10px] text-slate-400 font-semibold">/ {performanceAcademicStats.totalMax} pts</span>
+                                                    </h4>
+                                                    <p className="text-slate-500 text-[10px] font-semibold uppercase">{performanceAcademicStats.evaluatedCount} Graded Tests</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* CARD 3: Completion */}
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Completion Rate</span>
+                                                <span className="text-slate-500 text-[10px] font-extrabold uppercase">
+                                                    {studentSubmissions.length} / {assignedTests.length} Items
+                                                </span>
+                                            </div>
+                                            <div className="my-2 space-y-1.5">
+                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-purple-600 rounded-full" 
+                                                        style={{ width: `${assignedTests.length > 0 ? (studentSubmissions.length / assignedTests.length) * 100 : 0}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-slate-500 font-bold">
+                                                    {assignedTests.length > 0 ? Math.round((studentSubmissions.length / assignedTests.length) * 100) : 0}% Completed
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="lg:col-span-1 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm text-left space-y-4">
+                                        <h3 className="font-extrabold text-slate-800 text-xs border-b border-slate-100 pb-2">Subject Performance</h3>
+                                        <div className="space-y-4">
+                                            {performanceSubjectWise.length > 0 ? performanceSubjectWise.map((subj, idx) => (
+                                                <div key={idx} className="space-y-1.5 text-xs">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-slate-700 truncate max-w-[120px]" title={subj.name}>{subj.name}</span>
+                                                        <span className="font-extrabold text-slate-500">
+                                                            {subj.percent !== null ? `${subj.percent}%` : 'Grading...'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${subj.percent || 0}%` }} />
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="text-center py-4 text-slate-400 text-xs italic">No subject data.</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm text-left space-y-4">
+                                        <h3 className="font-extrabold text-slate-800 text-xs border-b border-slate-100 pb-2">Graded Submissions</h3>
+                                        <div className="space-y-3">
+                                            {performanceFilteredTests.graded.length > 0 ? performanceFilteredTests.graded.map(({ test, submission }) => {
+                                                const testMax = test.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
+                                                return (
+                                                    <div key={test._id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                                                        <div>
+                                                            <p className="font-bold text-slate-800 truncate max-w-xs">{test.title}</p>
+                                                            <p className="text-[9px] text-slate-400 mt-0.5">Subject: {test.subject}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 shrink-0">
+                                                            <span className="font-black text-slate-800">
+                                                                {submission.totalMarks} / {testMax}
+                                                            </span>
+                                                            <button 
+                                                                onClick={() => navigate(`/teacher/evaluate/${submission._id}`)}
+                                                                className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase"
+                                                            >
+                                                                Inspect
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }) : (
+                                                <div className="text-center py-6 text-slate-400 text-xs italic">No graded tests yet.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -921,7 +1485,10 @@ const TeacherActivities = () => {
                                         key={student._id}
                                         onClick={() => {
                                             setSelectedStudent(student);
+                                            setStudentTab('tests');
+                                            setSelectedPracticeDate('');
                                             fetchStudentSubmissions(student._id);
+                                            fetchStudentPracticeFiles(student._id);
                                             setShowStudentList(false);
                                         }}
                                         className={`flex items-center space-x-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-md shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}

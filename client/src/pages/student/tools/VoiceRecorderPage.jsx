@@ -38,6 +38,7 @@ const VoiceRecorderPage = () => {
     const [recordingTime, setRecordingTime] = useState(0);
     const [audios, setAudios] = useState([]);
     const [error, setError] = useState(null);
+    const [lastAudioUrl, setLastAudioUrl] = useState(null); // Show last recording as audio player after stop
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -469,6 +470,8 @@ const VoiceRecorderPage = () => {
                     localStorage.setItem('practice_audios', JSON.stringify(list.map(a => ({ ...a, url: '' }))));
                     return list;
                 });
+                // Show last recording as audio player in the center area (like screenshot tool)
+                setLastAudioUrl(blobUrl);
                 setRecordingTime(0);
             };
 
@@ -565,12 +568,12 @@ const VoiceRecorderPage = () => {
                                         {micEnabled ? 'ON' : 'OFF'}
                                     </span>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 min-w-0">
                                     <select
                                         disabled={!micEnabled}
                                         value={selectedAudio}
                                         onChange={(e) => setSelectedAudio(e.target.value)}
-                                        className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50"
+                                        className="flex-1 min-w-0 text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 disabled:opacity-50 truncate"
                                     >
                                         {audioDevices.map(d => (
                                             <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 5)}`}</option>
@@ -649,7 +652,7 @@ const VoiceRecorderPage = () => {
                     <div className="lg:col-span-6 space-y-6">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
-                                <span>Voice Visualizer</span>
+                                <span>{lastAudioUrl && !recording ? 'Last Recording' : 'Voice Visualizer'}</span>
                                 {recording && (
                                     <span className="flex items-center gap-1 text-red-500 font-black text-xs animate-pulse">
                                         <span className="w-2.5 h-2.5 bg-red-600 rounded-full"></span>
@@ -658,9 +661,36 @@ const VoiceRecorderPage = () => {
                                 )}
                             </h3>
 
-                            {/* Oscilloscope Canvas */}
+                            {/* Oscilloscope Canvas / Last Audio Player */}
                             <div className="flex-1 my-4 bg-slate-900 rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-800 min-h-[240px]">
-                                {micEnabled && !error ? (
+                                {recording && micEnabled && !error ? (
+                                    <canvas
+                                        ref={canvasRef}
+                                        width={520}
+                                        height={240}
+                                        className="w-full h-full object-cover"
+                                    ></canvas>
+                                ) : lastAudioUrl && !recording ? (
+                                    // Show last recording as audio player (like screenshot tool shows captured image)
+                                    <div className="flex flex-col items-center justify-center gap-4 p-6 w-full">
+                                        <div className="flex items-center gap-2 text-slate-300">
+                                            <Mic size={20} className="text-blue-400" />
+                                            <span className="text-sm font-bold uppercase tracking-wider">Recording Complete</span>
+                                        </div>
+                                        <audio
+                                            src={lastAudioUrl}
+                                            controls
+                                            className="w-full max-w-sm rounded-xl"
+                                            style={{ filter: 'invert(1) hue-rotate(180deg)' }}
+                                        ></audio>
+                                        <button
+                                            onClick={() => setLastAudioUrl(null)}
+                                            className="text-slate-400 hover:text-white text-[10px] font-bold px-3 py-1 border border-slate-600 rounded-lg transition-colors"
+                                        >
+                                            ✕ Close & Show Visualizer
+                                        </button>
+                                    </div>
+                                ) : micEnabled && !error ? (
                                     <canvas
                                         ref={canvasRef}
                                         width={520}

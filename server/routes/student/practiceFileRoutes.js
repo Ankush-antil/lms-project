@@ -36,7 +36,10 @@ const upload = multer({
 // @access  Private (Student)
 router.get('/', protect, async (req, res) => {
     try {
-        const filter = { user: req.user._id };
+        let filter = { user: req.user._id };
+        if ((req.user.role === 'Teacher' || req.user.role === 'Admin') && req.query.studentId) {
+            filter = { user: req.query.studentId };
+        }
         if (req.query.googleDriveEmail) {
             filter.googleDriveEmail = req.query.googleDriveEmail;
         }

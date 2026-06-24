@@ -39,6 +39,10 @@ const messageSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    inboxId: {
+        type: String,
+        default: ''
+    },
     test: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Test'

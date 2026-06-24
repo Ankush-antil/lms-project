@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSocket } from '../../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -59,10 +60,12 @@ const StudentTests = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
     const [chatInput, setChatInput] = useState('');
-    const [chatMessages, setChatMessages] = useState([
-        { id: 1, sender: 'teacher', text: "Hello! Please make sure to submit your pending test category items before the scheduled deadline.", time: "10:00 AM" },
-        { id: 2, sender: 'student', text: "Sure, Professor. I am working on it.", time: "10:05 AM" }
-    ]);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [contacts, setContacts] = useState([]);
+    const [teacherContact, setTeacherContact] = useState(null);
+    const [loadingChat, setLoadingChat] = useState(false);
+    const messagesEndRef = useRef(null);
+    const { socket, onlineUsers } = useSocket();
 
     useEffect(() => {
         const fetch = async () => {
@@ -179,31 +182,117 @@ const StudentTests = () => {
         );
     }, [dynamicInboxItems, inboxSearchQuery]);
 
-    const handleSendChatMessage = (e) => {
-        e.preventDefault();
-        if (!chatInput.trim()) return;
+    useEffect(() => {
+        const fetchContacts = async () => {
+            try {
+                const { data } = await axios.get('/api/chat/contacts');
+                setContacts(data);
+            } catch (err) {
+                console.error("Error fetching contacts:", err);
+            }
+        };
+        if (userInfo) {
+            fetchContacts();
+        }
+    }, [userInfo]);
 
-        const newMsg = {
-            id: chatMessages.length + 1,
-            sender: 'student',
-            text: chatInput,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    useEffect(() => {
+        if (contacts.length === 0) return;
+
+        const testsInGroup = selectedGroup?.tests || [];
+        const matchingContact = contacts.find(c =>
+            testsInGroup.some(t => t.createdBy && String(t.createdBy) === String(c._id))
+        );
+
+        const resolved = matchingContact ||
+            contacts.find(c => c.role === 'Teacher') ||
+            contacts.find(c => c.role === 'Admin') ||
+            contacts[0];
+
+        setTeacherContact(resolved);
+    }, [contacts, selectedGroup]);
+
+    useEffect(() => {
+        if (!teacherContact || viewMode !== 'chat' || !selectedItem) return;
+
+        const fetchMessages = async () => {
+            try {
+                setLoadingChat(true);
+                const { data } = await axios.get(`/api/chat/messages/${teacherContact._id}?inboxId=${selectedItem}`);
+                setChatMessages(data);
+                
+                await axios.put(`/api/chat/messages/${teacherContact._id}/read`);
+            } catch (err) {
+                console.error("Error fetching chat messages:", err);
+            } finally {
+                setLoadingChat(false);
+            }
+        };
+        fetchMessages();
+    }, [teacherContact, viewMode, selectedItem]);
+
+    useEffect(() => {
+        if (!socket || !teacherContact || !selectedItem) return;
+
+        const handleReceiveMessage = (msg) => {
+            if (String(msg.sender) === String(teacherContact._id) && !msg.test && msg.inboxId === selectedItem) {
+                setChatMessages(prev => {
+                    if (prev.some(m => m._id === msg._id)) return prev;
+                    return [...prev, msg];
+                });
+                
+                axios.put(`/api/chat/messages/${teacherContact._id}/read`).catch(() => {});
+            }
         };
 
-        setChatMessages(prev => [...prev, newMsg]);
+        socket.on('receive-message', handleReceiveMessage);
+        return () => {
+            socket.off('receive-message', handleReceiveMessage);
+        };
+    }, [socket, teacherContact, selectedItem]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        if (viewMode === 'chat') {
+            scrollToBottom();
+        }
+    }, [chatMessages, viewMode]);
+
+    const handleSendChatMessage = async (e) => {
+        e.preventDefault();
+        if (!chatInput.trim() || !teacherContact || !selectedItem) return;
+
+        const text = chatInput.trim();
         setChatInput('');
 
-        setTimeout(() => {
-            setChatMessages(prev => [
-                ...prev,
-                {
-                    id: prev.length + 1,
-                    sender: 'teacher',
-                    text: "Got it! I will review your submissions and update you soon. Let me know if you face any issues.",
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }
-            ]);
-        }, 1000);
+        try {
+            const payload = {
+                receiver: teacherContact._id,
+                text,
+                inboxId: selectedItem
+            };
+            const { data } = await axios.post('/api/chat/messages', payload);
+
+            setChatMessages(prev => [...prev, data]);
+
+            if (socket) {
+                socket.emit('send-message', {
+                    _id: data._id,
+                    senderId: userInfo._id,
+                    receiverId: teacherContact._id,
+                    text,
+                    senderName: userInfo.name,
+                    createdAt: data.createdAt,
+                    inboxId: selectedItem
+                });
+            }
+        } catch (err) {
+            console.error("Error sending message:", err);
+            toast.error("Failed to send message");
+        }
     };
 
     return (
@@ -238,8 +327,8 @@ const StudentTests = () => {
                                         key={f}
                                         onClick={() => setActiveFilter(f)}
                                         className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${isActive
-                                                ? 'bg-white text-[#3E3ADD] shadow-sm border border-slate-200/10'
-                                                : 'text-slate-500 hover:text-slate-700'
+                                            ? 'bg-white text-[#3E3ADD] shadow-sm border border-slate-200/10'
+                                            : 'text-slate-500 hover:text-slate-700'
                                             }`}
                                     >
                                         {f}
@@ -272,8 +361,8 @@ const StudentTests = () => {
                                             }
                                         }}
                                         className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                             }`}
                                     >
                                         <div className="flex items-center space-x-2.5 min-w-0">
@@ -292,8 +381,8 @@ const StudentTests = () => {
                                                 if (firstTest) setInfoModalData(firstTest);
                                             }}
                                             className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                    : 'border-slate-200 text-slate-400 bg-white'
+                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                : 'border-slate-200 text-slate-400 bg-white'
                                                 }`}
                                             title="Inbox Details"
                                         >
@@ -344,8 +433,8 @@ const StudentTests = () => {
                                                 setSelectedCategory(null);
                                             }}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                    ? tab.activeClass
-                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                ? tab.activeClass
+                                                : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
                                                 }`}
                                         >
                                             <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
@@ -370,16 +459,6 @@ const StudentTests = () => {
                         ) : viewMode === 'practice' ? (
                             /* --- PRACTICE TAB --- */
                             <div className="animate-fade-in space-y-6 text-left">
-                                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
-                                    <div className="relative z-10">
-                                        <span className="text-[10px] font-black uppercase bg-white/20 px-2.5 py-1 rounded-full tracking-widest">Interactive Practice</span>
-                                        <h2 className="text-xl font-bold mt-2">Practice Through Tools</h2>
-                                        <p className="text-xs text-indigo-100 mt-1 max-w-md font-medium">Boost your performance by using our built-in screen/audio recorders, screenshot tool, and mock calling simulators.</p>
-                                    </div>
-                                    <div className="absolute right-4 bottom-0 opacity-10 pointer-events-none transform translate-y-4">
-                                        <Sparkles size={180} />
-                                    </div>
-                                </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
                                     {[
@@ -414,53 +493,83 @@ const StudentTests = () => {
                                             path: "/student/practice-tools/web-calling"
                                         }
                                     ].map((tool, idx) => (
-                                        <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between group hover:-translate-y-0.5 duration-200">
+                                        <div
+                                            key={idx}
+                                            onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
+                                            className="bg-white p-5 rounded-3xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer text-left"
+                                        >
                                             <div>
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} mb-4 group-hover:scale-105 transition-all duration-200`}>
                                                     <tool.icon size={22} />
                                                 </div>
                                                 <h3 className="font-extrabold text-slate-800 text-xs tracking-tight">{tool.title}</h3>
                                             </div>
-                                            <button
-                                                onClick={() => navigate(tool.path)}
-                                                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-indigo-655 text-white rounded-xl text-[10px] font-black transition-all uppercase tracking-wider"
-                                            >
-                                                Launch Tool
-                                            </button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         ) : viewMode === 'chat' ? (
                             /* --- CHAT TAB --- */
-                            <div className="animate-fade-in flex flex-col h-full bg-white border border-slate-250 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="animate-fade-in flex flex-col h-[calc(100vh-320px)] min-h-[350px] bg-white border border-slate-250 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
-                                        T
+                                    <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                            {teacherContact?.avatar ? (
+                                                <img src={teacherContact.avatar} alt={teacherContact.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                teacherContact?.name?.[0]?.toUpperCase() || 'T'
+                                            )}
+                                        </div>
+                                        {teacherContact && onlineUsers.includes(teacherContact._id) ? (
+                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
+                                        ) : (
+                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
+                                        )}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-800 text-sm">Course Instructor</h3>
-                                        <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Active Now
+                                        <h3 className="font-bold text-slate-800 text-sm">
+                                            {teacherContact ? teacherContact.name : 'Loading Instructor...'}
+                                        </h3>
+                                        <p className="text-[10px] text-slate-450 font-semibold">
+                                            {teacherContact?.role || 'Teacher'}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                    {chatMessages.map(msg => (
-                                        <div key={msg.id} className={`flex ${msg.sender === 'student' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${msg.sender === 'student'
-                                                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                    : 'bg-white text-slate-800 border border-slate-105 rounded-tl-none shadow-sm'
-                                                }`}>
-                                                <p className="font-semibold">{msg.text}</p>
-                                                <span className={`text-[8px] mt-1 block text-right ${msg.sender === 'student' ? 'text-indigo-200' : 'text-slate-400'
-                                                    }`}>
-                                                    {msg.time}
-                                                </span>
-                                            </div>
+                                    {loadingChat ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
                                         </div>
-                                    ))}
+                                    ) : chatMessages.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                            <p className="text-slate-400 text-[11px] mt-1">
+                                                Send a message to start conversation with {teacherContact ? teacherContact.name : 'your teacher'}.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        chatMessages.map((msg, index) => {
+                                            const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                            const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                            return (
+                                                <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                        : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
+                                                        }`}>
+                                                        <p className="font-semibold">{msg.text}</p>
+                                                        <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-450'
+                                                            }`}>
+                                                            {formattedTime}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    <div ref={messagesEndRef} />
                                 </div>
 
                                 <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
@@ -469,11 +578,13 @@ const StudentTests = () => {
                                         value={chatInput}
                                         onChange={e => setChatInput(e.target.value)}
                                         placeholder="Type your message to the instructor..."
-                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                        disabled={!teacherContact}
                                     />
                                     <button
                                         type="submit"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center shadow-sm"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center shadow-sm disabled:opacity-50"
+                                        disabled={!teacherContact || !chatInput.trim()}
                                     >
                                         <SendHorizontal size={16} />
                                     </button>
@@ -536,64 +647,62 @@ const StudentTests = () => {
                                 ) : (
                                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                                         {activeTests.map(test => {
-                                             const sub = submissionMap.get(test._id);
-                                             const isEvaluated = sub && sub.status === 'evaluated';
- 
-                                             return (
-                                                 <div
-                                                     key={test._id}
-                                                     onClick={() => {
-                                                         if (!sub) {
-                                                             navigate(`/student/take-test/${test._id}`);
-                                                         } else {
-                                                             navigate(`/student/test-result/${sub._id}`);
-                                                         }
-                                                     }}
-                                                     className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group"
-                                                 >
-                                                     <div className="flex items-center gap-2 min-w-0">
-                                                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                             !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                         }`} />
-                                                         <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                             {test.title}
-                                                         </h3>
-                                                     </div>
- 
-                                                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                         <button
-                                                             onClick={(e) => {
-                                                                 e.stopPropagation();
-                                                                 setInfoModalData(test);
-                                                             }}
-                                                             className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                             title="RI Details"
-                                                         >
-                                                             <Eye size={14} />
-                                                         </button>
- 
-                                                         <button
-                                                             onClick={() => {
-                                                                 if (!sub) {
-                                                                     navigate(`/student/take-test/${test._id}`);
-                                                                 } else {
-                                                                     navigate(`/student/test-result/${sub._id}`);
-                                                                 }
-                                                             }}
-                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                 !sub
-                                                                     ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                     : isEvaluated
-                                                                         ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                         : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                             }`}
-                                                         >
-                                                             {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
-                                                         </button>
-                                                     </div>
-                                                 </div>
-                                             );
-                                         })}
+                                            const sub = submissionMap.get(test._id);
+                                            const isEvaluated = sub && sub.status === 'evaluated';
+
+                                            return (
+                                                <div
+                                                    key={test._id}
+                                                    onClick={() => {
+                                                        if (!sub) {
+                                                            navigate(`/student/take-test/${test._id}`);
+                                                        } else {
+                                                            navigate(`/student/test-result/${sub._id}`);
+                                                        }
+                                                    }}
+                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group"
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                            }`} />
+                                                        <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                            {test.title}
+                                                        </h3>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setInfoModalData(test);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                                                            title="RI Details"
+                                                        >
+                                                            <Eye size={14} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!sub) {
+                                                                    navigate(`/student/take-test/${test._id}`);
+                                                                } else {
+                                                                    navigate(`/student/test-result/${sub._id}`);
+                                                                }
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${!sub
+                                                                ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                : isEvaluated
+                                                                    ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                    : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                }`}
+                                                        >
+                                                            {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>

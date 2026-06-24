@@ -57,6 +57,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
     const [selectedDateFolder, setSelectedDateFolder] = useState(null); // { id, name }
     const [selectedToolFolder, setSelectedToolFolder] = useState(null); // { id, name }
     const [dateFolders, setDateFolders] = useState([]); // List of date folders in LMS folder
+    const [allDriveFiles, setAllDriveFiles] = useState([]);
+    const [driveItemMap, setDriveItemMap] = useState({});
 
     // Preview state
     const [previewFile, setPreviewFile] = useState(null);
@@ -144,6 +146,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         setSelectedDateFolder(null);
         setSelectedToolFolder(null);
         setDateFolders([]);
+        setAllDriveFiles([]);
+        setDriveItemMap({});
         setStep(1);
     };
 
@@ -216,8 +220,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         }
     };
 
-    // Reorganize Google Drive structure and get/create directories (LMS -> date -> 5 tools)
-    const getOrCreateLmsStructure = async (token) => {
+    // Reorganize Google Drive structure and get/create directories (LMS -> date -> tool)
+    const getOrCreateLmsStructure = async (token, targetFolderName = null) => {
         // 1. Check or create LMS folder in root
         let lmsFolderId = '';
         const lmsQuery = encodeURIComponent("name = 'LMS' and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false");
@@ -280,7 +284,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             dateFolderId = newDate.id;
         }
 
-        // 3. Check or create the 5 tool folders inside dateFolderId
+        // 3. Check or create the target tool folder inside dateFolderId
         const toolQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and '${dateFolderId}' in parents and trashed = false`);
         const toolRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${toolQuery}&fields=files(id, name)`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -295,8 +299,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             }
         });
 
-        for (const folderName of TARGET_FOLDERS) {
-            if (!tempMap[folderName]) {
+        if (targetFolderName && TARGET_FOLDERS.includes(targetFolderName)) {
+            if (!tempMap[targetFolderName]) {
                 const createTool = await fetch('https://www.googleapis.com/drive/v3/files', {
                     method: 'POST',
                     headers: {
@@ -304,14 +308,14 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        name: folderName,
+                        name: targetFolderName,
                         mimeType: 'application/vnd.google-apps.folder',
                         parents: [dateFolderId]
                     })
                 });
-                if (!createTool.ok) throw new Error(`Tool folder creation error [${folderName}]: ${createTool.status}`);
+                if (!createTool.ok) throw new Error(`Tool folder creation error [${targetFolderName}]: ${createTool.status}`);
                 const newTool = await createTool.json();
-                tempMap[folderName] = newTool.id;
+                tempMap[targetFolderName] = newTool.id;
             }
         }
 
@@ -340,13 +344,15 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         setUploadState('uploading');
         setUploadProgress(5);
         try {
-            // 1. Reorganize directory structure and get today's folders
-            const { foldersMap: tempMap } = await getOrCreateLmsStructure(token);
+            // 1. Detect default tool folder based on type first
+            const defaultFolder = detectDefaultFolder(fileName);
+
+            // 2. Reorganize directory structure and get today's folders, creating only defaultFolder
+            const { foldersMap: tempMap } = await getOrCreateLmsStructure(token, defaultFolder);
             setFoldersMap(tempMap);
             setUploadProgress(20);
 
-            // 2. Select default tool folder based on type
-            const defaultFolder = detectDefaultFolder(fileName);
+            // 3. Select default tool folder ID
             const targetFolderId = tempMap[defaultFolder];
             if (!targetFolderId) {
                 throw new Error(`Failed to map target folder for ${defaultFolder}`);
@@ -371,6 +377,12 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             await performUpload(token, targetFolderId, finalName);
         } catch (err) {
             console.error("Auto save flow error:", err);
+            // Check if token expired (401 Unauthorized)
+            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
+                toast.error("Google Drive session expired. Please connect again.");
+                clearGoogleAuth();
+                return;
+            }
             setUploadState('error');
             toast.error(err.message || "Failed to auto-save to Google Drive");
         }
@@ -485,30 +497,97 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         setSelectedDateFolder(null);
         setSelectedToolFolder(null);
         setDateFolders([]);
+        setAllDriveFiles([]);
+        setDriveItemMap({});
         try {
-            // Find LMS folder first
-            const lmsQuery = encodeURIComponent("name = 'LMS' and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false");
-            const lmsRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${lmsQuery}&fields=files(id)`, {
+            // Fetch all non-deleted files and folders in drive.file scope in a single query
+            const query = encodeURIComponent("trashed = false");
+            const fields = encodeURIComponent("files(id, name, mimeType, parents, size, webViewLink, thumbnailLink, createdTime)");
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (!lmsRes.ok) throw new Error(`LMS check error: ${lmsRes.status}`);
-            const lmsData = await lmsRes.json();
-            if (!lmsData.files || lmsData.files.length === 0) {
+            if (!res.ok) throw new Error(`Google Drive fetch error: ${res.status}`);
+            const data = await res.json();
+            const allItems = data.files || [];
+
+            // Find root LMS folder
+            const lmsFolder = allItems.find(f => f.name === 'LMS' && f.mimeType === 'application/vnd.google-apps.folder');
+            if (!lmsFolder) {
                 setDateFolders([]);
                 return;
             }
-            const lmsFolderId = lmsData.files[0].id;
+            const lmsFolderId = lmsFolder.id;
 
-            // Fetch all date folders inside LMS folder
-            const datesQuery = encodeURIComponent(`'${lmsFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
-            const datesRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${datesQuery}&fields=files(id,name,createdTime)&orderBy=name+desc`, {
-                headers: { Authorization: `Bearer ${token}` }
+            // Map all items by ID for quick parent lookup
+            const itemMap = {};
+            allItems.forEach(item => {
+                itemMap[item.id] = item;
             });
-            if (!datesRes.ok) throw new Error(`Date folders fetch error: ${datesRes.status}`);
-            const datesData = await datesRes.json();
-            setDateFolders(datesData.files || []);
+
+            // Filter and find valid practice files under target folder structures
+            const validFiles = [];
+            allItems.forEach(file => {
+                if (file.mimeType === 'application/vnd.google-apps.folder') return;
+                
+                const parentId = file.parents?.[0];
+                if (!parentId) return;
+                
+                const parentFolder = itemMap[parentId];
+                if (!parentFolder || parentFolder.mimeType !== 'application/vnd.google-apps.folder') return;
+                if (!TARGET_FOLDERS.includes(parentFolder.name)) return;
+                
+                const grandparentId = parentFolder.parents?.[0];
+                if (!grandparentId) return;
+                
+                const grandparentFolder = itemMap[grandparentId];
+                if (!grandparentFolder || grandparentFolder.mimeType !== 'application/vnd.google-apps.folder') return;
+                
+                // grandparentFolder is the Date Folder (e.g. DD-MM-YYYY)
+                // Check if its parent is LMS
+                if (grandparentFolder.parents?.[0] !== lmsFolderId) return;
+                
+                validFiles.push({
+                    ...file,
+                    toolName: parentFolder.name,
+                    toolFolderId: parentId,
+                    dateFolderName: grandparentFolder.name,
+                    dateFolderId: grandparentId
+                });
+            });
+
+            // Extract non-empty date folders
+            const datesMap = {};
+            validFiles.forEach(f => {
+                datesMap[f.dateFolderId] = f.dateFolderName;
+            });
+
+            // Sort date folders by parsed date descending (newest first)
+            const sortedDateIds = Object.keys(datesMap).sort((a, b) => {
+                const nameA = datesMap[a];
+                const nameB = datesMap[b];
+                const partsA = nameA.split('-');
+                const partsB = nameB.split('-');
+                const timeA = new Date(`${partsA[2]}-${partsA[1]}-${partsA[0]}`).getTime();
+                const timeB = new Date(`${partsB[2]}-${partsB[1]}-${partsB[0]}`).getTime();
+                return timeB - timeA;
+            });
+
+            const dateFoldersList = sortedDateIds.map(id => ({
+                id: id,
+                name: datesMap[id]
+            }));
+
+            setAllDriveFiles(validFiles);
+            setDriveItemMap(itemMap);
+            setDateFolders(dateFoldersList);
         } catch (err) {
             console.error("Failed to load history root:", err);
+            // Check if token expired (401 Unauthorized)
+            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
+                toast.error("Google Drive session expired. Please connect again.");
+                clearGoogleAuth();
+                return;
+            }
             toast.error(`History Load Error: ${err.message}`);
         } finally {
             setLoadingHistory(false);
@@ -520,30 +599,14 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         setSelectedDateFolder(dateFolder);
         setHistoryLevel(1);
         setSelectedToolFolder(null);
-        setLoadingHistory(true);
-        try {
-            // Fetch tool folders inside this date folder
-            const toolQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and '${dateFolder.id}' in parents and trashed = false`);
-            const toolRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${toolQuery}&fields=files(id,name)`, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-            });
-            if (!toolRes.ok) throw new Error(`Tool folders fetch error: ${toolRes.status}`);
-            const toolData = await toolRes.json();
-            const existingFolders = toolData.files || [];
-            
-            const tempMap = {};
-            existingFolders.forEach(f => {
-                if (TARGET_FOLDERS.includes(f.name)) {
-                    tempMap[f.name] = f.id;
-                }
-            });
-            setFoldersMap(tempMap);
-        } catch (err) {
-            console.error("Failed to fetch tool folders:", err);
-            toast.error(`Failed to open date folder: ${err.message}`);
-        } finally {
-            setLoadingHistory(false);
-        }
+
+        // Find all files on this date from local cache
+        const filesForDate = allDriveFiles.filter(f => f.dateFolderId === dateFolder.id);
+        const tempMap = {};
+        filesForDate.forEach(f => {
+            tempMap[f.toolName] = f.toolFolderId;
+        });
+        setFoldersMap(tempMap);
     };
 
     // Open Tool Folder (Level 2: Files list)
@@ -551,34 +614,19 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
         setSelectedToolFolder({ id: folderId, name: folderName });
         setHistoryLevel(2);
         setHistoryFiles([]);
-        setLoadingHistory(true);
-        try {
-            const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-            const fields = encodeURIComponent("files(id, name, mimeType, webViewLink, thumbnailLink, createdTime, size)");
-            
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-            });
-            
-            if (!res.ok) {
-                const errText = await res.text();
-                throw new Error(`HTTP error ${res.status}: ${errText}`);
-            }
-            
-            const data = await res.json();
-            
-            // Sort files numerically by index f1, f2, f3...
-            const sortedFiles = (data.files || []).sort((a, b) => {
-                return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-            });
-            
-            setHistoryFiles(sortedFiles);
-        } catch (err) {
-            console.error("Failed to fetch folder history files:", err);
-            toast.error(`Failed to retrieve files: ${err.message}`);
-        } finally {
-            setLoadingHistory(false);
-        }
+
+        // Filter files for this date and tool type from local cache
+        const filtered = allDriveFiles.filter(f => 
+            f.dateFolderId === selectedDateFolder.id && 
+            f.toolName === folderName
+        );
+
+        // Sort files numerically by index f1, f2, f3...
+        const sortedFiles = filtered.sort((a, b) => {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        setHistoryFiles(sortedFiles);
     };
 
     // Fetch and Preview File content directly inside the popup using alt=media
@@ -615,6 +663,12 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             }
         } catch (err) {
             console.error("Failed to preview Google Drive file content:", err);
+            // Check if token expired (401 Unauthorized)
+            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
+                toast.error("Google Drive session expired. Please connect again.");
+                clearGoogleAuth();
+                return;
+            }
             toast.error(`Failed to load file preview: ${err.message}`);
             setPreviewFile(null);
         } finally {
@@ -639,12 +693,70 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             }
             
             toast.success("File deleted from Google Drive!");
-            // Reload folder files
+
+            // Update local state to remove the deleted file
+            const updatedFiles = allDriveFiles.filter(f => f.id !== fileId);
+            setAllDriveFiles(updatedFiles);
+
+            // Re-render based on current history level
             if (selectedToolFolder) {
-                handleOpenToolFolder(selectedToolFolder.name, selectedToolFolder.id);
+                const remainingInTool = updatedFiles.filter(f => 
+                    f.dateFolderId === selectedDateFolder.id && 
+                    f.toolName === selectedToolFolder.name
+                );
+
+                if (remainingInTool.length === 0) {
+                    // Check if date folder has any files at all
+                    const remainingInDate = updatedFiles.filter(f => f.dateFolderId === selectedDateFolder.id);
+                    if (remainingInDate.length === 0) {
+                        // Go back to Level 0 (Dates list) and update dateFolders
+                        const datesMap = {};
+                        updatedFiles.forEach(f => {
+                            datesMap[f.dateFolderId] = f.dateFolderName;
+                        });
+                        const sortedDateIds = Object.keys(datesMap).sort((a, b) => {
+                            const nameA = datesMap[a];
+                            const nameB = datesMap[b];
+                            const partsA = nameA.split('-');
+                            const partsB = nameB.split('-');
+                            const timeA = new Date(`${partsA[2]}-${partsA[1]}-${partsA[0]}`).getTime();
+                            const timeB = new Date(`${partsB[2]}-${partsB[1]}-${partsB[0]}`).getTime();
+                            return timeB - timeA;
+                        });
+                        const dateFoldersList = sortedDateIds.map(id => ({
+                            id: id,
+                            name: datesMap[id]
+                        }));
+                        setDateFolders(dateFoldersList);
+                        setHistoryLevel(0);
+                        setSelectedDateFolder(null);
+                        setSelectedToolFolder(null);
+                    } else {
+                        // Go back to Level 1 (Tools list)
+                        const tempMap = {};
+                        remainingInDate.forEach(f => {
+                            tempMap[f.toolName] = f.toolFolderId;
+                        });
+                        setFoldersMap(tempMap);
+                        setHistoryLevel(1);
+                        setSelectedToolFolder(null);
+                    }
+                } else {
+                    // Refresh level 2 files list
+                    const sortedFiles = remainingInTool.sort((a, b) => {
+                        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+                    setHistoryFiles(sortedFiles);
+                }
             }
         } catch (err) {
             console.error("Delete file from Drive failed:", err);
+            // Check if token expired (401 Unauthorized)
+            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
+                toast.error("Google Drive session expired. Please connect again.");
+                clearGoogleAuth();
+                return;
+            }
             toast.error(`Failed to delete file: ${err.message}`);
         }
     };
@@ -939,41 +1051,41 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
                                                 {loadingHistory && <Loader2 size={14} className="animate-spin text-indigo-600" />}
                                             </div>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                                {TARGET_FOLDERS.map((folderName) => {
-                                                    const folderId = foldersMap[folderName];
-                                                    const IconComponent = FOLDER_ICONS[folderName] || Folder;
-                                                    const folderStyle = FOLDER_COLORS[folderName] || "bg-slate-50 border-slate-155 text-slate-700";
+                                            {TARGET_FOLDERS.filter(folderName => !!foldersMap[folderName]).length === 0 ? (
+                                                <div className="text-center py-12 text-slate-400 col-span-2">
+                                                    <FolderOpen size={32} className="mx-auto text-slate-300 mb-2" />
+                                                    <p className="text-xs italic font-medium">No uploads found for this date.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                                    {TARGET_FOLDERS.filter(folderName => !!foldersMap[folderName]).map((folderName) => {
+                                                        const folderId = foldersMap[folderName];
+                                                        const IconComponent = FOLDER_ICONS[folderName] || Folder;
+                                                        const folderStyle = FOLDER_COLORS[folderName] || "bg-slate-50 border-slate-155 text-slate-700";
 
-                                                    return (
-                                                        <button
-                                                            key={folderName}
-                                                            disabled={!folderId || loadingHistory}
-                                                            onClick={() => handleOpenToolFolder(folderName, folderId)}
-                                                            className={`p-4 rounded-2xl border text-left flex items-center justify-between group transition-all outline-none ${
-                                                                folderId
-                                                                    ? 'border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 cursor-pointer'
-                                                                    : 'border-slate-100 bg-slate-50/50 opacity-40 cursor-not-allowed'
-                             }`}
-                                                        >
-                                                            <div className="flex items-center gap-3.5 min-w-0">
-                                                                <div className={`p-3 rounded-xl ${folderStyle} ${folderId ? 'group-hover:scale-105' : ''} transition-transform`}>
-                                                                    <IconComponent size={18} />
+                                                        return (
+                                                            <button
+                                                                key={folderName}
+                                                                onClick={() => handleOpenToolFolder(folderName, folderId)}
+                                                                className="p-4 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 cursor-pointer text-left flex items-center justify-between group transition-all outline-none"
+                                                            >
+                                                                <div className="flex items-center gap-3.5 min-w-0">
+                                                                    <div className={`p-3 rounded-xl ${folderStyle} group-hover:scale-105 transition-transform`}>
+                                                                        <IconComponent size={18} />
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{folderName}</h4>
+                                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                                            View files
+                                                                        </p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="min-w-0">
-                                                                    <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{folderName}</h4>
-                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                                                        {folderId ? 'View files' : 'No uploads today'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            {folderId && (
                                                                 <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

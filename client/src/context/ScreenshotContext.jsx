@@ -174,6 +174,11 @@ export const ScreenshotProvider = ({ children }) => {
             formData.append('resolution', resolutionVal);
             formData.append('format', formatVal);
             formData.append('googleDriveEmail', localStorage.getItem('screenshot_drive_email') || '');
+            const searchParams = new URLSearchParams(window.location.search);
+            const inboxVal = searchParams.get('inbox');
+            if (inboxVal) {
+                formData.append('inbox', inboxVal);
+            }
 
             await axios.post('/api/practice-files/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -282,13 +287,16 @@ export const ScreenshotProvider = ({ children }) => {
             const mimeType = format === 'PNG' ? 'image/png' : 'image/jpeg';
             const dataUrl = finalCanvas.toDataURL(mimeType);
 
+            const searchParams = new URLSearchParams(window.location.search);
+            const inboxVal = searchParams.get('inbox');
             const newScreenshot = {
                 id: 'snap_' + Date.now(),
                 timestamp: new Date().toLocaleString(),
                 url: dataUrl,
                 size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                 format: format,
-                resolution: `${Math.round(finalCanvas.width)}x${Math.round(finalCanvas.height)} (${resolutionType})`
+                resolution: `${Math.round(finalCanvas.width)}x${Math.round(finalCanvas.height)} (${resolutionType})`,
+                inbox: inboxVal || ''
             };
 
             setLatestCapture(newScreenshot);
@@ -457,13 +465,16 @@ export const ScreenshotProvider = ({ children }) => {
             const mimeType = format === 'PNG' ? 'image/png' : 'image/jpeg';
             const dataUrl = finalCanvas.toDataURL(mimeType);
 
+            const searchParams = new URLSearchParams(window.location.search);
+            const inboxVal = searchParams.get('inbox');
             const newScreenshot = {
                 id: 'snap_' + Date.now(),
                 timestamp: new Date().toLocaleString(),
                 url: dataUrl,
                 size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                 format: format,
-                resolution: `${Math.round(finalCanvas.width)}x${Math.round(finalCanvas.height)} (${cropShape === 'rect' ? 'Rectangle Crop' : 'Custom Shape Crop'}) [${captureSource === 'desktop' ? 'Desktop' : 'Screen'}]`
+                resolution: `${Math.round(finalCanvas.width)}x${Math.round(finalCanvas.height)} (${cropShape === 'rect' ? 'Rectangle Crop' : 'Custom Shape Crop'}) [${captureSource === 'desktop' ? 'Desktop' : 'Screen'}]`,
+                inbox: inboxVal || ''
             };
 
             setLatestCapture(newScreenshot);
@@ -537,13 +548,16 @@ export const ScreenshotProvider = ({ children }) => {
                 const mimeType = format === 'PNG' ? 'image/png' : 'image/jpeg';
                 const dataUrl = canvas.toDataURL(mimeType);
 
+                const searchParams = new URLSearchParams(window.location.search);
+                const inboxVal = searchParams.get('inbox');
                 const newScreenshot = {
                     id: 'snap_' + Date.now(),
                     timestamp: new Date().toLocaleString(),
                     url: dataUrl,
                     size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                     format: format,
-                    resolution: `${canvas.width}x${canvas.height} (Full Page Scroll)`
+                    resolution: `${canvas.width}x${canvas.height} (Full Page Scroll)`,
+                    inbox: inboxVal || ''
                 };
 
                 setLatestCapture(newScreenshot);

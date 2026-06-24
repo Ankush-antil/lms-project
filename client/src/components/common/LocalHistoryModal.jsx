@@ -30,7 +30,7 @@ const FOLDER_COLORS = {
     "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700"
 };
 
-const LocalHistoryModal = ({ isOpen, onClose, onRefresh }) => {
+const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [rawFiles, setRawFiles] = useState([]);
     
@@ -387,12 +387,34 @@ Log saved locally.`;
             const updatedRaw = rawFiles.filter(item => item.id !== file.id);
             setRawFiles(updatedRaw);
 
+            // Recompute dateFolders from updated rawFiles
+            const datesMap = {};
+            updatedRaw.forEach(f => {
+                if (f.parsedDate !== 'Unknown Date') {
+                    datesMap[f.parsedDate] = true;
+                }
+            });
+
+            const datesList = Object.keys(datesMap).sort((a, b) => {
+                const aParts = a.split('-');
+                const bParts = b.split('-');
+                const aTime = new Date(`${aParts[2]}-${aParts[1]}-${aParts[0]}`).getTime();
+                const bTime = new Date(`${bParts[2]}-${bParts[1]}-${bParts[0]}`).getTime();
+                return bTime - aTime; // Newest first
+            });
+            setDateFolders(datesList.map((d, idx) => ({ id: `date_${idx}`, name: d })));
+
             // Re-render level 2 or level 1 lists
             const filesForDate = updatedRaw.filter(f => f.parsedDate === selectedDateFolder.name);
             const remainingInFolder = filesForDate.filter(f => f.toolType === selectedToolFolder.name);
 
-            if (remainingInFolder.length === 0) {
-                // If the folder became empty, go back to level 1 (Tools list)
+            if (filesForDate.length === 0) {
+                // If the entire date became empty, go back to level 0 (Dates list)
+                setHistoryLevel(0);
+                setSelectedDateFolder(null);
+                setSelectedToolFolder(null);
+            } else if (remainingInFolder.length === 0) {
+                // If only the tool folder became empty, go back to level 1 (Tools list)
                 handleOpenDateFolder(selectedDateFolder);
             } else {
                 // Re-evaluate filenames with f1/f2/f3 sequence
@@ -517,41 +539,40 @@ Log saved locally.`;
                                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Practice Tools</h3>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                    {TARGET_FOLDERS.map((folderName) => {
-                                        const folderExists = foldersMap[folderName];
-                                        const IconComponent = FOLDER_ICONS[folderName] || Folder;
-                                        const folderStyle = FOLDER_COLORS[folderName] || "bg-slate-50 border-slate-155 text-slate-700";
+                                {TARGET_FOLDERS.filter(folderName => !!foldersMap[folderName]).length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400 col-span-2">
+                                        <FolderOpen size={32} className="mx-auto text-slate-300 mb-2" />
+                                        <p className="text-xs italic font-medium">No uploads found for this date.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                        {TARGET_FOLDERS.filter(folderName => !!foldersMap[folderName]).map((folderName) => {
+                                            const IconComponent = FOLDER_ICONS[folderName] || Folder;
+                                            const folderStyle = FOLDER_COLORS[folderName] || "bg-slate-50 border-slate-155 text-slate-700";
 
-                                        return (
-                                            <button
-                                                key={folderName}
-                                                disabled={!folderExists}
-                                                onClick={() => handleOpenToolFolder(folderName)}
-                                                className={`p-4 rounded-2xl border text-left flex items-center justify-between group transition-all outline-none ${
-                                                    folderExists
-                                                        ? 'border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 cursor-pointer'
-                                                        : 'border-slate-100 bg-slate-50/50 opacity-40 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3.5 min-w-0">
-                                                    <div className={`p-3 rounded-xl ${folderStyle} ${folderExists ? 'group-hover:scale-105' : ''} transition-transform`}>
-                                                        <IconComponent size={18} />
+                                            return (
+                                                <button
+                                                    key={folderName}
+                                                    onClick={() => handleOpenToolFolder(folderName)}
+                                                    className="p-4 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 hover:border-slate-300 cursor-pointer text-left flex items-center justify-between group transition-all outline-none"
+                                                >
+                                                    <div className="flex items-center gap-3.5 min-w-0">
+                                                        <div className={`p-3 rounded-xl ${folderStyle} group-hover:scale-105 transition-transform`}>
+                                                            <IconComponent size={18} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{folderName}</h4>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                                View files
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{folderName}</h4>
-                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                                            {folderExists ? 'View files' : 'No uploads today'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {folderExists && (
                                                     <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -627,13 +648,15 @@ Log saved locally.`;
                                                                     <Download size={13} />
                                                                 </a>
                                                             )}
-                                                            <button
-                                                                onClick={() => handleDeleteFile(file)}
-                                                                className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-650"
-                                                                title="Delete File"
-                                                            >
-                                                                <Trash size={13} />
-                                                            </button>
+                                                            {!readOnly && (
+                                                                <button
+                                                                    onClick={() => handleDeleteFile(file)}
+                                                                    className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-655"
+                                                                    title="Delete File"
+                                                                >
+                                                                    <Trash size={13} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -712,21 +735,22 @@ Log saved locally.`;
                                         <div className="text-slate-400 text-xs italic font-medium font-bold">Failed to load preview url</div>
                                     )}
                                 </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        onClick={() => {
-                                            const fileToDelete = previewFile;
-                                            setPreviewFile(null);
-                                            setPreviewUrl('');
-                                            setPreviewText('');
-                                            handleDeleteFile(fileToDelete);
-                                        }}
-                                        className="w-full py-3 bg-red-50 border border-red-200 hover:bg-red-100 text-red-650 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer animate-fade-in"
-                                    >
-                                        <Trash size={13} /> Delete Local File
-                                    </button>
-                                </div>
+                                {!readOnly && (
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            onClick={() => {
+                                                const fileToDelete = previewFile;
+                                                setPreviewFile(null);
+                                                setPreviewUrl('');
+                                                setPreviewText('');
+                                                handleDeleteFile(fileToDelete);
+                                            }}
+                                            className="w-full py-3 bg-red-50 border border-red-200 hover:bg-red-100 text-red-655 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer animate-fade-in"
+                                        >
+                                            <Trash size={13} /> Delete Local File
+                                        </button>
+                                    </div>
+                                 )}
                             </div>
                         )}
 

@@ -21,6 +21,7 @@ import EditorDashboard from './pages/editor/EditorDashboard';
 import InstitutesList from './pages/admin/InstitutesList';
 import CoursesList from './pages/admin/CoursesList';
 import StudentTests from './pages/student/StudentTests';
+import StudentPracticeTools from './pages/student/StudentPracticeTools';
 import ShortAnswerTest from './pages/student/ShortAnswerTest';
 import ViewTestResult from './pages/student/ViewTestResult';
 import EvaluatePage from './pages/teacher/EvaluatePage';
@@ -241,6 +242,11 @@ function App() {
                         <Route path="/student/tests" element={
                             <PrivateRoute role="Student">
                                 <StudentTests />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools" element={
+                            <PrivateRoute role="Student">
+                                <StudentPracticeTools />
                             </PrivateRoute>
                         } />
                         <Route path="/student/tests/short-answer" element={

@@ -1,7 +1,9 @@
 import { useAuth } from '../../context/AuthContext';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useSocket } from '../../context/SocketContext';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
@@ -62,10 +64,10 @@ const TeacherActivities = () => {
     const [infoModalData, setInfoModalData] = useState(null);
     const [showStudentList, setShowStudentList] = useState(true);
     const [chatInput, setChatInput] = useState('');
-    const [chatMessages, setChatMessages] = useState([
-        { id: 1, sender: 'student', text: "Hello! Please make sure to submit your pending test category items before the scheduled deadline.", time: "10:00 AM" },
-        { id: 2, sender: 'teacher', text: "Sure. I will review and let you know.", time: "10:05 AM" }
-    ]);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [loadingChat, setLoadingChat] = useState(false);
+    const messagesEndRef = useRef(null);
+    const { socket, onlineUsers } = useSocket();
     const [submissionsLoading, setSubmissionsLoading] = useState(false);
     const { openProfile } = useUserProfile();
 
@@ -271,6 +273,89 @@ const TeacherActivities = () => {
             getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
         );
     }, [dynamicInboxItems, inboxSearchQuery]);
+
+    useEffect(() => {
+        if (!selectedStudent || viewMode !== 'chat' || !selectedInboxId) return;
+
+        const fetchMessages = async () => {
+            try {
+                setLoadingChat(true);
+                const { data } = await axios.get(`/api/chat/messages/${selectedStudent._id}?inboxId=${selectedInboxId}`);
+                setChatMessages(data);
+                
+                await axios.put(`/api/chat/messages/${selectedStudent._id}/read`);
+            } catch (err) {
+                console.error("Error fetching student chat messages:", err);
+            } finally {
+                setLoadingChat(false);
+            }
+        };
+        fetchMessages();
+    }, [selectedStudent, viewMode, selectedInboxId]);
+
+    useEffect(() => {
+        if (!socket || !selectedStudent || !selectedInboxId) return;
+
+        const handleReceiveMessage = (msg) => {
+            if (String(msg.sender) === String(selectedStudent._id) && !msg.test && msg.inboxId === selectedInboxId) {
+                setChatMessages(prev => {
+                    if (prev.some(m => m._id === msg._id)) return prev;
+                    return [...prev, msg];
+                });
+                
+                axios.put(`/api/chat/messages/${selectedStudent._id}/read`).catch(() => {});
+            }
+        };
+
+        socket.on('receive-message', handleReceiveMessage);
+        return () => {
+            socket.off('receive-message', handleReceiveMessage);
+        };
+    }, [socket, selectedStudent, selectedInboxId]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        if (viewMode === 'chat') {
+            scrollToBottom();
+        }
+    }, [chatMessages, viewMode]);
+
+    const handleSendChatMessage = async (e) => {
+        e.preventDefault();
+        if (!chatInput.trim() || !selectedStudent || !selectedInboxId) return;
+
+        const text = chatInput.trim();
+        setChatInput('');
+
+        try {
+            const payload = {
+                receiver: selectedStudent._id,
+                text,
+                inboxId: selectedInboxId
+            };
+            const { data } = await axios.post('/api/chat/messages', payload);
+
+            setChatMessages(prev => [...prev, data]);
+
+            if (socket) {
+                socket.emit('send-message', {
+                    _id: data._id,
+                    senderId: userInfo._id,
+                    receiverId: selectedStudent._id,
+                    text,
+                    senderName: userInfo.name,
+                    createdAt: data.createdAt,
+                    inboxId: selectedInboxId
+                });
+            }
+        } catch (err) {
+            console.error("Error sending message:", err);
+            toast.error("Failed to send message");
+        }
+    };
 
     const getAvatarBgColor = (name) => {
         return 'bg-[#3E3ADD]';
@@ -491,69 +576,81 @@ const TeacherActivities = () => {
                             </div>
                         ) : viewMode === 'chat' ? (
                             /* --- CHAT TAB --- */
-                            <div className="animate-fade-in flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
-                                            {selectedStudent.name[0].toUpperCase()}
+                                        <div className="relative shrink-0">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                                {selectedStudent.avatar ? (
+                                                    <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                )}
+                                            </div>
+                                            {onlineUsers.includes(selectedStudent._id) ? (
+                                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
+                                            ) : (
+                                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
-                                            <p className="text-[10px] text-slate-400 font-semibold">{selectedStudent.email}</p>
+                                            <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
                                         </div>
                                     </div>
-                                    <div className="flex bg-white p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500">
+                                    <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
                                         Inbox Chat View
                                     </div>
                                 </div>
 
                                 <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                    {chatMessages.map(msg => (
-                                        <div key={msg.id} className={`flex ${msg.sender === 'teacher' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${msg.sender === 'teacher'
-                                                ? 'bg-[#3E3ADD] text-white rounded-tr-none'
-                                                : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none shadow-sm'
-                                                }`}>
-                                                <p className="font-semibold">{msg.text}</p>
-                                                <span className={`text-[8px] mt-1 block text-right ${msg.sender === 'teacher' ? 'text-indigo-200' : 'text-slate-400'
-                                                    }`}>
-                                                    {msg.time}
-                                                </span>
-                                            </div>
+                                    {loadingChat ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
                                         </div>
-                                    ))}
+                                    ) : chatMessages.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                            <p className="text-slate-400 text-[11px] mt-1">
+                                                Send a message to start conversation with {selectedStudent.name}.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        chatMessages.map((msg, index) => {
+                                            const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                            const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                            return (
+                                                <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                        : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
+                                                        }`}>
+                                                        <p className="font-semibold">{msg.text}</p>
+                                                        <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                                            }`}>
+                                                            {formattedTime}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    <div ref={messagesEndRef} />
                                 </div>
 
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    if (!chatInput.trim()) return;
-                                    const newMsg = {
-                                        id: chatMessages.length + 1,
-                                        sender: 'teacher',
-                                        text: chatInput,
-                                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                    };
-                                    setChatMessages(prev => [...prev, newMsg]);
-                                    setChatInput('');
-                                    setTimeout(() => {
-                                        setChatMessages(prev => [...prev, {
-                                            id: prev.length + 1,
-                                            sender: 'student',
-                                            text: "Thanks! I've received your note and will update the task accordingly.",
-                                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                        }]);
-                                    }, 1000);
-                                }} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
                                     <input
                                         type="text"
                                         value={chatInput}
                                         onChange={e => setChatInput(e.target.value)}
                                         placeholder="Type your message to the student..."
-                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"
+                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                     />
                                     <button
                                         type="submit"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                        disabled={!chatInput.trim()}
                                     >
                                         Send
                                     </button>

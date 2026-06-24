@@ -128,6 +128,11 @@ const getMessages = asyncHandler(async (req, res) => {
     if (req.query.questionIndex !== undefined) {
         query.questionIndex = Number(req.query.questionIndex);
     }
+    if (req.query.inboxId !== undefined) {
+        query.inboxId = req.query.inboxId || '';
+    } else {
+        query.inboxId = { $in: [null, '', undefined] };
+    }
 
     // Apply search keyword filter
     if (req.query.search) {
@@ -155,6 +160,11 @@ const getMessages = asyncHandler(async (req, res) => {
         }
         if (req.query.questionIndex !== undefined) {
             matchQuery.questionIndex = Number(req.query.questionIndex);
+        }
+        if (req.query.inboxId !== undefined) {
+            matchQuery.inboxId = req.query.inboxId || '';
+        } else {
+            matchQuery.inboxId = { $in: [null, '', undefined] };
         }
 
         const dates = await Message.aggregate([
@@ -184,7 +194,7 @@ const getMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/chat/messages
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
-    const { receiver, text, test, testTitle, questionIndex, questionText, fileUrl, fileName, fileType } = req.body;
+    const { receiver, text, test, testTitle, questionIndex, questionText, fileUrl, fileName, fileType, inboxId } = req.body;
     const sender = req.user._id;
 
     if (!receiver || (!text && !fileUrl)) {
@@ -202,7 +212,8 @@ const sendMessage = asyncHandler(async (req, res) => {
         questionText: questionText || '',
         fileUrl: fileUrl || '',
         fileName: fileName || '',
-        fileType: fileType || ''
+        fileType: fileType || '',
+        inboxId: inboxId || ''
     });
 
     res.status(201).json(message);

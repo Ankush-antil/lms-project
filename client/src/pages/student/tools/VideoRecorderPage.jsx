@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MonitorPlay, Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
@@ -7,10 +7,19 @@ import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
 import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
+import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 
 const VideoRecorderPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const videoRef = useRef(null);
+
+    // Parse selected date and inbox param
+    const searchParams = new URLSearchParams(location.search);
+    const dateParam = searchParams.get('date');
+    const inboxParam = searchParams.get('inbox');
+    const todayDdMmYyyy = getTodayDdMmYyyy();
+    const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
     
     // States
     const [videoDevices, setVideoDevices] = useState([]);
@@ -51,6 +60,30 @@ const VideoRecorderPage = () => {
 
     // Cloud files state
     const [cloudFiles, setCloudFiles] = useState([]);
+
+    // Filter local videos by selected date and inbox param
+    const filteredLocalVideos = useMemo(() => {
+        let filtered = videos;
+        if (dateParam) {
+            filtered = filtered.filter(v => parseDateToDdMmYyyy(v.timestamp) === dateParam);
+        }
+        if (inboxParam) {
+            filtered = filtered.filter(v => v.inbox === inboxParam);
+        }
+        return filtered;
+    }, [videos, dateParam, inboxParam]);
+
+    // Filter cloud files by selected date and inbox param
+    const filteredCloudFiles = useMemo(() => {
+        let filtered = cloudFiles;
+        if (dateParam) {
+            filtered = filtered.filter(c => parseDateToDdMmYyyy(c.createdAt) === dateParam);
+        }
+        if (inboxParam) {
+            filtered = filtered.filter(c => c.inbox === inboxParam);
+        }
+        return filtered;
+    }, [cloudFiles, dateParam, inboxParam]);
     const [cloudSpace, setCloudSpace] = useState({ used: 0, limit: 300 * 1024 * 1024 });
     const [cloudLoading, setCloudLoading] = useState(false);
 
@@ -58,7 +91,8 @@ const VideoRecorderPage = () => {
     const fetchCloudFiles = async () => {
         try {
             setCloudLoading(true);
-            const res = await axios.get('/api/practice-files');
+            const url = inboxParam ? `/api/practice-files?inbox=${encodeURIComponent(inboxParam)}` : '/api/practice-files';
+            const res = await axios.get(url);
             // Filter files by toolType
             const toolFiles = res.data.files.filter(f => f.toolType === 'video-recorder');
             setCloudFiles(toolFiles);
@@ -80,11 +114,15 @@ const VideoRecorderPage = () => {
 
     // Save latest recording to Google Drive
     const handleSaveToDriveClick = async () => {
-        if (videos.length === 0) {
+        if (isReadOnly) {
+            toast.error("Google Drive upload is disabled in Read-Only archive.");
+            return;
+        }
+        if (filteredLocalVideos.length === 0) {
             toast.error("No recordings to save. Record something first.");
             return;
         }
-        const latest = videos[0];
+        const latest = filteredLocalVideos[0];
         const blob = await getLocalBlob(latest.id);
         if (!blob) {
             toast.error("Recording file not found locally.");
@@ -99,6 +137,10 @@ const VideoRecorderPage = () => {
 
     // Delete cloud file
     const handleDeleteCloudFile = async (id) => {
+        if (isReadOnly) {
+            toast.error("Deleting files is disabled in Read-Only archive.");
+            return;
+        }
         try {
             await axios.delete(`/api/practice-files/${id}`);
             toast.success("File deleted from cloud storage!");
@@ -111,7 +153,11 @@ const VideoRecorderPage = () => {
 
     // Sync local unsynced recordings with cloud
     const handleSyncWithCloud = async () => {
-        const unsynced = videos.filter(v => !v.synced);
+        if (isReadOnly) {
+            toast.error("Syncing files is disabled in Read-Only archive.");
+            return;
+        }
+        const unsynced = filteredLocalVideos.filter(v => !v.synced);
         if (unsynced.length === 0) {
             toast.success("All local recordings are synced!");
             return;
@@ -130,6 +176,9 @@ const VideoRecorderPage = () => {
                 formData.append('toolType', 'video-recorder');
                 formData.append('duration', item.duration);
                 formData.append('resolution', item.resolution);
+                if (item.inbox) {
+                    formData.append('inbox', item.inbox);
+                }
 
                 await axios.post('/api/practice-files/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -263,6 +312,10 @@ const VideoRecorderPage = () => {
     };
 
     const toggleRecording = () => {
+        if (isReadOnly) {
+            toast.error("Recording new clips is disabled in Read-Only archive.");
+            return;
+        }
         if (recording) {
             handleStopRecording();
             toast.success("Video recording saved!");
@@ -323,6 +376,8 @@ const VideoRecorderPage = () => {
 
                 await saveLocalBlob(recId, blob);
                 
+                const searchParams = new URLSearchParams(window.location.search);
+                const inboxVal = searchParams.get('inbox');
                 const newVideo = {
                     id: recId,
                     timestamp: new Date().toLocaleString(),
@@ -330,7 +385,8 @@ const VideoRecorderPage = () => {
                     size: (blob.size / (1024 * 1024)).toFixed(2) + ' MB',
                     duration: formatTime(recordingTime),
                     resolution: resolution,
-                    synced: false
+                    synced: false,
+                    inbox: inboxVal || ''
                 };
 
                 setVideos(prev => {
@@ -386,21 +442,37 @@ const VideoRecorderPage = () => {
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
                 {/* Back Link */}
                 <button
-                    onClick={() => navigate('/student/tests')}
+                    onClick={() => {
+                        if (inboxParam) {
+                            navigate('/student/tests');
+                        } else {
+                            navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
+                        }
+                    }}
                     className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
                 >
                     <ArrowLeft size={16} />
-                    Back to My Tests
+                    Back to Practice Tools
                 </button>
 
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
                         <MonitorPlay className="text-purple-600" />
-                        Video Recorder
+                        Video Recorder {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">Capture practice web videos with custom resolutions and audio bitrates.</p>
                 </div>
+
+                {isReadOnly && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex items-center gap-2.5 text-xs font-semibold leading-relaxed">
+                        <AlertTriangle className="text-amber-600 shrink-0" size={16} />
+                        <div>
+                            <p className="font-bold">Past Workspace Preview (Read-Only)</p>
+                            <p className="text-amber-800/80 text-[11px] font-medium mt-0.5">You are viewing files captured on {dateParam}. Capturing videos, deleting, or syncing files is disabled for this day.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* 3-Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -618,15 +690,19 @@ const VideoRecorderPage = () => {
 
                             {/* Start/Stop Recording Button */}
                             <button
-                                disabled={!cameraEnabled || countdownActive}
+                                disabled={isReadOnly || !cameraEnabled || countdownActive}
                                 onClick={toggleRecording}
                                 className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all duration-200 mt-4 text-white shadow-lg ${
-                                    recording 
-                                        ? 'bg-red-650 hover:bg-red-700 shadow-red-600/10 hover:shadow-red-600/20' 
-                                        : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
+                                    isReadOnly
+                                        ? 'bg-slate-350 text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+                                        : recording 
+                                            ? 'bg-red-650 hover:bg-red-700 shadow-red-600/10 hover:shadow-red-600/20' 
+                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
                                 } disabled:opacity-50`}
                             >
-                                {recording ? (
+                                {isReadOnly ? (
+                                    <span>Workspace Read-Only</span>
+                                ) : recording ? (
                                     <>
                                         <Square size={16} fill="white" />
                                         <span>Stop Recording</span>
@@ -647,11 +723,13 @@ const VideoRecorderPage = () => {
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
                             
-                            <div className="space-y-2">
-                                {/* Save in Google Drive */}
+                            <div className="space-y-2">                                {/* Save in Google Drive */}
                                 <button
+                                    disabled={isReadOnly}
                                     onClick={handleSaveToDriveClick}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
+                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                    }`}
                                 >
                                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
                                         <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
@@ -696,7 +774,7 @@ const VideoRecorderPage = () => {
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {videos.length} Videos • View structured folders
+                                            {filteredLocalVideos.length} Videos • View structured folders
                                         </span>
                                     </div>
                                 </button>
@@ -710,7 +788,7 @@ const VideoRecorderPage = () => {
                                     }}
                                     className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
                                         galleryTab === 'cloud'
-                                            ? 'bg-indigo-55 bg-opacity-30 border-purple-200 text-purple-850 shadow-sm'
+                                            ? 'bg-indigo-55 bg-opacity-30 border-purple-200 text-purple-855 shadow-sm'
                                             : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
                                     }`}
                                 >
@@ -718,21 +796,24 @@ const VideoRecorderPage = () => {
                                     <div className="text-left flex-1">
                                         <p>Go to Cloud Data</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {cloudFiles.length} Cloud Videos • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
+                                            {filteredCloudFiles.length} Cloud Videos • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
                                         </span>
                                     </div>
                                 </button>
                                 
                                 {/* Sync with Cloud */}
                                 <button
+                                    disabled={isReadOnly}
                                     onClick={handleSyncWithCloud}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
+                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                    }`}
                                 >
                                     <RefreshCw className="text-purple-600 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Sync with Cloud</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {videos.filter(v => !v.synced).length} files not synced
+                                            {filteredLocalVideos.filter(v => !v.synced).length} files not synced
                                         </span>
                                     </div>
                                 </button>
@@ -787,24 +868,26 @@ const VideoRecorderPage = () => {
                                 /* Cloud Gallery List */
                                 cloudLoading ? (
                                     <div className="text-center py-6 text-xs text-slate-450 animate-pulse font-bold uppercase tracking-wider">Loading Cloud Data...</div>
-                                ) : cloudFiles.length === 0 ? (
+                                ) : filteredCloudFiles.length === 0 ? (
                                     <p className="text-xs text-slate-450 italic text-center py-4">No cloud videos found. Click "Sync with Cloud" to upload.</p>
                                 ) : (
                                     <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {cloudFiles.map(c => (
+                                        {filteredCloudFiles.map(c => (
                                             <div key={c._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
                                                 <div className="flex justify-between items-start">
                                                     <div className="min-w-0 text-left">
                                                         <p className="text-[10px] font-bold text-slate-700 truncate">{c.filename}</p>
                                                         <p className="text-[9px] text-slate-400 mt-0.5">Length: {c.metadata?.duration || '00:00'} • {(c.size / (1024 * 1024)).toFixed(2)} MB</p>
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleDeleteCloudFile(c._id)}
-                                                        className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
-                                                        title="Delete from Cloud"
-                                                    >
-                                                        <Trash size={14} />
-                                                    </button>
+                                                    {!isReadOnly && (
+                                                        <button
+                                                            onClick={() => handleDeleteCloudFile(c._id)}
+                                                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-655"
+                                                            title="Delete from Cloud"
+                                                        >
+                                                            <Trash size={14} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex gap-2">
@@ -849,6 +932,7 @@ const VideoRecorderPage = () => {
             {/* Local Storage Virtual History Modal */}
             <LocalHistoryModal
                 isOpen={localHistoryModalOpen}
+                readOnly={isReadOnly}
                 onClose={() => {
                     setLocalHistoryModalOpen(false);
                     loadLocalRecordings();

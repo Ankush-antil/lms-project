@@ -40,6 +40,9 @@ router.get('/', protect, async (req, res) => {
         if (req.query.googleDriveEmail) {
             filter.googleDriveEmail = req.query.googleDriveEmail;
         }
+        if (req.query.inbox) {
+            filter.inbox = req.query.inbox;
+        }
         const files = await PracticeFile.find(filter).sort({ createdAt: -1 });
         
         // Calculate total space used
@@ -66,7 +69,7 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded.' });
         }
 
-        const { toolType, duration, resolution, format, googleDriveEmail } = req.body;
+        const { toolType, duration, resolution, format, googleDriveEmail, inbox } = req.body;
         if (!toolType) {
             fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'Tool type is required.' });
@@ -90,6 +93,7 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
         const newFile = await PracticeFile.create({
             user: req.user._id,
             toolType,
+            inbox: inbox || '',
             filename: req.file.originalname,
             fileUrl,
             size: req.file.size,

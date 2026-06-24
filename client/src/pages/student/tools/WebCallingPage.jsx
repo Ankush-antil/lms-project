@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import { useSocket } from '../../../context/SocketContext';
@@ -7,9 +7,18 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
+import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 
 const WebCallingPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Parse selected date and inbox param
+    const searchParams = new URLSearchParams(location.search);
+    const dateParam = searchParams.get('date');
+    const inboxParam = searchParams.get('inbox');
+    const todayDdMmYyyy = getTodayDdMmYyyy();
+    const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
     const { 
         callUser, 
         callState, 
@@ -52,6 +61,30 @@ const WebCallingPage = () => {
 
     // Cloud files state
     const [cloudFiles, setCloudFiles] = useState([]);
+
+    // Filter local logs by selected date and inbox param
+    const filteredLocalLogs = useMemo(() => {
+        let filtered = callLogs;
+        if (dateParam) {
+            filtered = filtered.filter(log => parseDateToDdMmYyyy(log.date) === dateParam);
+        }
+        if (inboxParam) {
+            filtered = filtered.filter(log => log.inbox === inboxParam);
+        }
+        return filtered;
+    }, [callLogs, dateParam, inboxParam]);
+
+    // Filter cloud files by selected date and inbox param
+    const filteredCloudFiles = useMemo(() => {
+        let filtered = cloudFiles;
+        if (dateParam) {
+            filtered = filtered.filter(c => parseDateToDdMmYyyy(c.createdAt) === dateParam);
+        }
+        if (inboxParam) {
+            filtered = filtered.filter(c => c.inbox === inboxParam);
+        }
+        return filtered;
+    }, [cloudFiles, dateParam, inboxParam]);
     const [cloudSpace, setCloudSpace] = useState({ used: 0, limit: 300 * 1024 * 1024 });
     const [cloudLoading, setCloudLoading] = useState(false);
 
@@ -111,7 +144,8 @@ const WebCallingPage = () => {
     const fetchCloudFiles = async () => {
         try {
             setCloudLoading(true);
-            const res = await axios.get('/api/practice-files');
+            const url = inboxParam ? `/api/practice-files?inbox=${encodeURIComponent(inboxParam)}` : '/api/practice-files';
+            const res = await axios.get(url);
             // Filter files by toolType
             const toolFiles = res.data.files.filter(f => f.toolType === 'web-calling');
             setCloudFiles(toolFiles);
@@ -219,6 +253,10 @@ const WebCallingPage = () => {
 
     // AI Simulation Handlers
     const startAiCall = async () => {
+        if (isReadOnly) {
+            toast.error("Calling is disabled in Read-Only archive.");
+            return;
+        }
         setSimulatedCall(true);
         setSimulatedState('dialing');
         setCurrentQuestionIndex(0);
@@ -238,6 +276,8 @@ const WebCallingPage = () => {
         setSimulatedState('ended');
         
         // Add log entry
+        const searchParams = new URLSearchParams(window.location.search);
+        const inboxVal = searchParams.get('inbox');
         const newLog = {
             id: 'log_' + Date.now(),
             name: `AI Partner (${aiScenarios[aiRole].title})`,
@@ -245,7 +285,8 @@ const WebCallingPage = () => {
             duration: formatTime(simTime),
             status: 'Completed',
             date: new Date().toLocaleString(),
-            synced: false
+            synced: false,
+            inbox: inboxVal || ''
         };
 
         setCallLogs(prev => {
@@ -320,6 +361,10 @@ const WebCallingPage = () => {
 
     // WebRTC call trigger (uses context)
     const handleTeacherCall = (teacher, callType = 'audio') => {
+        if (isReadOnly) {
+            toast.error("Calling is disabled in Read-Only archive.");
+            return;
+        }
         // Check if teacher is online
         const isOnline = onlineUsers.some(user => user.userId === teacher._id);
         if (!isOnline && teacher._id !== 't1' && teacher._id !== 't2') { // Let mock teachers trigger dialing
@@ -332,6 +377,10 @@ const WebCallingPage = () => {
     };
 
     const handleDeleteLog = (id) => {
+        if (isReadOnly) {
+            toast.error("Deleting logs is disabled in Read-Only archive.");
+            return;
+        }
         const updated = callLogs.filter(log => log.id !== id);
         setCallLogs(updated);
         localStorage.setItem('practice_call_logs', JSON.stringify(updated));
@@ -339,11 +388,15 @@ const WebCallingPage = () => {
 
     // Save latest log to Google Drive (Open Modal)
     const handleSaveToDriveClick = () => {
-        if (callLogs.length === 0) {
+        if (isReadOnly) {
+            toast.error("Google Drive upload is disabled in Read-Only archive.");
+            return;
+        }
+        if (filteredLocalLogs.length === 0) {
             toast.error("No call logs to save. Make a call first.");
             return;
         }
-        const latest = callLogs[0];
+        const latest = filteredLocalLogs[0];
         const logContent = `LMS CALL LOG\n====================\nName: ${latest.name}\nType: ${latest.type}\nDuration: ${latest.duration}\nStatus: ${latest.status}\nDate: ${latest.date}`;
         const blob = new Blob([logContent], { type: 'text/plain' });
         
@@ -356,6 +409,10 @@ const WebCallingPage = () => {
 
     // Delete cloud file
     const handleDeleteCloudFile = async (id) => {
+        if (isReadOnly) {
+            toast.error("Deleting files is disabled in Read-Only archive.");
+            return;
+        }
         try {
             await axios.delete(`/api/practice-files/${id}`);
             toast.success("Call log deleted from cloud storage!");
@@ -368,7 +425,11 @@ const WebCallingPage = () => {
 
     // Sync local unsynced logs with cloud
     const handleSyncWithCloud = async () => {
-        const unsynced = callLogs.filter(log => !log.synced);
+        if (isReadOnly) {
+            toast.error("Syncing files is disabled in Read-Only archive.");
+            return;
+        }
+        const unsynced = filteredLocalLogs.filter(log => !log.synced);
         if (unsynced.length === 0) {
             toast.success("All local logs are already synced!");
             return;
@@ -387,6 +448,9 @@ const WebCallingPage = () => {
                 formData.append('toolType', 'web-calling');
                 formData.append('duration', item.duration);
                 formData.append('format', 'TXT');
+                if (item.inbox) {
+                    formData.append('inbox', item.inbox);
+                }
 
                 const res = await axios.post('/api/practice-files/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -425,21 +489,37 @@ const WebCallingPage = () => {
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
                 {/* Back Link */}
                 <button
-                    onClick={() => navigate('/student/tests')}
+                    onClick={() => {
+                        if (inboxParam) {
+                            navigate('/student/tests');
+                        } else {
+                            navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
+                        }
+                    }}
                     className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
                 >
                     <ArrowLeft size={16} />
-                    Back to My Tests
+                    Back to Practice Tools
                 </button>
 
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
                         <Phone className="text-pink-600" />
-                        Web-Calling Tool
+                        Web-Calling Tool {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">Connect with active teachers or practice solo with an interactive AI Roleplay partner.</p>
                 </div>
+
+                {isReadOnly && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex items-center gap-2.5 text-xs font-semibold leading-relaxed">
+                        <AlertTriangle className="text-amber-600 shrink-0" size={16} />
+                        <div>
+                            <p className="font-bold">Past Workspace Preview (Read-Only)</p>
+                            <p className="text-amber-800/80 text-[11px] font-medium mt-0.5">You are viewing files captured on {dateParam}. Interactive calling, deleting call logs, or syncing files is disabled for this day.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* 3-Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
@@ -727,15 +807,21 @@ const WebCallingPage = () => {
                                                             
                                                             <div className="flex items-center gap-2">
                                                                 <button
+                                                                    disabled={isReadOnly}
                                                                     onClick={() => handleTeacherCall(teacher, 'audio')}
-                                                                    className="p-2 bg-pink-50 hover:bg-pink-100 text-pink-650 rounded-xl transition-colors border border-pink-100"
+                                                                    className={`p-2 bg-pink-50 text-pink-650 rounded-xl transition-colors border border-pink-100 ${
+                                                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-pink-100'
+                                                                    }`}
                                                                     title="Voice Call"
                                                                 >
                                                                     <Phone size={14} />
                                                                 </button>
                                                                 <button
+                                                                    disabled={isReadOnly}
                                                                     onClick={() => handleTeacherCall(teacher, 'video')}
-                                                                    className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl transition-colors border border-purple-100"
+                                                                    className={`p-2 bg-purple-50 text-purple-600 rounded-xl transition-colors border border-purple-100 ${
+                                                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-100'
+                                                                    }`}
                                                                     title="Video Call"
                                                                 >
                                                                     <Video size={14} />
@@ -786,11 +872,16 @@ const WebCallingPage = () => {
 
                                     {/* Big Trigger Call button */}
                                     <button
+                                        disabled={isReadOnly}
                                         onClick={startAiCall}
-                                        className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-[0.99] transition-all duration-200 mt-6"
+                                        className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-6 text-white ${
+                                            isReadOnly
+                                                ? 'bg-slate-350 cursor-not-allowed opacity-60 shadow-none'
+                                                : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
+                                        }`}
                                     >
                                         <Phone className="animate-pulse" size={16} />
-                                        <span>Start Practice Call Partner</span>
+                                        <span>{isReadOnly ? 'Workspace Read-Only' : 'Start Practice Call Partner'}</span>
                                     </button>
                                 </div>
                             )}
@@ -803,11 +894,14 @@ const WebCallingPage = () => {
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {/* Save in Google Drive */}
                                 <button
+                                    disabled={isReadOnly}
                                     onClick={handleSaveToDriveClick}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
+                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                    }`}
                                 >
                                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
                                         <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
@@ -852,7 +946,7 @@ const WebCallingPage = () => {
                                     <div className="text-left flex-1">
                                         <p>Go to Local Data</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {callLogs.length} Call Logs • View structured folders
+                                            {filteredLocalLogs.length} Call Logs • View structured folders
                                         </span>
                                     </div>
                                 </button>
@@ -874,21 +968,24 @@ const WebCallingPage = () => {
                                     <div className="text-left flex-1">
                                         <p>Go to Cloud Data</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {cloudFiles.length} Cloud Logs • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
+                                            {filteredCloudFiles.length} Cloud Logs • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
                                         </span>
                                     </div>
                                 </button>
 
                                 {/* Sync with Cloud */}
                                 <button
+                                    disabled={isReadOnly}
                                     onClick={handleSyncWithCloud}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
+                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                    }`}
                                 >
                                     <RefreshCw className="text-pink-600 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
                                         <p>Sync with Cloud</p>
                                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {callLogs.filter(log => !log.synced).length} logs not synced
+                                            {filteredLocalLogs.filter(log => !log.synced).length} logs not synced
                                         </span>
                                     </div>
                                 </button>
@@ -941,11 +1038,11 @@ const WebCallingPage = () => {
                             ) : (
                                 cloudLoading ? (
                                     <div className="text-xs text-slate-500 text-center py-10 font-medium">Loading cloud logs...</div>
-                                ) : cloudFiles.length === 0 ? (
+                                ) : filteredCloudFiles.length === 0 ? (
                                     <p className="text-xs text-slate-400 italic text-center py-4">No synced cloud logs.</p>
                                 ) : (
                                     <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {cloudFiles.map(file => (
+                                        {filteredCloudFiles.map(file => (
                                             <div key={file._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors relative text-left">
                                                 <div className="flex justify-between items-start">
                                                     <div className="text-left">
@@ -966,13 +1063,15 @@ const WebCallingPage = () => {
                                                         >
                                                             <Download size={12} />
                                                         </a>
-                                                        <button
-                                                            onClick={() => handleDeleteCloudFile(file._id)}
-                                                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-650"
-                                                            title="Delete from Cloud"
-                                                        >
-                                                            <Trash size={12} />
-                                                        </button>
+                                                        {!isReadOnly && (
+                                                            <button
+                                                                onClick={() => handleDeleteCloudFile(file._id)}
+                                                                className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-655"
+                                                                title="Delete from Cloud"
+                                                            >
+                                                                <Trash size={12} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1005,6 +1104,7 @@ const WebCallingPage = () => {
             {/* Local Storage Virtual History Modal */}
             <LocalHistoryModal
                 isOpen={localHistoryModalOpen}
+                readOnly={isReadOnly}
                 onClose={() => {
                     setLocalHistoryModalOpen(false);
                     loadLocalLogs();

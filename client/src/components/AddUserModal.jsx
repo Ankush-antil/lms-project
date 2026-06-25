@@ -204,7 +204,16 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
                                                     required
                                                     value={formData.course}
-                                                    onChange={e => setFormData({ ...formData, course: e.target.value, subject: '' })}
+                                                    onChange={e => {
+                                                        const courseId = e.target.value;
+                                                        const courseObj = courses.find(c => c._id === courseId);
+                                                        const subs = courseObj?.subjects || [];
+                                                        setFormData({ 
+                                                            ...formData, 
+                                                            course: courseId, 
+                                                            subject: subs.join(', ') 
+                                                        });
+                                                    }}
                                                     disabled={user?.role !== 'Institute' && user?.role !== 'Editor' && !formData.institute}
                                                 >
                                                     <option value="">Select</option>
@@ -214,19 +223,14 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject</label>
-                                                <select
-                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
-                                                    required={role === 'Student'}
-                                                    value={formData.subject}
-                                                    onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                    disabled={!formData.course}
-                                                >
-                                                    <option value="">Select Subject</option>
-                                                    {availableSubjects.map(sub => (
-                                                        <option key={sub} value={sub}>{sub}</option>
-                                                    ))}
-                                                </select>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Assigned Subjects (Automatic)</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-slate-100 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-500 cursor-not-allowed outline-none"
+                                                    readOnly
+                                                    value={formData.subject || ''}
+                                                    placeholder="No subjects assigned yet"
+                                                />
                                             </div>
                                         </div>
                                     </>

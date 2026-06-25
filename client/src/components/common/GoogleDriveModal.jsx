@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     X, CheckCircle2, ChevronRight, Lock, Eye, AlertCircle, Trash, 
     Folder, FolderOpen, ArrowLeft, RefreshCw, LogOut, Camera, Video, 
-    Mic, Phone, FileText, Download, Loader2 
+    Mic, Phone, FileText, Download, Loader2, Upload
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -13,7 +13,8 @@ const TARGET_FOLDERS = [
     "Screen Recorder",
     "Voice Recorder",
     "Video Recorder",
-    "Web-Calling Tool"
+    "Web-Calling Tool",
+    "File Uploader"
 ];
 
 const FOLDER_ICONS = {
@@ -21,7 +22,8 @@ const FOLDER_ICONS = {
     "Screen Recorder": Video,
     "Voice Recorder": Mic,
     "Video Recorder": Video,
-    "Web-Calling Tool": Phone
+    "Web-Calling Tool": Phone,
+    "File Uploader": Upload
 };
 
 const FOLDER_COLORS = {
@@ -29,10 +31,11 @@ const FOLDER_COLORS = {
     "Screen Recorder": "bg-emerald-50 border-emerald-150 text-emerald-700",
     "Voice Recorder": "bg-blue-50 border-blue-150 text-blue-700",
     "Video Recorder": "bg-purple-50 border-purple-150 text-purple-700",
-    "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700"
+    "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700",
+    "File Uploader": "bg-amber-50 border-amber-150 text-amber-700"
 };
 
-const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }) => {
+const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, toolName }) => {
     const { user } = useAuth();
     const [step, setStep] = useState(1); // 1: Connect Account, 2: Workspace / Dashboard
     const [selectedAccount, setSelectedAccount] = useState('');
@@ -323,6 +326,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
     };
 
     const detectDefaultFolder = (name) => {
+        if (toolName) return toolName;
         if (!name) return "Screenshot Tool";
         const lower = name.toLowerCase();
         if (lower.includes('screenshot') || lower.includes('.png') || lower.includes('.jpg')) {
@@ -335,6 +339,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
             return "Voice Recorder";
         } else if (lower.includes('call_log') || lower.includes('call') || lower.includes('.txt')) {
             return "Web-Calling Tool";
+        } else if (lower.includes('file_uploader') || lower.includes('upload')) {
+            return "File Uploader";
         }
         return "Screenshot Tool";
     };
@@ -391,15 +397,29 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess }
     const performUpload = (token, folderId, finalName) => {
         return new Promise((resolve, reject) => {
             let toolType = 'screenshot';
-            const nameLower = finalName ? finalName.toLowerCase() : '';
-            if (nameLower.includes('video_recording') || nameLower.includes('video')) {
+            if (toolName === "Video Recorder") {
                 toolType = 'video-recorder';
-            } else if (nameLower.includes('voice_recording') || nameLower.includes('voice') || nameLower.includes('audio')) {
+            } else if (toolName === "Voice Recorder") {
                 toolType = 'voice-recorder';
-            } else if (nameLower.includes('screen_recording') || nameLower.includes('screen')) {
+            } else if (toolName === "Screen Recorder") {
                 toolType = 'screen-recorder';
-            } else if (nameLower.includes('call_log')) {
+            } else if (toolName === "Web-Calling Tool") {
                 toolType = 'web-calling';
+            } else if (toolName === "File Uploader") {
+                toolType = 'file-uploader';
+            } else {
+                const nameLower = finalName ? finalName.toLowerCase() : '';
+                if (nameLower.includes('video_recording') || nameLower.includes('video')) {
+                    toolType = 'video-recorder';
+                } else if (nameLower.includes('voice_recording') || nameLower.includes('voice') || nameLower.includes('audio')) {
+                    toolType = 'voice-recorder';
+                } else if (nameLower.includes('screen_recording') || nameLower.includes('screen')) {
+                    toolType = 'screen-recorder';
+                } else if (nameLower.includes('call_log')) {
+                    toolType = 'web-calling';
+                } else if (nameLower.includes('file_uploader') || nameLower.includes('upload')) {
+                    toolType = 'file-uploader';
+                }
             }
 
             const metadata = {

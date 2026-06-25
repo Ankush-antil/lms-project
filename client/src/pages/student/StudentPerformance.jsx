@@ -6,7 +6,7 @@ import {
     FileText, Info, Mic, MonitorPlay, Phone,
     Star, TrendingUp, Trophy, Video, Camera, ArrowRight,
     AlertCircle, Sparkles, Activity, ShieldCheck, ChevronRight,
-    RefreshCw, CreditCard
+    RefreshCw, CreditCard, Upload
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -23,7 +23,8 @@ const StudentPerformance = () => {
         screenRecordings: 0,
         audios: 0,
         videos: 0,
-        calls: 0
+        calls: 0,
+        fileUploads: 0
     });
     const [profile, setProfile] = useState(null);
     const [activeTab, setActiveTab] = useState('graded'); // 'graded' | 'pending' | 'unattempted'
@@ -93,6 +94,9 @@ const StudentPerformance = () => {
 
                     const ca = localStorage.getItem('practice_call_logs');
                     if (ca) localCounts.calls = JSON.parse(ca).length || 0;
+
+                    const fu = localStorage.getItem('practice_file_uploads');
+                    if (fu) localCounts.fileUploads = JSON.parse(fu).length || 0;
                 } catch (e) {
                     console.error("Failed to parse local storage practice logs:", e);
                 }
@@ -152,6 +156,13 @@ const StudentPerformance = () => {
                 count: localFilesCount.calls + cloudCountForTool('web-calling'),
                 color: "text-pink-600 bg-pink-50 border-pink-100",
                 path: "/student/practice-tools/web-calling"
+            },
+            {
+                title: "File Uploader",
+                icon: Upload,
+                count: localFilesCount.fileUploads + cloudCountForTool('file-uploader'),
+                color: "text-amber-600 bg-amber-50 border-amber-100",
+                path: "/student/practice-tools/file-uploader"
             }
         ];
     }, [cloudFiles, localFilesCount]);

@@ -11,7 +11,7 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone
+    Camera, MonitorPlay, Phone, Upload
 } from 'lucide-react';
 
 const getDisplayTitle = (title) => {
@@ -491,6 +491,12 @@ const StudentTests = () => {
                                             icon: Phone,
                                             color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
                                             path: "/student/practice-tools/web-calling"
+                                        },
+                                        {
+                                            title: "File Uploader",
+                                            icon: Upload,
+                                            color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
+                                            path: "/student/practice-tools/file-uploader"
                                         }
                                     ].map((tool, idx) => (
                                         <div

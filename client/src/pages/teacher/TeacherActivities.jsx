@@ -8,7 +8,8 @@ import {
     Users, Search, ChevronRight, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
-    Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play
+    Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
+    CreditCard, Activity
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -76,6 +77,30 @@ const TeacherActivities = () => {
     const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
     const [loadingPracticeFiles, setLoadingPracticeFiles] = useState(false);
+
+    // ERP Fee Accounting & Ledger Mock States
+    const [erpPresent, setErpPresent] = useState(42);
+    const [erpTotal] = useState(50);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSyncERP = () => {
+        setIsSyncing(true);
+        const loadingToast = toast.loading("Syncing data with College ERP Server...");
+
+        setTimeout(() => {
+            toast.dismiss(loadingToast);
+            const randomAdd = Math.floor(Math.random() * 3) - 1;
+            const newPresent = Math.min(erpTotal, Math.max(35, erpPresent + randomAdd));
+            setErpPresent(newPresent);
+
+            toast.success("ERP Attendance and Fees records synced successfully!");
+            setIsSyncing(false);
+        }, 1500);
+    };
+
+    const erpAttendancePercent = useMemo(() => {
+        return Math.round((erpPresent / erpTotal) * 100);
+    }, [erpPresent, erpTotal]);
 
     const fetchStudentPracticeFiles = async (studentId) => {
         try {
@@ -382,107 +407,7 @@ const TeacherActivities = () => {
         return { label: 'Needs Consistency', color: 'text-amber-600 bg-amber-50 border-amber-200' };
     }, [performanceAttendancePercentage]);
 
-    const performanceAcademicStats = useMemo(() => {
-        const evaluated = studentSubmissions.filter(s => s.status === 'evaluated');
-        let totalScored = 0;
-        let totalMax = 0;
 
-        evaluated.forEach(sub => {
-            totalScored += sub.totalMarks || 0;
-            const maxMarks = sub.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-            totalMax += maxMarks;
-        });
-
-        const percentage = totalMax > 0 ? Math.round((totalScored / totalMax) * 100) : 0;
-
-        let grade = 'N/A';
-        let feedback = 'Complete graded tests to see report.';
-        if (evaluated.length > 0) {
-            if (percentage >= 90) {
-                grade = 'A+';
-                feedback = 'Exceptional performance! Keep up the excellent work.';
-            } else if (percentage >= 80) {
-                grade = 'A';
-                feedback = 'Great job! Student has demonstrated strong subject knowledge.';
-            } else if (percentage >= 70) {
-                grade = 'B';
-                feedback = 'Good progress, with room to optimize scores.';
-            } else if (percentage >= 60) {
-                grade = 'C';
-                feedback = 'Passing score. Review remarks to improve.';
-            } else {
-                grade = 'D';
-                feedback = 'Review course content and try practicing more tests.';
-            }
-        }
-
-        return {
-            evaluatedCount: evaluated.length,
-            percentage,
-            grade,
-            feedback,
-            totalScored,
-            totalMax
-        };
-    }, [studentSubmissions]);
-
-    const performanceSubjectWise = useMemo(() => {
-        const subjectsMap = {};
-
-        studentSubmissions.forEach(sub => {
-            const subject = sub.test?.subject || 'General';
-            const isEvaluated = sub.status === 'evaluated';
-
-            if (!subjectsMap[subject]) {
-                subjectsMap[subject] = {
-                    totalTests: 0,
-                    evaluatedCount: 0,
-                    scoredPoints: 0,
-                    maxPoints: 0
-                };
-            }
-
-            subjectsMap[subject].totalTests += 1;
-            if (isEvaluated) {
-                subjectsMap[subject].evaluatedCount += 1;
-                subjectsMap[subject].scoredPoints += sub.totalMarks || 0;
-                const testMax = sub.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-                subjectsMap[subject].maxPoints += testMax;
-            }
-        });
-
-        return Object.keys(subjectsMap).map(subject => {
-            const data = subjectsMap[subject];
-            const percent = data.maxPoints > 0 ? Math.round((data.scoredPoints / data.maxPoints) * 100) : null;
-            return {
-                name: subject,
-                totalTests: data.totalTests,
-                percent,
-                evaluatedCount: data.evaluatedCount
-            };
-        });
-    }, [studentSubmissions]);
-
-    const performanceFilteredTests = useMemo(() => {
-        const graded = [];
-        const pending = [];
-        const unattempted = [];
-
-        assignedTests.forEach(test => {
-            const sub = submissionMap.get(test._id);
-            if (sub) {
-                if (sub.status === 'evaluated') {
-                    graded.push({ test, submission: sub });
-                } else {
-                    pending.push({ test, submission: sub });
-                }
-            } else {
-                unattempted.push(test);
-            }
-        });
-
-        return { graded, pending, unattempted };
-    }, [assignedTests, submissionMap]);
 
     useEffect(() => {
         if (!selectedStudent || viewMode !== 'chat' || !selectedInboxId) return;
@@ -1278,152 +1203,191 @@ const TeacherActivities = () => {
                         ) : (
                             /* --- STUDENT PERFORMANCE DASHBOARD --- */
                             <div className="animate-fade-in space-y-8 text-left">
-                                <div className="bg-white pb-4 border-b border-slate-200 flex flex-col gap-2.5 shrink-0">
+                                {/* ── HEADER ROW ───────────────────────────────────── */}
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-sm gap-4">
+                                    <div>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5 font-sans">
+                                            <Activity className="text-indigo-600 animate-pulse" size={26} />
+                                            Student Performance Dashboard
+                                        </h1>
+                                        <p className="text-slate-500 text-sm mt-1">
+                                            Track class attendance, academic progress, and official billing receipts for {selectedStudent.name}.
+                                        </p>
+                                    </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
-                                            <BarChart3 size={18} />
-                                        </div>
-                                        <div>
-                                            <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                                Student Performance Dashboard
-                                            </h1>
-                                            <p className="text-slate-500 text-xs mt-1">
-                                                Detailed grades, attendance, and activity records for {selectedStudent.name}.
-                                            </p>
-                                        </div>
+                                        <span className="px-4 py-2 bg-indigo-50 border border-indigo-150 text-indigo-700 rounded-2xl text-xs font-black shadow-sm">
+                                            Subject: {selectedStudent.studentProfile?.subject || 'N/A'}
+                                        </span>
+                                        <span className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-2xl text-xs font-bold shadow-sm">
+                                            Course: {selectedStudent.studentProfile?.course?.name || 'N/A'}
+                                        </span>
                                     </div>
                                 </div>
 
+                                {/* ── METRICS GRID ─────────────────────────────────── */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
                                     {/* CARD 1: Attendance Rate */}
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                                    <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                                        <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
+
                                         <div>
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Attendance Rate</span>
-                                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${performanceAttendanceStatus.color}`}>
+                                            <div className="flex justify-between items-center mb-4">
+                                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${performanceAttendanceStatus.color}`}>
                                                     {performanceAttendanceStatus.label}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-4 my-2">
-                                                <div className="relative w-16 h-16 shrink-0">
+
+                                            <div className="flex items-center gap-6 my-2">
+                                                {/* Circular SVG Indicator */}
+                                                <div className="relative w-20 h-20 shrink-0">
                                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                                        <path className="text-slate-100" strokeWidth="3.5" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                        <path className="text-indigo-650" strokeWidth="3.5" strokeDasharray={`${performanceAttendancePercentage}, 100`} strokeLinecap="round" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                        <path
+                                                            className="text-slate-100"
+                                                            strokeWidth="3.5"
+                                                            stroke="currentColor"
+                                                            fill="transparent"
+                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                        />
+                                                        <path
+                                                            className="text-indigo-600 transition-all duration-1000 ease-out"
+                                                            strokeWidth="3.5"
+                                                            strokeDasharray={`${performanceAttendancePercentage}, 100`}
+                                                            strokeLinecap="round"
+                                                            stroke="currentColor"
+                                                            fill="transparent"
+                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                        />
                                                     </svg>
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className="text-xs font-black text-slate-800">{performanceAttendancePercentage}%</span>
+                                                        <span className="text-base font-black text-slate-800">{performanceAttendancePercentage}%</span>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-xl font-black text-slate-800">{activeDaysCount} Days</h4>
-                                                    <p className="text-slate-500 text-[10px] font-semibold uppercase">Active Logs</p>
+                                                    <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
+                                                    <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                                            <Info size={14} className="text-indigo-500 shrink-0" />
+                                            <p className="text-[11px] text-slate-500 font-medium">
+                                                Calculated from test submissions and workspace practice sessions.
+                                            </p>
                                         </div>
                                     </div>
 
-                                    {/* CARD 2: Grades */}
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Overall Grades</span>
-                                                <span className="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">
-                                                    Grade: {performanceAcademicStats.grade}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-4 my-2">
-                                                <div className="relative w-16 h-16 shrink-0">
-                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                                        <path className="text-slate-100" strokeWidth="3.5" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                        <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${performanceAcademicStats.percentage}, 100`} strokeLinecap="round" stroke="currentColor" fill="transparent" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                    </svg>
-                                                    <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className="text-xs font-black text-slate-800">{performanceAcademicStats.percentage}%</span>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-xl font-black text-slate-800">
-                                                        {performanceAcademicStats.totalScored} <span className="text-[10px] text-slate-400 font-semibold">/ {performanceAcademicStats.totalMax} pts</span>
-                                                    </h4>
-                                                    <p className="text-slate-500 text-[10px] font-semibold uppercase">{performanceAcademicStats.evaluatedCount} Graded Tests</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* CARD 3: Completion */}
-                                    <div className="bg-white p-5 rounded-2xl border border-slate-200/85 shadow-sm flex flex-col justify-between relative overflow-hidden">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Completion Rate</span>
-                                                <span className="text-slate-500 text-[10px] font-extrabold uppercase">
-                                                    {studentSubmissions.length} / {assignedTests.length} Items
-                                                </span>
-                                            </div>
-                                            <div className="my-2 space-y-1.5">
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-purple-600 rounded-full"
-                                                        style={{ width: `${assignedTests.length > 0 ? (studentSubmissions.length / assignedTests.length) * 100 : 0}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-[10px] text-slate-500 font-bold">
-                                                    {assignedTests.length > 0 ? Math.round((studentSubmissions.length / assignedTests.length) * 100) : 0}% Completed
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <div className="lg:col-span-1 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm text-left space-y-4">
-                                        <h3 className="font-extrabold text-slate-800 text-xs border-b border-slate-100 pb-2">Subject Performance</h3>
-                                        <div className="space-y-4">
-                                            {performanceSubjectWise.length > 0 ? performanceSubjectWise.map((subj, idx) => (
-                                                <div key={idx} className="space-y-1.5 text-xs">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-bold text-slate-700 truncate max-w-[120px]" title={subj.name}>{subj.name}</span>
-                                                        <span className="font-extrabold text-slate-500">
-                                                            {subj.percent !== null ? `${subj.percent}%` : 'Grading...'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${subj.percent || 0}%` }} />
-                                                    </div>
-                                                </div>
-                                            )) : (
-                                                <div className="text-center py-4 text-slate-400 text-xs italic">No subject data.</div>
-                                            )}
+                                {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
+                                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
+                                    <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
+                                                <CreditCard size={18} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">ERP Financial Ledger & Accounting</h3>
+                                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Semester fee transactions and official receipts</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-655">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Account Status: <span className="text-emerald-700 font-black">CLEARED</span>
                                         </div>
                                     </div>
 
-                                    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm text-left space-y-4">
-                                        <h3 className="font-extrabold text-slate-800 text-xs border-b border-slate-100 pb-2">Graded Submissions</h3>
+                                    <div className="p-6 space-y-6">
+                                        {/* Summary Stats Row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
+                                                <span className="text-slate-450 text-[10px] font-bold uppercase tracking-wider">Total Semester Fee</span>
+                                                <h4 className="text-xl font-black text-slate-800 mt-2">₹48,500</h4>
+                                                <span className="text-[9px] text-slate-400 font-semibold mt-1">Course: {selectedStudent.studentProfile?.course?.name || 'N/A'}</span>
+                                            </div>
+                                            <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col justify-between">
+                                                <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Total Amount Paid</span>
+                                                <h4 className="text-xl font-black text-emerald-800 mt-2">₹48,500</h4>
+                                                <span className="text-[9px] text-emerald-600/80 font-semibold mt-1">100% Cleared on 18 Jan 2026</span>
+                                            </div>
+                                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
+                                                <span className="text-slate-455 text-[10px] font-bold uppercase tracking-wider">Outstanding Dues</span>
+                                                <h4 className="text-xl font-black text-slate-800 mt-2">₹0</h4>
+                                                <span className="text-[9px] text-emerald-600 font-extrabold mt-1">No pending dues found</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Fee Allocation Meter */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-450 uppercase tracking-wider">
+                                                <span>Fee Structure breakdown</span>
+                                                <span>Total: ₹48,500</span>
+                                            </div>
+                                            <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                                <div className="h-full bg-indigo-500" style={{ width: '86.6%' }} title="Tuition Fee: ₹42,000 (86.6%)" />
+                                                <div className="h-full bg-teal-500" style={{ width: '7.2%' }} title="Lab & Internet Fee: ₹3,500 (7.2%)" />
+                                                <div className="h-full bg-purple-500" style={{ width: '6.2%' }} title="Exam & Library Fee: ₹3,000 (6.2%)" />
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-505 pt-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Tuition Fee (₹42,000)
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Lab & Internet Fee (₹3,500)
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Exam & Library Fee (₹3,000)
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Transactions Ledger Table */}
                                         <div className="space-y-3">
-                                            {performanceFilteredTests.graded.length > 0 ? performanceFilteredTests.graded.map(({ test, submission }) => {
-                                                const testMax = test.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-                                                return (
-                                                    <div key={test._id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-                                                        <div>
-                                                            <p className="font-bold text-slate-800 truncate max-w-xs">{test.title}</p>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5">Subject: {test.subject}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-4 shrink-0">
-                                                            <span className="font-black text-slate-800">
-                                                                {submission.totalMarks} / {testMax}
-                                                            </span>
-                                                            <button
-                                                                onClick={() => navigate(`/teacher/evaluate/${submission._id}`)}
-                                                                className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase"
-                                                            >
-                                                                Inspect
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }) : (
-                                                <div className="text-center py-6 text-slate-400 text-xs italic">No graded tests yet.</div>
-                                            )}
+                                            <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Official Receipts & Transactions</h4>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full min-w-[600px] border-collapse text-xs">
+                                                    <thead>
+                                                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
+                                                            <th className="py-2.5 px-3">Receipt No</th>
+                                                            <th className="py-2.5 px-3">Date</th>
+                                                            <th className="py-2.5 px-3">Category</th>
+                                                            <th className="py-2.5 px-3 text-right">Amount</th>
+                                                            <th className="py-2.5 px-3">Payment Mode</th>
+                                                            <th className="py-2.5 px-3 text-center">Status</th>
+                                                            <th className="py-2.5 px-3 text-center">Receipt</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                                                        {[
+                                                            { receipt: 'ERP/REC/2026/1024', date: '15 Jan 2026', category: 'Tuition Fee', amount: '₹42,000', mode: 'Net Banking', status: 'SUCCESS' },
+                                                            { receipt: 'ERP/REC/2026/1089', date: '16 Jan 2026', category: 'Lab & Internet Fee', amount: '₹3,500', mode: 'UPI / GPay', status: 'SUCCESS' },
+                                                            { receipt: 'ERP/REC/2026/1105', date: '18 Jan 2026', category: 'Exam & Library Fee', amount: '₹3,000', mode: 'Credit Card', status: 'SUCCESS' }
+                                                        ].map((tx, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                                <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{tx.receipt}</td>
+                                                                <td className="py-3 px-3 text-slate-500">{tx.date}</td>
+                                                                <td className="py-3 px-3 text-slate-800">{tx.category}</td>
+                                                                <td className="py-3 px-3 text-right font-black text-slate-850">{tx.amount}</td>
+                                                                <td className="py-3 px-3 text-slate-500">{tx.mode}</td>
+                                                                <td className="py-3 px-3 text-center">
+                                                                    <span className="inline-block px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 font-black rounded-lg text-[9px]">
+                                                                        {tx.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="py-3 px-3 text-center">
+                                                                    <button
+                                                                        onClick={() => toast.success(`Downloading PDF Receipt ${tx.receipt}...`)}
+                                                                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-850 underline uppercase tracking-wider"
+                                                                    >
+                                                                        Download
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

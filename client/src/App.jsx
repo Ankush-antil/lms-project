@@ -37,6 +37,7 @@ import ScreenRecorderPage from './pages/student/tools/ScreenRecorderPage';
 import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
 import VideoRecorderPage from './pages/student/tools/VideoRecorderPage';
 import WebCallingPage from './pages/student/tools/WebCallingPage';
+import FileUploadPage from './pages/student/tools/FileUploadPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
@@ -293,6 +294,11 @@ function App() {
                         <Route path="/student/practice-tools/web-calling" element={
                             <PrivateRoute role="Student">
                                 <WebCallingPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/file-uploader" element={
+                            <PrivateRoute role="Student">
+                                <FileUploadPage />
                             </PrivateRoute>
                         } />
                         <Route path="/student/performance" element={

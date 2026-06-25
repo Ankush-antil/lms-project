@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     X, ChevronRight, Eye, Trash, Folder, FolderOpen, 
-    ArrowLeft, RefreshCw, Camera, Video, Mic, Phone, FileText, Download, Loader2 
+    ArrowLeft, RefreshCw, Camera, Video, Mic, Phone, FileText, Download, Loader2, Upload
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getLocalBlob, deleteLocalBlob } from '../../utils/indexedDB';
@@ -11,7 +11,8 @@ const TARGET_FOLDERS = [
     "Screen Recorder",
     "Voice Recorder",
     "Video Recorder",
-    "Web-Calling Tool"
+    "Web-Calling Tool",
+    "File Uploader"
 ];
 
 const FOLDER_ICONS = {
@@ -19,7 +20,8 @@ const FOLDER_ICONS = {
     "Screen Recorder": Video,
     "Voice Recorder": Mic,
     "Video Recorder": Video,
-    "Web-Calling Tool": Phone
+    "Web-Calling Tool": Phone,
+    "File Uploader": Upload
 };
 
 const FOLDER_COLORS = {
@@ -27,7 +29,8 @@ const FOLDER_COLORS = {
     "Screen Recorder": "bg-emerald-50 border-emerald-150 text-emerald-700",
     "Voice Recorder": "bg-blue-50 border-blue-150 text-blue-700",
     "Video Recorder": "bg-purple-50 border-purple-150 text-purple-700",
-    "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700"
+    "Web-Calling Tool": "bg-pink-50 border-pink-150 text-pink-700",
+    "File Uploader": "bg-amber-50 border-amber-150 text-amber-700"
 };
 
 const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
@@ -194,6 +197,28 @@ const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
                         callDetails: item
                     });
                 });
+            }
+
+            // 6. File Uploads
+            const fileUploadsStr = localStorage.getItem('practice_file_uploads');
+            if (fileUploadsStr) {
+                try {
+                    const list = JSON.parse(fileUploadsStr);
+                    list.forEach(item => {
+                        allFiles.push({
+                            id: item.id,
+                            originalName: item.name || item.timestamp,
+                            timestamp: item.timestamp,
+                            toolType: 'File Uploader',
+                            mimeType: item.mimeType || 'application/octet-stream',
+                            url: '', // Loaded on demand
+                            size: item.size || 'Unknown Size',
+                            createdTime: item.id ? parseInt(item.id.replace('file_', '')) || Date.now() : Date.now()
+                        });
+                    });
+                } catch (e) {
+                    console.error("Failed to parse local file uploads in history:", e);
+                }
             }
 
             // Map standard parsed Date
@@ -374,10 +399,11 @@ Log saved locally.`;
                 const filtered = list.filter(item => item.id !== file.id);
                 localStorage.setItem('practice_audios', JSON.stringify(filtered));
                 await deleteLocalBlob(file.id);
-            } else if (file.toolType === 'Web-Calling Tool') {
-                const list = JSON.parse(localStorage.getItem('practice_call_logs') || '[]');
+            } else if (file.toolType === 'File Uploader') {
+                const list = JSON.parse(localStorage.getItem('practice_file_uploads') || '[]');
                 const filtered = list.filter(item => item.id !== file.id);
-                localStorage.setItem('practice_call_logs', JSON.stringify(filtered));
+                localStorage.setItem('practice_file_uploads', JSON.stringify(filtered));
+                await deleteLocalBlob(file.id);
             }
 
             toast.success("File deleted from local storage!");
@@ -729,6 +755,47 @@ Log saved locally.`;
                                                 <pre className="w-full text-left font-mono text-[10px] bg-[#0b1329] text-slate-250 p-4 rounded-xl overflow-auto max-h-[280px] leading-relaxed shadow-inner">
                                                     {previewText}
                                                 </pre>
+                                            )}
+                                            {previewFile.toolType === 'File Uploader' && (
+                                                <div className="w-full text-center space-y-4 py-4 max-h-[280px] overflow-y-auto">
+                                                    {previewFile.mimeType.startsWith('image/') ? (
+                                                        <img 
+                                                            src={previewUrl} 
+                                                            alt="preview" 
+                                                            className="max-w-full max-h-[200px] object-contain rounded-xl shadow-sm mx-auto"
+                                                        />
+                                                    ) : previewFile.mimeType.startsWith('video/') ? (
+                                                        <video 
+                                                            src={previewUrl} 
+                                                            controls 
+                                                            className="max-w-full max-h-[200px] rounded-xl shadow-sm mx-auto"
+                                                        />
+                                                    ) : previewFile.mimeType.startsWith('audio/') ? (
+                                                        <div className="w-full max-w-sm text-center space-y-4 py-4 mx-auto">
+                                                            <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[#3E3ADD] mx-auto shadow-sm">
+                                                                <Mic size={20} />
+                                                            </div>
+                                                            <audio src={previewUrl} controls className="w-full" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-500 shadow-sm">
+                                                                <FileText size={24} />
+                                                            </div>
+                                                            <div className="text-xs">
+                                                                <p className="font-bold text-slate-800 truncate max-w-xs">{previewFile.originalName}</p>
+                                                                <p className="text-slate-400 mt-1">{previewFile.size} • {previewFile.mimeType}</p>
+                                                            </div>
+                                                            <a 
+                                                                href={previewUrl} 
+                                                                download={previewFile.originalName} 
+                                                                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#3E3ADD] border border-indigo-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                                            >
+                                                                <Download size={14} /> Download to View
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </>
                                     ) : (

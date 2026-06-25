@@ -9,7 +9,7 @@ const practiceFileSchema = new mongoose.Schema({
     toolType: {
         type: String,
         required: true,
-        enum: ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling']
+        enum: ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader']
     },
     inbox: {
         type: String,

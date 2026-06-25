@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    BookOpen, Building, GraduationCap, Lock, Mail, Phone, Key, 
-    CheckCircle, Clock, ArrowRight, ChevronDown, LogOut, Compass, 
+import {
+    BookOpen, Building, GraduationCap, Lock, Mail, Phone, Key,
+    CheckCircle, Clock, ArrowRight, ChevronDown, LogOut, Compass,
     FileText, User, MapPin, Send, HelpCircle, X, ShieldAlert,
     Sparkles, Shield, Award, MessageSquare, Video, Eye, EyeOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import loginIllustration from './login-illustration.png';
 
 const LandingPage = () => {
     const navigate = useNavigate();
     const { user, loading, login, logout } = useAuth();
-    
+
     // Redirect authenticated users (e.g. Student) to their dashboard
     useEffect(() => {
         if (!loading && user) {
@@ -41,7 +42,7 @@ const LandingPage = () => {
     // Lock Modal States
     const [showLockModal, setShowLockModal] = useState(!user && !guestSession);
     const [modalTab, setModalTab] = useState('register'); // 'register' | 'login'
-    
+
     // Guest Register Form State
     const [username, setUsername] = useState('');
     const [phone, setPhone] = useState('');
@@ -50,7 +51,7 @@ const LandingPage = () => {
     const [userOtp, setUserOtp] = useState('');
     const [countdown, setCountdown] = useState(0);
     const [registerLoading, setRegisterLoading] = useState(false);
-    
+
     // Login Form State
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
@@ -120,7 +121,7 @@ const LandingPage = () => {
                 setLoadingCourses(true);
                 const { data } = await axios.get('/api/setup/courses?status=active');
                 setCourses(data);
-                
+
                 // Get unique course names
                 const names = [...new Set(data.map(c => c.name))];
                 setUniqueCourses(names);
@@ -210,7 +211,7 @@ const LandingPage = () => {
         setRegisterLoading(true);
         try {
             await axios.post('/api/setup/verify-otp', { phone, otp: userOtp });
-            
+
             const guestData = { username, phone };
             localStorage.setItem('lms_guest_session', JSON.stringify(guestData));
             setGuestSession(guestData);
@@ -241,17 +242,17 @@ const LandingPage = () => {
             });
 
             toast.success("Account created successfully! Logging you in...");
-            
+
             // Auto login
             await login(regEmail, regPassword);
-            
+
             // Clean up state
             setRegisteringApp(null);
             setRegEmail('');
             setRegPassword('');
             setRegConfirmPassword('');
             setShowApplicationsPanel(false);
-            
+
             // Redirect to student portal
             navigate('/student');
         } catch (error) {
@@ -270,14 +271,14 @@ const LandingPage = () => {
         try {
             const data = await login(loginEmail, loginPassword);
             toast.success(`Signed in as ${data.name}`);
-            
+
             // Redirect based on Role
             if (data.role === 'Admin') navigate('/admin');
             else if (data.role === 'Teacher') navigate('/teacher');
             else if (data.role === 'Student') navigate('/student/tests');
             else if (data.role === 'Editor') navigate('/editor');
             else if (data.role === 'Institute') navigate('/institute');
-            
+
             setShowLockModal(false);
         } catch (err) {
             setLoginError(err.response?.data?.message || 'Login failed. Please check credentials.');
@@ -346,10 +347,10 @@ const LandingPage = () => {
                 instituteId: selectedInstitute._id,
                 statement: applyStatement
             });
-            
+
             setApplySuccess(true);
             toast.success(`Application submitted to ${selectedInstitute.name}!`);
-            
+
             // Refresh applications tracker list
             if (applyPhone) {
                 fetchUserApplications(applyPhone);
@@ -414,7 +415,7 @@ const LandingPage = () => {
                                 <span>Explore Courses</span>
                                 <ChevronDown size={16} className={`transition-transform duration-300 ${showCoursesDropdown ? 'rotate-180' : ''}`} />
                             </button>
-                            
+
                             <AnimatePresence>
                                 {showCoursesDropdown && (
                                     <motion.div
@@ -437,11 +438,10 @@ const LandingPage = () => {
                                                             setSelectedCourseName(courseName);
                                                             setShowCoursesDropdown(false);
                                                         }}
-                                                        className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between ${
-                                                            selectedCourseName === courseName 
-                                                            ? 'bg-indigo-600/20 text-indigo-300 border-l-4 border-indigo-500' 
+                                                        className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between ${selectedCourseName === courseName
+                                                            ? 'bg-indigo-600/20 text-indigo-300 border-l-4 border-indigo-500'
                                                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <span>{courseName}</span>
                                                         <ArrowRight size={14} className="opacity-0 group-hover:opacity-100" />
@@ -550,8 +550,8 @@ const LandingPage = () => {
                                     <h2 className="text-2xl font-bold tracking-tight text-slate-900 border-l-4 border-indigo-500 pl-3">
                                         Browse Available Courses
                                     </h2>
-                                    
-                                                                   {loadingCourses ? (
+
+                                    {loadingCourses ? (
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             {[1, 2, 3].map(n => (
                                                 <div key={n} className="bg-white border border-slate-200 rounded-3xl p-6 h-48 animate-pulse space-y-4 shadow-sm">
@@ -567,7 +567,7 @@ const LandingPage = () => {
                                                 const matchCourses = courses.filter(c => c.name === courseName);
                                                 const previewCourse = matchCourses[0];
                                                 const instituteCount = matchCourses.length;
-                                                
+
                                                 return (
                                                     <motion.div
                                                         key={courseName}
@@ -626,25 +626,25 @@ const LandingPage = () => {
                                             We bridge the gap between educational hubs, dedicated instructors, and ambitious students through next-generation portals.
                                         </p>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
                                         {[
-                                            { 
-                                                title: "Isolated College Gateways", 
+                                            {
+                                                title: "Isolated College Gateways",
                                                 desc: "Each institute manages their own courses, tests, teachers, and editor groups without database leaks or crossover access.",
-                                                icon: Shield, 
+                                                icon: Shield,
                                                 color: "text-indigo-600 bg-indigo-50"
                                             },
-                                            { 
-                                                title: "Personalized Study Portals", 
+                                            {
+                                                title: "Personalized Study Portals",
                                                 desc: "Students enjoy a central area to track syllabi, explore files, take online exams, and receive teacher assessments in real-time.",
-                                                icon: Sparkles, 
+                                                icon: Sparkles,
                                                 color: "text-emerald-500 bg-emerald-50"
                                             },
-                                            { 
-                                                title: "Interactive Sandbox Previews", 
+                                            {
+                                                title: "Interactive Sandbox Previews",
                                                 desc: "Applied guests can simulate tests, try chatbot support, and explore program files instantly before admissions are processed.",
-                                                icon: Compass, 
+                                                icon: Compass,
                                                 color: "text-blue-500 bg-blue-50"
                                             }
                                         ].map((feature, i) => {
@@ -706,7 +706,7 @@ const LandingPage = () => {
                             >
                                 {/* Back button */}
                                 <div>
-                                    <button 
+                                    <button
                                         onClick={() => setSelectedCourseName(null)}
                                         className="text-xs font-bold text-slate-600 hover:text-indigo-650 flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-xl transition-all shadow-sm"
                                     >
@@ -847,7 +847,7 @@ const LandingPage = () => {
                                     <FileText className="text-indigo-650" size={20} />
                                     <h2 className="text-lg font-bold text-slate-900">Applications Tracking</h2>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setShowApplicationsPanel(false)}
                                     className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
                                 >
@@ -864,8 +864,8 @@ const LandingPage = () => {
                                     </div>
                                 ) : applications.length > 0 ? (
                                     applications.map((app) => (
-                                        <div 
-                                            key={app._id} 
+                                        <div
+                                            key={app._id}
                                             className="bg-slate-55 border border-slate-200 p-4 rounded-2xl space-y-3 relative overflow-hidden shadow-sm"
                                         >
                                             <div className="flex justify-between items-start gap-2">
@@ -873,13 +873,12 @@ const LandingPage = () => {
                                                     <h4 className="font-extrabold text-sm text-slate-800">{app.course?.name}</h4>
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{app.course?.code}</p>
                                                 </div>
-                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-                                                    app.status === 'Accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${app.status === 'Accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                                     app.status === 'Registered' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 animate-pulse' :
-                                                    app.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                                    app.status === 'Under Review' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                                    'bg-blue-50 text-blue-700 border border-blue-200'
-                                                }`}>
+                                                        app.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                                            app.status === 'Under Review' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                                'bg-blue-50 text-blue-700 border border-blue-200'
+                                                    }`}>
                                                     {app.status}
                                                 </span>
                                             </div>
@@ -960,7 +959,7 @@ const LandingPage = () => {
 
                             <div className="flex justify-between items-start mb-6">
                                 <h3 className="text-xl font-bold tracking-tight text-slate-900">Course Application Form</h3>
-                                <button 
+                                <button
                                     onClick={() => setShowApplyModal(false)}
                                     className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 rounded-xl transition-all"
                                 >
@@ -971,9 +970,9 @@ const LandingPage = () => {
                             <AnimatePresence mode="wait">
                                 {!applySuccess ? (
                                     /* Form */
-                                    <motion.form 
+                                    <motion.form
                                         key="apply-form"
-                                        onSubmit={handleApplySubmit} 
+                                        onSubmit={handleApplySubmit}
                                         className="space-y-4"
                                     >
                                         {/* Brief preview of Course & Institute */}
@@ -1052,7 +1051,7 @@ const LandingPage = () => {
                                     </motion.form>
                                 ) : (
                                     /* Success Message */
-                                    <motion.div 
+                                    <motion.div
                                         key="apply-success"
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
@@ -1065,7 +1064,7 @@ const LandingPage = () => {
                                         <p className="text-slate-500 text-xs max-w-sm mx-auto leading-relaxed">
                                             Your application for <span className="font-bold text-slate-800">{selectedCourseForApply?.name}</span> at <span className="font-bold text-slate-800">{selectedInstitute?.name}</span> was submitted successfully!
                                         </p>
-                                        
+
                                         <div className="pt-6 flex flex-col gap-2.5 font-sans">
                                             <button
                                                 onClick={() => {
@@ -1127,7 +1126,7 @@ const LandingPage = () => {
                                     <h3 className="text-xl font-bold tracking-tight text-slate-900 font-sans">Setup Student Account</h3>
                                     <p className="text-xs text-slate-500 mt-1">Create login details for {registeringApp.guestName}</p>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setRegisteringApp(null)}
                                     className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 rounded-xl transition-all"
                                 >
@@ -1205,25 +1204,23 @@ const LandingPage = () => {
                             className="w-full max-w-4xl h-auto min-h-[500px] md:h-[550px] bg-transparent border border-slate-200/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col md:flex-row overflow-hidden relative"
                         >
                             {/* Form Box */}
-                            <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-between h-full bg-[#fafafa] text-slate-800">
+                            <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-between h-full bg-[#f1f5f9] text-slate-800">
                                 <div>
                                     {/* Tabs */}
                                     <div className="flex gap-4 border-b border-slate-200 pb-3 mb-6">
                                         <button
                                             type="button"
                                             onClick={() => { setModalTab('register'); setLoginError(''); }}
-                                            className={`text-sm font-bold pb-1 transition-all ${
-                                                modalTab === 'register' ? 'text-slate-800 border-b-2 border-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
-                                            }`}
+                                            className={`text-sm font-bold pb-1 transition-all ${modalTab === 'register' ? 'text-slate-800 border-b-2 border-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
+                                                }`}
                                         >
                                             Guest Register
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => { setModalTab('login'); setLoginError(''); }}
-                                            className={`text-sm font-bold pb-1 transition-all ${
-                                                modalTab === 'login' ? 'text-slate-800 border-b-2 border-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
-                                            }`}
+                                            className={`text-sm font-bold pb-1 transition-all ${modalTab === 'login' ? 'text-slate-800 border-b-2 border-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
+                                                }`}
                                         >
                                             Member Login
                                         </button>
@@ -1248,7 +1245,7 @@ const LandingPage = () => {
                                                 <div className="space-y-4 pt-2">
                                                     {/* Username */}
                                                     <div className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5">
-                                                        <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Username</label>
+                                                        <label className="block text-[10px] font-bold text-black uppercase tracking-widest mb-1">Username</label>
                                                         <input
                                                             type="text"
                                                             value={username}
@@ -1261,7 +1258,7 @@ const LandingPage = () => {
 
                                                     {/* Phone Number */}
                                                     <div className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5">
-                                                        <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Phone Number</label>
+                                                        <label className="block text-[10px] font-bold text-black  uppercase tracking-widest mb-1">Phone Number</label>
                                                         <div className="flex items-center justify-between">
                                                             <input
                                                                 type="tel"
@@ -1405,11 +1402,13 @@ const LandingPage = () => {
                                     </p>
                                 </div>
 
-                                {/* Graphic Decoration */}
-                                <div className="relative z-10 my-auto flex flex-col items-center justify-center p-6 bg-slate-900/60 border border-slate-800 rounded-3xl backdrop-blur-sm max-w-xs shadow-xl">
-                                    <BookOpen className="text-indigo-400 mb-3 animate-pulse" size={36} />
-                                    <span className="text-xs font-bold text-slate-200">Interactive Courses Directory</span>
-                                    <p className="text-[10px] text-slate-405 text-center mt-1">Select programs and apply to institutes of your choice right from the main landing dashboard.</p>
+                                {/* Graphic Decoration - Image */}
+                                <div className="w-full max-w-[320px] z-10 my-auto flex justify-center">
+                                    <img
+                                        src={loginIllustration}
+                                        alt="LMS Illustration"
+                                        className="w-full h-auto max-h-[260px] object-contain select-none pointer-events-none"
+                                    />
                                 </div>
 
                                 <div className="relative z-10 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
@@ -1492,11 +1491,10 @@ const LandingPage = () => {
                                                         setSimulatorTab(item.id);
                                                         setMockTestStarted(false);
                                                     }}
-                                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
-                                                        isActive 
-                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${isActive
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                                                         : 'hover:bg-slate-800/40 text-slate-400 hover:text-slate-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <IconComponent size={16} />
                                                     <span>{item.label}</span>
@@ -1568,18 +1566,16 @@ const LandingPage = () => {
                                                             <button
                                                                 key={opt.key}
                                                                 onClick={() => setSelectedMockAnswer(opt.key)}
-                                                                className={`w-full flex items-center justify-between p-4 rounded-2xl text-left text-xs font-semibold border transition-all ${
-                                                                    selectedMockAnswer === opt.key 
-                                                                    ? 'bg-indigo-600/5 border-indigo-500 text-indigo-700 shadow-sm' 
+                                                                className={`w-full flex items-center justify-between p-4 rounded-2xl text-left text-xs font-semibold border transition-all ${selectedMockAnswer === opt.key
+                                                                    ? 'bg-indigo-600/5 border-indigo-500 text-indigo-700 shadow-sm'
                                                                     : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 <span>{opt.key}) {opt.text}</span>
-                                                                <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                                                                    selectedMockAnswer === opt.key
+                                                                <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${selectedMockAnswer === opt.key
                                                                     ? 'border-indigo-600 bg-indigo-600 text-white text-[9px]'
                                                                     : 'border-slate-300'
-                                                                }`}>
+                                                                    }`}>
                                                                     {selectedMockAnswer === opt.key && '✓'}
                                                                 </span>
                                                             </button>
@@ -1608,9 +1604,8 @@ const LandingPage = () => {
                                                 </div>
                                             ) : (
                                                 <div className="text-center py-8 space-y-5 font-sans">
-                                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto text-white shadow-lg ${
-                                                        mockTestScore === 1 ? 'bg-emerald-500 shadow-emerald-200 animate-bounce' : 'bg-red-500 shadow-red-200'
-                                                    }`}>
+                                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto text-white shadow-lg ${mockTestScore === 1 ? 'bg-emerald-500 shadow-emerald-200 animate-bounce' : 'bg-red-500 shadow-red-200'
+                                                        }`}>
                                                         {mockTestScore === 1 ? <CheckCircle size={32} /> : <X size={32} />}
                                                     </div>
                                                     <div className="space-y-1">
@@ -1824,11 +1819,10 @@ const LandingPage = () => {
                                                         {helpdeskMessages.map((msg, i) => (
                                                             <div
                                                                 key={i}
-                                                                className={`max-w-xs p-3 rounded-2xl text-xs font-medium leading-relaxed ${
-                                                                    msg.sender === 'user'
+                                                                className={`max-w-xs p-3 rounded-2xl text-xs font-medium leading-relaxed ${msg.sender === 'user'
                                                                     ? 'bg-indigo-600 text-white self-end rounded-tr-none'
                                                                     : 'bg-slate-100 text-slate-850 self-start rounded-tl-none border border-slate-200'
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 {msg.text}
                                                             </div>
@@ -1840,16 +1834,16 @@ const LandingPage = () => {
                                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Click to ask Helpdesk Simulator:</span>
                                                         <div className="flex flex-wrap gap-2">
                                                             {[
-                                                                { 
-                                                                    q: "How long does application review take?", 
+                                                                {
+                                                                    q: "How long does application review take?",
                                                                     a: "Application reviews are typically processed by the target Institute within 24 to 48 business hours. You can track its live status from the top right 'Track Applications' bar on the landing page."
                                                                 },
-                                                                { 
-                                                                    q: "How do I create a student account?", 
+                                                                {
+                                                                    q: "How do I create a student account?",
                                                                     a: "Once your application status moves to 'Accepted', a button saying 'Create Account to Login' will appear next to your application in the Track Applications bar. Clicking it allows setting your email and password."
                                                                 },
-                                                                { 
-                                                                    q: "Can I contact my Institute admin directly?", 
+                                                                {
+                                                                    q: "Can I contact my Institute admin directly?",
                                                                     a: "Yes! Once you apply, the contact email and address of the offering institute are shown directly in your applications list. You can reach out to them via their email."
                                                                 }
                                                             ].map((suggestion, idx) => (

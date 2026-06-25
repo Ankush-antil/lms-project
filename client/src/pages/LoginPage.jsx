@@ -44,7 +44,7 @@ const LoginPage = () => {
                     initial={{ opacity: 0, x: -40 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, ease: 'easeOut' }}
-                    className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between h-full bg-[#fafafa]"
+                    className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between h-full bg-[#f1f5f9]"
                 >
                     <div>
                         {/* Title Section */}

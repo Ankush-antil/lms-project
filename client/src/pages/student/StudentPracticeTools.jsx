@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
     Calendar, Camera, Video, Mic, MonitorPlay, Phone, Settings, 
-    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen
+    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen, Upload
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../utils/dateUtils';
@@ -112,6 +112,21 @@ const StudentPracticeTools = () => {
                 } catch(e) {}
             }
 
+            // File Uploads
+            const fileUploadsStr = localStorage.getItem('practice_file_uploads');
+            if (fileUploadsStr) {
+                try {
+                    const list = JSON.parse(fileUploadsStr);
+                    list.forEach(item => {
+                        allLocal.push({
+                            timestamp: item.timestamp,
+                            toolType: 'File Uploader',
+                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                        });
+                    });
+                } catch(e) {}
+            }
+
             setLocalFiles(allLocal);
 
             // 3. Extract and Aggregate Dates
@@ -173,7 +188,8 @@ const StudentPracticeTools = () => {
             'Screen Recorder': 'screen-recorder',
             'Voice Recorder': 'voice-recorder',
             'Video Recorder': 'video-recorder',
-            'Web-Calling Tool': 'web-calling'
+            'Web-Calling Tool': 'web-calling',
+            'File Uploader': 'file-uploader'
         };
 
         const localCount = localFiles.filter(f => f.parsedDate === selectedDate && f.toolType === toolTitle).length;
@@ -227,6 +243,12 @@ const StudentPracticeTools = () => {
             icon: Phone,
             color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
             path: "/student/practice-tools/web-calling"
+        },
+        {
+            title: "File Uploader",
+            icon: Upload,
+            color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
+            path: "/student/practice-tools/file-uploader"
         }
     ];
 

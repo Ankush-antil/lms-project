@@ -16,7 +16,10 @@ const loginUser = async (req, res) => {
         // Log for debugging
         console.log(`Login attempt for: ${email}`);
 
-        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
+        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
+            .populate('institute', 'name')
+            .populate('studentProfile.course', 'name')
+            .populate('teacherProfile.assignedCourses', 'name');
 
         if (user && (await user.matchPassword(password))) {
             const token = generateToken(user._id);
@@ -34,6 +37,9 @@ const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                institute: user.institute,
+                studentProfile: user.studentProfile,
+                teacherProfile: user.teacherProfile,
                 token: token
             });
         } else {

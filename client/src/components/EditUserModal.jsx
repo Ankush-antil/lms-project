@@ -32,7 +32,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 course: user.role === 'Student'
                     ? (user.studentProfile?.course?._id || user.studentProfile?.course || '')
                     : (user.teacherProfile?.assignedCourses?.[0]?._id || user.teacherProfile?.assignedCourses?.[0] || ''),
-                institute: user.institute?._id || user.institute || '',
+                institute: user.institute?._id || user.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : ''),
                 subjects: user.role === 'Teacher' ? (user.teacherProfile?.subjects?.join(', ') || '') : '',
                 subject: user.role === 'Student' ? (user.studentProfile?.subject || '') : '',
                 mobileNumber: user.mobileNumber || ''
@@ -126,15 +126,23 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
 
                         <div className="grid grid-cols-1 gap-4">
                             {currentUser?.role === 'Institute' || currentUser?.role === 'Editor' ? (
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
-                                    <input
-                                        required
-                                        type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Full Name</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                                        <div className="w-full bg-slate-100/70 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-500 cursor-not-allowed">
+                                            {currentUser?.institute?.name || (typeof currentUser?.institute === 'string' ? currentUser.institute : 'Assigned Institute')}
+                                        </div>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-4">
@@ -201,7 +209,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 required
                                                 value={formData.course}
                                                 onChange={e => setFormData({ ...formData, course: e.target.value, subject: '' })}
-                                                disabled={!formData.institute}
+                                                disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
                                             >
                                                 <option value="">Select</option>
                                                 {filteredCourses.map(course => (
@@ -237,7 +245,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
                                                 value={formData.course}
                                                 onChange={e => setFormData({ ...formData, course: e.target.value, subjects: '' })}
-                                                disabled={!formData.institute}
+                                                disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
                                             >
                                                 <option value="">Select Course</option>
                                                 {filteredCourses.map(course => (

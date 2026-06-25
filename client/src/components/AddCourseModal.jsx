@@ -78,7 +78,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 gap-4">
-                            {user?.role !== 'Institute' && user?.role !== 'Editor' && (
+                            {user?.role !== 'Institute' && user?.role !== 'Editor' ? (
                                 <div>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
                                     <select
@@ -92,6 +92,13 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                             <option key={inst._id} value={inst._id}>{inst.name}</option>
                                         ))}
                                     </select>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                                    <div className="w-full bg-slate-100/70 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-500 cursor-not-allowed">
+                                        {user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Assigned Institute')}
+                                    </div>
                                 </div>
                             )}
                             <div>

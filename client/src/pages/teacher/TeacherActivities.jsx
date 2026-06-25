@@ -492,7 +492,7 @@ const TeacherActivities = () => {
                 setLoadingChat(true);
                 const { data } = await axios.get(`/api/chat/messages/${selectedStudent._id}?inboxId=${selectedInboxId}`);
                 setChatMessages(data);
-                
+
                 await axios.put(`/api/chat/messages/${selectedStudent._id}/read`);
             } catch (err) {
                 console.error("Error fetching student chat messages:", err);
@@ -512,8 +512,8 @@ const TeacherActivities = () => {
                     if (prev.some(m => m._id === msg._id)) return prev;
                     return [...prev, msg];
                 });
-                
-                axios.put(`/api/chat/messages/${selectedStudent._id}/read`).catch(() => {});
+
+                axios.put(`/api/chat/messages/${selectedStudent._id}/read`).catch(() => { });
             }
         };
 
@@ -672,7 +672,7 @@ const TeacherActivities = () => {
                                                     <div className="flex items-center space-x-2.5 min-w-0">
                                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
                                                             }`}>
-                                                        <BookOpen size={14} />
+                                                            <BookOpen size={14} />
                                                         </div>
                                                         <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                             {getDisplayTitle(item.title)}
@@ -774,7 +774,7 @@ const TeacherActivities = () => {
                                 <h3 className="font-extrabold text-sm text-slate-800 leading-tight">{selectedStudent.name}</h3>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-wider truncate max-w-full">{selectedStudent.email}</p>
                             </div>
-                            
+
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/10 custom-scrollbar text-xs font-semibold text-slate-600 text-left">
                                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
                                     <div className="flex justify-between">
@@ -790,7 +790,7 @@ const TeacherActivities = () => {
                                         <span className="font-extrabold text-slate-850">{studentSubmissions.filter(s => s.status === 'evaluated').length}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
                                     <div className="flex justify-between">
                                         <span className="text-slate-400">Total Practice Files</span>
@@ -823,12 +823,12 @@ const TeacherActivities = () => {
                                     <p className="text-[9px] text-slate-400 font-semibold mt-1 leading-none">{selectedStudent.email}</p>
                                 </div>
                             </div>
-                            
+
                             <div className="flex bg-white/10 p-1 rounded-xl gap-1 border border-white/5 shrink-0">
                                 {[
-                                    { id: 'tests', label: 'My Tests', icon: FileText },
-                                    { id: 'practice', label: 'Practice Tool', icon: Settings },
-                                    { id: 'performance', label: 'My Performance', icon: BarChart3 }
+                                    { id: 'tests', label: 'Tests', icon: FileText },
+                                    { id: 'practice', label: 'Tool', icon: Settings },
+                                    { id: 'performance', label: 'Performance', icon: BarChart3 }
                                 ].map(tab => {
                                     const TabIcon = tab.icon;
                                     const isTabActive = studentTab === tab.id;
@@ -836,11 +836,10 @@ const TeacherActivities = () => {
                                         <button
                                             key={tab.id}
                                             onClick={() => setStudentTab(tab.id)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                                                isTabActive 
-                                                    ? 'bg-white text-slate-900 shadow-md animate-fade-in' 
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isTabActive
+                                                    ? 'bg-white text-slate-900 shadow-md animate-fade-in'
                                                     : 'text-slate-355 hover:text-white hover:bg-white/5'
-                                            }`}
+                                                }`}
                                         >
                                             <TabIcon size={12} />
                                             <span>{tab.label}</span>
@@ -1115,9 +1114,8 @@ const TeacherActivities = () => {
                                                         className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
                                                     >
                                                         <div className="flex items-center gap-2 min-w-0">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                                !sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                            }`} />
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                                }`} />
                                                             <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
                                                                 {test.title}
                                                             </h3>
@@ -1138,11 +1136,10 @@ const TeacherActivities = () => {
                                                             {sub ? (
                                                                 <button
                                                                     onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                        isEvaluated
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
                                                                             ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                                                                             : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
                                                                 </button>
@@ -1235,14 +1232,14 @@ const TeacherActivities = () => {
                                                                 <div className="pt-2">
                                                                     {type === 'screenshot' && (
                                                                         <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                            <img 
-                                                                                src={file.fileUrl} 
-                                                                                alt="Screenshot Preview" 
+                                                                            <img
+                                                                                src={file.fileUrl}
+                                                                                alt="Screenshot Preview"
                                                                                 className="w-full max-h-48 object-contain bg-slate-900"
                                                                             />
-                                                                            <a 
-                                                                                href={file.fileUrl} 
-                                                                                target="_blank" 
+                                                                            <a
+                                                                                href={file.fileUrl}
+                                                                                target="_blank"
                                                                                 rel="noreferrer"
                                                                                 className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
                                                                             >
@@ -1365,8 +1362,8 @@ const TeacherActivities = () => {
                                             </div>
                                             <div className="my-2 space-y-1.5">
                                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-purple-600 rounded-full" 
+                                                    <div
+                                                        className="h-full bg-purple-600 rounded-full"
                                                         style={{ width: `${assignedTests.length > 0 ? (studentSubmissions.length / assignedTests.length) * 100 : 0}%` }}
                                                     />
                                                 </div>
@@ -1415,7 +1412,7 @@ const TeacherActivities = () => {
                                                             <span className="font-black text-slate-800">
                                                                 {submission.totalMarks} / {testMax}
                                                             </span>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => navigate(`/teacher/evaluate/${submission._id}`)}
                                                                 className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase"
                                                             >

@@ -19,10 +19,10 @@ const WebCallingPage = () => {
     const inboxParam = searchParams.get('inbox');
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
-    const { 
-        callUser, 
-        callState, 
-        onlineUsers = [] 
+    const {
+        callUser,
+        callState,
+        onlineUsers = []
     } = useSocket();
 
     const localVideoRef = useRef(null);
@@ -32,7 +32,7 @@ const WebCallingPage = () => {
     // States
     const [teachers, setTeachers] = useState([]);
     const [loadingTeachers, setLoadingTeachers] = useState(true);
-    
+
     const [micEnabled, setMicEnabled] = useState(true);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [callLimit, setCallLimit] = useState(10); // mins
@@ -260,7 +260,7 @@ const WebCallingPage = () => {
         setSimulatedCall(true);
         setSimulatedState('dialing');
         setCurrentQuestionIndex(0);
-        
+
         // Play simulated dialing tone
         playTone(400, 440, 1.5);
 
@@ -274,7 +274,7 @@ const WebCallingPage = () => {
     const endAiCall = () => {
         stopLocalStream();
         setSimulatedState('ended');
-        
+
         // Add log entry
         const searchParams = new URLSearchParams(window.location.search);
         const inboxVal = searchParams.get('inbox');
@@ -336,7 +336,7 @@ const WebCallingPage = () => {
             osc2.start();
             osc1.stop(ctx.currentTime + duration);
             osc2.stop(ctx.currentTime + duration);
-        } catch (e) {}
+        } catch (e) { }
     };
 
     // Text to Speech for simulated AI Partner
@@ -366,12 +366,12 @@ const WebCallingPage = () => {
             return;
         }
         // Check if teacher is online
-        const isOnline = onlineUsers.includes(teacher._id);
+        const isOnline = onlineUsers.some(user => user.userId === teacher._id);
         if (!isOnline && teacher._id !== 't1' && teacher._id !== 't2') { // Let mock teachers trigger dialing
             toast.error(`${teacher.name} is currently offline.`);
             return;
         }
-        
+
         toast.loading(`Dialing ${teacher.name}...`, { duration: 2000 });
         callUser(teacher._id, teacher.name, 'Teacher', callType);
     };
@@ -399,7 +399,7 @@ const WebCallingPage = () => {
         const latest = filteredLocalLogs[0];
         const logContent = `LMS CALL LOG\n====================\nName: ${latest.name}\nType: ${latest.type}\nDuration: ${latest.duration}\nStatus: ${latest.status}\nDate: ${latest.date}`;
         const blob = new Blob([logContent], { type: 'text/plain' });
-        
+
         setDriveFileMeta({
             name: `call_log_${latest.id || Date.now()}.txt`,
             blob: blob
@@ -472,7 +472,7 @@ const WebCallingPage = () => {
 
         saveToLocalStorage(callLogs);
         await fetchCloudFiles();
-        
+
         if (successCount > 0) {
             toast.success(`Successfully synced ${successCount} call logs to cloud!`, { id: toastId });
         } else {
@@ -523,12 +523,12 @@ const WebCallingPage = () => {
 
                 {/* 3-Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
-                    
+
                     {/* Simulated Call Active Screen Overlay (Takes over center-panel) */}
                     {simulatedCall && (
                         <div className="fixed inset-0 z-[999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
                             <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[500px]">
-                                
+
                                 {/* AI Partner Avatar Panel */}
                                 <div className="flex-1 bg-slate-950 p-6 flex flex-col justify-between items-center relative min-h-[240px]">
                                     <span className="text-[10px] font-black text-pink-500 tracking-widest uppercase mt-2">
@@ -617,9 +617,8 @@ const WebCallingPage = () => {
                                                         localStream.getAudioTracks().forEach(t => t.enabled = !micEnabled);
                                                     }
                                                 }}
-                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${
-                                                    micEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
-                                                }`}
+                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${micEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
+                                                    }`}
                                             >
                                                 {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
                                                 <span>{micEnabled ? 'Mute' : 'Muted'}</span>
@@ -631,9 +630,8 @@ const WebCallingPage = () => {
                                                         localStream.getVideoTracks().forEach(t => t.enabled = !cameraEnabled);
                                                     }
                                                 }}
-                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${
-                                                    cameraEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
-                                                }`}
+                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${cameraEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
+                                                    }`}
                                             >
                                                 {cameraEnabled ? <Video size={14} /> : <VideoOff size={14} />}
                                                 <span>{cameraEnabled ? 'Cam ON' : 'Cam OFF'}</span>
@@ -658,16 +656,15 @@ const WebCallingPage = () => {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Source</h3>
-                            
+
                             {/* Device togglers */}
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase">Microphone</span>
                                     <button
                                         onClick={() => setMicEnabled(!micEnabled)}
-                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${
-                                            micEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
-                                        }`}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${micEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                            }`}
                                     >
                                         {micEnabled ? 'ACTIVE' : 'MUTED'}
                                     </button>
@@ -676,9 +673,8 @@ const WebCallingPage = () => {
                                     <span className="text-xs font-bold text-slate-500 uppercase">Camera</span>
                                     <button
                                         onClick={() => setCameraEnabled(!cameraEnabled)}
-                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${
-                                            cameraEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
-                                        }`}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${cameraEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                            }`}
                                     >
                                         {cameraEnabled ? 'ACTIVE' : 'OFF'}
                                     </button>
@@ -748,26 +744,24 @@ const WebCallingPage = () => {
                     {/* Center Column: Dialer / Connections Selector */}
                     <div className="lg:col-span-6 space-y-6">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col min-h-[460px]">
-                            
+
                             {/* Navigation tabs */}
                             <div className="flex border-b border-slate-100 pb-3 gap-6">
                                 <button
                                     onClick={() => setActiveTab('teachers')}
-                                    className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${
-                                        activeTab === 'teachers' 
-                                            ? 'text-pink-600 border-pink-600' 
+                                    className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${activeTab === 'teachers'
+                                            ? 'text-pink-600 border-pink-600'
                                             : 'text-slate-400 border-transparent hover:text-slate-655'
-                                    }`}
+                                        }`}
                                 >
                                     <span className="flex items-center gap-1.5"><Users size={16} /> Online Teachers</span>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('ai')}
-                                    className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${
-                                        activeTab === 'ai' 
-                                            ? 'text-pink-600 border-pink-600' 
+                                    className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${activeTab === 'ai'
+                                            ? 'text-pink-600 border-pink-600'
                                             : 'text-slate-400 border-transparent hover:text-slate-655'
-                                    }`}
+                                        }`}
                                 >
                                     <span className="flex items-center gap-1.5"><Cpu size={16} /> AI Practice Partner</span>
                                 </button>
@@ -784,9 +778,9 @@ const WebCallingPage = () => {
                                         ) : (
                                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                                                 {teachers.map(teacher => {
-                                                    const isOnline = onlineUsers.includes(teacher._id) || teacher._id === 't1' || teacher._id === 't2'; // simulate online status for dr. sarah and prof. james
+                                                    const isOnline = onlineUsers.some(u => u.userId === teacher._id) || teacher._id === 't1' || teacher._id === 't2'; // simulate online status for dr. sarah and prof. james
                                                     return (
-                                                        <div 
+                                                        <div
                                                             key={teacher._id}
                                                             className="flex justify-between items-center p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-150 transition-colors"
                                                         >
@@ -804,14 +798,13 @@ const WebCallingPage = () => {
                                                                     <p className="text-[10px] text-slate-400 font-medium">{teacher.email}</p>
                                                                 </div>
                                                             </div>
-                                                            
+
                                                             <div className="flex items-center gap-2">
                                                                 <button
                                                                     disabled={isReadOnly}
                                                                     onClick={() => handleTeacherCall(teacher, 'audio')}
-                                                                    className={`p-2 bg-pink-50 text-pink-650 rounded-xl transition-colors border border-pink-100 ${
-                                                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-pink-100'
-                                                                    }`}
+                                                                    className={`p-2 bg-pink-50 text-pink-650 rounded-xl transition-colors border border-pink-100 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-pink-100'
+                                                                        }`}
                                                                     title="Voice Call"
                                                                 >
                                                                     <Phone size={14} />
@@ -819,9 +812,8 @@ const WebCallingPage = () => {
                                                                 <button
                                                                     disabled={isReadOnly}
                                                                     onClick={() => handleTeacherCall(teacher, 'video')}
-                                                                    className={`p-2 bg-purple-50 text-purple-600 rounded-xl transition-colors border border-purple-100 ${
-                                                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-100'
-                                                                    }`}
+                                                                    className={`p-2 bg-purple-50 text-purple-600 rounded-xl transition-colors border border-purple-100 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-100'
+                                                                        }`}
                                                                     title="Video Call"
                                                                 >
                                                                     <Video size={14} />
@@ -845,18 +837,17 @@ const WebCallingPage = () => {
                                 <div className="flex-1 flex flex-col justify-between mt-4">
                                     <div className="space-y-4">
                                         <p className="text-xs text-slate-500">Configure your simulation role and click start to call.</p>
-                                        
+
                                         {/* Grid of Roles */}
                                         <div className="grid grid-cols-2 gap-3">
                                             {Object.entries(aiScenarios).map(([key, sc]) => (
-                                                <div 
+                                                <div
                                                     key={key}
                                                     onClick={() => setAiRole(key)}
-                                                    className={`p-3 rounded-2xl border cursor-pointer text-left transition-all ${
-                                                        aiRole === key 
-                                                            ? 'bg-white border-pink-550 shadow-md shadow-pink-500/5 ring-1 ring-pink-500' 
+                                                    className={`p-3 rounded-2xl border cursor-pointer text-left transition-all ${aiRole === key
+                                                            ? 'bg-white border-pink-550 shadow-md shadow-pink-500/5 ring-1 ring-pink-500'
                                                             : 'bg-slate-50 border-slate-150 hover:bg-white hover:border-slate-300'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <span className="text-2xl block mb-1">{sc.avatar}</span>
                                                     <h4 className="text-xs font-extrabold text-slate-700">{sc.title}</h4>
@@ -874,11 +865,10 @@ const WebCallingPage = () => {
                                     <button
                                         disabled={isReadOnly}
                                         onClick={startAiCall}
-                                        className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-6 text-white ${
-                                            isReadOnly
+                                        className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-6 text-white ${isReadOnly
                                                 ? 'bg-slate-350 cursor-not-allowed opacity-60 shadow-none'
                                                 : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
-                                        }`}
+                                            }`}
                                     >
                                         <Phone className="animate-pulse" size={16} />
                                         <span>{isReadOnly ? 'Workspace Read-Only' : 'Start Practice Call Partner'}</span>
@@ -893,15 +883,14 @@ const WebCallingPage = () => {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
-                            
+
                             <div className="space-y-3">
                                 {/* Save in Google Drive */}
                                 <button
                                     disabled={isReadOnly}
                                     onClick={handleSaveToDriveClick}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
-                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                        }`}
                                 >
                                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
                                         <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
@@ -934,7 +923,7 @@ const WebCallingPage = () => {
                                         </span>
                                     </div>
                                 </button>
-                                
+
                                 {/* Go to Local Data */}
                                 <button
                                     onClick={() => {
@@ -958,11 +947,10 @@ const WebCallingPage = () => {
                                         await fetchCloudFiles();
                                         toast.success("Switched to Cloud Storage");
                                     }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${
-                                        galleryTab === 'cloud'
+                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${galleryTab === 'cloud'
                                             ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
                                             : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                    }`}
+                                        }`}
                                 >
                                     <Database className="text-pink-600 shrink-0" size={18} />
                                     <div className="text-left flex-1">
@@ -977,9 +965,8 @@ const WebCallingPage = () => {
                                 <button
                                     disabled={isReadOnly}
                                     onClick={handleSyncWithCloud}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${
-                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                        }`}
                                 >
                                     <RefreshCw className="text-pink-600 shrink-0 animate-hover-spin" size={18} />
                                     <div className="text-left flex-1">
@@ -1083,7 +1070,7 @@ const WebCallingPage = () => {
                     </div>
                 </div>
             </div>
-            
+
             {/* Google Drive Simulation Modal */}
             <GoogleDriveModal
                 isOpen={driveModalOpen}

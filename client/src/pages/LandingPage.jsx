@@ -190,6 +190,7 @@ const LandingPage = () => {
         try {
             const { data } = await axios.post('/api/setup/send-otp', { phone });
             setOtpSent(true);
+            setUserOtp('1234'); // Auto-fill default OTP
             setCountdown(60);
             toast.success(data.message || "OTP sent!");
         } catch (err) {
@@ -1288,14 +1289,14 @@ const LandingPage = () => {
                                                             animate={{ opacity: 1, y: 0 }}
                                                             className="relative border-b border-slate-200 focus-within:border-[#0b1329] transition-all py-0.5"
                                                         >
-                                                            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Enter OTP Code</label>
+                                                            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Enter OTP Code (Default: 1234)</label>
                                                             <input
                                                                 type="text"
                                                                 value={userOtp}
                                                                 onChange={(e) => setUserOtp(e.target.value)}
                                                                 required
                                                                 maxLength={4}
-                                                                placeholder="Enter 4-digit code"
+                                                                placeholder="1234"
                                                                 className="w-full bg-transparent text-slate-800 focus:outline-none text-sm py-1 placeholder-slate-300 tracking-[0.3em] font-extrabold"
                                                             />
                                                         </motion.div>

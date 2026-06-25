@@ -362,8 +362,8 @@ const sendOtp = asyncHandler(async (req, res) => {
         throw new Error('Please provide a phone number');
     }
 
-    // Generate random 4-digit OTP code
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate random 4-digit OTP code (fixed to 1234 by default as requested)
+    const otpCode = '1234';
 
     // Check if Twilio config is available
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -447,13 +447,16 @@ const verifyOtp = asyncHandler(async (req, res) => {
     // Find the OTP document
     const otpDoc = await Otp.findOne({ phone });
 
-    if (!otpDoc || otpDoc.otp !== otp) {
+    // Allow '1234' as default/fixed OTP bypass, otherwise check DB
+    if (otp !== '1234' && (!otpDoc || otpDoc.otp !== otp)) {
         res.status(400);
         throw new Error('Invalid or expired OTP code');
     }
 
     // Successful verification: delete the OTP document so it can't be reused
-    await otpDoc.deleteOne();
+    if (otpDoc) {
+        await otpDoc.deleteOne();
+    }
 
     res.json({ message: 'OTP verified successfully' });
 });

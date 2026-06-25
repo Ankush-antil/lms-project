@@ -220,7 +220,7 @@ const StudentTests = () => {
                 setLoadingChat(true);
                 const { data } = await axios.get(`/api/chat/messages/${teacherContact._id}?inboxId=${selectedItem}`);
                 setChatMessages(data);
-                
+
                 await axios.put(`/api/chat/messages/${teacherContact._id}/read`);
             } catch (err) {
                 console.error("Error fetching chat messages:", err);
@@ -240,8 +240,8 @@ const StudentTests = () => {
                     if (prev.some(m => m._id === msg._id)) return prev;
                     return [...prev, msg];
                 });
-                
-                axios.put(`/api/chat/messages/${teacherContact._id}/read`).catch(() => {});
+
+                axios.put(`/api/chat/messages/${teacherContact._id}/read`).catch(() => { });
             }
         };
 
@@ -419,7 +419,7 @@ const StudentTests = () => {
                                     { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                     { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                     { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
-                                    { id: 'practice', label: 'Practice Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
+                                    { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                     { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                     { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                 ].map(tab => {

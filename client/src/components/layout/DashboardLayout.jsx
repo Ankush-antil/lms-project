@@ -89,9 +89,8 @@ const ChatNotificationBar = () => {
                         <div className={`h-0.5 w-full ${notif.isDoubt ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`} />
                         <div className="flex items-start gap-3 p-3">
                             {/* Icon */}
-                            <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-sm ${
-                                notif.isDoubt ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                            }`}>
+                            <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-sm ${notif.isDoubt ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                                }`}>
                                 {notif.isDoubt ? <BellRing size={16} /> : <MessageSquare size={16} />}
                             </div>
                             {/* Content */}
@@ -129,7 +128,8 @@ const ChatNotificationBar = () => {
                     </div>
                 </div>
             ))}
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes slideInNotif {
                     from { opacity: 0; transform: translateX(40px) scale(0.96); }
                     to   { opacity: 1; transform: translateX(0)   scale(1); }
@@ -178,7 +178,7 @@ const menuItems = {
         { name: 'My Tests', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
-        { name: 'Practice Tools', icon: Settings, path: '/student/practice-tools' },
+        { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
         { name: 'My Performance', icon: BarChart3, path: '/student/performance' }
     ]
 };
@@ -226,11 +226,10 @@ const NotificationBell = ({ safeRole }) => {
             {/* Bell Button */}
             <button
                 onClick={() => setOpen(prev => !prev)}
-                className={`relative p-2.5 rounded-xl transition-all border ${
-                    unread > 0
+                className={`relative p-2.5 rounded-xl transition-all border ${unread > 0
                         ? 'text-indigo-300 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20'
                         : 'text-slate-400 border-transparent hover:bg-white/10 hover:text-slate-200'
-                }`}
+                    }`}
                 title="Notifications"
             >
                 {unread > 0 ? (
@@ -287,9 +286,8 @@ const NotificationBell = ({ safeRole }) => {
                                 >
                                     <div className="flex items-start gap-3">
                                         {/* Avatar chip */}
-                                        <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black ${
-                                            notif.isDoubt ? 'bg-amber-500/15 text-amber-400' : 'bg-indigo-500/15 text-indigo-400'
-                                        }`}>
+                                        <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black ${notif.isDoubt ? 'bg-amber-500/15 text-amber-400' : 'bg-indigo-500/15 text-indigo-400'
+                                            }`}>
                                             {notif.senderName?.[0]?.toUpperCase() || '?'}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -329,7 +327,8 @@ const NotificationBell = ({ safeRole }) => {
                         </div>
                     )}
 
-                    <style dangerouslySetInnerHTML={{ __html: `
+                    <style dangerouslySetInnerHTML={{
+                        __html: `
                         @keyframes bellRing {
                             0%,100%{transform:rotate(0)}
                             10%{transform:rotate(14deg)}
@@ -591,9 +590,8 @@ const DashboardLayout = ({ children, role = 'Admin', fullWidth = false }) => {
                 style={{
                     transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
                 }}
-                className={`flex-1 pt-20 pb-12 px-4 md:px-8 ${
-                    hasSidebar ? (sidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[264px]') : ''
-                }`}
+                className={`flex-1 pt-20 pb-12 px-4 md:px-8 ${hasSidebar ? (sidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[264px]') : ''
+                    }`}
             >
                 <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
                     {children}

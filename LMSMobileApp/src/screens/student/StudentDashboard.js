@@ -54,7 +54,7 @@ const StudentDashboard = ({ navigation }) => {
         try {
             await axios.post(`/calls/missed/${id}/read`);
             setMissedCalls(prev => prev.filter(c => c._id !== id));
-        } catch (e) {}
+        } catch (e) { }
     };
 
     if (loading) return <LoadingScreen />;
@@ -147,7 +147,7 @@ const StudentDashboard = ({ navigation }) => {
                             <Ionicons name="construct" size={22} color={colors.white} />
                         </View>
                         <View>
-                            <Text style={styles.chatBannerTitle}>Practice Tools</Text>
+                            <Text style={styles.chatBannerTitle}>Tools</Text>
                             <Text style={styles.chatBannerSub}>Audio, Video, Screenshot, Calling Logs</Text>
                         </View>
                     </View>

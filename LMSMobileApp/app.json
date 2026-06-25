@@ -7,7 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#0b1329"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -32,7 +34,7 @@
         "android.permission.ACCESS_NETWORK_STATE"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#ffb300",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
@@ -44,16 +46,14 @@
       "expo-font",
       "@react-native-google-signin/google-signin"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "ce5eecf6-2719-4063-84be-dc61369b8ff2"
-      }
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/ce5eecf6-2719-4063-84be-dc61369b8ff2"
-    }
+    "extra": {
+      "eas": {
+        "projectId": "99bfd88a-dd77-4309-b7e4-2523c6652325"
+      }
+    },
+    "owner": "digitalstudy"
   }
 }

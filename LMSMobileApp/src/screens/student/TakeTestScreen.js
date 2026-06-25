@@ -20,6 +20,39 @@ import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
+// Helper to normalize different question types (case-insensitive and format-insensitive)
+const normalizeType = (type) => {
+    if (!type) return '';
+    const cleanType = type.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    
+    if (cleanType === 'shortanswer' || cleanType === 'short_answer') return 'shortAnswer';
+    if (cleanType === 'paragraph' || cleanType === 'paragraphanswer') return 'paragraph';
+    if (cleanType === 'mcq' || cleanType === 'multiplechoice' || cleanType === 'multiplechoices') return 'mcq';
+    if (cleanType === 'checkbox' || cleanType === 'checkboxes') return 'checkbox';
+    if (cleanType === 'dropdown') return 'dropdown';
+    if (cleanType === 'datetime' || cleanType === 'dateandtime') return 'dateTime';
+    if (cleanType === 'rating') return 'rating';
+    if (cleanType === 'fileupload') return 'fileUpload';
+    if (cleanType === 'imagedisplaying' || cleanType === 'imagedisplay') return 'imageDisplay';
+    if (cleanType === 'videodisplaying' || cleanType === 'videodisplay') return 'videoDisplay';
+    if (cleanType === 'pdfdisplaying' || cleanType === 'pdfdisplay') return 'pdfDisplay';
+    if (cleanType === 'webpagedisplaying' || cleanType === 'webpagedisplay') return 'webpageDisplay';
+    if (cleanType === 'embeddedvideoyoutube' || cleanType === 'youtubedisplay') return 'youtubeDisplay';
+    if (cleanType === 'embeddedsmcontent' || cleanType === 'smdisplay') return 'smDisplay';
+    if (cleanType === 'audiolistening' || cleanType === 'audiodisplay') return 'audioDisplay';
+    if (cleanType === 'multifiledisplaying' || cleanType === 'multifiledisplay') return 'multiFileDisplay';
+    if (cleanType === 'screenshottaking' || cleanType === 'screenshot') return 'screenshot';
+    if (cleanType === 'screenrecording' || cleanType === 'screenrecord') return 'screenRecord';
+    if (cleanType === 'voicerecording' || cleanType === 'voicerecord') return 'voiceRecord';
+    if (cleanType === 'videorecording' || cleanType === 'videorecord') return 'videoRecord';
+    if (cleanType === 'audiocalling' || cleanType === 'audiocall') return 'audioCall';
+    if (cleanType === 'videocalling' || cleanType === 'videocall') return 'videoCall';
+    if (cleanType === 'textbasedaiagent' || cleanType === 'textaiagent') return 'textAIAgent';
+    if (cleanType === 'voicebasedaiagent' || cleanType === 'voiceaiagent') return 'voiceAIAgent';
+    
+    return type; // fallback
+};
+
 // Timer component
 const Timer = ({ durationMinutes, onTimeUp }) => {
     const [seconds, setSeconds] = useState(durationMinutes * 60);
@@ -115,7 +148,7 @@ const QuestionWrapper = ({ question, index, children, answer, onAnswer, onVoiceI
     return (
         <SectionCard style={styles.questionCard}>
             <View style={styles.qHeader}>
-                <Text style={styles.questionNum}>Q{index + 1}</Text>
+                <View />
                 
                 {/* Addon icons */}
                 <View style={styles.addonsRow}>
@@ -145,10 +178,16 @@ const QuestionWrapper = ({ question, index, children, answer, onAnswer, onVoiceI
             {translated ? (
                 <View style={styles.translatedContainer}>
                     <Text style={styles.translatedLabel}>Hindi Translation:</Text>
-                    <Text style={styles.questionTextTranslated}>{getTranslation(qText)}</Text>
+                    <Text style={styles.questionTextTranslated}>
+                        <Text style={styles.questionNum}>Q{index + 1}. </Text>
+                        {getTranslation(qText)}
+                    </Text>
                 </View>
             ) : (
-                <Text style={styles.questionText}>{qText}</Text>
+                <Text style={styles.questionText}>
+                    <Text style={styles.questionNum}>Q{index + 1}. </Text>
+                    {qText}
+                </Text>
             )}
 
             {/* Render Question Element Content */}
@@ -388,7 +427,7 @@ const TakeTestScreen = ({ route, navigation }) => {
             >
                 {pageQuestions.map((question, i) => {
                     const globalIndex = currentPage * QUESTIONS_PER_PAGE + i;
-                    const type = question.type;
+                    const type = normalizeType(question.type);
                     const curAns = answers[question._id];
 
                     return (

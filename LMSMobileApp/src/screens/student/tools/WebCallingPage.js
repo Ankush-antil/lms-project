@@ -371,6 +371,7 @@ const WebCallingPage = ({ route, navigation }) => {
     const shareFile = async (uri, filename) => {
         try {
             await Share.share({
+                message: uri,
                 url: uri,
                 title: filename
             });

@@ -96,20 +96,25 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileUri, toolType, onSave
     const handleConnect = async () => {
         try {
             await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
+            const response = await GoogleSignin.signIn();
             const tokens = await GoogleSignin.getTokens();
             const token = tokens.accessToken;
 
+            const user = response.data ? response.data.user : response.user;
+            if (!user) {
+                throw new Error("No user info returned from Google Sign-In.");
+            }
+
             setAccessToken(token);
-            setGoogleUser(userInfo.user);
+            setGoogleUser(user);
 
             await AsyncStorage.setItem('lms_google_access_token', token);
-            await AsyncStorage.setItem('lms_google_user', JSON.stringify(userInfo.user));
+            await AsyncStorage.setItem('lms_google_user', JSON.stringify(user));
 
             setStep(2);
             setActiveTab(fileUri ? 'upload' : 'history');
             if (fileUri) {
-                autoSaveFlow(token, userInfo.user.email);
+                autoSaveFlow(token, user.email);
             } else {
                 loadHistoryRoot(token);
             }
@@ -122,7 +127,10 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileUri, toolType, onSave
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                 Alert.alert("Play Services", "Google Play Services are not available on this device.");
             } else {
-                Alert.alert("Authentication Failed", "Please make sure your SHA-1 is registered and your Google Client ID is correct.");
+                Alert.alert(
+                    "Authentication Failed",
+                    `Error Code: ${error.code || 'Unknown'}\nMessage: ${error.message || 'No message'}\n\nPlease check your Google Console configurations.`
+                );
             }
         }
     };
@@ -392,7 +400,10 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileUri, toolType, onSave
             const lmsRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${lmsQuery}&fields=files(id)`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (!lmsRes.ok) throw new Error("Could not find LMS folder");
+            if (!lmsRes.ok) {
+                const errText = await lmsRes.text();
+                throw new Error(`LMS Folder Query HTTP ${lmsRes.status}: ${errText}`);
+            }
             const lmsData = await lmsRes.json();
             if (!lmsData.files || lmsData.files.length === 0) {
                 setLoadingHistory(false);
@@ -405,12 +416,15 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileUri, toolType, onSave
             const datesRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${datesQuery}&fields=files(id, name)&orderBy=name+desc`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (!datesRes.ok) throw new Error("Could not load date folders");
+            if (!datesRes.ok) {
+                const errText = await datesRes.text();
+                throw new Error(`Date Folders Query HTTP ${datesRes.status}: ${errText}`);
+            }
             const datesData = await datesRes.json();
             setDateFolders(datesData.files || []);
         } catch (err) {
             console.error("Load history error:", err);
-            Alert.alert("History Error", "Failed to retrieve history folders.");
+            Alert.alert("History Error", `Failed to retrieve history folders.\n\nDetail: ${err.message}`);
         } finally {
             setLoadingHistory(false);
         }

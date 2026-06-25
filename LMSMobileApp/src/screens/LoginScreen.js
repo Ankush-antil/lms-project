@@ -58,7 +58,7 @@ const LoginScreen = ({ navigation }) => {
                     <View style={styles.bannerDecor1} />
                     <View style={styles.bannerDecor2} />
                     <View style={styles.logoContainer}>
-                        <Ionicons name="school" size={44} color={colors.white} />
+                        <Image source={require('../../assets/logo.jpg')} style={styles.logoImage} resizeMode="contain" />
                     </View>
                     <Text style={styles.bannerTitle}>Welcome to LMS</Text>
                     <Text style={styles.bannerSubtitle}>Login to access your account</Text>
@@ -199,15 +199,25 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.04)',
     },
     logoContainer: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
-        backgroundColor: 'rgba(99,102,241,0.35)',
+        width: 110,
+        height: 110,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.white,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.md,
+        overflow: 'hidden',
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: 'rgba(255,255,255,0.8)',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+    },
+    logoImage: {
+        width: '90%',
+        height: '90%',
     },
     bannerTitle: {
         fontSize: fontSizes.xxl,

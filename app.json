@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "432555c9-4195-4520-b718-63c871cd14a8"
+      }
+    },
+    "android": {
+      "package": "com.ankush8168.lmsproject"
+    }
+  }
+}

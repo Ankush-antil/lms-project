@@ -8,8 +8,10 @@ import {
     ActivityIndicator,
     Alert,
     Share,
-    Linking
+    Linking,
+    Modal
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,13 +28,10 @@ const VideoRecorderPage = ({ route, navigation }) => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
-    const playVideo = async (url) => {
-        try {
-            await Linking.openURL(url);
-        } catch (err) {
-            console.error("Failed to play video:", err);
-            Alert.alert("Error", "Could not open video player.");
-        }
+    const [selectedVideoUrl, setSelectedVideoUrl] = useState(null);
+
+    const playVideo = (url) => {
+        setSelectedVideoUrl(url);
     };
 
     // States
@@ -425,6 +424,35 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     fetchCloudFiles();
                 }}
             />
+
+            <Modal
+                visible={!!selectedVideoUrl}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedVideoUrl(null)}
+            >
+                <View style={styles.videoModalContainer}>
+                    <View style={styles.videoPlayerContainer}>
+                        <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedVideoUrl(null)}>
+                            <Ionicons name="close-circle" size={36} color={colors.white} />
+                        </TouchableOpacity>
+                        <Video
+                            source={{ uri: selectedVideoUrl }}
+                            rate={1.0}
+                            volume={1.0}
+                            isMuted={false}
+                            resizeMode={ResizeMode.CONTAIN}
+                            shouldPlay
+                            useNativeControls
+                            style={styles.fullVideo}
+                            onError={(err) => {
+                                console.error("Video playback error:", err);
+                                Alert.alert("Error", "Failed to play video.");
+                            }}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -624,6 +652,30 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderRadius: 18,
         backgroundColor: colors.bgSecondary
+    },
+    videoModalContainer: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    videoPlayerContainer: {
+        width: '100%',
+        height: '80%',
+        position: 'relative',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    closeButton: {
+        position: 'absolute',
+        top: -40,
+        right: 20,
+        zIndex: 10
+    },
+    fullVideo: {
+        width: '95%',
+        height: '90%',
+        borderRadius: 8
     }
 });
 

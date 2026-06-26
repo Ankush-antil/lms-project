@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React from 'react';
 import {
     View,
     Text,
@@ -139,37 +139,37 @@ const VoiceRecorderPage = ({ route, navigation }) => {
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
     // States
-    const [recording, setRecording] = useState(null);
-    const [isRecording, setIsRecording] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [showRecorder, setShowRecorder] = useState(false);
-    const [elapsedMillis, setElapsedMillis] = useState(0);
-    const [volumeHistory, setVolumeHistory] = useState([]);
-    const [flags, setFlags] = useState([]);
+    const [recording, setRecording] = React.useState(null);
+    const [isRecording, setIsRecording] = React.useState(false);
+    const [isPaused, setIsPaused] = React.useState(false);
+    const [showRecorder, setShowRecorder] = React.useState(false);
+    const [elapsedMillis, setElapsedMillis] = React.useState(0);
+    const [volumeHistory, setVolumeHistory] = React.useState([]);
+    const [flags, setFlags] = React.useState([]);
     
-    const [localAudios, setLocalAudios] = useState([]);
-    const [cloudFiles, setCloudFiles] = useState([]);
-    const [cloudSpace, setCloudSpace] = useState({ used: 0, limit: 300 * 1024 * 1024 });
-    const [activeTab, setActiveTab] = useState('local'); // 'local' | 'cloud'
-    const [loading, setLoading] = useState(false);
-    const [syncing, setSyncing] = useState(false);
+    const [localAudios, setLocalAudios] = React.useState([]);
+    const [cloudFiles, setCloudFiles] = React.useState([]);
+    const [cloudSpace, setCloudSpace] = React.useState({ used: 0, limit: 300 * 1024 * 1024 });
+    const [activeTab, setActiveTab] = React.useState('local'); // 'local' | 'cloud'
+    const [loading, setLoading] = React.useState(false);
+    const [syncing, setSyncing] = React.useState(false);
 
     // Google Drive state
-    const [driveModalOpen, setDriveModalOpen] = useState(false);
-    const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
+    const [driveModalOpen, setDriveModalOpen] = React.useState(false);
+    const [driveFileMeta, setDriveFileMeta] = React.useState({ name: '', uri: '' });
     
     // Playback state
-    const [playingId, setPlayingId] = useState(null);
-    const [soundInstance, setSoundInstance] = useState(null);
-    const [playbackStatus, setPlaybackStatus] = useState({
+    const [playingId, setPlayingId] = React.useState(null);
+    const [soundInstance, setSoundInstance] = React.useState(null);
+    const [playbackStatus, setPlaybackStatus] = React.useState({
         positionMillis: 0,
         durationMillis: 0,
         isPlaying: false
     });
 
-    const timerRef = useRef(null);
-    const startTimeRef = useRef(0);
-    const accumulatedTimeRef = useRef(0);
+    const timerRef = React.useRef(null);
+    const startTimeRef = React.useRef(0);
+    const accumulatedTimeRef = React.useRef(0);
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -203,22 +203,22 @@ const VoiceRecorderPage = ({ route, navigation }) => {
         }
     };
 
-    useEffect(() => {
+    React.useEffect(() => {
         fetchCloudFiles();
         loadLocalRecordings();
     }, []);
 
     // Filtered lists
-    const filteredLocalAudios = useMemo(() => {
+    const filteredLocalAudios = React.useMemo(() => {
         return localAudios.filter(a => parseDateToDdMmYyyy(a.timestamp) === dateParam);
     }, [localAudios, dateParam]);
 
-    const filteredCloudFiles = useMemo(() => {
+    const filteredCloudFiles = React.useMemo(() => {
         return cloudFiles.filter(c => parseDateToDdMmYyyy(c.createdAt) === dateParam);
     }, [cloudFiles, dateParam]);
 
     // Clean up audio sound instances and recording timers on unmount
-    useEffect(() => {
+    React.useEffect(() => {
         return () => {
             if (soundInstance) {
                 soundInstance.unloadAsync();

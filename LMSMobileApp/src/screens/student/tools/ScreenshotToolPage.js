@@ -101,6 +101,15 @@ const ScreenshotToolPage = ({ route, navigation }) => {
             }
 
             const asset = result.assets[0];
+
+            // Validate file type
+            const isImage = (asset.mimeType && asset.mimeType.startsWith('image/')) || 
+                            (asset.name && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(asset.name));
+            if (!isImage) {
+                Alert.alert("Invalid File Type", "Please select an image file only.");
+                return;
+            }
+
             const newLog = {
                 id: Date.now().toString(),
                 timestamp: new Date().toISOString(),

@@ -109,6 +109,15 @@ const ScreenRecorderPage = ({ route, navigation }) => {
             }
 
             const asset = result.assets[0];
+
+            // Validate file type
+            const isVideo = (asset.mimeType && asset.mimeType.startsWith('video/')) || 
+                            (asset.name && /\.(mp4|mkv|mov|avi|flv|webm|3gp|wmv)$/i.test(asset.name));
+            if (!isVideo) {
+                Alert.alert("Invalid File Type", "Please select a video file only.");
+                return;
+            }
+
             const newLog = {
                 id: Date.now().toString(),
                 timestamp: new Date().toISOString(),

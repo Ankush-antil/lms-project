@@ -402,12 +402,14 @@ const ScreenRecorderPage = ({ route, navigation }) => {
                                     >
                                         <Ionicons name="logo-google" size={18} color={colors.accent} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => shareFile(fileUrl, isCloud ? item.filename : 'screen_recording.mp4')}
-                                        style={styles.actionButton}
-                                    >
-                                        <Ionicons name="share-social-outline" size={20} color={colors.accent} />
-                                    </TouchableOpacity>
+                                    {isCloud && (
+                                        <TouchableOpacity
+                                            onPress={() => shareFile(fileUrl, item.filename)}
+                                            style={styles.actionButton}
+                                        >
+                                            <Ionicons name="share-social-outline" size={20} color={colors.accent} />
+                                        </TouchableOpacity>
+                                    )}
                                     {!isReadOnly && (
                                         <TouchableOpacity
                                             onPress={() => deleteFile(fileId, isCloud)}

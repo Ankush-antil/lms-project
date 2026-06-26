@@ -364,12 +364,14 @@ const ScreenshotToolPage = ({ route, navigation }) => {
                                     >
                                         <Ionicons name="logo-google" size={16} color={colors.white} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => shareFile(fileUrl, isCloud ? item.filename : 'screenshot.jpg')}
-                                        style={styles.overlayBtn}
-                                    >
-                                        <Ionicons name="share-social" size={18} color={colors.white} />
-                                    </TouchableOpacity>
+                                    {isCloud && (
+                                        <TouchableOpacity
+                                            onPress={() => shareFile(fileUrl, item.filename)}
+                                            style={styles.overlayBtn}
+                                        >
+                                            <Ionicons name="share-social" size={18} color={colors.white} />
+                                        </TouchableOpacity>
+                                    )}
                                     {!isReadOnly && (
                                         <TouchableOpacity
                                             onPress={() => deleteFile(fileId, isCloud)}

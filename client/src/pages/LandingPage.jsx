@@ -66,6 +66,13 @@ const LandingPage = () => {
     const [selectedCourseName, setSelectedCourseName] = useState(null);
     const [showCoursesDropdown, setShowCoursesDropdown] = useState(false);
 
+    // Institutes state
+    const [institutes, setInstitutes] = useState([]);
+    const [loadingInstitutes, setLoadingInstitutes] = useState(true);
+    const [selectedInstitutePage, setSelectedInstitutePage] = useState(null); // clicked institute
+    const [showPolicyModal, setShowPolicyModal] = useState(false);
+    const [activePolicyText, setActivePolicyText] = useState('');
+
     // Apply Modal States
     const [selectedInstitute, setSelectedInstitute] = useState(null);
     const [selectedCourseForApply, setSelectedCourseForApply] = useState(null);
@@ -121,18 +128,31 @@ const LandingPage = () => {
                 setLoadingCourses(true);
                 const { data } = await axios.get('/api/setup/courses?status=active');
                 setCourses(data);
-
-                // Get unique course names
                 const names = [...new Set(data.map(c => c.name))];
                 setUniqueCourses(names);
             } catch (err) {
                 console.error("Error fetching courses:", err);
-                toast.error("Failed to load available courses");
             } finally {
                 setLoadingCourses(false);
             }
         };
         fetchCourses();
+    }, []);
+
+    // Fetch institutes
+    useEffect(() => {
+        const fetchInstitutes = async () => {
+            try {
+                setLoadingInstitutes(true);
+                const { data } = await axios.get('/api/setup/institutes');
+                setInstitutes(data);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            } finally {
+                setLoadingInstitutes(false);
+            }
+        };
+        fetchInstitutes();
     }, []);
 
     // Fetch user's applications
@@ -392,7 +412,7 @@ const LandingPage = () => {
                     {/* Track Applications inside Header */}
                     {!showLockModal && guestSession && (
                         <button
-                            onClick={() => setShowApplicationsPanel(true)}
+                            onClick={() => navigate(`/track-applications?phone=${encodeURIComponent(guestSession.phone)}&name=${encodeURIComponent(guestSession.username)}`)}
                             className="flex items-center space-x-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold text-xs md:text-sm"
                         >
                             <FileText size={16} />
@@ -496,7 +516,7 @@ const LandingPage = () => {
                 {!showLockModal && (
                     <AnimatePresence mode="wait">
                         {!selectedCourseName ? (
-                            /* ─── Hero / Browse Grid ─── */
+                            /* ─── Courses First + Hero Below ─── */
                             <motion.div
                                 key="hero-browse"
                                 initial={{ opacity: 0, y: 15 }}
@@ -504,66 +524,25 @@ const LandingPage = () => {
                                 exit={{ opacity: 0, y: -15 }}
                                 className="space-y-12"
                             >
-                                {/* Hero section */}
-                                <div className="text-center max-w-3xl mx-auto space-y-6 py-8">
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.5 }}
-                                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-105 text-indigo-600 rounded-full text-xs font-semibold tracking-wider uppercase mb-2"
-                                    >
-                                        <Compass size={12} /> Welcome to the LMS explorer
-                                    </motion.div>
-                                    <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-none bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent">
-                                        Find Your Path to Excellence
-                                    </h1>
-                                    <p className="text-slate-500 text-base md:text-lg leading-relaxed">
-                                        Explore available courses across top registered institutes. Apply directly in seconds and track your applications seamlessly in real time.
-                                    </p>
-                                </div>
-
-                                {/* LMS Platform Statistics banner */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto py-4">
-                                    {[
-                                        { count: "25+", label: "Affiliated Hubs", desc: "Top Vetted Institutes", icon: Building, color: "text-indigo-600 bg-indigo-50/50" },
-                                        { count: "120+", label: "Course Streams", desc: "Syllabi for Hot Roles", icon: BookOpen, color: "text-emerald-500 bg-emerald-50/50" },
-                                        { count: "10k+", label: "Active Students", desc: "Connected Portals", icon: GraduationCap, color: "text-blue-500 bg-blue-50/50" },
-                                        { count: "99.8%", label: "Evaluation Rate", desc: "Instant Grading System", icon: CheckCircle, color: "text-purple-500 bg-purple-50/50" }
-                                    ].map((stat, idx) => {
-                                        const IconComp = stat.icon;
-                                        return (
-                                            <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-                                                <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
-                                                <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mx-auto mb-3 text-sm`}>
-                                                    <IconComp size={18} />
-                                                </div>
-                                                <h4 className="text-2xl font-black text-slate-900 leading-none">{stat.count}</h4>
-                                                <p className="text-[11px] font-bold text-slate-800 mt-1.5 leading-none">{stat.label}</p>
-                                                <p className="text-[9px] text-slate-400 font-medium mt-1 leading-none">{stat.desc}</p>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Unique Courses Section */}
-                                <div className="space-y-6">
+                                {/* ── COURSES SECTION (First, Simplified 4-per-row) ── */}
+                                <div className="space-y-5">
                                     <h2 className="text-2xl font-bold tracking-tight text-slate-900 border-l-4 border-indigo-500 pl-3">
-                                        Browse Available Courses
+                                        Browse Courses
                                     </h2>
 
                                     {loadingCourses ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            {[1, 2, 3].map(n => (
-                                                <div key={n} className="bg-white border border-slate-200 rounded-3xl p-6 h-48 animate-pulse space-y-4 shadow-sm">
-                                                    <div className="h-6 bg-slate-100 rounded w-1/2"></div>
-                                                    <div className="h-4 bg-slate-100 rounded w-3/4"></div>
-                                                    <div className="h-4 bg-slate-100 rounded w-full"></div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {[1, 2, 3, 4].map(n => (
+                                                <div key={n} className="bg-white border border-slate-200 rounded-2xl p-5 h-40 animate-pulse space-y-3">
+                                                    <div className="h-4 bg-slate-100 rounded w-3/4" />
+                                                    <div className="h-3 bg-slate-100 rounded w-full" />
+                                                    <div className="h-3 bg-slate-100 rounded w-2/3" />
                                                 </div>
                                             ))}
                                         </div>
                                     ) : uniqueCourses.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {uniqueCourses.map((courseName, idx) => {
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {uniqueCourses.map((courseName) => {
                                                 const matchCourses = courses.filter(c => c.name === courseName);
                                                 const previewCourse = matchCourses[0];
                                                 const instituteCount = matchCourses.length;
@@ -571,38 +550,28 @@ const LandingPage = () => {
                                                 return (
                                                     <motion.div
                                                         key={courseName}
-                                                        whileHover={{ y: -6, scale: 1.01 }}
-                                                        transition={{ duration: 0.2 }}
-                                                        className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:border-indigo-505 hover:shadow-xl hover:shadow-indigo-100/50 transition-all flex flex-col justify-between group relative overflow-hidden shadow-sm"
+                                                        whileHover={{ y: -4, boxShadow: '0 12px 32px rgba(99,102,241,0.10)' }}
+                                                        transition={{ duration: 0.18 }}
+                                                        className="bg-white border border-slate-100 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-200 transition-all shadow-sm"
                                                     >
-                                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                                                        <div className="space-y-4">
-                                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-650 flex items-center justify-center font-bold">
-                                                                <BookOpen size={24} />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <h3 className="font-extrabold text-slate-800 text-lg leading-tight group-hover:text-indigo-650 transition-colors">
-                                                                    {courseName}
-                                                                </h3>
-                                                                <span className="text-[10px] bg-slate-50 text-slate-500 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest inline-block border border-slate-200">
-                                                                    {previewCourse?.code || 'PROGRAM'}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-slate-500 text-xs line-clamp-3 leading-relaxed">
-                                                                {previewCourse?.description || 'Learn and master critical subject matter through verified comprehensive LMS curriculum.'}
+                                                        <div className="space-y-2 flex-1">
+                                                            <h3 className="font-extrabold text-slate-800 text-sm leading-snug">
+                                                                {courseName}
+                                                            </h3>
+                                                            <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3">
+                                                                {previewCourse?.description || 'Comprehensive LMS curriculum designed by experienced educators.'}
                                                             </p>
                                                         </div>
 
-                                                        <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
-                                                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
-                                                                <Building size={14} className="text-slate-400" />
-                                                                <span className="text-slate-500">Available at {instituteCount} {instituteCount === 1 ? 'Institute' : 'Institutes'}</span>
-                                                            </div>
+                                                        <div className="mt-4 space-y-2">
+                                                            <p className="text-[10px] font-semibold text-slate-400">
+                                                                Available at {instituteCount} {instituteCount === 1 ? 'Institute' : 'Institutes'}
+                                                            </p>
                                                             <button
                                                                 onClick={() => setSelectedCourseName(courseName)}
-                                                                className="text-xs font-bold text-indigo-650 hover:text-indigo-800 flex items-center gap-1 hover:gap-2 transition-all"
+                                                                className="w-full text-xs font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 py-1.5 rounded-xl transition-all"
                                                             >
-                                                                Explore <ArrowRight size={14} />
+                                                                Explore →
                                                             </button>
                                                         </div>
                                                     </motion.div>
@@ -610,87 +579,77 @@ const LandingPage = () => {
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl max-w-md mx-auto shadow-sm">
-                                            <HelpCircle size={36} className="mx-auto text-slate-400 mb-3" />
-                                            <p className="text-slate-650 text-sm font-bold">No active courses found.</p>
+                                        <div className="p-10 text-center bg-white border border-slate-200 rounded-2xl">
+                                            <HelpCircle size={32} className="mx-auto text-slate-300 mb-3" />
+                                            <p className="text-slate-500 text-sm font-bold">No active courses found.</p>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Core Features Grid */}
-                                <div className="space-y-6 pt-8 border-t border-slate-100">
-                                    <div className="text-center max-w-2xl mx-auto space-y-2">
-                                        <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">Core Pillars</span>
-                                        <h3 className="text-2xl font-bold tracking-tight text-slate-900">Why Choose the LMSPortal Ecosystem?</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">
-                                            We bridge the gap between educational hubs, dedicated instructors, and ambitious students through next-generation portals.
+                                {/* ── HERO / STATS SECTION (Below) ── */}
+                                <div className="pt-8 border-t border-slate-100 space-y-10">
+                                    <div className="text-center max-w-3xl mx-auto space-y-4 py-4">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.5 }}
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-full text-xs font-semibold tracking-wider uppercase"
+                                        >
+                                            <Compass size={12} /> Welcome to the LMS explorer
+                                        </motion.div>
+                                        <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-none bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent">
+                                            Find Your Path to Excellence
+                                        </h2>
+                                        <p className="text-slate-500 text-base leading-relaxed">
+                                            Explore available courses across top registered institutes. Apply directly in seconds and track your applications seamlessly in real time.
                                         </p>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
                                         {[
-                                            {
-                                                title: "Isolated College Gateways",
-                                                desc: "Each institute manages their own courses, tests, teachers, and editor groups without database leaks or crossover access.",
-                                                icon: Shield,
-                                                color: "text-indigo-600 bg-indigo-50"
-                                            },
-                                            {
-                                                title: "Personalized Study Portals",
-                                                desc: "Students enjoy a central area to track syllabi, explore files, take online exams, and receive teacher assessments in real-time.",
-                                                icon: Sparkles,
-                                                color: "text-emerald-500 bg-emerald-50"
-                                            },
-                                            {
-                                                title: "Interactive Sandbox Previews",
-                                                desc: "Applied guests can simulate tests, try chatbot support, and explore program files instantly before admissions are processed.",
-                                                icon: Compass,
-                                                color: "text-blue-500 bg-blue-50"
-                                            }
-                                        ].map((feature, i) => {
-                                            const IconC = feature.icon;
+                                            { count: "25+", label: "Affiliated Hubs", desc: "Top Vetted Institutes", icon: Building, color: "text-indigo-600 bg-indigo-50/50" },
+                                            { count: "120+", label: "Course Streams", desc: "Syllabi for Hot Roles", icon: BookOpen, color: "text-emerald-500 bg-emerald-50/50" },
+                                            { count: "10k+", label: "Active Students", desc: "Connected Portals", icon: GraduationCap, color: "text-blue-500 bg-blue-50/50" },
+                                            { count: "99.8%", label: "Evaluation Rate", desc: "Instant Grading System", icon: CheckCircle, color: "text-purple-500 bg-purple-50/50" }
+                                        ].map((stat, idx) => {
+                                            const IconComp = stat.icon;
                                             return (
-                                                <div key={i} className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm hover:shadow-lg transition-all space-y-4 hover:-translate-y-1 duration-300 font-sans">
-                                                    <div className={`w-12 h-12 rounded-2xl ${feature.color} flex items-center justify-center font-bold text-indigo-600`}>
-                                                        <IconC size={22} className={feature.color.replace('bg-', 'text-')} />
+                                                <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
+                                                    <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mx-auto mb-3`}>
+                                                        <IconComp size={18} />
                                                     </div>
-                                                    <h4 className="font-extrabold text-slate-800 text-sm">{feature.title}</h4>
-                                                    <p className="text-slate-505 text-xs leading-relaxed">{feature.desc}</p>
+                                                    <h4 className="text-2xl font-black text-slate-900 leading-none">{stat.count}</h4>
+                                                    <p className="text-[11px] font-bold text-slate-800 mt-1.5 leading-none">{stat.label}</p>
+                                                    <p className="text-[9px] text-slate-400 font-medium mt-1 leading-none">{stat.desc}</p>
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                </div>
 
-                                {/* About Us Story Section */}
-                                <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm font-sans">
-                                    <div className="space-y-4 flex-1">
-                                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                                            <Award size={14} className="text-indigo-500" />
-                                            <span>About Our Learning Platform</span>
+                                    {/* Core Features */}
+                                    <div className="space-y-5">
+                                        <div className="text-center max-w-2xl mx-auto space-y-2">
+                                            <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">Core Pillars</span>
+                                            <h3 className="text-2xl font-bold tracking-tight text-slate-900">Why Choose the LMSPortal Ecosystem?</h3>
                                         </div>
-                                        <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-snug">
-                                            Empowering Education Through Smart Digital Portals
-                                        </h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">
-                                            LMSPortal was engineered to digitize traditional educational environments into secure, decoupled cloud nodes. Our architecture allows schools, colleges, and coaching classes to operate their digital syllabus systems securely while keeping students engaged.
-                                        </p>
-                                        <p className="text-slate-500 text-xs leading-relaxed">
-                                            With integrated SMS validation, dynamic student account conversion, isolated folders, and interactive exam assessors, we ensure that modern digital learning is smooth, intuitive, and extremely fast.
-                                        </p>
-                                    </div>
-                                    <div className="w-full md:w-80 bg-slate-900 text-slate-300 p-6 rounded-3xl space-y-4 border border-slate-850 relative overflow-hidden shadow-xl self-stretch flex flex-col justify-between">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-                                        <div className="space-y-2">
-                                            <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Global Outreach</div>
-                                            <h4 className="text-base font-extrabold text-white font-sans">Connecting Institutes</h4>
-                                            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-                                                We enable seamless integration for colleges to scale their exams and manage courses across dozens of unique subject categories.
-                                            </p>
-                                        </div>
-                                        <div className="pt-4 border-t border-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">
-                                            <span>Active Ecosystem</span>
-                                            <span className="text-emerald-400">99% uptime</span>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                            {[
+                                                { title: "Isolated College Gateways", desc: "Each institute manages their own courses, tests, teachers, and editor groups without database leaks or crossover access.", icon: Shield, color: "text-indigo-600 bg-indigo-50" },
+                                                { title: "Personalized Study Portals", desc: "Students enjoy a central area to track syllabi, explore files, take online exams, and receive teacher assessments in real-time.", icon: Sparkles, color: "text-emerald-500 bg-emerald-50" },
+                                                { title: "Interactive Sandbox Previews", desc: "Applied guests can simulate tests, try chatbot support, and explore program files instantly before admissions are processed.", icon: Compass, color: "text-blue-500 bg-blue-50" }
+                                            ].map((feature, i) => {
+                                                const IconC = feature.icon;
+                                                return (
+                                                    <div key={i} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all space-y-3 hover:-translate-y-1 duration-300">
+                                                        <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center`}>
+                                                            <IconC size={20} />
+                                                        </div>
+                                                        <h4 className="font-extrabold text-slate-800 text-sm">{feature.title}</h4>
+                                                        <p className="text-slate-500 text-xs leading-relaxed">{feature.desc}</p>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -759,50 +718,108 @@ const LandingPage = () => {
                                     </h2>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {getInstitutesForSelectedCourse().map((courseObj) => {
+                                        {getInstitutesForSelectedCourse().map((courseObj, idx) => {
                                             const inst = courseObj.institute;
                                             if (!inst) return null;
 
                                             return (
                                                 <motion.div
                                                     key={courseObj._id}
-                                                    whileHover={{ y: -6 }}
-                                                    transition={{ duration: 0.2 }}
-                                                    className="bg-white border border-slate-100 rounded-[2rem] p-6 flex flex-col justify-between hover:border-indigo-500/25 hover:shadow-xl hover:shadow-indigo-100/50 transition-all group shadow-sm"
+                                                    whileHover={{ y: -4, scale: 1.005 }}
+                                                    transition={{ duration: 0.18 }}
+                                                    className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all overflow-hidden flex flex-col justify-between"
                                                 >
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-650 flex items-center justify-center font-bold">
-                                                                <Building size={24} />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-extrabold text-slate-800 text-base leading-tight group-hover:text-indigo-650 transition-colors">
-                                                                    {inst.name}
-                                                                </h3>
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{inst.code}</p>
-                                                            </div>
+                                                    <div>
+                                                        {/* Top Image / Colored Block */}
+                                                        <div className={`w-full h-32 flex items-center justify-center relative overflow-hidden ${
+                                                            ['bg-indigo-600', 'bg-emerald-600', 'bg-blue-600', 'bg-purple-600', 'bg-rose-600', 'bg-amber-600'][idx % 6]
+                                                        }`}>
+                                                            {inst.imageUrl ? (
+                                                                <img src={inst.imageUrl} alt={inst.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="text-center p-4">
+                                                                    <div className="text-4xl font-black text-white/90 leading-none">{inst.name?.charAt(0)}</div>
+                                                                    <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1.5">{inst.code}</div>
+                                                                </div>
+                                                            )}
+                                                            {/* T&C Badge */}
+                                                            {inst.termsAndPolicies && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActivePolicyText(inst.termsAndPolicies);
+                                                                        setShowPolicyModal(true);
+                                                                    }}
+                                                                    className="absolute top-2 right-2 text-[8px] font-black text-white/80 bg-black/40 hover:bg-black/60 px-2 py-0.5 rounded transition-all"
+                                                                >
+                                                                    T&C'S APPLY
+                                                                </button>
+                                                            )}
                                                         </div>
 
-                                                        <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-                                                            {inst.contactEmail && (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Mail size={14} className="text-slate-400 flex-shrink-0" />
-                                                                    <span className="truncate">{inst.contactEmail}</span>
+                                                        {/* Main Content Area */}
+                                                        <div className="p-5 space-y-3">
+                                                            <div>
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{inst.code}</span>
+                                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                                                                        Admissions Open
+                                                                    </span>
                                                                 </div>
-                                                            )}
-                                                            {inst.address && (
-                                                                <div className="flex items-start gap-2">
-                                                                    <MapPin size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
-                                                                    <span className="line-clamp-2">{inst.address}</span>
-                                                                </div>
-                                                            )}
+                                                                <h3 className="font-extrabold text-slate-800 text-base leading-tight mt-1 transition-colors">
+                                                                    {inst.name}
+                                                                </h3>
+                                                            </div>
+
+                                                            <div className="w-8 h-0.5 bg-indigo-400 rounded" />
+
+                                                            <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
+                                                                {inst.description || `Welcome to ${inst.name}. Explore this program syllabus and apply directly to secure your seats.`}
+                                                            </p>
+
+                                                            {/* Contact details */}
+                                                            <div className="pt-2 border-t border-slate-50 space-y-1.5 text-[11px] text-slate-500 font-medium">
+                                                                {inst.contactEmail && (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Mail size={12} className="text-slate-400 flex-shrink-0" />
+                                                                        <span className="truncate">{inst.contactEmail}</span>
+                                                                    </div>
+                                                                )}
+                                                                {inst.phone && (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Phone size={12} className="text-slate-400 flex-shrink-0" />
+                                                                        <span>{inst.phone}</span>
+                                                                    </div>
+                                                                )}
+                                                                {inst.helplineNumber && (
+                                                                    <div className="flex items-center gap-2 text-emerald-600">
+                                                                        <Phone size={12} className="flex-shrink-0" />
+                                                                        <span>Helpline: {inst.helplineNumber}</span>
+                                                                        <span className="text-[8px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full font-extrabold uppercase scale-90">24/7</span>
+                                                                    </div>
+                                                                )}
+                                                                {inst.address && (
+                                                                    <div className="flex items-start gap-2 text-slate-400">
+                                                                        <MapPin size={12} className="mt-0.5 flex-shrink-0" />
+                                                                        <span className="line-clamp-1">{inst.address}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
-                                                        <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                                            Admissions Open
-                                                        </span>
+                                                    {/* Card Actions at Bottom */}
+                                                    <div className="p-5 pt-0 border-t border-slate-50 flex items-center justify-between gap-2 mt-2">
+                                                        <div>
+                                                            {courseObj.syllabusUrl && (
+                                                                <button
+                                                                    onClick={() => window.open(courseObj.syllabusUrl, '_blank')}
+                                                                    className="flex items-center gap-1 px-3 py-2 border border-slate-200 hover:border-indigo-650 hover:bg-indigo-50 text-slate-650 hover:text-indigo-650 font-bold rounded-xl text-xs transition-all"
+                                                                >
+                                                                    <FileText size={12} /> Syllabus
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         <button
                                                             onClick={() => handleOpenApplyModal(courseObj)}
                                                             className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/15"
@@ -1862,6 +1879,48 @@ const LandingPage = () => {
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ─────────────── TERMS & POLICIES MODAL ─────────────── */}
+            <AnimatePresence>
+                {showPolicyModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.6 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowPolicyModal(false)}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                            className="bg-white border border-slate-200 rounded-[2rem] p-6 max-w-md w-full relative z-[110] shadow-2xl space-y-4 text-slate-800"
+                        >
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                <h3 className="font-extrabold text-slate-900 text-base">Institute Terms & Policies</h3>
+                                <button
+                                    onClick={() => setShowPolicyModal(false)}
+                                    className="p-1 text-slate-400 hover:text-slate-650 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <div className="text-xs text-slate-600 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap pr-1">
+                                {activePolicyText || "No custom terms or policies specified by this institute."}
+                            </div>
+                            <div className="pt-2 flex justify-end">
+                                <button
+                                    onClick={() => setShowPolicyModal(false)}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-650/10"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </motion.div>
                     </div>

@@ -25,6 +25,12 @@ const courseSchema = new mongoose.Schema({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+    syllabusUrl: String,           // URL to syllabus (either uploaded file or external link)
+    syllabusType: {
+        type: String,
+        enum: ['link', 'file'],
+        default: 'link'
     }
 }, {
     timestamps: true

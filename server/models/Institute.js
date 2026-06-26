@@ -12,7 +12,13 @@ const instituteSchema = new mongoose.Schema({
         unique: true
     },
     address: String,
-    contactEmail: String
+    contactEmail: String,
+    // New extended fields
+    imageUrl: String,              // Institute logo/banner image
+    description: String,           // About the institute
+    termsAndPolicies: String,      // Terms & admission policies
+    phone: String,                 // Primary contact number
+    helplineNumber: String,        // 24/7 active helpline number
 }, {
     timestamps: true
 });

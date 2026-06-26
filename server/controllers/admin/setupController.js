@@ -27,6 +27,11 @@ const getInstitutes = asyncHandler(async (req, res) => {
                 code: 1,
                 address: 1,
                 contactEmail: 1,
+                imageUrl: 1,
+                description: 1,
+                termsAndPolicies: 1,
+                phone: 1,
+                helplineNumber: 1,
                 courseCount: { $size: '$courses' },
                 courses: { $slice: ['$courses', 5] } // Just some preview courses
             }
@@ -49,11 +54,49 @@ const getInstituteDetails = asyncHandler(async (req, res) => {
     res.json({ ...institute._doc, courses });
 });
 
+// @desc    Upload institute image
+// @route   POST /api/setup/institutes/upload-image
+// @access  Private/Admin
+const uploadInstituteImageController = asyncHandler(async (req, res) => {
+    const { uploadInstituteImage } = require('../../middleware/uploadMiddleware');
+    uploadInstituteImage(req, res, async (err) => {
+        if (err) {
+            res.status(400);
+            return res.json({ message: err.message || 'Image upload failed' });
+        }
+        if (!req.file) {
+            res.status(400);
+            return res.json({ message: 'No image file provided' });
+        }
+        const imageUrl = `/uploads/institutes/${req.file.filename}`;
+        res.json({ imageUrl });
+    });
+});
+
+// @desc    Upload course syllabus file
+// @route   POST /api/setup/courses/upload-syllabus
+// @access  Private/Admin or Institute
+const uploadSyllabusController = asyncHandler(async (req, res) => {
+    const { uploadSyllabus } = require('../../middleware/uploadMiddleware');
+    uploadSyllabus(req, res, async (err) => {
+        if (err) {
+            res.status(400);
+            return res.json({ message: err.message || 'Syllabus upload failed' });
+        }
+        if (!req.file) {
+            res.status(400);
+            return res.json({ message: 'No syllabus file provided' });
+        }
+        const syllabusUrl = `/uploads/syllabus/${req.file.filename}`;
+        res.json({ syllabusUrl, originalName: req.file.originalname });
+    });
+});
+
 // @desc    Update institute
 // @route   PUT /api/setup/institutes/:id
 // @access  Private/Admin
 const updateInstitute = asyncHandler(async (req, res) => {
-    const { name, code, address, contactEmail, password } = req.body;
+    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber } = req.body;
     const institute = await Institute.findById(req.params.id);
 
     if (institute) {
@@ -61,6 +104,11 @@ const updateInstitute = asyncHandler(async (req, res) => {
         institute.code = code || institute.code;
         institute.address = address || institute.address;
         institute.contactEmail = contactEmail || institute.contactEmail;
+        if (imageUrl !== undefined) institute.imageUrl = imageUrl;
+        if (description !== undefined) institute.description = description;
+        if (termsAndPolicies !== undefined) institute.termsAndPolicies = termsAndPolicies;
+        if (phone !== undefined) institute.phone = phone;
+        if (helplineNumber !== undefined) institute.helplineNumber = helplineNumber;
 
         const updatedInstitute = await institute.save();
 
@@ -136,11 +184,18 @@ const createInstitute = asyncHandler(async (req, res) => {
         throw new Error('A user account with this email address already exists');
     }
 
+    const { description, termsAndPolicies, phone, helplineNumber, imageUrl } = req.body;
+
     const institute = await Institute.create({
         name,
         code,
         address,
-        contactEmail
+        contactEmail,
+        imageUrl: imageUrl || '',
+        description: description || '',
+        termsAndPolicies: termsAndPolicies || '',
+        phone: phone || '',
+        helplineNumber: helplineNumber || ''
     });
 
     // Auto-generate or accept custom password
@@ -198,7 +253,7 @@ const getCourses = asyncHandler(async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
 
     const courseExists = await Course.findOne({ code });
     if (courseExists) {
@@ -230,7 +285,9 @@ const createCourse = asyncHandler(async (req, res) => {
         institute: finalInstituteId,
         subjects: subjectsArray,
         status,
-        createdBy
+        createdBy,
+        syllabusUrl: syllabusUrl || '',
+        syllabusType: syllabusType || 'link'
     });
 
     // Log Activity
@@ -656,6 +713,8 @@ module.exports = {
     getCourses,
     createCourse,
     deleteCourse,
+    uploadInstituteImageController,
+    uploadSyllabusController,
 
     submitApplication,
     getApplications,

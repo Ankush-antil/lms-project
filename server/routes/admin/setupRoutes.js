@@ -9,6 +9,8 @@ const {
     getCourses,
     createCourse,
     deleteCourse,
+    uploadInstituteImageController,
+    uploadSyllabusController,
     submitApplication,
     getApplications,
     sendOtp,
@@ -24,6 +26,10 @@ router.route('/institutes')
     .get(getInstitutes)
     .post(protect, admin, createInstitute);
 
+// Institute image upload (must be before /institutes/:id to avoid conflict)
+router.route('/institutes/upload-image')
+    .post(protect, admin, uploadInstituteImageController);
+
 router.route('/institutes/:id')
     .get(protect, admin, getInstituteDetails)
     .put(protect, admin, updateInstitute)
@@ -35,6 +41,10 @@ router.route('/courses')
 
 router.route('/subjects')
     .get(protect, admin, getSubjects);
+
+// Syllabus upload (must be before /courses/:id)
+router.route('/courses/upload-syllabus')
+    .post(protect, adminOrInstitute, uploadSyllabusController);
 
 router.route('/courses/:id')
     .delete(protect, adminOrEditor, deleteCourse);
@@ -66,3 +76,4 @@ router.route('/applications/:id/status')
     .put(protect, adminOrInstitute, updateApplicationStatus);
 
 module.exports = router;
+

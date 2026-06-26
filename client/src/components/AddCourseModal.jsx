@@ -1,17 +1,22 @@
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { X } from 'lucide-react';
+import { X, Upload, Link as LinkIcon, FileText, BookOpen } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
     const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
     const [formData, setFormData] = useState({
-        name: '', code: '', description: '', instituteId: '', subjects: ''
+        name: '', code: '', description: '', instituteId: '', subjects: '',
+        syllabusUrl: '', syllabusType: 'link'
     });
+    const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
+    const [syllabusFile, setSyllabusFile] = useState(null);
+    const [syllabusUploading, setSyllabusUploading] = useState(false);
     const [loading, setLoading] = useState(false);
+    const syllabusFileRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -25,27 +30,47 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 name: '',
                 code: '',
                 description: '',
-                instituteId: user && user.institute 
-                    ? (typeof user.institute === 'object' ? user.institute._id : user.institute) 
+                instituteId: user && user.institute
+                    ? (typeof user.institute === 'object' ? user.institute._id : user.institute)
                     : '',
-                subjects: ''
+                subjects: '',
+                syllabusUrl: '',
+                syllabusType: 'link'
             });
+            setSyllabusMode('link');
+            setSyllabusFile(null);
         }
     }, [isOpen, user]);
+
+    const handleSyllabusFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setSyllabusFile(file);
+        setSyllabusUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append('syllabus', file);
+            const { data } = await axios.post('/api/setup/courses/upload-syllabus', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setFormData(prev => ({ ...prev, syllabusUrl: data.syllabusUrl, syllabusType: 'file' }));
+            toast.success(`Syllabus uploaded: ${data.originalName}`);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Syllabus upload failed');
+            setSyllabusFile(null);
+        } finally {
+            setSyllabusUploading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-
-            
-
             await axios.post('/api/setup/courses', formData);
-
             setLoading(false);
             onClose();
             if (refreshData) refreshData();
-            
             if (user?.role === 'Editor') {
                 toast.success('Course submitted for Admin approval!');
             } else {
@@ -61,10 +86,13 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+            <div className="bg-white w-full max-w-xl md:max-h-[92vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
                 <div className="h-24 bg-[#0b1329] relative flex-shrink-0">
-                    <div className="absolute inset-0 flex items-center px-8">
+                    <div className="absolute inset-0 flex items-center px-8 gap-3">
+                        <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
+                            <BookOpen size={20} className="text-indigo-400" />
+                        </div>
                         <h3 className="text-xl font-black text-white tracking-tight">Add New Course</h3>
                     </div>
                     <button
@@ -76,13 +104,15 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                 </div>
 
                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 gap-4">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+
+                        {/* Institute selector */}
+                        <div>
                             {user?.role !== 'Institute' && user?.role !== 'Editor' ? (
-                                <div>
+                                <>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Institute</label>
                                     <select
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all appearance-none cursor-pointer"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all appearance-none cursor-pointer"
                                         required
                                         value={formData.instituteId}
                                         onChange={e => setFormData({ ...formData, instituteId: e.target.value })}
@@ -92,52 +122,48 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                             <option key={inst._id} value={inst._id}>{inst.name}</option>
                                         ))}
                                     </select>
-                                </div>
+                                </>
                             ) : (
-                                <div>
+                                <>
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
                                     <div className="w-full bg-slate-100/70 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-500 cursor-not-allowed">
                                         {user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Assigned Institute')}
                                     </div>
-                                </div>
+                                </>
                             )}
+                        </div>
+
+                        {/* Course Name */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Name</label>
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                required
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="e.g. B.Tech Computer Science"
+                            />
+                        </div>
+
+                        {/* Code + Subjects */}
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Name</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Code</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
                                     required
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g. B.Tech Computer Science"
+                                    value={formData.code}
+                                    onChange={e => setFormData({ ...formData, code: e.target.value })}
+                                    placeholder="CSE-2024"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Code</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
-                                        required
-                                        value={formData.code}
-                                        onChange={e => setFormData({ ...formData, code: e.target.value })}
-                                        placeholder="CSE-2024"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch/Year</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
-                                        placeholder="2024"
-                                    />
-                                </div>
-                            </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects (comma separated)</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
                                     required
                                     value={formData.subjects}
                                     onChange={e => setFormData({ ...formData, subjects: e.target.value })}
@@ -146,12 +172,93 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                             </div>
                         </div>
 
+                        {/* Description */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Description</label>
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[100px] resize-none"
+                                value={formData.description}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Brief description about this course — objectives, eligibility, duration, etc."
+                            />
+                        </div>
+
+                        {/* Syllabus Section */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
+                                <FileText size={12} /> Upload Syllabus
+                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-semibold uppercase ml-1">Optional</span>
+                            </label>
+
+                            {/* Mode toggle */}
+                            <div className="flex bg-slate-50 border border-slate-100 rounded-xl p-1 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setSyllabusMode('link')}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${syllabusMode === 'link' ? 'bg-white shadow text-slate-800 border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <LinkIcon size={12} /> Paste Link
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSyllabusMode('file')}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${syllabusMode === 'file' ? 'bg-white shadow text-slate-800 border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <Upload size={12} /> Upload File
+                                </button>
+                            </div>
+
+                            {syllabusMode === 'link' ? (
+                                <input
+                                    type="url"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                    value={formData.syllabusType === 'link' ? formData.syllabusUrl : ''}
+                                    onChange={e => setFormData({ ...formData, syllabusUrl: e.target.value, syllabusType: 'link' })}
+                                    placeholder="https://drive.google.com/... or any URL"
+                                />
+                            ) : (
+                                <div>
+                                    <input
+                                        ref={syllabusFileRef}
+                                        type="file"
+                                        accept=".pdf,.doc,.docx"
+                                        className="hidden"
+                                        onChange={handleSyllabusFileUpload}
+                                    />
+                                    <div
+                                        onClick={() => syllabusFileRef.current?.click()}
+                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-6 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
+                                    >
+                                        {syllabusUploading ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                                <p className="text-xs text-indigo-600 font-bold">Uploading...</p>
+                                            </div>
+                                        ) : syllabusFile && formData.syllabusUrl ? (
+                                            <div className="flex flex-col items-center gap-1">
+                                                <FileText size={20} className="text-emerald-500" />
+                                                <p className="text-xs font-bold text-emerald-700">{syllabusFile.name}</p>
+                                                <p className="text-[10px] text-slate-400">Uploaded successfully ✓ — click to change</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Upload size={20} className="text-slate-400" />
+                                                <p className="text-xs font-bold text-slate-600">Click to upload PDF / Word</p>
+                                                <p className="text-[10px] text-slate-400">PDF, DOC, DOCX — max 10MB</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50"
+                            className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading ? 'Adding Course...' : 'Create Course'}
+                            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {loading ? 'Creating Course...' : 'Create Course'}
                         </button>
                     </form>
                 </div>

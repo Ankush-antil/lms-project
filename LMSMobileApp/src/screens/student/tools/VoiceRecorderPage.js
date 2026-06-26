@@ -46,6 +46,40 @@ const VoiceRecorderPage = ({ route, navigation }) => {
     const [soundInstance, setSoundInstance] = useState(null);
 
     const timerRef = useRef(null);
+    const [volumeLevel, setVolumeLevel] = useState(0);
+
+    const getVoiceLevelText = () => {
+        if (volumeLevel === 0) return "Silent";
+        if (volumeLevel < 0.2) return "Quiet 🤫";
+        if (volumeLevel < 0.55) return "Normal 🗣️";
+        return "Loud! 🔊";
+    };
+
+    const renderVisualizer = () => {
+        const barCounts = 15;
+        const bars = [];
+        for (let i = 0; i < barCounts; i++) {
+            const multiplier = 0.3 + 0.7 * Math.sin((i / barCounts) * Math.PI);
+            const dynamicHeight = Math.max(4, volumeLevel * 80 * multiplier * (0.8 + 0.4 * Math.random()));
+            bars.push(
+                <View
+                    key={i}
+                    style={[
+                        styles.visualizerBar,
+                        {
+                            height: dynamicHeight,
+                            backgroundColor: volumeLevel > 0.65 ? '#ef4444' : colors.accent,
+                        }
+                    ]}
+                />
+            );
+        }
+        return (
+            <View style={styles.visualizerContainer}>
+                {bars}
+            </View>
+        );
+    };
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -137,9 +171,26 @@ const VoiceRecorderPage = ({ route, navigation }) => {
             });
 
             setDuration(0);
-            const { recording: newRecording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
+            setVolumeLevel(0);
+
+            const newRecording = new Audio.Recording();
+            const recordingOptions = {
+                ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                isMeteringEnabled: true
+            };
+
+            await newRecording.prepareToRecordAsync(recordingOptions);
+            await newRecording.setProgressUpdateInterval(100);
+
+            newRecording.setOnRecordingStatusUpdate((status) => {
+                if (status.isRecording) {
+                    const db = status.metering || -160;
+                    const normalizedVolume = Math.max(0, Math.min(1, (db + 60) / 50));
+                    setVolumeLevel(normalizedVolume);
+                }
+            });
+
+            await newRecording.startAsync();
             setRecording(newRecording);
             setIsRecording(true);
         } catch (err) {
@@ -153,6 +204,7 @@ const VoiceRecorderPage = ({ route, navigation }) => {
         if (!recording) return;
         try {
             setIsRecording(false);
+            setVolumeLevel(0);
             await recording.stopAndUnloadAsync();
             const uri = recording.getURI();
             setRecording(null);
@@ -353,8 +405,14 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                 <View style={styles.recorderContainer}>
                     <Text style={styles.timerText}>{formatTime(duration)}</Text>
                     {isRecording ? (
-                        <View style={styles.recordingPulse}>
-                            <View style={styles.pulseInner} />
+                        <View style={styles.visualizerWrapper}>
+                            {renderVisualizer()}
+                            <Text style={[
+                                styles.voiceLevelText,
+                                { color: volumeLevel > 0.65 ? '#ef4444' : colors.accent }
+                            ]}>
+                                Volume: {getVoiceLevelText()}
+                            </Text>
                         </View>
                     ) : (
                         <Text style={styles.statusLabel}>Tap to start recording</Text>
@@ -755,6 +813,33 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderRadius: 18,
         backgroundColor: colors.bgSecondary
+    },
+    visualizerWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 120,
+        marginVertical: 10,
+        width: '100%'
+    },
+    visualizerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 80,
+        gap: 4,
+        width: '80%'
+    },
+    visualizerBar: {
+        width: 6,
+        borderRadius: 3,
+        minHeight: 4,
+        backgroundColor: colors.accent
+    },
+    voiceLevelText: {
+        fontSize: fontSizes.sm,
+        fontWeight: '800',
+        marginTop: 10,
+        textTransform: 'uppercase'
     }
 });
 

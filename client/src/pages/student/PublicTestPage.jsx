@@ -2902,7 +2902,7 @@ const PublicTestPage = () => {
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => stopAudioRecording(idx)}
-                                                                                        className="px-4 py-2.5 bg-red-650 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                        className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
                                                                                     >
                                                                                         <Square size={14} fill="currentColor" /> Stop
                                                                                     </button>
@@ -2921,7 +2921,7 @@ const PublicTestPage = () => {
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => stopAudioRecording(idx)}
-                                                                                        className="px-4 py-2.5 bg-red-650 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                        className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
                                                                                     >
                                                                                         <Square size={14} fill="currentColor" /> Stop
                                                                                     </button>

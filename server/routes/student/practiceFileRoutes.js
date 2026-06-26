@@ -160,4 +160,22 @@ router.delete('/:id', protect, async (req, res) => {
     }
 });
 
+// @route   GET /api/practice-files/share/:id
+// @desc    Get public share info for a practice file (no auth required)
+// @access  Public
+router.get('/share/:id', async (req, res) => {
+    try {
+        const file = await PracticeFile.findById(req.params.id).select(
+            'filename fileUrl mimeType size metadata toolType createdAt'
+        );
+        if (!file) {
+            return res.status(404).json({ message: 'Recording not found or has been deleted.' });
+        }
+        res.json({ file });
+    } catch (err) {
+        console.error('[Share Practice File Error]', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
 module.exports = router;

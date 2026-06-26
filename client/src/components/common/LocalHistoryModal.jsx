@@ -1,8 +1,270 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
     X, ChevronRight, Eye, Trash, Folder, FolderOpen, 
     ArrowLeft, RefreshCw, Camera, Video, Mic, Phone, FileText, Download, Loader2, Upload
 } from 'lucide-react';
+
+// --- Custom WaveformPlayer Component for Modal ---
+const WaveformPlayer = ({ src, id, durationStr }) => {
+    const audioRef = useRef(null);
+    const canvasRef = useRef(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+
+    const parseTimeToSeconds = (timeStr) => {
+        if (!timeStr) return 0;
+        const parts = String(timeStr).split(':').map(Number);
+        if (parts.some(isNaN)) return 0;
+        if (parts.length === 2) {
+            return parts[0] * 60 + parts[1];
+        } else if (parts.length === 3) {
+            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        return 0;
+    };
+
+    const [duration, setDuration] = useState(() => {
+        if (durationStr) {
+            return parseTimeToSeconds(durationStr);
+        }
+        return 0;
+    });
+
+    useEffect(() => {
+        if (durationStr) {
+            setDuration(parseTimeToSeconds(durationStr));
+        }
+    }, [durationStr]);
+
+    const peaks = useMemo(() => {
+        const seed = String(id || src).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        let rand = seed;
+        const lcg = () => {
+            rand = (rand * 1664525 + 1013904223) % 4294967296;
+            return rand / 4294967296;
+        };
+        const numPeaks = 45;
+        const res = [];
+        for (let i = 0; i < numPeaks; i++) {
+            res.push(0.15 + lcg() * 0.7);
+        }
+        return res;
+    }, [id, src]);
+
+    const handlePlayPause = () => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (isPlaying) {
+            audio.pause();
+        } else {
+            audio.play().catch(e => console.error("Audio playback error:", e));
+        }
+    };
+
+    const handleTimeUpdate = () => {
+        if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+        }
+    };
+
+    const handleLoadedMetadata = () => {
+        if (audioRef.current) {
+            const audioDuration = audioRef.current.duration;
+            if (audioDuration && audioDuration !== Infinity && !isNaN(audioDuration)) {
+                setDuration(audioDuration);
+            }
+        }
+    };
+
+    const handleAudioEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+    };
+
+    const handleCanvasClick = (e) => {
+        const canvas = canvasRef.current;
+        const audio = audioRef.current;
+        if (!canvas || !audio || duration === 0) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const cx = rect.width / 2;
+
+        const barWidth = 2.5;
+        const gap = 1.5;
+        const pixelsPerSecond = (peaks.length * (barWidth + gap)) / duration;
+
+        const clickTime = audio.currentTime + (clickX - cx) / pixelsPerSecond;
+        const newTime = Math.max(0, Math.min(duration, clickTime));
+
+        audio.currentTime = newTime;
+        setCurrentTime(newTime);
+    };
+
+    useEffect(() => {
+        let animId;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const draw = () => {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.scale(dpr, dpr);
+
+            const width = rect.width;
+            const height = rect.height;
+            const centerY = height / 2;
+            const cx = width / 2; // Center playhead
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw horizontal dotted line in middle
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+
+            // Draw central solid horizontal line
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.25)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+
+            const barWidth = 1.5;
+            const gap = 0.5;
+            const curTime = audioRef.current ? audioRef.current.currentTime : 0;
+            const activeBarIndex = duration > 0 ? (curTime / duration) * peaks.length : 0;
+
+            peaks.forEach((peakHeight, i) => {
+                // Calculate position relative to center playhead
+                const x = cx + (i - activeBarIndex) * (barWidth + gap);
+
+                // Skip drawing if offscreen
+                if (x < -10 || x > width + 10) return;
+
+                // Dynamic bounce with ripple propagation
+                let factor = 1.0;
+                if (isPlaying) {
+                    const dist = Math.abs(i - activeBarIndex);
+                    const ripple = Math.exp(-dist * 0.15);
+                    const timeFactor = Date.now() * 0.015;
+                    const currentVoiceAmplitude = peaks[Math.floor(activeBarIndex)] || 0.05;
+                    factor = 1.0 + Math.sin(dist * 0.5 - timeFactor) * 0.4 * currentVoiceAmplitude * ripple;
+                }
+
+                const barHeight = peakHeight * height * 0.75 * factor;
+
+                if (barHeight > 1) {
+                    // Played vs unplayed colors
+                    if (i <= activeBarIndex) {
+                        ctx.strokeStyle = '#ef4444'; // Red
+                    } else {
+                        ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'; // Slate gray translucent
+                    }
+                    ctx.lineWidth = barWidth;
+                    ctx.beginPath();
+                    ctx.moveTo(x, centerY - barHeight / 2);
+                    ctx.lineTo(x, centerY + barHeight / 2);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw center red playhead line
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, height);
+            ctx.stroke();
+
+            // Small red circle at the top of playhead
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(cx, 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (isPlaying) {
+                animId = requestAnimationFrame(draw);
+            }
+        };
+
+        draw();
+
+        return () => {
+            if (animId) {
+                cancelAnimationFrame(animId);
+            }
+        };
+    }, [peaks, duration, isPlaying]);
+
+    const formatTime = (secs) => {
+        if (isNaN(secs)) return '00:00';
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = Math.floor(secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    };
+
+    return (
+        <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-2xl w-full h-11 border border-slate-800 shadow-inner">
+            <audio
+                ref={audioRef}
+                src={src}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={handleAudioEnded}
+            />
+            <button
+                onClick={handlePlayPause}
+                className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all active:scale-90 shrink-0"
+            >
+                {isPlaying ? (
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                ) : (
+                    <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                )}
+            </button>
+
+            <span className="text-[10px] text-slate-400 font-mono select-none min-w-[36px] text-center shrink-0">
+                {formatTime(currentTime)}
+            </span>
+
+            <div className="flex-1 h-full flex items-center cursor-pointer min-w-0">
+                <canvas
+                    ref={canvasRef}
+                    onClick={handleCanvasClick}
+                    className="w-full h-8"
+                />
+            </div>
+
+            <span className="text-[10px] text-slate-400 font-mono select-none min-w-[36px] text-center shrink-0">
+                {formatTime(duration || 0)}
+            </span>
+
+            <svg className="w-4 h-4 text-slate-400 select-none shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+        </div>
+    );
+};
 import toast from 'react-hot-toast';
 import { getLocalBlob, deleteLocalBlob } from '../../utils/indexedDB';
 
@@ -33,7 +295,7 @@ const FOLDER_COLORS = {
     "File Uploader": "bg-amber-50 border-amber-150 text-amber-700"
 };
 
-const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
+const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly, filterDate }) => {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [rawFiles, setRawFiles] = useState([]);
     
@@ -170,7 +432,8 @@ const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
                         mimeType: 'audio/wav',
                         url: '', // Loaded on demand
                         size: item.size || 'Unknown Size',
-                        createdTime: item.id ? parseInt(item.id.replace('audio_', '')) || Date.now() : Date.now()
+                        createdTime: item.id ? parseInt(item.id.replace('audio_', '')) || Date.now() : Date.now(),
+                        duration: item.duration || '00:00'
                     });
                 });
             }
@@ -227,9 +490,13 @@ const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
                 return { ...file, parsedDate: dateStr };
             });
 
+            const filteredFiles = filterDate
+                ? parsedFiles.filter(f => f.parsedDate === filterDate)
+                : parsedFiles;
+
             // Group dates (DD-MM-YYYY)
             const datesMap = {};
-            parsedFiles.forEach(f => {
+            filteredFiles.forEach(f => {
                 if (f.parsedDate !== 'Unknown Date') {
                     datesMap[f.parsedDate] = true;
                 }
@@ -243,7 +510,7 @@ const LocalHistoryModal = ({ isOpen, onClose, onRefresh, readOnly }) => {
                 return bTime - aTime; // Newest first
             });
 
-            setRawFiles(parsedFiles);
+            setRawFiles(filteredFiles);
             setDateFolders(datesList.map((d, idx) => ({ id: `date_${idx}`, name: d })));
         } catch (err) {
             console.error("Failed to load local history:", err);
@@ -745,10 +1012,7 @@ Log saved locally.`;
                                             )}
                                             {previewFile.toolType === 'Voice Recorder' && (
                                                 <div className="w-full max-w-sm text-center space-y-4 py-8">
-                                                    <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[#3E3ADD] mx-auto shadow-sm">
-                                                        <Mic size={20} />
-                                                    </div>
-                                                    <audio src={previewUrl} controls className="w-full" />
+                                                    <WaveformPlayer src={previewUrl} id={previewFile.id} durationStr={previewFile.duration || '00:00'} />
                                                 </div>
                                             )}
                                             {previewFile.toolType === 'Web-Calling Tool' && (
@@ -772,10 +1036,7 @@ Log saved locally.`;
                                                         />
                                                     ) : previewFile.mimeType.startsWith('audio/') ? (
                                                         <div className="w-full max-w-sm text-center space-y-4 py-4 mx-auto">
-                                                            <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[#3E3ADD] mx-auto shadow-sm">
-                                                                <Mic size={20} />
-                                                            </div>
-                                                            <audio src={previewUrl} controls className="w-full" />
+                                                            <WaveformPlayer src={previewUrl} id={previewFile.id} durationStr={previewFile.duration || '00:00'} />
                                                         </div>
                                                     ) : (
                                                         <div className="flex flex-col items-center gap-3">

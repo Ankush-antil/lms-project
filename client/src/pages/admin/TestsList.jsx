@@ -2110,14 +2110,14 @@ const TestsList = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleOpenSettings(test)}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                        className="p-1.5 text-slate-400 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
                                                         title="Public Settings"
                                                     >
                                                         <Settings size={15} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(test._id)}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-650 hover:bg-red-50 hover:border-red-250 rounded-lg transition-colors ml-1.5"
+                                                        className="p-1.5 text-slate-400 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
                                                         title="Delete Link"
                                                     >
                                                         <Trash2 size={15} />

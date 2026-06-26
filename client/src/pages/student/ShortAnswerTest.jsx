@@ -2365,7 +2365,7 @@ const ShortAnswerTest = () => {
                                                                                  <button
                                                                                      type="button"
                                                                                      onClick={() => stopAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-red-650 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                     className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
                                                                                  >
                                                                                      <Square size={14} fill="currentColor" /> Stop
                                                                                  </button>
@@ -2384,7 +2384,7 @@ const ShortAnswerTest = () => {
                                                                                  <button
                                                                                      type="button"
                                                                                      onClick={() => stopAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-red-650 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                     className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
                                                                                  >
                                                                                      <Square size={14} fill="currentColor" /> Stop
                                                                                  </button>
@@ -2441,7 +2441,7 @@ const ShortAnswerTest = () => {
                                                     <p className="text-xs font-bold text-slate-700">{recordingStatus[idx] === 'recording' ? '🔴 Recording...' : recordedURLs[idx] ? '✅ Response Saved' : 'Voice Answer'}</p>
 
                                                     {recordingStatus[idx] === 'recording' ? (
-                                                        <button onClick={() => stopRecording(idx)} className="px-6 py-2 bg-red-650 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                                                        <button onClick={() => stopRecording(idx)} className="px-6 py-2 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                                                             <Square size={14} fill="currentColor" /> Stop Recording
                                                         </button>
                                                     ) : (

@@ -1328,7 +1328,7 @@ const LandingPage = () => {
                                                 </div>
 
                                                 {loginError && (
-                                                    <div className="p-3 bg-red-50 border border-red-250 text-red-650 text-xs rounded-xl">
+                                                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">
                                                         {loginError}
                                                     </div>
                                                 )}

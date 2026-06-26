@@ -15,6 +15,7 @@ export const ScreenshotProvider = ({ children }) => {
 
     // States
     const [screenshots, setScreenshots] = useState([]);
+    const [drafts, setDrafts] = useState([]);
     const [stream, setStream] = useState(null);
     const [streamConnected, setStreamConnected] = useState(true);
     const [pipActive, setPipActive] = useState(false);
@@ -300,26 +301,8 @@ export const ScreenshotProvider = ({ children }) => {
             };
 
             setLatestCapture(newScreenshot);
-
-            if (saveDestination === 'drive') {
-                if (localStorage.getItem('screenshot_drive_linked') === 'true') {
-                    autoSaveToGoogleDrive(newScreenshot.url, newScreenshot.id, newScreenshot.format, newScreenshot.resolution);
-                } else {
-                    toast.error("Google Drive account is not linked. Saving locally instead.");
-                    setScreenshots(prev => {
-                        const updated = [newScreenshot, ...prev];
-                        saveToLocalStorage(updated);
-                        return updated;
-                    });
-                }
-            } else {
-                setScreenshots(prev => {
-                    const updated = [newScreenshot, ...prev];
-                    saveToLocalStorage(updated);
-                    return updated;
-                });
-                toast.success("Screenshot captured and saved locally!");
-            }
+            setDrafts(prev => [newScreenshot, ...prev]);
+            toast.success("Screenshot captured and added to drafts!");
         } catch (err) {
             console.error("Simple screenshot capture failed:", err);
             toast.error("Failed to capture screenshot.");
@@ -478,26 +461,8 @@ export const ScreenshotProvider = ({ children }) => {
             };
 
             setLatestCapture(newScreenshot);
-
-            if (saveDestination === 'drive') {
-                if (localStorage.getItem('screenshot_drive_linked') === 'true') {
-                    autoSaveToGoogleDrive(newScreenshot.url, newScreenshot.id, newScreenshot.format, newScreenshot.resolution);
-                } else {
-                    toast.error("Google Drive account is not linked. Saving locally instead.");
-                    setScreenshots(prev => {
-                        const updated = [newScreenshot, ...prev];
-                        saveToLocalStorage(updated);
-                        return updated;
-                    });
-                }
-            } else {
-                setScreenshots(prev => {
-                    const updated = [newScreenshot, ...prev];
-                    saveToLocalStorage(updated);
-                    return updated;
-                });
-                toast.success("Cropped screenshot captured and saved locally!");
-            }
+            setDrafts(prev => [newScreenshot, ...prev]);
+            toast.success("Cropped screenshot captured and added to drafts!");
         } catch (err) {
             console.error("Cropped capture failed:", err);
             toast.error("Failed to capture cropped screenshot.");
@@ -561,26 +526,8 @@ export const ScreenshotProvider = ({ children }) => {
                 };
 
                 setLatestCapture(newScreenshot);
-
-                if (saveDestination === 'drive') {
-                    if (localStorage.getItem('screenshot_drive_linked') === 'true') {
-                        autoSaveToGoogleDrive(newScreenshot.url, newScreenshot.id, newScreenshot.format, newScreenshot.resolution);
-                    } else {
-                        toast.error("Google Drive account is not linked. Saving locally instead.");
-                        setScreenshots(prev => {
-                            const updated = [newScreenshot, ...prev];
-                            saveToLocalStorage(updated);
-                            return updated;
-                        });
-                    }
-                } else {
-                    setScreenshots(prev => {
-                        const updated = [newScreenshot, ...prev];
-                        saveToLocalStorage(updated);
-                        return updated;
-                    });
-                    toast.success("Full-page scrolling screenshot captured and saved locally!");
-                }
+                setDrafts(prev => [newScreenshot, ...prev]);
+                toast.success("Full-page scrolling screenshot captured and added to drafts!");
             } catch (err) {
                 console.error("Long page capture error:", err);
                 toast.error("Failed to capture scrollable full-page screenshot.");
@@ -599,6 +546,28 @@ export const ScreenshotProvider = ({ children }) => {
             return updated;
         });
         toast.success("Screenshot deleted.");
+    };
+
+    const saveScreenshotDraft = (draft) => {
+        const newScreenshot = {
+            ...draft,
+            id: 'snap_' + Date.now(),
+            synced: false,
+            driveSynced: false
+        };
+
+        setScreenshots(prev => {
+            const updated = [newScreenshot, ...prev];
+            saveToLocalStorage(updated);
+            return updated;
+        });
+        setDrafts(prev => prev.filter(d => d.id !== draft.id));
+        toast.success("Screenshot saved locally!");
+    };
+
+    const deleteScreenshotDraft = (id) => {
+        setDrafts(prev => prev.filter(d => d.id !== id));
+        toast.success("Draft screenshot deleted.");
     };
 
     // Dragging state and handlers for the custom HTML floating toolbar widget
@@ -942,7 +911,11 @@ export const ScreenshotProvider = ({ children }) => {
             triggerActualLongScreenshot,
             deleteScreenshot,
             openPipWindow,
-            closePipWindow
+            closePipWindow,
+            drafts,
+            setDrafts,
+            saveScreenshotDraft,
+            deleteScreenshotDraft
         }}>
             {children}
 

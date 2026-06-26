@@ -7,7 +7,8 @@ import {
     FlatList,
     ActivityIndicator,
     Alert,
-    Share
+    Share,
+    Platform
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';

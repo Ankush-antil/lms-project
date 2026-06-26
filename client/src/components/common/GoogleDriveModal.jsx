@@ -478,14 +478,14 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
 
                             setUploadProgress(100);
                             setUploadState('success');
-                            if (onSaveSuccess) onSaveSuccess();
+                            if (onSaveSuccess) onSaveSuccess(driveData);
                             resolve(driveData);
                         } catch (err) {
                             console.error("LMS server local registration failed:", err);
                             // Still mark as success since Google Drive upload succeeded
                             setUploadProgress(100);
                             setUploadState('success');
-                            if (onSaveSuccess) onSaveSuccess();
+                            if (onSaveSuccess) onSaveSuccess({ id: driveData.id });
                             resolve({ id: driveData.id });
                         }
                     } else {
@@ -967,7 +967,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                     {/* Error upload view */}
                                     {uploadState === 'error' && (
                                         <div className="space-y-6 text-center py-6 animate-fade-in max-w-md mx-auto">
-                                            <div className="w-16 h-16 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto border border-red-100 shadow-md">
+                                            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-100 shadow-md">
                                                 <AlertCircle size={36} />
                                             </div>
                                             <div className="space-y-1.5">
@@ -1188,7 +1188,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                                                         </a>
                                                                         <button
                                                                             onClick={() => handleDeleteFile(file.id)}
-                                                                            className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-650"
+                                                                            className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-600"
                                                                             title="Delete File"
                                                                         >
                                                                             <Trash size={13} />
@@ -1301,7 +1301,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                                         setPreviewText('');
                                                         handleDeleteFile(fileId);
                                                     }}
-                                                    className="py-3 px-4 bg-red-50 border border-red-200 hover:bg-red-100 text-red-650 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+                                                    className="py-3 px-4 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-xl text-xs font-black transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                                                 >
                                                     <Trash size={13} /> Delete File
                                                 </button>

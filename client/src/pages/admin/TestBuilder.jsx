@@ -887,7 +887,7 @@ const QuestionBuilderCard = ({
                                                             setShowNoteDropdown(false);
                                                             toast.success("Note removed successfully!");
                                                         }}
-                                                        className="w-full px-2.5 py-1.5 hover:bg-red-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-red-650 transition-colors"
+                                                        className="w-full px-2.5 py-1.5 hover:bg-red-50 rounded text-left text-xs font-semibold flex items-center gap-2 text-red-600 transition-colors"
                                                     >
                                                         <Trash2 size={12} className="text-red-500 shrink-0" />
                                                         <span>Remove</span>

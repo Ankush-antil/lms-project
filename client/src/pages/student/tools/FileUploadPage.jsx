@@ -632,7 +632,7 @@ const FileUploadPage = () => {
                                                         </div>
                                                         <button
                                                             onClick={() => handleDeleteLocalFile(f.id)}
-                                                            className="p-1 hover:bg-red-100 rounded text-slate-455 hover:text-red-650 cursor-pointer"
+                                                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600 cursor-pointer"
                                                             title="Delete Local File"
                                                         >
                                                             <Trash size={14} />

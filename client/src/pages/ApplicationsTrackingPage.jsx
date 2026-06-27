@@ -426,15 +426,14 @@ const ApplicationsTrackingPage = () => {
 
                             <form onSubmit={handleRegisterStudentSubmit} className="space-y-4 font-sans">
                                 <div className="space-y-4">
-                                    <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
-                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Email Address</label>
+                                    <div className="border-b border-slate-200 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100 transition-all opacity-85">
+                                        <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Email Address (From Application)</label>
                                         <input
                                             type="email"
                                             value={regEmail}
-                                            onChange={(e) => setRegEmail(e.target.value)}
+                                            disabled
                                             required
-                                            placeholder="Enter your email address"
-                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
+                                            className="w-full bg-transparent border-none text-slate-500 text-xs font-semibold focus:outline-none cursor-not-allowed"
                                         />
                                     </div>
 

@@ -90,6 +90,10 @@ const LandingPage = () => {
     const [applyName, setApplyName] = useState('');
     const [applyPhone, setApplyPhone] = useState('');
     const [applyEmail, setApplyEmail] = useState('');
+    const [emailOtpSent, setEmailOtpSent] = useState(false);
+    const [emailOtpVerified, setEmailOtpVerified] = useState(false);
+    const [emailOtp, setEmailOtp] = useState('');
+    const [emailOtpLoading, setEmailOtpLoading] = useState(false);
     const [applyStatement, setApplyStatement] = useState('');
     const [applyLoading, setApplyLoading] = useState(false);
     const [applySuccess, setApplySuccess] = useState(false);
@@ -361,7 +365,49 @@ const LandingPage = () => {
         setApplyEmail(user?.email || '');
         setApplyStatement('');
         setApplySuccess(false);
+        setEmailOtpSent(false);
+        setEmailOtpVerified(false);
+        setEmailOtp('');
         setShowApplyModal(true);
+    };
+
+    // Send Email OTP using the setup send-otp endpoint
+    const handleSendEmailOtp = async () => {
+        if (!applyEmail) {
+            toast.error("Please enter email address first");
+            return;
+        }
+        setEmailOtpLoading(true);
+        try {
+            await axios.post('/api/setup/send-otp', { phone: applyEmail });
+            setEmailOtpSent(true);
+            setEmailOtp('1234'); // Auto-fill mock OTP for convenience
+            toast.success("OTP sent to your email!");
+        } catch (err) {
+            console.error("Email OTP failed:", err);
+            toast.error(err.response?.data?.message || "Failed to send OTP to email");
+        } finally {
+            setEmailOtpLoading(false);
+        }
+    };
+
+    // Verify Email OTP
+    const handleVerifyEmailOtp = async () => {
+        if (!emailOtp) {
+            toast.error("Please enter OTP code");
+            return;
+        }
+        setEmailOtpLoading(true);
+        try {
+            await axios.post('/api/setup/verify-otp', { phone: applyEmail, otp: emailOtp });
+            setEmailOtpVerified(true);
+            toast.success("Email verified successfully!");
+        } catch (err) {
+            console.error("Email OTP verification failed:", err);
+            toast.error(err.response?.data?.message || "Invalid OTP code");
+        } finally {
+            setEmailOtpLoading(false);
+        }
     };
 
     // Submit Application
@@ -1057,15 +1103,62 @@ const LandingPage = () => {
                                             </div>
 
                                             <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
-                                                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Email Address (Optional)</label>
-                                                <input
-                                                    type="email"
-                                                    value={applyEmail}
-                                                    onChange={(e) => setApplyEmail(e.target.value)}
-                                                    placeholder="Enter your email address"
-                                                    className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
-                                                />
+                                                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Email Address</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="email"
+                                                        value={applyEmail}
+                                                        onChange={(e) => setApplyEmail(e.target.value)}
+                                                        required
+                                                        disabled={emailOtpSent || emailOtpVerified}
+                                                        placeholder="Enter your email address"
+                                                        className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400 disabled:opacity-60"
+                                                    />
+                                                    {!emailOtpVerified && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleSendEmailOtp}
+                                                            disabled={emailOtpLoading || !applyEmail}
+                                                            className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full whitespace-nowrap transition-all disabled:opacity-50 select-none cursor-pointer"
+                                                        >
+                                                            {emailOtpLoading ? 'Sending...' : emailOtpSent ? 'Resend' : 'Send OTP'}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* Email OTP Verification Field */}
+                                            {emailOtpSent && !emailOtpVerified && (
+                                                <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all animate-fadeIn">
+                                                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Enter Email OTP (Default: 1234)</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={emailOtp}
+                                                            onChange={(e) => setEmailOtp(e.target.value)}
+                                                            placeholder="Enter 4-digit code"
+                                                            maxLength={4}
+                                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400 font-mono tracking-widest"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleVerifyEmailOtp}
+                                                            disabled={emailOtpLoading || emailOtp.length !== 4}
+                                                            className="text-[10px] font-extrabold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250 px-3 py-1 rounded-full whitespace-nowrap transition-all disabled:opacity-50 cursor-pointer"
+                                                        >
+                                                            Verify OTP
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Verification Success Badge */}
+                                            {emailOtpVerified && (
+                                                <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 animate-fadeIn">
+                                                    <CheckCircle size={14} className="text-emerald-600" />
+                                                    <span className="font-semibold">Email address verified successfully</span>
+                                                </div>
+                                            )}
 
                                             <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
                                                 <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Short Statement / Comments (Optional)</label>
@@ -1079,17 +1172,19 @@ const LandingPage = () => {
                                             </div>
                                         </div>
 
-                                        <button
-                                            type="submit"
-                                            disabled={applyLoading}
-                                            className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/10 flex justify-center items-center text-sm"
-                                        >
-                                            {applyLoading ? (
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            ) : (
-                                                "Submit Application"
-                                            )}
-                                        </button>
+                                        {emailOtpVerified && (
+                                            <button
+                                                type="submit"
+                                                disabled={applyLoading}
+                                                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/10 flex justify-center items-center text-sm"
+                                            >
+                                                {applyLoading ? (
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    "Submit Application"
+                                                )}
+                                            </button>
+                                        )}
                                     </motion.form>
                                 ) : (
                                     /* Success Message */
@@ -1178,15 +1273,14 @@ const LandingPage = () => {
 
                             <form onSubmit={handleRegisterStudentSubmit} className="space-y-4 font-sans">
                                 <div className="space-y-4">
-                                    <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
-                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Email Address</label>
+                                    <div className="border-b border-slate-200 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100 transition-all opacity-85">
+                                        <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Email Address (From Application)</label>
                                         <input
                                             type="email"
                                             value={regEmail}
-                                            onChange={(e) => setRegEmail(e.target.value)}
+                                            disabled
                                             required
-                                            placeholder="Enter your email address"
-                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
+                                            className="w-full bg-transparent border-none text-slate-500 text-xs font-semibold focus:outline-none cursor-not-allowed"
                                         />
                                     </div>
 

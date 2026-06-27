@@ -64,7 +64,7 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-xl md:max-h-[85vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header/Banner */}
-                <div className="h-28 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
+                <div className="h-28 bg-[#0b1329] relative">
                     <button
                         onClick={onClose}
                         className="absolute top-5 right-5 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
@@ -79,8 +79,12 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                         <div className="w-28 h-28 rounded-full border-4 border-white bg-slate-100 shadow-xl mx-auto overflow-hidden bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center font-bold text-slate-400 text-3xl">
                             {loading ? (
                                 <div className="animate-pulse w-full h-full bg-slate-200"></div>
+                            ) : user?.role === 'Institute' && user?.institute?.imageUrl ? (
+                                <img src={user.institute.imageUrl} alt={user.name} className="w-full h-full object-cover" />
                             ) : user?.avatar ? (
                                 <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                            ) : user?.institute?.imageUrl ? (
+                                <img src={user.institute.imageUrl} alt={user.name} className="w-full h-full object-cover" />
                             ) : (
                                 user?.name?.charAt(0) || '?'
                             )}

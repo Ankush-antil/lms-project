@@ -8,8 +8,10 @@ const {
     deleteInstitute,
     getCourses,
     createCourse,
+    updateCourse,
     deleteCourse,
     uploadInstituteImageController,
+    uploadInstituteDocumentController,
     uploadSyllabusController,
     submitApplication,
     getApplications,
@@ -30,6 +32,10 @@ router.route('/institutes')
 router.route('/institutes/upload-image')
     .post(protect, admin, uploadInstituteImageController);
 
+// Institute document upload (must be before /institutes/:id to avoid conflict)
+router.route('/institutes/upload-document')
+    .post(protect, admin, uploadInstituteDocumentController);
+
 router.route('/institutes/:id')
     .get(protect, admin, getInstituteDetails)
     .put(protect, admin, updateInstitute)
@@ -47,6 +53,7 @@ router.route('/courses/upload-syllabus')
     .post(protect, adminOrInstitute, uploadSyllabusController);
 
 router.route('/courses/:id')
+    .put(protect, adminOrEditor, updateCourse)
     .delete(protect, adminOrEditor, deleteCourse);
 
 

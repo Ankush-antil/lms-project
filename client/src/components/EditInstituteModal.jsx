@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { X, Phone, Mail, Headphones, FileText, Shield, ImageIcon, Building } from 'lucide-react';
+import { X, Phone, Mail, Headphones, FileText, Shield, ImageIcon, Building, Upload, Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
@@ -19,6 +19,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
     });
     const [imagePreview, setImagePreview] = useState(null);
     const [imageUploading, setImageUploading] = useState(false);
+    const [docUploading, setDocUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [activeSection, setActiveSection] = useState('basic');
     const fileInputRef = useRef(null);
@@ -69,12 +70,34 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
         }
     };
 
+    const handleDocUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setDocUploading(true);
+        try {
+            const uploadData = new FormData();
+            uploadData.append('document', file);
+            const { data } = await axios.post('/api/setup/institutes/upload-document', uploadData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            handleChange('termsAndPolicies', data.documentUrl);
+            toast.success('Document uploaded successfully!');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Document upload failed');
+        } finally {
+            setDocUploading(false);
+        }
+    };
+
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
         if (!formData.name || !formData.code || !formData.contactEmail) {
             toast.error('Institute Name, Code, and Email are required');
             return;
@@ -111,33 +134,47 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
             <div className="bg-white w-full max-w-2xl md:max-h-[92vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 
                 {/* Header Banner */}
-                <div className="bg-[#0b1329] relative flex-shrink-0 px-8 pt-7 pb-0">
-                    <div className="flex items-center gap-3 mb-5">
-                        {/* Image preview circle */}
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white/20 cursor-pointer hover:border-indigo-400 transition-all bg-white/10"
-                            title="Click to upload logo"
-                        >
-                            {imageUploading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : imagePreview ? (
-                                <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-                            ) : (
-                                <ImageIcon size={22} className="text-white/40" />
-                            )}
+                <div className="bg-[#0b1329] relative flex-shrink-0 px-8 pt-4 pb-0">
+                    <div className="flex items-center justify-between gap-4 mb-3 pr-10">
+                        <div className="flex items-center gap-3">
+                            {/* Image preview circle */}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-white/20 cursor-pointer hover:border-indigo-400 transition-all bg-white/10"
+                                title="Click to upload logo"
+                            >
+                                {imageUploading ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : imagePreview ? (
+                                    <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <ImageIcon size={18} className="text-white/40" />
+                                )}
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-white tracking-tight leading-none">Edit Institute</h3>
+                                <span className="text-white/40 text-[10px] mt-1 block">Click logo to change</span>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-black text-white tracking-tight">Edit Institute</h3>
-                            <p className="text-white/40 text-xs mt-0.5">Click the icon to upload/change institute logo</p>
-                        </div>
+
+                        {/* Top Save Button */}
                         <button
-                            onClick={onClose}
-                            className="absolute top-5 right-6 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
                         >
-                            <X size={18} />
+                            {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            Save
                         </button>
                     </div>
+
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4.5 right-6 p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
+                    >
+                        <X size={16} />
+                    </button>
 
                     {/* Section Tabs */}
                     <div className="flex gap-1">
@@ -323,12 +360,41 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                         Terms & Admission Policies
                                     </label>
                                     <textarea
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[140px] resize-none"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[70px] resize-none"
                                         value={formData.termsAndPolicies}
                                         onChange={e => handleChange('termsAndPolicies', e.target.value)}
                                         placeholder="Admission eligibility criteria, fee policies, refund policies, code of conduct, etc."
                                     />
-                                    <p className="text-[10px] text-slate-400 mt-1 ml-1">This will be shown as T&C on course application forms.</p>
+                                    
+                                    {/* Merged Document Upload Row */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 px-1">
+                                        <p className="text-[10px] text-slate-400">This will be shown as T&C on course application forms.</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.doc,.docx"
+                                                id="edit-policy-doc-input"
+                                                className="hidden"
+                                                onChange={handleDocUpload}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => document.getElementById('edit-policy-doc-input').click()}
+                                                className="flex items-center gap-1 px-3 py-1.5 border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-650 font-bold rounded-xl text-xs transition-all active:scale-95 flex-shrink-0"
+                                            >
+                                                <Upload size={12} /> Upload Doc (PDF/Word)
+                                            </button>
+                                            {docUploading && <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
+                                            {formData.termsAndPolicies && (formData.termsAndPolicies.startsWith('http') || formData.termsAndPolicies.startsWith('/uploads')) && (
+                                                <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold flex-shrink-0">
+                                                    <Check size={12} />
+                                                    <a href={formData.termsAndPolicies} target="_blank" rel="noreferrer" className="underline hover:text-emerald-700 truncate max-w-[120px]">
+                                                        View Doc
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 pt-2">

@@ -1912,7 +1912,25 @@ const LandingPage = () => {
                                 </button>
                             </div>
                             <div className="text-xs text-slate-600 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap pr-1">
-                                {activePolicyText || "No custom terms or policies specified by this institute."}
+                                {activePolicyText ? (
+                                    (activePolicyText.startsWith('http') || activePolicyText.startsWith('/uploads')) ? (
+                                        <div className="flex flex-col items-center justify-center p-6 border border-slate-100 rounded-2xl bg-slate-50 space-y-3 my-1">
+                                            <FileText size={40} className="text-indigo-600 animate-pulse" />
+                                            <span className="font-bold text-slate-700 text-center">Terms & Admission Policies Document</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => window.open(activePolicyText, '_blank')}
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white font-bold rounded-xl text-xs transition-all shadow-md active:scale-95"
+                                            >
+                                                View / Download Document
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        activePolicyText
+                                    )
+                                ) : (
+                                    "No custom terms or policies specified by this institute."
+                                )}
                             </div>
                             <div className="pt-2 flex justify-end">
                                 <button

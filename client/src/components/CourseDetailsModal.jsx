@@ -1,118 +1,115 @@
-import { useState } from 'react';
-import { X, BookOpen, Building, Hash, FileText, Calendar, CheckCircle } from 'lucide-react';
+import { X, BookOpen, FileText, Link as LinkIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const CourseDetailsModal = ({ isOpen, onClose, course }) => {
     if (!isOpen || !course) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] bg-white/40 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-2xl md:max-h-[85vh] rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-xl md:max-h-[92vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className="h-32 bg-gradient-to-br from-[#0b1329] to-[#1e293b] relative flex-shrink-0">
-                    <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                    <div className="absolute inset-0 flex items-center px-10">
-                        <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white">
-                                <BookOpen size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-black text-white tracking-tight">{course.name}</h3>
-                                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Course Curriculum Overview</p>
-                            </div>
+                <div className="h-24 bg-[#0b1329] relative flex-shrink-0">
+                    <div className="absolute inset-0 flex items-center px-8 gap-3">
+                        <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
+                            <BookOpen size={20} className="text-indigo-400" />
                         </div>
+                        <h3 className="text-xl font-black text-white tracking-tight">Course Details</h3>
                     </div>
                     <button
                         onClick={onClose}
-                        className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all z-10"
+                        className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
-                {/* Modal Body */}
-                <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-8">
-                    {/* Basic Info Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm">
-                                <Hash size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Course Code</p>
-                                <p className="font-bold text-slate-700">{course.code || 'N/A'}</p>
+                <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-5">
+                    {/* Institute */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Institute</label>
+                        <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700">
+                            {course.institute?.name || course.institute || 'N/A'}
+                        </div>
+                    </div>
+
+                    {/* Course Name */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Name</label>
+                        <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700">
+                            {course.name}
+                        </div>
+                    </div>
+
+                    {/* Code + Subjects */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Code</label>
+                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700">
+                                {course.code || 'N/A'}
                             </div>
                         </div>
-                        <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm">
-                                <Building size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Institute</p>
-                                <p className="font-bold text-slate-700 truncate">{course.institute?.name || course.institute || 'N/A'}</p>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects</label>
+                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 truncate">
+                                {Array.isArray(course.subjects) ? course.subjects.join(', ') : (course.subjects || 'N/A')}
                             </div>
                         </div>
                     </div>
 
                     {/* Description */}
-                    {course.description && (
-                        <div className="space-y-2">
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Description</h4>
-                            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-5 text-sm text-slate-650 leading-relaxed">
-                                {course.description}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Subjects List */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Subjects Included</h4>
-                            <span className="px-3 py-1 bg-slate-100 text-[#0b1329] rounded-full text-xs font-black">
-                                {course.subjects?.length || 0} TOTAL
-                            </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {course.subjects && course.subjects.length > 0 ? (
-                                course.subjects.map((sub, idx) => (
-                                    <div key={idx} className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center gap-3 shadow-sm hover:border-slate-200 transition-colors">
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                                            <FileText size={16} />
-                                        </div>
-                                        <span className="font-semibold text-slate-750 text-sm">{sub}</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="col-span-2 p-8 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                                    <p className="text-sm text-slate-400 font-bold">No subjects defined for this course.</p>
-                                </div>
-                            )}
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Description</label>
+                        <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm text-slate-650 min-h-[80px] whitespace-pre-wrap leading-relaxed">
+                            {course.description || 'No description provided.'}
                         </div>
                     </div>
 
-                    {/* Footer Details Info */}
-                    <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-8">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-505 flex items-center justify-center">
-                                <CheckCircle size={16} className="text-emerald-500" />
+                    {/* Syllabus Section */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
+                            <FileText size={12} /> Syllabus
+                        </label>
+                        {course.syllabusUrl ? (
+                            course.syllabusType === 'file' ? (
+                                <div className="w-full border border-slate-100 bg-slate-50 rounded-2xl py-3 px-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <FileText size={18} className="text-indigo-600 flex-shrink-0" />
+                                        <span className="text-xs font-bold text-slate-700 truncate max-w-[280px]">
+                                            {course.syllabusUrl.split('/').pop()}
+                                        </span>
+                                    </div>
+                                    <a
+                                        href={course.syllabusUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-[10px] transition-all active:scale-95 text-center flex-shrink-0"
+                                    >
+                                        View Syllabus
+                                    </a>
+                                </div>
+                            ) : (
+                                <div className="w-full border border-slate-100 bg-slate-50 rounded-2xl py-3 px-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <LinkIcon size={18} className="text-indigo-600 flex-shrink-0" />
+                                        <span className="text-xs font-bold text-slate-700 truncate max-w-[280px]">
+                                            {course.syllabusUrl}
+                                        </span>
+                                    </div>
+                                    <a
+                                        href={course.syllabusUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-[10px] transition-all active:scale-95 text-center flex-shrink-0"
+                                    >
+                                        Open Link
+                                    </a>
+                                </div>
+                            )
+                        ) : (
+                            <div className="w-full border border-slate-100 bg-slate-50 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-400">
+                                No syllabus uploaded for this course.
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Status</p>
-                                <p className="text-xs font-bold text-emerald-600 capitalize">{course.status || 'Active'}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
-                                <Calendar size={16} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Created On</p>
-                                <p className="text-xs font-bold text-slate-700">
-                                    {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : 'N/A'}
-                                </p>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 

@@ -7,8 +7,7 @@ const courseSchema = new mongoose.Schema({
     },
     code: {
         type: String,
-        required: true,
-        unique: true
+        required: true
     },
     description: String,
     institute: {
@@ -35,6 +34,9 @@ const courseSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+// Compound index for unique code per institute
+courseSchema.index({ institute: 1, code: 1 }, { unique: true });
 
 const Course = mongoose.model('Course', courseSchema);
 module.exports = Course;

@@ -395,8 +395,12 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 opacity-70">{user?.role || 'Guest'}</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-bold shadow-md shadow-black/10 ring-2 ring-slate-800 hover:rotate-3 transition-transform overflow-hidden">
-                        {user?.avatar ? (
+                        {user?.role === 'Institute' && user?.institute?.imageUrl ? (
+                            <img src={user.institute.imageUrl} alt="Institute Logo" className="w-full h-full object-cover" />
+                        ) : user?.avatar ? (
                             <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : user?.institute?.imageUrl ? (
+                            <img src={user.institute.imageUrl} alt="Institute Logo" className="w-full h-full object-cover" />
                         ) : (
                             user?.name?.[0] || 'U'
                         )}

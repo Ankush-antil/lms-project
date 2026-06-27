@@ -7,7 +7,7 @@ const User = require('../../models/User');
 const getUserProfile = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id)
         .select('-password')
-        .populate('institute', 'name')
+        .populate('institute', 'name imageUrl')
         .populate('studentProfile.course', 'name')
         .populate('teacherProfile.assignedCourses', 'name');
     if (user) {
@@ -31,7 +31,7 @@ const getUserById = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.params.id)
         .select('-password')
-        .populate('institute', 'name')
+        .populate('institute', 'name imageUrl')
         .populate('studentProfile.course', 'name')
         .populate('teacherProfile.assignedCourses', 'name');
 

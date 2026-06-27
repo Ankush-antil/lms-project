@@ -61,7 +61,10 @@ const CoursesList = () => {
                 </div>
                 {user?.role !== 'Admin' && (
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => {
+                            setSelectedCourse(null);
+                            setIsModalOpen(true);
+                        }}
                         className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95"
                     >
                         <Plus size={20} /> Add New Course
@@ -98,10 +101,21 @@ const CoursesList = () => {
                 ) : filteredCourses.length > 0 ? (
                     filteredCourses.map((course) => (
                         <div key={course._id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative flex flex-col">
-                            <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-6 right-6 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => {
+                                        setSelectedCourse(course);
+                                        setIsModalOpen(true);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-xl transition-all"
+                                    title="Edit Course"
+                                >
+                                    <Edit size={18} />
+                                </button>
                                 <button
                                     onClick={() => handleDelete(course._id)}
                                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                    title="Delete Course"
                                 >
                                     <Trash2 size={18} />
                                 </button>
@@ -121,16 +135,18 @@ const CoursesList = () => {
                                 </div>
 
                                 <div className="space-y-3 pt-2 flex-1">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Building size={14} />
-                                        <span className="text-sm font-medium">{course.institute?.name || 'N/A'}</span>
-                                    </div>
-
-                                    {course.createdBy && (
-                                        <div className="text-xs text-slate-400 font-medium">
-                                            Created by: <span className="font-bold text-slate-600">{course.createdBy.name}</span> ({course.createdBy.role})
+                                    {user?.role === 'Admin' && (
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <Building size={14} />
+                                            <span className="text-sm font-medium">{course.institute?.name || 'N/A'}</span>
                                         </div>
                                     )}
+
+                                    {user?.role === 'Admin' && course.createdBy && (
+                                         <div className="text-xs text-slate-400 font-medium">
+                                             Created by: <span className="font-bold text-slate-600">{course.createdBy.name}</span> ({course.createdBy.role})
+                                         </div>
+                                     )}
 
                                     <div className="flex flex-wrap gap-1.5">
                                         {course.subjects?.slice(0, 3).map((sub, idx) => (
@@ -173,7 +189,10 @@ const CoursesList = () => {
                             <p className="text-slate-500 font-bold">No courses found</p>
                             {user?.role !== 'Admin' && (
                                 <button
-                                    onClick={() => setIsModalOpen(true)}
+                                    onClick={() => {
+                                        setSelectedCourse(null);
+                                        setIsModalOpen(true);
+                                    }}
                                     className="text-[#0b1329] font-bold hover:underline"
                                 >
                                     Create your first course
@@ -186,8 +205,12 @@ const CoursesList = () => {
 
             <AddCourseModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedCourse(null);
+                }}
                 refreshData={fetchData}
+                course={selectedCourse}
             />
 
             <CourseDetailsModal

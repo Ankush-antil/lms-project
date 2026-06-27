@@ -5,7 +5,7 @@ import axios from 'axios';
 import { X, Upload, Link as LinkIcon, FileText, BookOpen } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
+const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
     const [formData, setFormData] = useState({
@@ -26,21 +26,34 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
             };
             fetchInstitutes();
 
-            setFormData({
-                name: '',
-                code: '',
-                description: '',
-                instituteId: user && user.institute
-                    ? (typeof user.institute === 'object' ? user.institute._id : user.institute)
-                    : '',
-                subjects: '',
-                syllabusUrl: '',
-                syllabusType: 'link'
-            });
-            setSyllabusMode('link');
+            if (course) {
+                setFormData({
+                    name: course.name || '',
+                    code: course.code || '',
+                    description: course.description || '',
+                    instituteId: course.institute?._id || course.institute || '',
+                    subjects: Array.isArray(course.subjects) ? course.subjects.join(', ') : (course.subjects || ''),
+                    syllabusUrl: course.syllabusUrl || '',
+                    syllabusType: course.syllabusType || 'link'
+                });
+                setSyllabusMode(course.syllabusType || 'link');
+            } else {
+                setFormData({
+                    name: '',
+                    code: '',
+                    description: '',
+                    instituteId: user && user.institute
+                        ? (typeof user.institute === 'object' ? user.institute._id : user.institute)
+                        : '',
+                    subjects: '',
+                    syllabusUrl: '',
+                    syllabusType: 'link'
+                });
+                setSyllabusMode('link');
+            }
             setSyllabusFile(null);
         }
-    }, [isOpen, user]);
+    }, [isOpen, user, course]);
 
     const handleSyllabusFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -67,17 +80,22 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post('/api/setup/courses', formData);
+            if (course) {
+                await axios.put(`/api/setup/courses/${course._id}`, formData);
+                toast.success('Course Updated!');
+            } else {
+                await axios.post('/api/setup/courses', formData);
+                if (user?.role === 'Editor') {
+                    toast.success('Course submitted for Admin approval!');
+                } else {
+                    toast.success('Course Added!');
+                }
+            }
             setLoading(false);
             onClose();
             if (refreshData) refreshData();
-            if (user?.role === 'Editor') {
-                toast.success('Course submitted for Admin approval!');
-            } else {
-                toast.success('Course Added!');
-            }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error creating course');
+            toast.error(error.response?.data?.message || 'Error saving course');
             setLoading(false);
         }
     };
@@ -93,7 +111,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                         <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
                             <BookOpen size={20} className="text-indigo-400" />
                         </div>
-                        <h3 className="text-xl font-black text-white tracking-tight">Add New Course</h3>
+                        <h3 className="text-xl font-black text-white tracking-tight">{course ? 'Edit Course' : 'Add New Course'}</h3>
                     </div>
                     <button
                         onClick={onClose}
@@ -227,24 +245,39 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                                     />
                                     <div
                                         onClick={() => syllabusFileRef.current?.click()}
-                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-6 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
+                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3.5 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
                                     >
                                         {syllabusUploading ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                                                <p className="text-xs text-indigo-600 font-bold">Uploading...</p>
+                                            <div className="flex flex-col items-center gap-1.5">
+                                                <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                                <p className="text-xs text-indigo-650 font-bold">Uploading...</p>
                                             </div>
-                                        ) : syllabusFile && formData.syllabusUrl ? (
-                                            <div className="flex flex-col items-center gap-1">
-                                                <FileText size={20} className="text-emerald-500" />
-                                                <p className="text-xs font-bold text-emerald-700">{syllabusFile.name}</p>
-                                                <p className="text-[10px] text-slate-400">Uploaded successfully ✓ — click to change</p>
+                                        ) : (syllabusFile || (formData.syllabusType === 'file' && formData.syllabusUrl)) ? (
+                                            <div className="flex flex-col items-center gap-1 transition-all">
+                                                <FileText size={20} className="text-indigo-600 animate-pulse" />
+                                                <p className="text-xs font-bold text-slate-700 max-w-[280px] truncate leading-tight">
+                                                    {syllabusFile ? syllabusFile.name : formData.syllabusUrl.split('/').pop()}
+                                                </p>
+                                                <div className="flex items-center gap-2.5 mt-0.5">
+                                                    <a
+                                                        href={formData.syllabusUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                        }}
+                                                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-[9px] transition-all active:scale-95 inline-block text-center"
+                                                    >
+                                                        Click to Preview
+                                                    </a>
+                                                    <span className="text-[9px] text-slate-400 font-bold">or click box to change</span>
+                                                </div>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Upload size={20} className="text-slate-400" />
-                                                <p className="text-xs font-bold text-slate-600">Click to upload PDF / Word</p>
-                                                <p className="text-[10px] text-slate-400">PDF, DOC, DOCX — max 10MB</p>
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Upload size={18} className="text-slate-400" />
+                                                <p className="text-xs font-bold text-slate-650">Click to upload PDF / Word</p>
+                                                <p className="text-[9px] text-slate-400 leading-none">PDF, DOC, DOCX — max 10MB</p>
                                             </div>
                                         )}
                                     </div>
@@ -258,7 +291,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData }) => {
                             className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                            {loading ? 'Creating Course...' : 'Create Course'}
+                            {loading ? (course ? 'Updating Course...' : 'Creating Course...') : (course ? 'Save Changes' : 'Create Course')}
                         </button>
                     </form>
                 </div>

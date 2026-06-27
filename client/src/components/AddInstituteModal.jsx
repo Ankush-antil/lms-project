@@ -19,6 +19,7 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
     });
     const [imagePreview, setImagePreview] = useState(null);
     const [imageUploading, setImageUploading] = useState(false);
+    const [docUploading, setDocUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
@@ -70,6 +71,26 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
             setImagePreview(null);
         } finally {
             setImageUploading(false);
+        }
+    };
+
+    const handleDocUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setDocUploading(true);
+        try {
+            const uploadData = new FormData();
+            uploadData.append('document', file);
+            const { data } = await axios.post('/api/setup/institutes/upload-document', uploadData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            handleChange('termsAndPolicies', data.documentUrl);
+            toast.success('Document uploaded successfully!');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Document upload failed');
+        } finally {
+            setDocUploading(false);
         }
     };
 
@@ -335,12 +356,41 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
                                             Terms & Admission Policies
                                         </label>
                                         <textarea
-                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[140px] resize-none"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[70px] resize-none"
                                             value={formData.termsAndPolicies}
                                             onChange={e => handleChange('termsAndPolicies', e.target.value)}
                                             placeholder="Admission eligibility criteria, fee policies, refund policies, code of conduct, etc."
                                         />
-                                        <p className="text-[10px] text-slate-400 mt-1 ml-1">This will be shown as T&C on course application forms.</p>
+                                        
+                                        {/* Merged Document Upload Row */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 px-1">
+                                            <p className="text-[10px] text-slate-400">This will be shown as T&C on course application forms.</p>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="file"
+                                                    accept=".pdf,.doc,.docx"
+                                                    id="add-policy-doc-input"
+                                                    className="hidden"
+                                                    onChange={handleDocUpload}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => document.getElementById('add-policy-doc-input').click()}
+                                                    className="flex items-center gap-1 px-3 py-1.5 border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-650 font-bold rounded-xl text-xs transition-all active:scale-95 flex-shrink-0"
+                                                >
+                                                    <Upload size={12} /> Upload Doc (PDF/Word)
+                                                </button>
+                                                {docUploading && <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
+                                                {formData.termsAndPolicies && (formData.termsAndPolicies.startsWith('http') || formData.termsAndPolicies.startsWith('/uploads')) && (
+                                                    <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold flex-shrink-0">
+                                                        <Check size={12} />
+                                                        <a href={formData.termsAndPolicies} target="_blank" rel="noreferrer" className="underline hover:text-emerald-700 truncate max-w-[120px]">
+                                                            View Doc
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="flex gap-3 pt-2">

@@ -92,6 +92,25 @@ const uploadSyllabusController = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Upload institute document (Terms/Policies)
+// @route   POST /api/setup/institutes/upload-document
+// @access  Private/Admin
+const uploadInstituteDocumentController = asyncHandler(async (req, res) => {
+    const { uploadInstituteDocument } = require('../../middleware/uploadMiddleware');
+    uploadInstituteDocument(req, res, async (err) => {
+        if (err) {
+            res.status(400);
+            return res.json({ message: err.message || 'Document upload failed' });
+        }
+        if (!req.file) {
+            res.status(400);
+            return res.json({ message: 'No document file provided' });
+        }
+        const documentUrl = `/uploads/documents/${req.file.filename}`;
+        res.json({ documentUrl, originalName: req.file.originalname });
+    });
+});
+
 // @desc    Update institute
 // @route   PUT /api/setup/institutes/:id
 // @access  Private/Admin
@@ -244,7 +263,7 @@ const getCourses = asyncHandler(async (req, res) => {
 
     // Populate institute and createdBy details
     const courses = await Course.find(query)
-        .populate('institute', 'name code')
+        .populate('institute')
         .populate('createdBy', 'name email role');
     res.json(courses);
 });
@@ -254,15 +273,6 @@ const getCourses = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
     const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
-
-    const courseExists = await Course.findOne({ code });
-    if (courseExists) {
-        res.status(400);
-        throw new Error('Course code already exists');
-    }
-
-    // subjects can be comma separated string or array
-    const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
 
     // Determine status based on user role (req.user is populated by protect middleware)
     const status = 'active';
@@ -277,6 +287,15 @@ const createCourse = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Institute is required');
     }
+
+    const courseExists = await Course.findOne({ code, institute: finalInstituteId });
+    if (courseExists) {
+        res.status(400);
+        throw new Error('Course code already exists for this institute');
+    }
+
+    // subjects can be comma separated string or array
+    const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
 
     const course = await Course.create({
         name,
@@ -299,6 +318,61 @@ const createCourse = asyncHandler(async (req, res) => {
     });
 
     res.status(201).json(course);
+});
+
+// @desc    Update course
+// @route   PUT /api/setup/courses/:id
+// @access  Private/Admin or Editor or Institute
+const updateCourse = asyncHandler(async (req, res) => {
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
+    const course = await Course.findById(req.params.id);
+
+    if (course) {
+        // Enforce institute boundary for non-admins
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && course.institute.toString() !== req.user.institute.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to update courses of other institutes');
+        }
+
+        // Check code uniqueness if code is changed
+        if (code && code !== course.code) {
+            const codeExists = await Course.findOne({ code, institute: course.institute });
+            if (codeExists) {
+                res.status(400);
+                throw new Error('Course code already exists for this institute');
+            }
+            course.code = code;
+        }
+
+        course.name = name || course.name;
+        course.description = description !== undefined ? description : course.description;
+        
+        // Only Admin can change the institute of a course
+        if (req.user && req.user.role === 'Admin' && instituteId) {
+            course.institute = instituteId;
+        }
+
+        if (subjects !== undefined) {
+            course.subjects = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
+        }
+
+        if (syllabusUrl !== undefined) course.syllabusUrl = syllabusUrl;
+        if (syllabusType !== undefined) course.syllabusType = syllabusType;
+
+        const updatedCourse = await course.save();
+
+        await Activity.create({
+            type: 'COURSE_UPDATED',
+            message: 'Course details updated',
+            detail: `${updatedCourse.name} (${updatedCourse.code})`,
+            user: req.user._id
+        });
+
+        res.json(updatedCourse);
+    } else {
+        res.status(404);
+        throw new Error('Course not found');
+    }
 });
 
 // @desc    Delete institute
@@ -712,9 +786,11 @@ module.exports = {
     deleteInstitute,
     getCourses,
     createCourse,
+    updateCourse,
     deleteCourse,
     uploadInstituteImageController,
     uploadSyllabusController,
+    uploadInstituteDocumentController,
 
     submitApplication,
     getApplications,

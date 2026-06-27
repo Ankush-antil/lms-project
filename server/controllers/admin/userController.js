@@ -20,7 +20,7 @@ const getUsers = asyncHandler(async (req, res) => {
     const users = await User.find(query)
         .select('-password')
         .populate('institute', 'name')
-        .populate('studentProfile.course', 'name')
+        .populate('studentProfile.course', 'name subjects')
         .populate('teacherProfile.assignedCourses', 'name');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);

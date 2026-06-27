@@ -18,7 +18,7 @@ const loginUser = async (req, res) => {
 
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
             .populate('institute', 'name imageUrl')
-            .populate('studentProfile.course', 'name')
+            .populate('studentProfile.course', 'name subjects')
             .populate('teacherProfile.assignedCourses', 'name');
 
         if (user && (await user.matchPassword(password))) {
@@ -59,7 +59,7 @@ const getMe = async (req, res) => {
         const user = await User.findById(req.user._id)
             .select('-password')
             .populate('institute', 'name imageUrl')
-            .populate('studentProfile.course', 'name')
+            .populate('studentProfile.course', 'name subjects')
             .populate('teacherProfile.assignedCourses', 'name');
         if (user) {
             res.json(user);

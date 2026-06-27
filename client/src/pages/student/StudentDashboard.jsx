@@ -201,35 +201,68 @@ const StudentDashboard = () => {
                 </div>
 
                 {/* Profile / Secondary */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg ring-4 ring-indigo-50">
-                            {profile?.name?.[0]}
-                        </div>
-                        <h2 className="text-xl font-bold text-slate-800">{profile?.name}</h2>
-                        <span className="text-sm text-slate-500">{profile?.email}</span>
+                <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg ring-4 ring-indigo-50">
+                                {profile?.name?.[0]}
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{profile?.name}</h2>
+                            <span className="text-sm text-slate-500">{profile?.email}</span>
 
-                        <div className="w-full mt-8 space-y-4">
-                            <div className="flex justify-between text-sm items-center p-3 bg-slate-50 rounded-xl">
-                                <span className="text-slate-500">Enrolled Since</span>
-                                <span className="font-bold text-slate-700">
-                                    {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm items-center p-3 bg-indigo-50/50 rounded-xl">
-                                <span className="text-slate-500">Subject</span>
-                                <span className="font-bold text-indigo-700">
-                                    {profile?.studentProfile?.subject || 'N/A'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm items-center p-3 bg-slate-50 rounded-xl">
-                                <span className="text-slate-500">Status</span>
-                                <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold uppercase tracking-wide">
-                                    Active
-                                </span>
+                            <div className="w-full mt-8 space-y-4">
+                                <div className="flex justify-between text-sm items-center p-3 bg-slate-50 rounded-xl">
+                                    <span className="text-slate-500">Enrolled Since</span>
+                                    <span className="font-bold text-slate-700">
+                                        {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm items-center p-3 bg-indigo-50/50 rounded-xl">
+                                    <span className="text-slate-500">Subject</span>
+                                    <span className="font-bold text-indigo-700">
+                                        {profile?.studentProfile?.subject || 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm items-center p-3 bg-slate-50 rounded-xl">
+                                    <span className="text-slate-500">Status</span>
+                                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold uppercase tracking-wide">
+                                        Active
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Course Subjects list */}
+                    {profile?.studentProfile?.course?.subjects && profile.studentProfile.course.subjects.length > 0 && (
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                <BookOpen size={18} className="text-indigo-600" />
+                                <h3 className="font-bold text-sm uppercase tracking-wider text-slate-700">Course Syllabus</h3>
+                            </div>
+                            <p className="text-xs text-slate-400 mb-3.5 leading-relaxed">
+                                Below are the subjects in <span className="font-extrabold text-slate-600">{profile.studentProfile.course.name}</span>:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {profile.studentProfile.course.subjects.map((sub, i) => {
+                                    const isAssigned = sub.trim().toLowerCase() === profile?.studentProfile?.subject?.trim().toLowerCase();
+                                    return (
+                                        <div 
+                                            key={i} 
+                                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                                                isAssigned 
+                                                    ? 'bg-indigo-50 border-indigo-250 text-indigo-700 shadow-sm' 
+                                                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                                            }`}
+                                        >
+                                            {isAssigned && <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping"></span>}
+                                            {sub}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </DashboardLayout>

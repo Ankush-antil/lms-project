@@ -496,7 +496,7 @@ const WebCallingPage = () => {
                             navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
                         }
                     }}
-                    className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
+                    className="h-[65px] w-45 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
                 >
                     <ArrowLeft size={16} />
                     Back to Practice Tools
@@ -506,7 +506,7 @@ const WebCallingPage = () => {
                 <div className="mb-8">
                     <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
                         <Phone className="text-pink-600" />
-                        Web-Calling Tool {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
+                        Web-Calling Tool
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">Connect with active teachers or practice solo with an interactive AI Roleplay partner.</p>
                 </div>
@@ -750,8 +750,8 @@ const WebCallingPage = () => {
                                 <button
                                     onClick={() => setActiveTab('teachers')}
                                     className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${activeTab === 'teachers'
-                                            ? 'text-pink-600 border-pink-600'
-                                            : 'text-slate-400 border-transparent hover:text-slate-655'
+                                        ? 'text-pink-600 border-pink-600'
+                                        : 'text-slate-400 border-transparent hover:text-slate-655'
                                         }`}
                                 >
                                     <span className="flex items-center gap-1.5"><Users size={16} /> Online Teachers</span>
@@ -759,8 +759,8 @@ const WebCallingPage = () => {
                                 <button
                                     onClick={() => setActiveTab('ai')}
                                     className={`pb-1.5 font-bold text-sm transition-colors border-b-2 px-1 ${activeTab === 'ai'
-                                            ? 'text-pink-600 border-pink-600'
-                                            : 'text-slate-400 border-transparent hover:text-slate-655'
+                                        ? 'text-pink-600 border-pink-600'
+                                        : 'text-slate-400 border-transparent hover:text-slate-655'
                                         }`}
                                 >
                                     <span className="flex items-center gap-1.5"><Cpu size={16} /> AI Practice Partner</span>
@@ -845,8 +845,8 @@ const WebCallingPage = () => {
                                                     key={key}
                                                     onClick={() => setAiRole(key)}
                                                     className={`p-3 rounded-2xl border cursor-pointer text-left transition-all ${aiRole === key
-                                                            ? 'bg-white border-pink-550 shadow-md shadow-pink-500/5 ring-1 ring-pink-500'
-                                                            : 'bg-slate-50 border-slate-150 hover:bg-white hover:border-slate-300'
+                                                        ? 'bg-white border-pink-550 shadow-md shadow-pink-500/5 ring-1 ring-pink-500'
+                                                        : 'bg-slate-50 border-slate-150 hover:bg-white hover:border-slate-300'
                                                         }`}
                                                 >
                                                     <span className="text-2xl block mb-1">{sc.avatar}</span>
@@ -866,8 +866,8 @@ const WebCallingPage = () => {
                                         disabled={isReadOnly}
                                         onClick={startAiCall}
                                         className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-6 text-white ${isReadOnly
-                                                ? 'bg-slate-350 cursor-not-allowed opacity-60 shadow-none'
-                                                : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
+                                            ? 'bg-slate-350 cursor-not-allowed opacity-60 shadow-none'
+                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
                                             }`}
                                     >
                                         <Phone className="animate-pulse" size={16} />
@@ -948,8 +948,8 @@ const WebCallingPage = () => {
                                         toast.success("Switched to Cloud Storage");
                                     }}
                                     className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${galleryTab === 'cloud'
-                                            ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
+                                        ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
+                                        : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
                                         }`}
                                 >
                                     <Database className="text-pink-600 shrink-0" size={18} />

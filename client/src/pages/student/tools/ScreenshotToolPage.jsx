@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Crop, Layers, FileText, Monitor, Square, Activity, Share2, CheckCircle, X, Save } from 'lucide-react';
+import { Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Crop, Layers, FileText, Monitor, Square, Activity, Share2, CheckCircle, X, Save, Eye, Pencil } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
 import html2canvas from 'html2canvas';
+import ImageEditorModal from '../../../components/common/ImageEditorModal';
 import { useScreenshot } from '../../../context/ScreenshotContext';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 
@@ -42,6 +43,9 @@ const ScreenshotToolPage = () => {
     // Share & Cloud Gallery modals
     const [shareModalItem, setShareModalItem] = useState(null);
     const [cloudGalleryModalOpen, setCloudGalleryModalOpen] = useState(false);
+    const [previewDraft, setPreviewDraft] = useState(null);
+    const [editDraft, setEditDraft] = useState(null);
+    const [editTitle, setEditTitle] = useState('');
 
     // Context integration
     const {
@@ -77,6 +81,7 @@ const ScreenshotToolPage = () => {
         connectScreenShare,
         stream,
         drafts,
+        setDrafts,
         saveScreenshotDraft,
         deleteScreenshotDraft,
         latestCapture,
@@ -417,7 +422,7 @@ const ScreenshotToolPage = () => {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
                             }
                         }}
-                        className="flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
+                        className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
                     >
                         <ArrowLeft size={14} />
                         Back to Practice Tools
@@ -438,61 +443,59 @@ const ScreenshotToolPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                     {/* Left Column: Live Capture & Saved list */}
                     <div className="lg:col-span-9 space-y-6">
-                        {/* Live Capture Zone */}
-                        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4 text-center">
-                            <h3 className="font-bold text-slate-805 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider text-left flex justify-between items-center">
-                                <span>Live Capture Stream</span>
+                        {/* Compact Toolbar Action Bar */}
+                        <div className="bg-white px-5 py-4 rounded-3xl border border-slate-105 shadow-sm flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                    <Camera className="text-emerald-600" size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-extrabold text-slate-800 text-sm leading-tight">Screenshot Toolbar</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        {pipActive ? 'Toolbar is active — floating on screen' : 'Click to open the floating capture toolbar'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
                                 {countdownActive && (
-                                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 font-black animate-pulse rounded-full">
+                                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-black animate-pulse">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
                                         Countdown: {secondsLeft}s
                                     </span>
                                 )}
-                            </h3>
-                            
-                            <div className="bg-slate-950 rounded-2xl overflow-hidden border border-slate-850 relative min-h-[320px] flex items-center justify-center">
-                                {latestCapture ? (
-                                    <div className="relative w-full h-full flex flex-col items-center justify-center p-4 bg-slate-950">
-                                        <img
-                                            src={latestCapture.url}
-                                            alt="latest capture"
-                                            className="max-h-[320px] max-w-full w-auto h-auto rounded-xl object-contain shadow-2xl border border-slate-850 animate-fade-in"
-                                        />
-                                        <button
-                                            onClick={() => setLatestCapture(null)}
-                                            className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-colors z-10"
-                                        >
-                                            ✕ Close Preview
-                                        </button>
-                                    </div>
-                                ) : sourceType === 'long' ? (
-                                    <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-8 text-center relative min-h-[300px]">
-                                        <div className="relative flex items-center justify-center w-24 h-24 mb-6">
-                                            <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
-                                            <div className="relative w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-indigo-500/30">
-                                                <Layers size={36} className={scrollingActive ? 'animate-bounce' : ''} />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 z-10">
-                                            <h4 className="font-black text-slate-200 text-sm uppercase tracking-wider">Full-Page Scroll Capture</h4>
-                                            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                                                This mode renders the entire LMS webpage layout from the very top to the bottom. Ready to capture the scrollable layout.
-                                            </p>
-                                        </div>
+                                <button
+                                    disabled={isReadOnly}
+                                    onClick={openPipWindow}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm active:scale-[0.98] transition-all duration-200 ${isReadOnly
+                                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                            : pipActive
+                                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
+                                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
+                                        }`}
+                                >
+                                    <span className="w-2 h-2 bg-white/80 rounded-full animate-pulse"></span>
+                                    {isReadOnly ? 'Read-Only' : pipActive ? 'Close Toolbar' : 'Open Toolbar'}
+                                </button>
+                            </div>
+                        </div>
 
-                                        {scrollingActive && (
-                                            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center z-30 p-6 space-y-4 animate-fade-in">
-                                                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                                <div className="text-center space-y-1">
-                                                    <p className="text-xs font-black text-indigo-405 uppercase tracking-widest animate-pulse">Capturing Long Page</p>
-                                                    <p className="text-lg font-black text-white">{scrollPercent}% Complete</p>
-                                                </div>
-                                                <div className="w-48 bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
-                                                    <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: `${scrollPercent}%` }}></div>
-                                                </div>
+                        {/* Stream / Progress display (only visible when desktop mode is active or long scrolling is in progress) */}
+                        {((captureSource === 'desktop') || scrollingActive) && (
+                            <div className="bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 relative min-h-[240px] flex items-center justify-center">
+                                {scrollingActive ? (
+                                    <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-8 text-center relative">
+                                        <div className="relative flex items-center justify-center w-20 h-20 mb-4">
+                                            <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
+                                            <div className="relative w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-indigo-500/30">
+                                                <Layers size={28} className="animate-bounce" />
                                             </div>
-                                        )}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-black text-indigo-400 uppercase tracking-widest animate-pulse">Capturing Long Page</p>
+                                            <p className="text-base font-black text-white">{scrollPercent}% Complete</p>
+                                        </div>
                                     </div>
-                                ) : (captureSource === 'desktop' && stream) ? (
+                                ) : stream ? (
                                     <div className="relative w-full h-full flex flex-col items-center justify-center p-4 bg-slate-950">
                                         <video
                                             ref={(el) => {
@@ -504,84 +507,28 @@ const ScreenshotToolPage = () => {
                                             autoPlay
                                             playsInline
                                             muted
-                                            className="max-h-[320px] max-w-full w-auto h-auto rounded-xl object-contain shadow-2xl border border-slate-850"
+                                            className="max-h-[240px] max-w-full w-auto h-auto rounded-xl object-contain shadow-2xl border border-slate-850"
                                         />
-                                        <div className="absolute bottom-3 left-3 bg-black/75 px-3 py-1.5 rounded-xl border border-white/10 text-[9px] font-black text-slate-350 uppercase tracking-wider z-20 flex items-center gap-1.5">
-                                            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            <span>Live Desktop Stream</span>
-                                        </div>
                                     </div>
-                                ) : (captureSource === 'desktop' && !stream) ? (
-                                    <div className="flex flex-col items-center justify-center text-slate-500 p-8 text-center space-y-4 min-h-[300px]">
-                                        <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center text-indigo-400 border border-slate-700/50 shadow-inner">
-                                            <Layers size={36} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="font-extrabold text-slate-300 text-sm uppercase tracking-wider">No Desktop Stream Connected</p>
-                                            <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                                                Click below to share a window or screen from your laptop.
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center text-slate-500 p-8 text-center space-y-4">
+                                        <Layers size={36} className="text-slate-650" />
+                                        <div className="space-y-1">
+                                            <p className="font-extrabold text-slate-300 text-xs uppercase tracking-wider">Desktop Stream Required</p>
+                                            <p className="text-[10px] text-slate-500 max-w-xs mx-auto">
+                                                Share screen/window to capture desktop.
                                             </p>
                                         </div>
                                         <button
                                             onClick={connectScreenShare}
-                                            className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-150 active:scale-95 transition-all"
+                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
                                         >
-                                            Select Window / Screen
+                                            Connect Stream
                                         </button>
-                                    </div>
-                                ) : filteredLocalScreenshots.length > 0 ? (
-                                    <div className="relative w-full h-full flex flex-col items-center justify-center p-4 bg-slate-950">
-                                        <img
-                                            src={filteredLocalScreenshots[0].url}
-                                            alt="latest capture"
-                                            className="max-h-[320px] max-w-full w-auto h-auto rounded-xl object-contain shadow-2xl border border-slate-850"
-                                        />
-
-                                        {countdownActive && (
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
-                                                <div className="w-20 h-20 bg-indigo-650 text-white rounded-full flex items-center justify-center text-4xl font-black animate-ping">
-                                                    {secondsLeft}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center text-slate-505 p-8 text-center space-y-4 min-h-[300px]">
-                                        <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center text-indigo-405 border border-slate-700/50 shadow-inner">
-                                            <Camera size={36} />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <p className="font-extrabold text-slate-305 text-sm uppercase tracking-wider">No Screenshots Captured Yet</p>
-                                            <p className="text-xs text-slate-505 max-w-xs mx-auto leading-relaxed">
-                                                Click "Take Screenshot" below or open the floating toolbar to capture screens and crops instantly.
-                                            </p>
-                                        </div>
-                                        {countdownActive && (
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
-                                                <div className="w-20 h-20 bg-indigo-650 text-white rounded-full flex items-center justify-center text-4xl font-black animate-ping">
-                                                    {secondsLeft}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
-
-                            {/* Trigger buttons */}
-                            <button
-                                disabled={isReadOnly}
-                                onClick={openPipWindow}
-                                className={`w-full py-3.5 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all duration-200 mt-4 ${isReadOnly
-                                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60 shadow-none'
-                                        : pipActive
-                                            ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10 hover:shadow-red-500/20'
-                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
-                                    }`}
-                            >
-                                <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></span>
-                                {isReadOnly ? 'Workspace Read-Only' : pipActive ? 'Close Screenshot Toolbar' : 'Open Screenshot Toolbar'}
-                            </button>
-                        </div>
+                        )}
 
                         {/* Draft Content Section */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
@@ -616,6 +563,25 @@ const ScreenshotToolPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {/* Preview Button */}
+                                                <button
+                                                    onClick={() => setPreviewDraft(draft)}
+                                                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all border border-slate-200"
+                                                    title="Preview Screenshot"
+                                                >
+                                                    <Eye size={14} />
+                                                </button>
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => {
+                                                        setEditDraft(draft);
+                                                        setEditTitle(draft.title || `Draft ${drafts.length - index}`);
+                                                    }}
+                                                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all border border-slate-200"
+                                                    title="Edit / Crop Draft"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
                                                 {/* Save Button */}
                                                 <button
                                                     onClick={() => saveScreenshotDraft(draft)}
@@ -746,10 +712,10 @@ const ScreenshotToolPage = () => {
                     </div>
 
                     {/* Right Column: Settings Panel */}
-                    <div className="lg:col-span-3 space-y-6 text-left">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                    <div className="lg:col-span-3 space-y-3 text-left">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Settings</h3>
-                            
+
                             {/* Capture Source */}
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Capture Mode</label>
@@ -757,8 +723,8 @@ const ScreenshotToolPage = () => {
                                     <button
                                         onClick={() => setCaptureSource('webpage')}
                                         className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${captureSource === 'webpage'
-                                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
-                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
+                                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                             }`}
                                     >
                                         <Monitor size={14} />
@@ -775,8 +741,8 @@ const ScreenshotToolPage = () => {
                                             }
                                         }}
                                         className={`py-2 px-3 rounded-xl border text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${captureSource === 'desktop'
-                                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
-                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm'
+                                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                             }`}
                                     >
                                         <Layers size={14} />
@@ -1168,6 +1134,69 @@ const ScreenshotToolPage = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Preview Modal */}
+            {previewDraft && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl max-w-4xl w-full border border-slate-100 shadow-2xl overflow-hidden animate-scale-up flex flex-col max-h-[90vh]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
+                            <h3 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider">
+                                Preview: {previewDraft.title || `Screenshot Draft`}
+                            </h3>
+                            <button
+                                onClick={() => setPreviewDraft(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-200 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        {/* Modal Body */}
+                        <div className="p-4 flex-1 overflow-y-auto flex items-center justify-center bg-slate-950 min-h-[300px]">
+                            <img
+                                src={previewDraft.url}
+                                alt="Preview"
+                                className="max-h-[65vh] max-w-full rounded-2xl object-contain border border-slate-850 shadow-2xl"
+                            />
+                        </div>
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500 font-bold shrink-0">
+                            <div>
+                                {previewDraft.resolution && <span>{previewDraft.resolution}</span>}
+                                {previewDraft.size && <span className="mx-2">•</span>}
+                                {previewDraft.size && <span>{previewDraft.size}</span>}
+                                <span className="mx-2">•</span>
+                                <span>{previewDraft.timestamp}</span>
+                            </div>
+                            <button
+                                onClick={() => setPreviewDraft(null)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Image Editor Modal */}
+            {editDraft && (
+                <ImageEditorModal
+                    isOpen={!!editDraft}
+                    onClose={() => {
+                        setEditDraft(null);
+                        setEditTitle('');
+                    }}
+                    draft={editDraft}
+                    title={editTitle}
+                    setTitle={setEditTitle}
+                    onSave={(updatedDraft) => {
+                        setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+                        setEditDraft(null);
+                        setEditTitle('');
+                    }}
+                />
             )}
         </DashboardLayout>
     );

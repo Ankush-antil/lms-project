@@ -133,8 +133,12 @@ const InstitutesList = () => {
                                     <tr key={inst._id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm">
-                                                    <Building size={20} />
+                                                <div className="w-10 h-10 rounded-lg bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm overflow-hidden">
+                                                    {inst.imageUrl ? (
+                                                        <img src={inst.imageUrl} alt={inst.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Building size={20} />
+                                                    )}
                                                 </div>
                                                 <span className="font-medium text-slate-800">{inst.name}</span>
                                             </div>

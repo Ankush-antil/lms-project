@@ -65,6 +65,16 @@ const LandingPage = () => {
     const [loadingCourses, setLoadingCourses] = useState(true);
     const [selectedCourseName, setSelectedCourseName] = useState(null);
     const [showCoursesDropdown, setShowCoursesDropdown] = useState(false);
+    const [showSubjectsDetail, setShowSubjectsDetail] = useState(false);
+    const [showFullDescription, setShowFullDescription] = useState(false);
+
+    // Reset subjects and description view when switching courses
+    useEffect(() => {
+        setShowSubjectsDetail(false);
+        setShowFullDescription(false);
+    }, [selectedCourseName]);
+
+
 
     // Institutes state
     const [institutes, setInstitutes] = useState([]);
@@ -398,27 +408,27 @@ const LandingPage = () => {
             <div className="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
 
             {/* ─────────────── HEADER ─────────────── */}
-            <header className="h-20 border-b border-slate-800/50 bg-[#0b1329] sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between">
-                <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setSelectedCourseName(null)}>
-                    <div className="w-11 h-11 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform duration-300">
+            <header className="h-14 border-b border-slate-800/50 bg-[#0b1329] sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between">
+                <div className="flex items-center space-x-2.5 cursor-pointer group" onClick={() => setSelectedCourseName(null)}>
+                    <div className="w-8 h-8 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform duration-300">
                         L
                     </div>
-                    <span className="text-xl font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
+                    <span className="text-lg font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">
                         LMS<span className="text-slate-400 font-light">Portal</span>
                     </span>
                 </div>
 
-                <div className="flex items-center space-x-3 md:space-x-4">
+                <div className="flex items-center space-x-3">
                     {/* Track Applications inside Header */}
                     {!showLockModal && guestSession && (
                         <button
                             onClick={() => navigate(`/track-applications?phone=${encodeURIComponent(guestSession.phone)}&name=${encodeURIComponent(guestSession.username)}`)}
-                            className="flex items-center space-x-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold text-xs md:text-sm"
+                            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold text-xs"
                         >
-                            <FileText size={16} />
+                            <FileText size={14} />
                             <span>Track Applications</span>
                             {applications.length > 0 && (
-                                <span className="bg-indigo-650 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                <span className="bg-indigo-650 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                                     {applications.length}
                                 </span>
                             )}
@@ -430,10 +440,10 @@ const LandingPage = () => {
                         <div className="relative" ref={dropdownRef}>
                             <button
                                 onClick={() => setShowCoursesDropdown(!showCoursesDropdown)}
-                                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all font-semibold text-sm hover:bg-slate-800/50 text-white"
+                                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all font-semibold text-xs hover:bg-slate-800/50 text-white"
                             >
                                 <span>Explore Courses</span>
-                                <ChevronDown size={16} className={`transition-transform duration-300 ${showCoursesDropdown ? 'rotate-180' : ''}`} />
+                                <ChevronDown size={14} className={`transition-transform duration-300 ${showCoursesDropdown ? 'rotate-180' : ''}`} />
                             </button>
 
                             <AnimatePresence>
@@ -479,30 +489,30 @@ const LandingPage = () => {
 
                     {/* Guest Session/Auth Actions */}
                     {guestSession && (
-                        <div className="flex items-center space-x-3 pl-4 border-l border-slate-800">
+                        <div className="flex items-center space-x-2.5 pl-3.5 border-l border-slate-800">
                             <div className="hidden md:flex flex-col text-right">
-                                <span className="text-xs font-bold text-slate-200">{guestSession.username}</span>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Guest Profile</span>
+                                <span className="text-[11px] font-bold text-slate-200">{guestSession.username}</span>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Guest Profile</span>
                             </div>
                             <button
                                 onClick={handleExitGuestSession}
                                 title="Exit Guest Session"
-                                className="p-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20 hover:border-red-900 rounded-xl transition-all"
+                                className="p-2 bg-slate-900 border border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20 hover:border-red-900 rounded-xl transition-all"
                             >
-                                <LogOut size={16} />
+                                <LogOut size={14} />
                             </button>
                         </div>
                     )}
 
                     {user && (
-                        <div className="flex items-center space-x-3 pl-4 border-l border-slate-800">
+                        <div className="flex items-center space-x-2.5 pl-3.5 border-l border-slate-800">
                             <div className="hidden md:flex flex-col text-right">
-                                <span className="text-xs font-bold text-slate-200">{user.name}</span>
-                                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">{user.role}</span>
+                                <span className="text-[11px] font-bold text-slate-200">{user.name}</span>
+                                <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider">{user.role}</span>
                             </div>
                             <button
                                 onClick={() => navigate(`/${user.role.toLowerCase()}`)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600/10 text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600/10 text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all"
                             >
                                 Dashboard <ArrowRight size={12} />
                             </button>
@@ -512,7 +522,7 @@ const LandingPage = () => {
             </header>
 
             {/* ─────────────── MAIN CONTENT ─────────────── */}
-            <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-10 flex flex-col justify-start">
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 pt-4 md:pt-6 pb-10 flex flex-col justify-start">
                 {!showLockModal && (
                     <AnimatePresence mode="wait">
                         {!selectedCourseName ? (
@@ -661,51 +671,66 @@ const LandingPage = () => {
                                 initial={{ opacity: 0, y: 15 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -15 }}
-                                className="space-y-8"
+                                className="space-y-5"
                             >
-                                {/* Back button */}
-                                <div>
-                                    <button
-                                        onClick={() => setSelectedCourseName(null)}
-                                        className="text-xs font-bold text-slate-600 hover:text-indigo-650 flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-xl transition-all shadow-sm"
-                                    >
-                                        &larr; Back to all courses
-                                    </button>
-                                </div>
 
                                 {/* Selected course header info */}
                                 {(() => {
                                     const matching = getInstitutesForSelectedCourse();
                                     const baseInfo = matching[0];
                                     return (
-                                        <div className="bg-indigo-50/40 border border-indigo-100 rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
-                                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                                            <div className="space-y-3 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full">
-                                                        {baseInfo?.code}
-                                                    </span>
-                                                    {baseInfo?.subjects && (
-                                                        <span className="text-[10px] text-slate-500 font-bold bg-white px-3 py-1 rounded-full border border-slate-200">
-                                                            {baseInfo.subjects.length} Subjects
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">{selectedCourseName}</h1>
-                                                <p className="text-slate-600 text-sm max-w-3xl leading-relaxed">
-                                                    {baseInfo?.description || 'A complete LMS syllabus structured by experienced educators to provide depth and practical learning.'}
-                                                </p>
+                                        <div className="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 md:p-5 relative overflow-hidden shadow-sm">
+                                            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
+                                            <div className="space-y-3">
+                                                {/* Title & Description styled like a book drop-cap wrapper */}
+                                                <div className="flow-root text-slate-600 text-sm leading-relaxed">
+                                                    <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 float-left mr-2 mb-0.5 leading-none -mt-1 md:-mt-1.5 select-none">
+                                                        {selectedCourseName}
+                                                    </h1>
 
-                                                {/* Subjects chips */}
-                                                {baseInfo?.subjects && baseInfo.subjects.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 pt-3">
-                                                        {baseInfo.subjects.map((sub, i) => (
-                                                            <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-600 shadow-sm">
-                                                                {sub}
+                                                    {(() => {
+                                                        const desc = baseInfo?.description || 'A complete LMS syllabus structured by experienced educators to provide depth and practical learning.';
+                                                        const isLong = desc.length > 150;
+                                                        const visibleText = (isLong && !showFullDescription) ? `${desc.slice(0, 150)}...` : desc;
+                                                        return (
+                                                            <>
+                                                                {visibleText}
+                                                                {isLong && (
+                                                                    <button
+                                                                        onClick={() => setShowFullDescription(!showFullDescription)}
+                                                                        className="ml-1.5 text-xs font-black text-indigo-650 hover:text-indigo-800 transition-colors cursor-pointer focus:outline-none"
+                                                                    >
+                                                                        {showFullDescription ? 'Show Less' : 'More'}
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </div>
+
+                                                {/* Expanded Extra Details (Course Code and Subjects) */}
+                                                {(() => {
+                                                    const desc = baseInfo?.description || '';
+                                                    const isLong = desc.length > 150;
+                                                    const shouldShowDetails = !isLong || showFullDescription;
+                                                    if (!shouldShowDetails) return null;
+
+                                                    return (
+                                                        <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-slate-200/60 mt-2">
+                                                            {/* Course Code */}
+                                                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-full select-none">
+                                                                {baseInfo?.code}
                                                             </span>
-                                                        ))}
-                                                    </div>
-                                                )}
+
+                                                            {/* Subject chips */}
+                                                            {baseInfo?.subjects && baseInfo.subjects.map((sub, i) => (
+                                                                <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-600 shadow-sm">
+                                                                    {sub}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     );

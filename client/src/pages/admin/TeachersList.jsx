@@ -66,6 +66,18 @@ const TeachersList = () => {
         }
     };
 
+    const handleToggleStatus = async (teacherId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${teacherId}`, { isActive: nextActive });
+            setTeachers(prev => prev.map(t => t._id === teacherId ? { ...t, isActive: nextActive } : t));
+            toast.success(`Teacher account ${nextActive ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            console.error("Error toggling status:", error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     const filteredTeachers = teachers.filter(teacher =>
         (filterCourse === 'All' || (teacher.teacherProfile?.assignedCourses?.some(c => c.name === filterCourse))) &&
         (teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,10 +221,19 @@ const TeachersList = () => {
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{teacher.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 text-slate-600 whitespace-nowrap">{teacher.email}</td>
                                         <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${teacher.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                                                }`}>
-                                                {teacher.status || 'Active'}
-                                            </span>
+                                            <button
+                                                onClick={() => handleToggleStatus(teacher._id, teacher.isActive)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                                    teacher.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                }`}
+                                                title={teacher.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                            >
+                                                <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                        teacher.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                                                    }`}
+                                                />
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
 

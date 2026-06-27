@@ -893,7 +893,7 @@ const VideoRecorderPage = () => {
                                                     title="Preview Recording"
                                                 >
                                                     <Eye size={14} />
-                                                </button>r gap-2 shrink-0">
+                                                </button>
                                                 {/* Sync with Cloud Indicator / Sync Button */}
                                                 {item.synced ? (
                                                     <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">

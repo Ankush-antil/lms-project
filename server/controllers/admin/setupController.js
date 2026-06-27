@@ -432,7 +432,7 @@ const deleteCourse = asyncHandler(async (req, res) => {
 // @route   POST /api/setup/apply
 // @access  Public
 const submitApplication = asyncHandler(async (req, res) => {
-    const { guestName, guestPhone, guestEmail, courseId, instituteId, statement } = req.body;
+    const { guestName, guestPhone, guestEmail, courseId, instituteId, statement, role } = req.body;
 
     if (!guestName || !guestPhone || !courseId || !instituteId) {
         res.status(400);
@@ -458,7 +458,8 @@ const submitApplication = asyncHandler(async (req, res) => {
         guestEmail,
         course: courseId,
         institute: instituteId,
-        statement
+        statement,
+        role: role || 'Student'
     });
 
     res.status(201).json(application);
@@ -607,6 +608,7 @@ const getInstituteApplications = asyncHandler(async (req, res) => {
     const applications = await Application.find(query)
         .populate('course', 'name code description')
         .populate('institute', 'name code address contactEmail')
+        .populate('user')
         .sort({ createdAt: -1 });
 
     res.json(applications);
@@ -669,22 +671,34 @@ const registerStudent = asyncHandler(async (req, res) => {
         throw new Error('A user account with this email address already exists');
     }
 
-    // Create the Student User
-    const user = await User.create({
+    // Create the User with the specified application role
+    const role = application.role || 'Student';
+    const userFields = {
         name: application.guestName,
         email: email,
         password: password, // Hashed on save
-        role: 'Student',
+        role: role,
         institute: application.institute,
-        mobileNumber: application.guestPhone,
-        studentProfile: {
+        mobileNumber: application.guestPhone
+    };
+
+    if (role === 'Student') {
+        userFields.studentProfile = {
             course: application.course,
             enrollmentDate: new Date()
-        }
-    });
+        };
+    } else if (role === 'Teacher') {
+        userFields.teacherProfile = {
+            assignedCourses: [application.course],
+            subjects: []
+        };
+    }
 
-    // Mark application as Registered
+    const user = await User.create(userFields);
+
+    // Mark application as Registered and link user
     application.status = 'Registered';
+    application.user = user._id;
     await application.save();
 
     // Log Activity
@@ -778,6 +792,36 @@ const getSubjects = asyncHandler(async (req, res) => {
     res.json(subjectsList);
 });
 
+// @desc    Delete application and associated user account if registered
+// @route   DELETE /api/setup/applications/:id
+// @access  Private/Institute or Admin
+const deleteApplication = asyncHandler(async (req, res) => {
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+        res.status(404);
+        throw new Error('Application not found');
+    }
+
+    // Enforce institute isolation
+    if (req.user.role === 'Institute' && application.institute.toString() !== req.user.institute.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete this application');
+    }
+
+    // Also delete the registered User if they exist!
+    if (application.user) {
+        await User.findByIdAndDelete(application.user);
+    } else {
+        // Fallback: search for user by email just in case
+        if (application.guestEmail) {
+            await User.findOneAndDelete({ email: application.guestEmail });
+        }
+    }
+
+    await application.deleteOne();
+    res.json({ message: 'Application and associated account removed successfully' });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -799,5 +843,6 @@ module.exports = {
     getInstituteApplications,
     updateApplicationStatus,
     registerStudent,
-    getSubjects
+    getSubjects,
+    deleteApplication
 };

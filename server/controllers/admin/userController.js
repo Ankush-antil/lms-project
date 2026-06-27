@@ -141,6 +141,7 @@ const updateUser = asyncHandler(async (req, res) => {
         }
         
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
+        user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
 
         if (req.body.password && req.body.password.trim() !== '') {
             user.password = req.body.password;

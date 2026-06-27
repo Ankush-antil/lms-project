@@ -5,7 +5,7 @@ import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Users, GraduationCap, BookOpen, FileText, Inbox, RefreshCw, CheckCircle, 
-    XCircle, Clock, ExternalLink, ShieldAlert, Award, ArrowRight, Check, X 
+    XCircle, Clock, ExternalLink, ShieldAlert, Award, ArrowRight, Check, X, Trash2 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -103,6 +103,48 @@ const InstituteDashboard = () => {
             toast.error(error.response?.data?.message || "Failed to update application status");
         } finally {
             setUpdatingId(null);
+        }
+    };
+
+    const handleToggleUserStatus = async (appId, userId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${userId}`, { isActive: nextActive });
+            
+            // Update local state
+            setApplications(prev => prev.map(app => {
+                if (app._id === appId && app.user) {
+                    return { ...app, user: { ...app.user, isActive: nextActive } };
+                }
+                return app;
+            }));
+            
+            toast.success(`Account ${nextActive ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            console.error("Error toggling user status:", error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
+    const handleDeleteApplication = async (appId) => {
+        if (window.confirm("Are you sure you want to delete this application and its associated user account?")) {
+            try {
+                setUpdatingId(appId);
+                await axios.delete(`/api/setup/applications/${appId}`);
+                toast.success("Application and account deleted successfully");
+                
+                // Update state
+                setApplications(prev => prev.filter(app => app._id !== appId));
+                setStats(prev => ({
+                    ...prev,
+                    totalApps: Math.max(0, prev.totalApps - 1)
+                }));
+            } catch (error) {
+                console.error("Error deleting application:", error);
+                toast.error(error.response?.data?.message || "Failed to delete application");
+            } finally {
+                setUpdatingId(null);
+            }
         }
     };
 
@@ -272,8 +314,10 @@ const InstituteDashboard = () => {
                                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-extrabold">
                                                 <th className="p-5">Applicant Details</th>
                                                 <th className="p-5">Applied Course</th>
+                                                <th className="p-5">Role</th>
                                                 <th className="p-5">Date</th>
                                                 <th className="p-5">Statement</th>
+                                                <th className="p-5 text-center">ID Status</th>
                                                 <th className="p-5 text-center">Status</th>
                                                 <th className="p-5 text-right">Actions</th>
                                             </tr>
@@ -297,6 +341,15 @@ const InstituteDashboard = () => {
                                                         </div>
                                                     </td>
                                                     <td className="p-5 whitespace-nowrap">
+                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                            app.role === 'Teacher'
+                                                                ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                                : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                        }`}>
+                                                            {app.role || 'Student'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-5 whitespace-nowrap">
                                                         <span className="text-slate-500 font-medium text-xs">
                                                             {new Date(app.createdAt).toLocaleDateString(undefined, {
                                                                 year: 'numeric',
@@ -309,6 +362,25 @@ const InstituteDashboard = () => {
                                                         <p className="text-slate-500 text-xs truncate group-hover:whitespace-normal group-hover:text-slate-700 transition-all duration-300" title={app.statement}>
                                                             {app.statement || <span className="italic text-slate-350">No statement provided</span>}
                                                         </p>
+                                                    </td>
+                                                    <td className="p-5 whitespace-nowrap text-center">
+                                                        {app.user ? (
+                                                            <button
+                                                                onClick={() => handleToggleUserStatus(app._id, app.user._id, app.user.isActive)}
+                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                                                    app.user.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                                }`}
+                                                                title={app.user.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                                            >
+                                                                <span
+                                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                                        app.user.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                                                                    }`}
+                                                                />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-300 text-xs select-none font-bold">—</span>
+                                                        )}
                                                     </td>
                                                     <td className="p-5 whitespace-nowrap text-center">
                                                         <span className={`px-3 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusBadgeClass(app.status)}`}>
@@ -327,19 +399,27 @@ const InstituteDashboard = () => {
                                                             </button>
                                                             <button
                                                                 onClick={() => handleUpdateStatus(app._id, 'Under Review')}
-                                                                disabled={updatingId === app._id || app.status === 'Under Review'}
-                                                                className={`p-1.5 rounded-lg border text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100 hover:text-amber-700 transition-all ${app.status === 'Under Review' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                                disabled={updatingId === app._id || app.status === 'Under Review' || app.status === 'Accepted'}
+                                                                className={`p-1.5 rounded-lg border text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100 hover:text-amber-700 transition-all ${(app.status === 'Under Review' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
                                                                 title="Put Under Review"
                                                             >
                                                                 <Clock size={14} className="stroke-[3px]" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleUpdateStatus(app._id, 'Rejected')}
-                                                                disabled={updatingId === app._id || app.status === 'Rejected'}
-                                                                className={`p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all ${app.status === 'Rejected' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                                disabled={updatingId === app._id || app.status === 'Rejected' || app.status === 'Accepted'}
+                                                                className={`p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all ${(app.status === 'Rejected' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
                                                                 title="Reject Application"
                                                             >
                                                                 <X size={14} className="stroke-[3px]" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteApplication(app._id)}
+                                                                disabled={updatingId === app._id}
+                                                                className="p-1.5 rounded-lg border text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                                                                title="Delete Application"
+                                                            >
+                                                                <Trash2 size={14} className="stroke-[2.5px]" />
                                                             </button>
                                                         </div>
                                                     </td>

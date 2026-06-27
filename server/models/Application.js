@@ -27,8 +27,17 @@ const applicationSchema = new mongoose.Schema({
         enum: ['Applied', 'Under Review', 'Accepted', 'Rejected', 'Registered'],
         default: 'Applied'
     },
+    role: {
+        type: String,
+        enum: ['Student', 'Teacher'],
+        default: 'Student'
+    },
     statement: {
         type: String
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }
 }, {
     timestamps: true

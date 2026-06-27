@@ -7,6 +7,8 @@ import {
     Compass, BookOpen, Shield, AlertCircle, ChevronRight,
     RefreshCw, Phone, Mail, X, ExternalLink
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const ApplicationsTrackingPage = () => {
     const navigate = useNavigate();
@@ -14,10 +16,54 @@ const ApplicationsTrackingPage = () => {
     const phone = searchParams.get('phone') || '';
     const guestName = searchParams.get('name') || 'Guest';
 
+    const { login } = useAuth();
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeSection, setActiveSection] = useState('activity');
     const [selectedApp, setSelectedApp] = useState(null);
+
+    // Registration States
+    const [registeringApp, setRegisteringApp] = useState(null);
+    const [regEmail, setRegEmail] = useState('');
+    const [regPassword, setRegPassword] = useState('');
+    const [regConfirmPassword, setRegConfirmPassword] = useState('');
+    const [regLoading, setRegLoading] = useState(false);
+
+    const handleRegisterStudentSubmit = async (e) => {
+        e.preventDefault();
+        if (regPassword !== regConfirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
+
+        setRegLoading(true);
+        try {
+            await axios.post('/api/setup/register-student', {
+                applicationId: registeringApp._id,
+                email: regEmail,
+                password: regPassword
+            });
+
+            toast.success("Account created successfully! Logging you in...");
+
+            // Auto login
+            await login(regEmail, regPassword);
+
+            // Clean up state
+            setRegisteringApp(null);
+            setRegEmail('');
+            setRegPassword('');
+            setRegConfirmPassword('');
+
+            // Redirect to student portal
+            navigate('/student/tests');
+        } catch (error) {
+            console.error("Registration failed:", error);
+            toast.error(error.response?.data?.message || "Registration failed");
+        } finally {
+            setRegLoading(false);
+        }
+    };
 
     const fetchApplications = async () => {
         if (!phone) return;
@@ -200,12 +246,23 @@ const ApplicationsTrackingPage = () => {
                                             {/* Status-specific action */}
                                             {app.status === 'Accepted' && (
                                                 <div className="mt-4 pt-4 border-t border-slate-100">
-                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
-                                                        <CheckCircle size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <p className="text-xs font-bold text-emerald-700">Your application was accepted!</p>
-                                                            <p className="text-[11px] text-emerald-600 mt-0.5">Go back to the home page and click "Track Applications" → "Create Account to Login"</p>
+                                                    <div className="bg-emerald-50 border border-emerald-250 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                                        <div className="flex items-start gap-2.5">
+                                                            <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                            <div>
+                                                                <p className="text-sm font-bold text-emerald-800">Your application was accepted!</p>
+                                                                <p className="text-xs text-emerald-650 mt-0.5 font-medium">Create your login credentials below to set up your student account.</p>
+                                                            </div>
                                                         </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setRegisteringApp(app);
+                                                                setRegEmail(app.guestEmail || '');
+                                                            }}
+                                                            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                                        >
+                                                            Create Account to Login
+                                                        </button>
                                                     </div>
                                                 </div>
                                             )}
@@ -335,6 +392,93 @@ const ApplicationsTrackingPage = () => {
                     </button>
                 </div>
             </div>
+
+            {/* ─────────────── GUEST STUDENT REGISTRATION MODAL ─────────────── */}
+            <AnimatePresence>
+                {registeringApp && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.6 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setRegisteringApp(null)}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        ></motion.div>
+
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                            className="bg-white border border-slate-200 rounded-[2.5rem] w-full max-w-md p-6 md:p-8 relative z-10 text-slate-800 overflow-hidden shadow-2xl"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-xl font-bold tracking-tight text-slate-900 font-sans">Setup Student Account</h3>
+                                    <p className="text-xs text-slate-500 mt-1 font-sans">Create login details for {registeringApp.guestName}</p>
+                                </div>
+                                <button
+                                    onClick={() => setRegisteringApp(null)}
+                                    className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 rounded-xl transition-all"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleRegisterStudentSubmit} className="space-y-4 font-sans">
+                                <div className="space-y-4">
+                                    <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
+                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Email Address</label>
+                                        <input
+                                            type="email"
+                                            value={regEmail}
+                                            onChange={(e) => setRegEmail(e.target.value)}
+                                            required
+                                            placeholder="Enter your email address"
+                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
+                                        />
+                                    </div>
+
+                                    <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
+                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Create Password</label>
+                                        <input
+                                            type="password"
+                                            value={regPassword}
+                                            onChange={(e) => setRegPassword(e.target.value)}
+                                            required
+                                            placeholder="Create a password"
+                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
+                                        />
+                                    </div>
+
+                                    <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all">
+                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Confirm Password</label>
+                                        <input
+                                            type="password"
+                                            value={regConfirmPassword}
+                                            onChange={(e) => setRegConfirmPassword(e.target.value)}
+                                            required
+                                            placeholder="Confirm your password"
+                                            className="w-full bg-transparent border-none text-slate-800 text-sm focus:outline-none placeholder-slate-400"
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={regLoading}
+                                    className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/10 flex justify-center items-center text-sm disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {regLoading ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        "Register & Login"
+                                    )}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

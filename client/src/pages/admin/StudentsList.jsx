@@ -67,6 +67,18 @@ const StudentsList = () => {
         }
     };
 
+    const handleToggleStatus = async (studentId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${studentId}`, { isActive: nextActive });
+            setStudents(prev => prev.map(s => s._id === studentId ? { ...s, isActive: nextActive } : s));
+            toast.success(`Student account ${nextActive ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            console.error("Error toggling status:", error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     const filteredStudents = students.filter(student =>
         (filterClass === 'All' || (student.studentProfile?.course?.name === filterClass)) &&
         (filterSubject === 'All' || (student.studentProfile?.subject === filterSubject)) &&
@@ -199,10 +211,19 @@ const StudentsList = () => {
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{student.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 text-slate-600 whitespace-nowrap">{student.email}</td>
                                         <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${student.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                                                }`}>
-                                                {student.status || 'Active'}
-                                            </span>
+                                            <button
+                                                onClick={() => handleToggleStatus(student._id, student.isActive)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                                    student.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                }`}
+                                                title={student.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                            >
+                                                <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                        student.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                                                    }`}
+                                                />
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
 

@@ -20,7 +20,8 @@ const {
     getInstituteApplications,
     updateApplicationStatus,
     registerStudent,
-    getSubjects
+    getSubjects,
+    deleteApplication
 } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
 
@@ -81,6 +82,9 @@ router.route('/institute-applications')
 
 router.route('/applications/:id/status')
     .put(protect, adminOrInstitute, updateApplicationStatus);
+
+router.route('/applications/:id')
+    .delete(protect, adminOrInstitute, deleteApplication);
 
 module.exports = router;
 

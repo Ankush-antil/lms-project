@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Video, Mic, MicOff, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Share2, CheckCircle, X, Save } from 'lucide-react';
+import { Video, Mic, MicOff, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Share2, CheckCircle, X, Save, Pencil, Eye } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -8,19 +8,20 @@ import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
 import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
+import VideoTrimmerModal from '../../../components/common/VideoTrimmerModal';
 
 const ScreenRecorderPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const videoRef = useRef(null);
-    
+
     // Parse selected date and inbox param
     const searchParams = new URLSearchParams(location.search);
     const dateParam = searchParams.get('date');
     const inboxParam = searchParams.get('inbox');
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
-    
+
     // States
     const [audioDevices, setAudioDevices] = useState([]);
     const [selectedAudio, setSelectedAudio] = useState('');
@@ -28,21 +29,34 @@ const ScreenRecorderPage = () => {
     const [countdown, setCountdown] = useState(0);
     const [countdownActive, setCountdownActive] = useState(false);
     const [secondsLeft, setSecondsLeft] = useState(0);
-    
+
     const [resolution, setResolution] = useState('1080p');
     const [frameRate, setFrameRate] = useState('30');
     const [format, setFormat] = useState('MP4');
     const [bitrate, setBitrate] = useState('192k');
-    
+
     const [screenStream, setScreenStream] = useState(null);
     const [micStream, setMicStream] = useState(null);
     const [recording, setRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
-    
+
     const [recordings, setRecordings] = useState([]);
     const [drafts, setDrafts] = useState([]);
     const [error, setError] = useState(null);
     const [lastRecordingUrl, setLastRecordingUrl] = useState(null); // Show last recording in preview after stop
+
+    // Draft Preview & Edit Modal states
+    const [previewDraft, setPreviewDraft] = useState(null);
+    const [editDraft, setEditDraft] = useState(null);
+    const [editTitle, setEditTitle] = useState('');
+
+    const handleSaveEdit = () => {
+        if (!editDraft) return;
+        setDrafts(prev => prev.map(d => d.id === editDraft.id ? { ...d, title: editTitle } : d));
+        setEditDraft(null);
+        setEditTitle('');
+        toast.success("Draft renamed!");
+    };
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -202,7 +216,7 @@ const ScreenRecorderPage = () => {
 
         localStorage.setItem('practice_screen_recordings', JSON.stringify(recordings.map(r => ({ ...r, url: '' }))));
         await fetchCloudFiles();
-        
+
         if (successCount > 0) {
             toast.success(`Successfully synced ${successCount} recordings!`, { id: toastId });
         } else {
@@ -307,8 +321,8 @@ const ScreenRecorderPage = () => {
             try {
                 await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
                     s.getTracks().forEach(t => t.stop());
-                }).catch(() => {});
-                
+                }).catch(() => { });
+
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const audioInputs = devices.filter(d => d.kind === 'audioinput');
                 setAudioDevices(audioInputs);
@@ -471,29 +485,41 @@ const ScreenRecorderPage = () => {
             };
 
             mediaRecorder.onstop = async () => {
-                const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-                const blobUrl = URL.createObjectURL(blob);
-                const draftId = 'draft_' + Date.now();
-                const sizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
-                const searchParams = new URLSearchParams(window.location.search);
-                const inboxVal = searchParams.get('inbox');
+                const rawBlob = new Blob(chunksRef.current, { type: 'video/webm' });
+                const finalDurationMs = recordingTime * 1000;
 
-                const newDraft = {
-                    id: draftId,
-                    timestamp: new Date().toLocaleString(),
-                    blob: blob,
-                    url: blobUrl,
-                    size: sizeStr,
-                    duration: formatTime(recordingTime),
-                    resolution: resolution,
-                    inbox: inboxVal || ''
+                const processBlob = (blob) => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const draftId = 'draft_' + Date.now();
+                    const sizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
+                    const searchParams = new URLSearchParams(window.location.search);
+                    const inboxVal = searchParams.get('inbox');
+
+                    const newDraft = {
+                        id: draftId,
+                        timestamp: new Date().toLocaleString(),
+                        blob: blob,
+                        url: blobUrl,
+                        size: sizeStr,
+                        duration: formatTime(recordingTime),
+                        resolution: resolution,
+                        inbox: inboxVal || ''
+                    };
+
+                    setDrafts(prev => [newDraft, ...prev]);
+                    // Show the just-recorded video in the preview area
+                    setLastRecordingUrl(blobUrl);
+                    setRecordingTime(0);
+                    toast.success("Recording complete! Added to Draft Content.");
                 };
 
-                setDrafts(prev => [newDraft, ...prev]);
-                // Show the just-recorded video in the preview area
-                setLastRecordingUrl(blobUrl);
-                setRecordingTime(0);
-                toast.success("Recording complete! Added to Draft Content.");
+                if (window.ysFixWebmDuration && finalDurationMs > 0) {
+                    window.ysFixWebmDuration(rawBlob, finalDurationMs, (fixedBlob) => {
+                        processBlob(fixedBlob);
+                    });
+                } else {
+                    processBlob(rawBlob);
+                }
             };
 
             setRecording(true);
@@ -550,7 +576,8 @@ const ScreenRecorderPage = () => {
                 synced: false,
                 driveSynced: false,
                 driveUrl: null,
-                inbox: draft.inbox
+                inbox: draft.inbox,
+                title: draft.title
             };
 
             setRecordings(prev => {
@@ -587,7 +614,7 @@ const ScreenRecorderPage = () => {
                     <div>
                         <h1 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
                             <Video className="text-emerald-600" size={20} />
-                            Screen Recorder {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
+                            Screen Recorder
                         </h1>
                     </div>
 
@@ -645,7 +672,7 @@ const ScreenRecorderPage = () => {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
                             }
                         }}
-                        className="flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
+                        className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
                     >
                         <ArrowLeft size={14} />
                         Back to Practice Tools
@@ -666,96 +693,86 @@ const ScreenRecorderPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                     {/* Left Column: Capture Preview & Saved List */}
                     <div className="lg:col-span-9 space-y-6">
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
-                                <span>Screen Preview</span>
+                        {/* Compact Toolbar Action Bar */}
+                        <div className="bg-white px-5 py-4 rounded-3xl border border-slate-105 shadow-sm flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                    <Video className="text-emerald-600" size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-extrabold text-slate-800 text-sm leading-tight">Screen Recorder</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        {recording ? 'Recording screen is active' : 'Click to start or preview your screen share'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
                                 {recording && (
-                                    <span className="flex items-center gap-1 text-red-500 font-black text-xs animate-pulse">
-                                        <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>
+                                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-black animate-pulse">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
                                         LIVE {formatTime(recordingTime)}
                                     </span>
                                 )}
-                            </h3>
+                                {countdownActive && (
+                                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 border border-yellow-200 text-yellow-750 rounded-xl text-xs font-black animate-pulse">
+                                        Countdown: {secondsLeft}s
+                                    </span>
+                                )}
+                                <button
+                                    disabled={isReadOnly || countdownActive}
+                                    onClick={toggleRecording}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm active:scale-[0.98] transition-all duration-200 ${isReadOnly
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                        : recording
+                                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
+                                            : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
+                                        }`}
+                                >
+                                    <span className="w-2 h-2 bg-white/80 rounded-full animate-pulse"></span>
+                                    {isReadOnly ? 'Read-Only' : recording ? 'Stop Recording' : 'Start Recording'}
+                                </button>
+                            </div>
+                        </div>
 
-                            {/* Share Screen Preview */}
-                            <div className="flex-1 my-4 bg-slate-905 rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-850 min-h-[280px]">
+                        {/* Screen Stream Panel — only shown when preview/recording is active */}
+                        {(screenStream || recording || countdownActive) && (
+                            <div className="bg-slate-950 rounded-2xl overflow-hidden border border-slate-805 relative min-h-[260px] flex items-center justify-center">
                                 {screenStream ? (
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        muted
-                                        playsInline
-                                        className="w-full h-full object-contain"
-                                    ></video>
-                                ) : lastRecordingUrl ? (
                                     <>
                                         <video
-                                            src={lastRecordingUrl}
-                                            controls
+                                            ref={videoRef}
+                                            autoPlay
+                                            muted
                                             playsInline
-                                            className="w-full h-full object-contain"
+                                            className="w-full max-h-[300px] object-contain"
                                         ></video>
-                                        <button
-                                            onClick={() => setLastRecordingUrl(null)}
-                                            className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-colors z-10"
-                                        >
-                                            ✕ Close
-                                        </button>
+                                        {countdownActive && (
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 animate-fade-in">
+                                                <div className="w-20 h-20 bg-emerald-655 text-white rounded-full flex items-center justify-center text-4xl font-black animate-ping">
+                                                    {secondsLeft}
+                                                </div>
+                                            </div>
+                                        )}
                                     </>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-3">
-                                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-emerald-400">
+                                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-emerald-450">
                                             <Video size={32} />
                                         </div>
-                                        <div>
-                                            <p className="font-extrabold text-slate-300 text-sm uppercase tracking-wider">Ready to Share Screen</p>
-                                            <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">Click Start Recording to initialize browser screen-sharing overlay.</p>
-                                        </div>
-                                        {error && (
-                                            <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-950/20 border border-red-900/30 px-3 py-1.5 rounded-xl font-medium mt-2">
+                                        {error ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-955/20 border border-red-900/30 px-3 py-1.5 rounded-xl font-medium mt-2">
                                                 <AlertTriangle size={14} />
                                                 <span>{error}</span>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p className="font-extrabold text-slate-300 text-sm uppercase tracking-wider">Preview Initializing...</p>
                                             </div>
                                         )}
                                     </div>
                                 )}
-                                
-                                {countdownActive && (
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 animate-fade-in">
-                                        <div className="w-20 h-20 bg-emerald-600 text-white rounded-full flex items-center justify-center text-4xl font-black animate-ping">
-                                            {secondsLeft}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-
-                            {/* Trigger Recording button */}
-                            <button
-                                disabled={isReadOnly || countdownActive}
-                                onClick={toggleRecording}
-                                className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all duration-200 mt-4 text-white shadow-lg ${
-                                    isReadOnly
-                                        ? 'bg-slate-300 border-slate-300 text-slate-500 cursor-not-allowed opacity-60 shadow-none'
-                                        : recording 
-                                            ? 'bg-red-600 hover:bg-red-700 shadow-red-600/10 hover:shadow-red-600/20' 
-                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10 hover:shadow-emerald-500/20'
-                                }`}
-                            >
-                                {isReadOnly ? (
-                                    <span>Workspace Read-Only</span>
-                                ) : recording ? (
-                                    <>
-                                        <Square size={16} fill="white" />
-                                        <span>Stop Recording</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping animate-pulse"></span>
-                                        <span>Start Screen Recording</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        )}
 
                         {/* Draft Content Section */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
@@ -773,27 +790,39 @@ const ScreenRecorderPage = () => {
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                                     {drafts.map((draft, index) => (
                                         <div key={draft.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors">
-                                            <div className="flex flex-col gap-2 flex-1 min-w-0">
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider">
-                                                        Rec {drafts.length - index}
+                                                        {draft.title || `Rec ${drafts.length - index}`}
                                                     </span>
                                                     <span className="text-[10px] text-slate-400 font-bold">
                                                         {draft.duration} • {draft.size} • {draft.resolution}
                                                     </span>
                                                 </div>
-                                                {draft.url && (
-                                                    <div className="w-full max-w-sm mt-1">
-                                                        <video
-                                                            src={draft.url}
-                                                            controls
-                                                            playsInline
-                                                            className="w-full max-h-40 rounded-xl bg-slate-900 border border-slate-800"
-                                                        />
-                                                    </div>
-                                                )}
+                                                <span className="text-[10px] text-slate-500 font-bold block truncate">
+                                                    {draft.timestamp}
+                                                </span>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {/* Preview Button */}
+                                                <button
+                                                    onClick={() => setPreviewDraft(draft)}
+                                                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all border border-slate-200"
+                                                    title="Preview Recording"
+                                                >
+                                                    <Eye size={14} />
+                                                </button>
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => {
+                                                        setEditDraft(draft);
+                                                        setEditTitle(draft.title || `Rec ${drafts.length - index}`);
+                                                    }}
+                                                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all border border-slate-200"
+                                                    title="Rename Draft"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
                                                 {/* Save Button */}
                                                 <button
                                                     onClick={() => handleSaveDraft(draft)}
@@ -806,7 +835,7 @@ const ScreenRecorderPage = () => {
                                                 {/* Download Button */}
                                                 <a
                                                     href={draft.url}
-                                                    download={`draft_${draft.id}.webm`}
+                                                    download={`${draft.title || `draft_${draft.id}`}.webm`}
                                                     className="p-2 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all border border-emerald-100"
                                                     title="Download File"
                                                 >
@@ -843,28 +872,28 @@ const ScreenRecorderPage = () => {
                                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
                                     {filteredRecordings.map((item, index) => (
                                         <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors">
-                                            <div className="flex flex-col gap-2 flex-1 min-w-0">
-                                                <div className="flex items-center gap-3">
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0 text-left">
+                                                <div className="flex items-center gap-3 flex-wrap">
                                                     <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider">
-                                                        Rec {filteredRecordings.length - index}
+                                                        {item.title || `Rec ${filteredRecordings.length - index}`}
                                                     </span>
                                                     <span className="text-[10px] text-slate-400 font-bold">
                                                         {item.duration} • {item.size} • {item.resolution}
                                                     </span>
                                                 </div>
-                                                {/* Compact video element */}
-                                                {item.url && (
-                                                    <div className="w-full max-w-sm mt-1">
-                                                        <video
-                                                            src={item.url}
-                                                            controls
-                                                            playsInline
-                                                            className="w-full max-h-40 rounded-xl bg-slate-900 border border-slate-800"
-                                                        />
-                                                    </div>
-                                                )}
+                                                <span className="text-[10px] text-slate-450 font-bold">
+                                                    {item.timestamp}
+                                                </span>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {/* Preview Button */}
+                                                <button
+                                                    onClick={() => setPreviewDraft(item)}
+                                                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all border border-slate-200"
+                                                    title="Preview Recording"
+                                                >
+                                                    <Eye size={14} />
+                                                </button>
                                                 {/* Sync with Cloud Indicator / Sync Button */}
                                                 {item.synced ? (
                                                     <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
@@ -929,10 +958,10 @@ const ScreenRecorderPage = () => {
                     </div>
 
                     {/* Right Column: Settings Panel */}
-                    <div className="lg:col-span-3 space-y-6 text-left">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                    <div className="lg:col-span-3 space-y-3 text-left">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
                             <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Settings</h3>
-                            
+
                             {/* Screen Source Dropdown */}
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Source View</label>
@@ -963,11 +992,10 @@ const ScreenRecorderPage = () => {
                                     <button
                                         onClick={recording ? toggleMicDuringRecording : () => setAudioEnabled(!audioEnabled)}
                                         title={recording ? (audioEnabled ? 'Mute mic' : 'Unmute mic') : 'Toggle mic'}
-                                        className={`shrink-0 px-3 rounded-xl font-bold text-xs border transition-colors flex items-center gap-1 ${
-                                            audioEnabled
-                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                        }`}
+                                        className={`shrink-0 px-3 rounded-xl font-bold text-xs border transition-colors flex items-center gap-1 ${audioEnabled
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                            }`}
                                     >
                                         {audioEnabled ? <MicOff size={12} /> : <Mic size={12} />}
                                         {recording ? (audioEnabled ? 'Mute' : 'Unmute') : 'Toggle'}
@@ -1387,6 +1415,74 @@ const ScreenRecorderPage = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Preview Modal */}
+            {previewDraft && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl max-w-3xl w-full border border-slate-100 shadow-2xl overflow-hidden animate-fade-in">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                            <h3 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider">
+                                Preview: {previewDraft.title || `Draft`}
+                            </h3>
+                            <button
+                                onClick={() => setPreviewDraft(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-200 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col items-center justify-center bg-slate-950 min-h-[300px]">
+                            <video
+                                src={previewDraft.url}
+                                controls
+                                autoPlay
+                                playsInline
+                                className="max-h-[60vh] max-w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl"
+                            />
+                        </div>
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500 font-bold">
+                            <div>
+                                {previewDraft.resolution && <span>{previewDraft.resolution}</span>}
+                                {previewDraft.size && <span className="mx-2">•</span>}
+                                {previewDraft.size && <span>{previewDraft.size}</span>}
+                                {previewDraft.duration && <span className="mx-2">•</span>}
+                                {previewDraft.duration && <span>{previewDraft.duration}</span>}
+                                <span className="mx-2">•</span>
+                                <span>{previewDraft.timestamp}</span>
+                            </div>
+                            <button
+                                onClick={() => setPreviewDraft(null)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit/Trim Modal */}
+            {editDraft && (
+                <VideoTrimmerModal
+                    isOpen={!!editDraft}
+                    onClose={() => {
+                        setEditDraft(null);
+                        setEditTitle('');
+                    }}
+                    draft={editDraft}
+                    title={editTitle}
+                    setTitle={setEditTitle}
+                    onSave={(updatedDraft) => {
+                        setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+                        setEditDraft(null);
+                        setEditTitle('');
+                        toast.success("Draft updated!");
+                    }}
+                />
             )}
         </DashboardLayout>
     );

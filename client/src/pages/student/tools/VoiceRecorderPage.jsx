@@ -1710,7 +1710,7 @@ const VoiceRecorderPage = () => {
                     <div>
                         <h1 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
                             <Mic className="text-blue-650" size={20} />
-                            Voice Recorder {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
+                            Voice Recorder
                         </h1>
                     </div>
 
@@ -1768,7 +1768,7 @@ const VoiceRecorderPage = () => {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
                             }
                         }}
-                        className="flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
+                        className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
                     >
                         <ArrowLeft size={14} />
                         Back to Practice Tools

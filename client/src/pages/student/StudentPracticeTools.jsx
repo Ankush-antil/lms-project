@@ -35,9 +35,9 @@ const StudentPracticeTools = () => {
                 axios.get('/api/practice-files'),
                 axios.get('/api/notes').catch(() => ({ data: [] }))
             ]);
-            const cFiles = cloudRes.data.files || [];
+            const cFiles = (cloudRes.data.files || []).filter(f => !f.inbox);
             setCloudFiles(cFiles);
-            setNotesList(notesRes.data || []);
+            setNotesList((notesRes.data || []).filter(n => !n.inboxId));
 
             // 2. Fetch Local Files from LocalStorage
             const allLocal = [];
@@ -48,11 +48,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(screenshotsStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.timestamp,
-                            toolType: 'Screenshot Tool',
-                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Screenshot Tool',
+                                parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                            });
+                        }
                     });
                 } catch(e) {}
             }
@@ -63,11 +65,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(screenStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.timestamp,
-                            toolType: 'Screen Recorder',
-                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Screen Recorder',
+                                parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                            });
+                        }
                     });
                 } catch(e) {}
             }
@@ -78,11 +82,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(videoStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.timestamp,
-                            toolType: 'Video Recorder',
-                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Video Recorder',
+                                parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                            });
+                        }
                     });
                 } catch(e) {}
             }
@@ -93,11 +99,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(audioStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.timestamp,
-                            toolType: 'Voice Recorder',
-                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Voice Recorder',
+                                parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                            });
+                        }
                     });
                 } catch(e) {}
             }
@@ -108,11 +116,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(logsStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.date,
-                            toolType: 'Web-Calling Tool',
-                            parsedDate: parseDateToDdMmYyyy(item.date)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.date,
+                                toolType: 'Web-Calling Tool',
+                                parsedDate: parseDateToDdMmYyyy(item.date)
+                            });
+                        }
                     });
                 } catch(e) {}
             }
@@ -123,11 +133,13 @@ const StudentPracticeTools = () => {
                 try {
                     const list = JSON.parse(fileUploadsStr);
                     list.forEach(item => {
-                        allLocal.push({
-                            timestamp: item.timestamp,
-                            toolType: 'File Uploader',
-                            parsedDate: parseDateToDdMmYyyy(item.timestamp)
-                        });
+                        if (!item.inbox) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'File Uploader',
+                                parsedDate: parseDateToDdMmYyyy(item.timestamp)
+                            });
+                        }
                     });
                 } catch(e) {}
             }

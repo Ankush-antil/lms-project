@@ -91,6 +91,32 @@ const TeacherActivities = () => {
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
     const [loadingPracticeFiles, setLoadingPracticeFiles] = useState(false);
 
+    // Inbox-linked practice states
+    const [inboxPracticeFiles, setInboxPracticeFiles] = useState([]);
+    const [inboxSharedNotes, setInboxSharedNotes] = useState([]);
+    const [loadingInboxPractice, setLoadingInboxPractice] = useState(false);
+
+    useEffect(() => {
+        if (selectedStudent && selectedInboxId && viewMode === 'tools') {
+            const fetchInboxPractice = async () => {
+                try {
+                    setLoadingInboxPractice(true);
+                    const [filesRes, notesRes] = await Promise.all([
+                        axios.get(`/api/practice-files?studentId=${selectedStudent._id}&inbox=${encodeURIComponent(selectedInboxId)}`),
+                        axios.get(`/api/notes/shared?studentId=${selectedStudent._id}&inboxId=${encodeURIComponent(selectedInboxId)}`).catch(() => ({ data: [] }))
+                    ]);
+                    setInboxPracticeFiles(filesRes.data.files || []);
+                    setInboxSharedNotes(notesRes.data || []);
+                } catch (err) {
+                    console.error("Error fetching inbox practice data:", err);
+                } finally {
+                    setLoadingInboxPractice(false);
+                }
+            };
+            fetchInboxPractice();
+        }
+    }, [selectedStudent, selectedInboxId, viewMode]);
+
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [matTitle, setMatTitle] = useState('');
@@ -146,8 +172,10 @@ const TeacherActivities = () => {
                 axios.get(`/api/practice-files?studentId=${studentId}`),
                 axios.get(`/api/notes/shared?studentId=${studentId}`).catch(() => ({ data: [] }))
             ]);
-            setStudentPracticeFiles(filesRes.data.files || []);
-            setStudentSharedNotes(notesRes.data || []);
+            const noInboxFiles = (filesRes.data.files || []).filter(f => !f.inbox);
+            const noInboxNotes = (notesRes.data || []).filter(n => !n.inboxId);
+            setStudentPracticeFiles(noInboxFiles);
+            setStudentSharedNotes(noInboxNotes);
         } catch (error) {
             console.error("Error fetching student practice files:", error);
         } finally {
@@ -967,6 +995,7 @@ const TeacherActivities = () => {
                                             { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                             { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
                                             { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
+                                            { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                             { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
                                             { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                             { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
@@ -1195,6 +1224,157 @@ const TeacherActivities = () => {
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            ) : viewMode === 'tools' ? (
+                                /* --- INBOX TOOLS TAB FOR TEACHER --- */
+                                <div className="animate-fade-in space-y-6 text-left animate-slide-up">
+                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                        <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
+                                        <p className="text-slate-500 text-xs leading-relaxed">
+                                            Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{getDisplayTitle(selectedInboxId)}</strong>.
+                                        </p>
+                                    </div>
+
+                                    {loadingInboxPractice ? (
+                                        <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                            <p className="text-xs text-slate-450 font-semibold">Loading tools data...</p>
+                                        </div>
+                                    ) : (inboxPracticeFiles.length === 0 && inboxSharedNotes.length === 0) ? (
+                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                            <div className="text-4xl mb-2">📂</div>
+                                            <p className="font-bold text-slate-700 text-sm">No Tools Activity</p>
+                                            <p className="text-slate-450 text-xs mt-1 font-medium">The student has not recorded any work or shared notes for this inbox.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6 max-w-4xl">
+                                            {/* Render Practice Files Grouped by Tool Type */}
+                                            {inboxPracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader'].map(type => {
+                                                const files = inboxPracticeFiles.filter(f => f.toolType === type);
+                                                if (files.length === 0) return null;
+
+                                                const typeLabels = {
+                                                    'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                                    'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                                    'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                                    'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                                    'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' },
+                                                    'file-uploader': { label: 'Uploaded Files', icon: Upload, bg: 'bg-amber-50 text-amber-655' }
+                                                };
+                                                const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                                const ToolIcon = labelConfig.icon;
+
+                                                return (
+                                                    <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                                <ToolIcon size={16} />
+                                                            </div>
+                                                            <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {files.map((file, fileIdx) => (
+                                                                <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                                    <div className="space-y-1">
+                                                                        <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                            {file.filename}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
+                                                                            Date: {new Date(file.createdAt).toLocaleDateString()} • Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        </p>
+                                                                    </div>
+
+                                                                    <div className="pt-2">
+                                                                        {type === 'screenshot' && (
+                                                                            <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                                <img
+                                                                                    src={file.fileUrl}
+                                                                                    alt="Screenshot Preview"
+                                                                                    className="w-full max-h-48 object-contain bg-slate-900"
+                                                                                />
+                                                                                <a
+                                                                                    href={file.fileUrl}
+                                                                                    target="_blank"
+                                                                                    rel="noreferrer"
+                                                                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                                                                >
+                                                                                    View Fullscreen
+                                                                                </a>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {type === 'screen-recorder' && (
+                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                        )}
+
+                                                                        {type === 'video-recorder' && (
+                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                        )}
+
+                                                                        {type === 'voice-recorder' && (
+                                                                            <audio src={file.fileUrl} controls className="w-full" />
+                                                                        )}
+
+                                                                        {type === 'file-uploader' && (
+                                                                            <a
+                                                                                href={file.fileUrl}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                                                            >
+                                                                                Download File
+                                                                            </a>
+                                                                        )}
+
+                                                                        {type === 'web-calling' && (
+                                                                            <div className="bg-white p-3 rounded-lg border border-slate-200/80 text-[11px] leading-relaxed text-slate-600">
+                                                                                <p><strong>Duration:</strong> {file.metadata?.duration || 'N/A'}</p>
+                                                                                <p className="mt-1"><strong>Resolution:</strong> {file.metadata?.resolution || 'N/A'}</p>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Render Shared Written Notes */}
+                                            {inboxSharedNotes.length > 0 && (
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                            <FileText size={16} />
+                                                        </div>
+                                                        <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({inboxSharedNotes.length})</h3>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {inboxSharedNotes.map((note, idx) => (
+                                                            <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                                <div className="space-y-1.5">
+                                                                    <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                        {note.title}
+                                                                    </h4>
+                                                                    <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                        {note.content}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                                    <span>Date: {new Date(note.createdAt).toLocaleDateString()}</span>
+                                                                    <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                        Shared
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ) : viewMode === 'analytics' ? (
                                 /* --- ANALYTICS TAB --- */

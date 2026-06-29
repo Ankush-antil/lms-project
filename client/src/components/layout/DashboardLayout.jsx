@@ -175,7 +175,7 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
     ],
     Student: [
-        { name: 'My Acti', icon: FileText, path: '/student/tests' },
+        { name: 'My Activities', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },

@@ -33,11 +33,39 @@ const getInstitutes = asyncHandler(async (req, res) => {
                 phone: 1,
                 helplineNumber: 1,
                 courseCount: { $size: '$courses' },
-                courses: { $slice: ['$courses', 5] } // Just some preview courses
+                courses: { $slice: ['$courses', 5] }, // Just some preview courses
+                admissionOpen: 1,
+                teacherHiring: 1,
+                editorHiring: 1
             }
         }
     ]);
     res.json(institutes);
+});
+
+// @desc    Toggle admission/hiring flag (Institute self-service)
+// @route   PATCH /api/setup/institutes/:id/toggle
+// @access  Private/Admin or Institute
+const toggleInstituteFlag = asyncHandler(async (req, res) => {
+    const { flag } = req.body; // 'admissionOpen' | 'teacherHiring' | 'editorHiring'
+    const allowed = ['admissionOpen', 'teacherHiring', 'editorHiring'];
+    if (!allowed.includes(flag)) {
+        res.status(400);
+        throw new Error('Invalid flag');
+    }
+    const institute = await Institute.findById(req.params.id);
+    if (!institute) {
+        res.status(404);
+        throw new Error('Institute not found');
+    }
+    // Only the linked institute user or admin can toggle
+    if (req.user.role !== 'Admin' && String(req.user.institute) !== String(institute._id)) {
+        res.status(403);
+        throw new Error('Not authorised');
+    }
+    institute[flag] = !institute[flag];
+    await institute.save();
+    res.json({ flag, value: institute[flag] });
 });
 
 // @desc    Get single institute details
@@ -48,6 +76,11 @@ const getInstituteDetails = asyncHandler(async (req, res) => {
     if (!institute) {
         res.status(404);
         throw new Error('Institute not found');
+    }
+
+    if (req.user.role !== 'Admin' && String(req.user.institute) !== String(institute._id)) {
+        res.status(403);
+        throw new Error('Not authorised to access this institute details');
     }
 
     const courses = await Course.find({ institute: req.params.id, status: 'active' });
@@ -115,7 +148,7 @@ const uploadInstituteDocumentController = asyncHandler(async (req, res) => {
 // @route   PUT /api/setup/institutes/:id
 // @access  Private/Admin
 const updateInstitute = asyncHandler(async (req, res) => {
-    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber } = req.body;
+    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber, admissionOpen, teacherHiring, editorHiring } = req.body;
     const institute = await Institute.findById(req.params.id);
 
     if (institute) {
@@ -128,6 +161,9 @@ const updateInstitute = asyncHandler(async (req, res) => {
         if (termsAndPolicies !== undefined) institute.termsAndPolicies = termsAndPolicies;
         if (phone !== undefined) institute.phone = phone;
         if (helplineNumber !== undefined) institute.helplineNumber = helplineNumber;
+        if (admissionOpen !== undefined) institute.admissionOpen = admissionOpen;
+        if (teacherHiring !== undefined) institute.teacherHiring = teacherHiring;
+        if (editorHiring !== undefined) institute.editorHiring = editorHiring;
 
         const updatedInstitute = await institute.save();
 
@@ -844,5 +880,6 @@ module.exports = {
     updateApplicationStatus,
     registerStudent,
     getSubjects,
-    deleteApplication
+    deleteApplication,
+    toggleInstituteFlag
 };

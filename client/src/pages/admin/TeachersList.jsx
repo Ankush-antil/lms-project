@@ -25,22 +25,43 @@ const TeachersList = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [instituteDetails, setInstituteDetails] = useState(null);
 
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, filterCourse]);
 
+    const handleToggleFlag = async (flagName) => {
+        try {
+            const instId = instituteDetails?._id || userInfo?.institute?._id || userInfo?.institute;
+            if (!instId) return;
+            const { data } = await axios.patch(`/api/setup/institutes/${instId}/toggle`, { flag: flagName });
+            setInstituteDetails(prev => ({
+                ...prev,
+                [flagName]: data.value
+            }));
+            toast.success(`Teacher Recruitment status updated successfully`);
+        } catch (error) {
+            console.error("Error toggling recruitment status:", error);
+            toast.error(error.response?.data?.message || "Failed to update recruitment status");
+        }
+    };
+
     const fetchData = async () => {
         try {
-
-
-
             const [userRes, courseRes] = await Promise.all([
                 axios.get('/api/users?role=Teacher'),
                 axios.get('/api/setup/courses')
             ]);
             setTeachers(userRes.data);
             setCourses(courseRes.data);
+
+            const instId = userInfo?.institute?._id || userInfo?.institute;
+            if (instId && userInfo?.role === 'Institute') {
+                const { data } = await axios.get(`/api/setup/institutes/${instId}`);
+                setInstituteDetails(data);
+            }
+
             setLoading(false);
         } catch (error) {
             console.error("Error fetching teachers:", error);
@@ -90,11 +111,27 @@ const TeachersList = () => {
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Teachers Management</h1>
-                    <p className="text-slate-500">Manage faculty and track their performance.</p>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-800">Teachers Management</h1>
+                        <p className="text-slate-500">Manage faculty and track their performance.</p>
+                    </div>
+                    {user?.role === 'Institute' && (
+                        <div className="flex items-center gap-2.5 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100/80">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hiring Status:</span>
+                            <button
+                                type="button"
+                                onClick={() => handleToggleFlag('teacherHiring')}
+                                className={`w-11 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${instituteDetails?.teacherHiring ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                            >
+                                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-all duration-300 ${instituteDetails?.teacherHiring ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                            <span className={`text-[11px] font-extrabold uppercase tracking-wide ${instituteDetails?.teacherHiring ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {instituteDetails?.teacherHiring ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 {user?.role !== 'Admin' && (
                     <button

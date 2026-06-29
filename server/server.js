@@ -53,6 +53,7 @@ app.use('/api/messages', require('./routes/common/messageRoutes'));
 app.use('/api/practice-files', require('./routes/student/practiceFileRoutes'));
 app.use('/api/study-materials', require('./routes/studyMaterialRoutes'));
 app.use('/api/notes', require('./routes/noteRoutes'));
+app.use('/api/registration-requests', require('./routes/registrationRequestRoutes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

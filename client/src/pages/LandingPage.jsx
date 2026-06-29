@@ -298,6 +298,83 @@ const LandingPage = () => {
         { sender: 'bot', text: 'Hello! Welcome to the LMS Student Helpdesk Simulator. How can I assist you with your application today?' }
     ]);
 
+    // Registration States for Another Roles (Institute, Teacher, Editor)
+    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+    const [registerRole, setRegisterRole] = useState('Institute'); // 'Institute' | 'Teacher' | 'Editor'
+    const [regName, setRegName] = useState('');
+    const [regRequestEmail, setRegRequestEmail] = useState('');
+    const [regRequestPassword, setRegRequestPassword] = useState('');
+    const [regPhone, setRegPhone] = useState('');
+    const [regTargetInstId, setRegTargetInstId] = useState('');
+    const [regSubjects, setRegSubjects] = useState('');
+    const [regEligibility, setRegEligibility] = useState('');
+    const [regInstCode, setRegInstCode] = useState('');
+    const [regInstAddress, setRegInstAddress] = useState('');
+    const [regInstContactEmail, setRegInstContactEmail] = useState('');
+    const [regInstPhone, setRegInstPhone] = useState('');
+    const [submittingRegRequest, setSubmittingRegRequest] = useState(false);
+
+    const handleRegisterRequestSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!regName.trim() || !regRequestEmail.trim() || !regRequestPassword.trim()) {
+            toast.error("Please fill in the required fields");
+            return;
+        }
+
+        if ((registerRole === 'Teacher' || registerRole === 'Editor') && !regTargetInstId) {
+            toast.error("Please select a target Institute");
+            return;
+        }
+
+        try {
+            setSubmittingRegRequest(true);
+            const payload = {
+                role: registerRole,
+                name: regName,
+                email: regRequestEmail,
+                password: regRequestPassword,
+                phone: regPhone,
+                targetInstitute: (registerRole === 'Teacher' || registerRole === 'Editor') ? regTargetInstId : undefined,
+                subjectSpecialization: registerRole === 'Teacher' ? regSubjects : '',
+                eligibility: registerRole === 'Editor' ? regEligibility : '',
+                instituteDetails: registerRole === 'Institute' ? {
+                    code: regInstCode,
+                    address: regInstAddress,
+                    contactEmail: regInstContactEmail || regRequestEmail,
+                    phone: regInstPhone || regPhone
+                } : undefined
+            };
+
+            await axios.post('/api/registration-requests', payload);
+            
+            toast.success(
+                registerRole === 'Institute' 
+                    ? "Registration request sent! Waiting for Admin Approval." 
+                    : `Registration request sent! Waiting for Institute Approval.`
+            );
+
+            // Reset states and close modal
+            setIsRegisterModalOpen(false);
+            setRegName('');
+            setRegRequestEmail('');
+            setRegRequestPassword('');
+            setRegPhone('');
+            setRegTargetInstId('');
+            setRegSubjects('');
+            setRegEligibility('');
+            setRegInstCode('');
+            setRegInstAddress('');
+            setRegInstContactEmail('');
+            setRegInstPhone('');
+        } catch (err) {
+            console.error("Error submitting registration request:", err);
+            toast.error(err.response?.data?.message || "Registration request failed");
+        } finally {
+            setSubmittingRegRequest(false);
+        }
+    };
+
     const dropdownRef = useRef(null);
     const countdownTimer = useRef(null);
 
@@ -1013,9 +1090,15 @@ const LandingPage = () => {
                                                             <div>
                                                                 <div className="flex items-center justify-between gap-2">
                                                                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{inst.code}</span>
-                                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                                                                        Admissions Open
-                                                                    </span>
+                                                                    {inst.admissionOpen ? (
+                                                                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                                                                            Admissions Open
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                                                                            Admissions Closed
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                                 <h3 className="font-extrabold text-slate-800 text-base leading-tight mt-1 transition-colors">
                                                                     {inst.name}
@@ -1060,7 +1143,7 @@ const LandingPage = () => {
                                                     </div>
 
                                                     {/* Card Actions at Bottom */}
-                                                    <div className="p-5 pt-0 border-t border-slate-50 flex items-center justify-between gap-2 mt-2">
+                                                    <div className="px-5 pt-3 pb-5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
                                                         <div>
                                                             {courseObj.syllabusUrl && (
                                                                 <button
@@ -1071,12 +1154,45 @@ const LandingPage = () => {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleOpenApplyModal(courseObj)}
-                                                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/15"
-                                                        >
-                                                            Apply Now <ArrowRight size={12} />
-                                                        </button>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {inst.admissionOpen && (
+                                                                <button
+                                                                    onClick={() => handleOpenApplyModal(courseObj)}
+                                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                >
+                                                                    <User size={11} /> Student
+                                                                </button>
+                                                            )}
+                                                            {inst.teacherHiring && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setRegisterRole('Teacher');
+                                                                        setRegTargetInstId(inst._id);
+                                                                        setIsRegisterModalOpen(true);
+                                                                    }}
+                                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                >
+                                                                    <GraduationCap size={11} /> Teacher
+                                                                </button>
+                                                            )}
+                                                            {inst.editorHiring && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setRegisterRole('Editor');
+                                                                        setRegTargetInstId(inst._id);
+                                                                        setIsRegisterModalOpen(true);
+                                                                    }}
+                                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                >
+                                                                    <FileText size={11} /> Editor
+                                                                </button>
+                                                            )}
+                                                            {!inst.admissionOpen && !inst.teacherHiring && !inst.editorHiring && (
+                                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-105 border border-slate-200/50 px-2 py-1 rounded-lg uppercase tracking-wider select-none">
+                                                                    Closed
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </motion.div>
                                             );
@@ -1698,6 +1814,15 @@ const LandingPage = () => {
                                             </motion.form>
                                         )}
                                     </AnimatePresence>
+                                    <div className="mt-4 text-center border-t border-slate-100 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRegisterRole('Institute'); setIsRegisterModalOpen(true); }}
+                                            className="text-xs font-extrabold text-indigo-650 hover:text-indigo-800 hover:underline transition-colors uppercase tracking-wider"
+                                        >
+                                            Register as Institute
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-4 mt-6 flex justify-between items-center">
@@ -2239,6 +2364,237 @@ const LandingPage = () => {
                                     Close
                                 </button>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ─────────────── ROLE REGISTRATION REQUEST MODAL ─────────────── */}
+            <AnimatePresence>
+                {isRegisterModalOpen && (
+                    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.6 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsRegisterModalOpen(false)}
+                            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+                        ></motion.div>
+
+                        {/* Modal Box */}
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                            className="bg-white border border-slate-200 rounded-[2rem] p-6 max-w-lg w-full relative z-[110] shadow-2xl space-y-4 text-slate-800 flex flex-col max-h-[90vh]"
+                        >
+                            {/* CLOSE BUTTON */}
+                            <button
+                                onClick={() => setIsRegisterModalOpen(false)}
+                                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded-xl hover:shadow-md transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="pb-3 border-b border-slate-100 text-left">
+                                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-1.5">
+                                    {registerRole === 'Teacher' ? (
+                                        <GraduationCap className="text-emerald-600" size={18} />
+                                    ) : registerRole === 'Editor' ? (
+                                        <FileText className="text-amber-500" size={18} />
+                                    ) : (
+                                        <Sparkles className="text-indigo-650" size={18} />
+                                    )}
+                                    Register as {registerRole}
+                                </h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                    {registerRole === 'Institute'
+                                        ? 'Submit institute registration request for admin approval'
+                                        : registerRole === 'Teacher'
+                                            ? 'Apply to join this institute as a subject teacher'
+                                            : 'Apply to join this institute as a content editor'}
+                                </p>
+                            </div>
+
+                            <form onSubmit={handleRegisterRequestSubmit} className="space-y-3.5 text-left overflow-y-auto pr-1 flex-1 py-1">
+                                {/* Common fields: Name, Email, Password, Phone */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                            {registerRole === 'Institute' ? 'Institute Name' : 'Full Name'} *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={regName}
+                                            onChange={(e) => setRegName(e.target.value)}
+                                            required
+                                            placeholder={registerRole === 'Institute' ? "e.g. Oxford Academy" : "e.g. John Doe"}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address *</label>
+                                        <input
+                                            type="email"
+                                            value={regRequestEmail}
+                                            onChange={(e) => setRegRequestEmail(e.target.value)}
+                                            required
+                                            placeholder="e.g. info@oxford.com"
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Password *</label>
+                                        <input
+                                            type="password"
+                                            value={regRequestPassword}
+                                            onChange={(e) => setRegRequestPassword(e.target.value)}
+                                            required
+                                            placeholder="Choose a strong password"
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone / Mobile</label>
+                                        <input
+                                            type="text"
+                                            value={regPhone}
+                                            onChange={(e) => setRegPhone(e.target.value)}
+                                            placeholder="e.g. +91 9876543210"
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Institute Specific Fields */}
+                                {registerRole === 'Institute' && (
+                                    <div className="space-y-3.5 border-t border-slate-100 pt-3">
+                                        <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Institute Details</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Institute Code (Unique)</label>
+                                                <input
+                                                    type="text"
+                                                    value={regInstCode}
+                                                    onChange={(e) => setRegInstCode(e.target.value)}
+                                                    placeholder="e.g. OXFORD-01"
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Helpline / Contact Phone</label>
+                                                <input
+                                                    type="text"
+                                                    value={regInstPhone}
+                                                    onChange={(e) => setRegInstPhone(e.target.value)}
+                                                    placeholder="e.g. 011-2345678"
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Address / Location</label>
+                                            <input
+                                                type="text"
+                                                value={regInstAddress}
+                                                onChange={(e) => setRegInstAddress(e.target.value)}
+                                                placeholder="e.g. Oxford Campus, New York, USA"
+                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Teacher Specific Fields */}
+                                {registerRole === 'Teacher' && (
+                                    <div className="space-y-3.5 border-t border-slate-100 pt-3">
+                                        <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Professional Profile</h4>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Institute *</label>
+                                            <select
+                                                value={regTargetInstId}
+                                                onChange={(e) => setRegTargetInstId(e.target.value)}
+                                                required
+                                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold px-3 py-2"
+                                            >
+                                                <option value="">Select target institute</option>
+                                                {institutes.map(inst => (
+                                                    <option key={inst._id} value={inst._id}>{inst.name} ({inst.code})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Specialization(s) *</label>
+                                            <input
+                                                type="text"
+                                                value={regSubjects}
+                                                onChange={(e) => setRegSubjects(e.target.value)}
+                                                required
+                                                placeholder="e.g. Mathematics, Physics, Chemistry"
+                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                            />
+                                            <p className="text-[9px] text-slate-400 italic">Separate multiple subjects with a comma (,)</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Editor Specific Fields */}
+                                {registerRole === 'Editor' && (
+                                    <div className="space-y-3.5 border-t border-slate-100 pt-3">
+                                        <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Professional Profile</h4>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Institute *</label>
+                                            <select
+                                                value={regTargetInstId}
+                                                onChange={(e) => setRegTargetInstId(e.target.value)}
+                                                required
+                                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold px-3 py-2"
+                                            >
+                                                <option value="">Select target institute</option>
+                                                {institutes.map(inst => (
+                                                    <option key={inst._id} value={inst._id}>{inst.name} ({inst.code})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eligibility / Qualifications Summary *</label>
+                                            <textarea
+                                                value={regEligibility}
+                                                onChange={(e) => setRegEligibility(e.target.value)}
+                                                required
+                                                placeholder="Detail your professional experience, qualifications, and curriculum design credentials."
+                                                rows={3}
+                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold resize-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="pt-3 border-t border-slate-100 flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRegisterModalOpen(false)}
+                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold rounded-xl text-xs transition-all active:scale-95"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingRegRequest}
+                                        className="px-5 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-650/10 flex items-center justify-center min-w-[100px]"
+                                    >
+                                        {submittingRegRequest ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            "Submit Request"
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
                         </motion.div>
                     </div>
                 )}

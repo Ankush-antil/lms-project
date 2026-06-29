@@ -19,6 +19,10 @@ const instituteSchema = new mongoose.Schema({
     termsAndPolicies: String,      // Terms & admission policies
     phone: String,                 // Primary contact number
     helplineNumber: String,        // 24/7 active helpline number
+    // Visibility toggles
+    admissionOpen: { type: Boolean, default: false },   // Show Student apply button
+    teacherHiring: { type: Boolean, default: false },   // Show Teacher apply button
+    editorHiring:  { type: Boolean, default: false },   // Show Editor apply button
 }, {
     timestamps: true
 });

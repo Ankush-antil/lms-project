@@ -23,6 +23,7 @@ const {
     getSubjects,
     deleteApplication
 } = require('../../controllers/admin/setupController');
+const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
 
 router.route('/institutes')
@@ -38,9 +39,13 @@ router.route('/institutes/upload-document')
     .post(protect, admin, uploadInstituteDocumentController);
 
 router.route('/institutes/:id')
-    .get(protect, admin, getInstituteDetails)
+    .get(protect, adminOrInstitute, getInstituteDetails)
     .put(protect, admin, updateInstitute)
     .delete(protect, admin, deleteInstitute);
+
+// Institute self-service toggle (Admin or Institute role)
+router.route('/institutes/:id/toggle')
+    .patch(protect, adminOrInstitute, toggleInstituteFlag);
 
 router.route('/courses')
     .get(parseUserOptional, getCourses)

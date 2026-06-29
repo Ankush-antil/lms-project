@@ -42,18 +42,77 @@ const InstituteDashboard = () => {
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'applications'
+    const [instituteDetails, setInstituteDetails] = useState(null);
     const [updatingId, setUpdatingId] = useState(null);
+    const [roleRequests, setRoleRequests] = useState([]);
+    const [loadingRoleRequests, setLoadingRoleRequests] = useState(false);
+    const [resolvingRoleId, setResolvingRoleId] = useState(null);
+
+    const fetchRoleRequests = async () => {
+        try {
+            setLoadingRoleRequests(true);
+            const { data } = await axios.get('/api/registration-requests/institute');
+            setRoleRequests(data);
+            setLoadingRoleRequests(false);
+        } catch (err) {
+            console.error("Error fetching staff requests:", err);
+            toast.error("Failed to load staff requests");
+            setLoadingRoleRequests(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'role-requests') {
+            fetchRoleRequests();
+        }
+    }, [activeTab]);
+
+    const handleResolveRoleRequest = async (id, status) => {
+        if (!window.confirm(`Are you sure you want to ${status.toLowerCase()} this staff request?`)) return;
+        try {
+            setResolvingRoleId(id);
+            await axios.put(`/api/registration-requests/${id}/institute-resolve`, { status });
+            toast.success(`Request ${status.toLowerCase()} successfully`);
+            setRoleRequests(prev => prev.filter(r => r._id !== id));
+            fetchDashboardData();
+        } catch (err) {
+            console.error("Error resolving request:", err);
+            toast.error(err.response?.data?.message || "Failed to resolve request");
+        } finally {
+            setResolvingRoleId(null);
+        }
+    };
+
+    const handleToggleFlag = async (flagName) => {
+        try {
+            const instId = instituteDetails?._id || userInfo?.institute?._id || userInfo?.institute;
+            if (!instId) return;
+            const { data } = await axios.patch(`/api/setup/institutes/${instId}/toggle`, { flag: flagName });
+            setInstituteDetails(prev => ({
+                ...prev,
+                [flagName]: data.value
+            }));
+            const label = flagName === 'admissionOpen' ? 'Student Admissions' : flagName === 'teacherHiring' ? 'Teacher Hiring' : 'Editor Hiring';
+            toast.success(`${label} status updated successfully`);
+        } catch (error) {
+            console.error("Error toggling institute flag:", error);
+            toast.error(error.response?.data?.message || "Failed to update toggle status");
+        }
+    };
 
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
             
+            const instId = userInfo?.institute?._id || userInfo?.institute;
+            
             // Parallel fetches for efficiency
-            const [studentsRes, teachersRes, editorsRes, appsRes] = await Promise.all([
+            const [studentsRes, teachersRes, editorsRes, appsRes, instRes] = await Promise.all([
                 axios.get('/api/users?role=Student'),
                 axios.get('/api/users?role=Teacher'),
                 axios.get('/api/users?role=Editor'),
-                axios.get('/api/setup/institute-applications')
+                axios.get('/api/setup/institute-applications'),
+                instId ? axios.get(`/api/setup/institutes/${instId}`) : Promise.resolve(null)
             ]);
 
             const apps = appsRes.data || [];
@@ -67,6 +126,9 @@ const InstituteDashboard = () => {
                 totalApps: apps.length
             });
             setApplications(apps);
+            if (instRes && instRes.data) {
+                setInstituteDetails(instRes.data);
+            }
             setLoading(false);
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
@@ -183,12 +245,23 @@ const InstituteDashboard = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('applications')}
-                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:text-slate-905'}`}
                     >
                         Applications
                         {stats.pendingApps > 0 && (
                             <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
                                 {stats.pendingApps}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('role-requests')}
+                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
+                    >
+                        Staff Requests
+                        {roleRequests.length > 0 && (
+                            <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                                {roleRequests.length}
                             </span>
                         )}
                     </button>
@@ -284,7 +357,7 @@ const InstituteDashboard = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'applications' ? (
                         /* APPLICATIONS TAB */
                         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -429,6 +502,151 @@ const InstituteDashboard = () => {
                                     </table>
                                 </div>
                             )}
+                        </div>
+                    ) : (
+                        /* STAFF REQUESTS TAB */
+                        <div className="space-y-8 animate-fade-in text-left">
+                            {/* Teacher Requests */}
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                                <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-lg font-extrabold text-slate-850">Teacher Joining Requests</h2>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Approve requests for subject teachers</p>
+                                    </div>
+                                    <span className="bg-indigo-50 text-indigo-705 px-3 py-1 rounded-full text-xs font-bold font-mono">
+                                        Total: {roleRequests.filter(r => r.role === 'Teacher').length}
+                                    </span>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 border border-slate-200 text-slate-550 text-[10px] font-bold uppercase tracking-wider">
+                                                <th className="p-4 font-semibold whitespace-nowrap">Name</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Phone</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Subject Specializations</th>
+                                                <th className="p-4 font-semibold text-right whitespace-nowrap">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                                            {loadingRoleRequests ? (
+                                                <tr>
+                                                    <td colSpan="5" className="p-8 text-center text-slate-400">Loading teacher requests...</td>
+                                                </tr>
+                                            ) : roleRequests.filter(r => r.role === 'Teacher').length > 0 ? (
+                                                roleRequests.filter(r => r.role === 'Teacher').map((req) => (
+                                                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 whitespace-nowrap font-extrabold text-slate-850">{req.name}</td>
+                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.email}</td>
+                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.phone || 'N/A'}</td>
+                                                        <td className="p-4 whitespace-nowrap">
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {req.subjectSpecialization ? req.subjectSpecialization.split(',').map((subj, sIdx) => (
+                                                                    <span key={sIdx} className="bg-emerald-50 text-emerald-705 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider animate-fade-in">
+                                                                        {subj.trim()}
+                                                                    </span>
+                                                                )) : <span className="italic text-slate-400">None specified</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 whitespace-nowrap text-right space-x-2">
+                                                            <button
+                                                                onClick={() => handleResolveRoleRequest(req._id, 'Approved')}
+                                                                disabled={resolvingRoleId !== null}
+                                                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleResolveRoleRequest(req._id, 'Rejected')}
+                                                                disabled={resolvingRoleId !== null}
+                                                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="p-8 text-center text-slate-400 font-bold">
+                                                        No pending teacher joining requests.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Editor Requests */}
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                                <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-lg font-extrabold text-slate-850">Editor Joining Requests</h2>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Approve requests for curriculum editors</p>
+                                    </div>
+                                    <span className="bg-indigo-50 text-indigo-705 px-3 py-1 rounded-full text-xs font-bold font-mono">
+                                        Total: {roleRequests.filter(r => r.role === 'Editor').length}
+                                    </span>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 border border-slate-200 text-slate-550 text-[10px] font-bold uppercase tracking-wider">
+                                                <th className="p-4 font-semibold whitespace-nowrap">Name</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Phone</th>
+                                                <th className="p-4 font-semibold whitespace-nowrap">Eligibility / Qualifications Summary</th>
+                                                <th className="p-4 font-semibold text-right whitespace-nowrap">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                                            {loadingRoleRequests ? (
+                                                <tr>
+                                                    <td colSpan="5" className="p-8 text-center text-slate-400">Loading editor requests...</td>
+                                                </tr>
+                                            ) : roleRequests.filter(r => r.role === 'Editor').length > 0 ? (
+                                                roleRequests.filter(r => r.role === 'Editor').map((req) => (
+                                                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 whitespace-nowrap font-extrabold text-slate-850">{req.name}</td>
+                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.email}</td>
+                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.phone || 'N/A'}</td>
+                                                        <td className="p-4 max-w-[300px]">
+                                                            <p className="text-slate-500 font-medium text-xs break-words" title={req.eligibility}>
+                                                                {req.eligibility || <span className="italic text-slate-350">No details provided</span>}
+                                                            </p>
+                                                        </td>
+                                                        <td className="p-4 whitespace-nowrap text-right space-x-2">
+                                                            <button
+                                                                onClick={() => handleResolveRoleRequest(req._id, 'Approved')}
+                                                                disabled={resolvingRoleId !== null}
+                                                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleResolveRoleRequest(req._id, 'Rejected')}
+                                                                disabled={resolvingRoleId !== null}
+                                                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="p-8 text-center text-slate-400 font-bold">
+                                                        No pending editor joining requests.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </>

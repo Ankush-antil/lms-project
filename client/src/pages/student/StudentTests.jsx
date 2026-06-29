@@ -70,6 +70,12 @@ const StudentTests = () => {
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
 
+    // Practice counts states
+    const [cloudFiles, setCloudFiles] = useState([]);
+    const [localFiles, setLocalFiles] = useState([]);
+    const [notesList, setNotesList] = useState([]);
+    const [loadingPractice, setLoadingPractice] = useState(false);
+
     useEffect(() => {
         if (viewMode === 'study-material' && selectedItem) {
             const fetchMaterials = async () => {
@@ -87,6 +93,151 @@ const StudentTests = () => {
             fetchMaterials();
         }
     }, [viewMode, selectedItem]);
+
+    const loadPracticeCounts = async () => {
+        if (!selectedItem) return;
+        setLoadingPractice(true);
+        try {
+            const [cloudRes, notesRes] = await Promise.all([
+                axios.get(`/api/practice-files?inbox=${encodeURIComponent(selectedItem)}`),
+                axios.get(`/api/notes?inboxId=${encodeURIComponent(selectedItem)}`).catch(() => ({ data: [] }))
+            ]);
+            
+            setCloudFiles(cloudRes.data.files || []);
+            setNotesList(notesRes.data || []);
+
+            const allLocal = [];
+
+            // Screenshots
+            const screenshotsStr = localStorage.getItem('practice_screenshots');
+            if (screenshotsStr) {
+                try {
+                    const list = JSON.parse(screenshotsStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Screenshot Tool'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // Screen Recordings
+            const screenStr = localStorage.getItem('practice_screen_recordings');
+            if (screenStr) {
+                try {
+                    const list = JSON.parse(screenStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Screen Recorder'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // Videos
+            const videoStr = localStorage.getItem('practice_videos');
+            if (videoStr) {
+                try {
+                    const list = JSON.parse(videoStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Video Recorder'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // Audios
+            const audioStr = localStorage.getItem('practice_audios');
+            if (audioStr) {
+                try {
+                    const list = JSON.parse(audioStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'Voice Recorder'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // Call Logs
+            const logsStr = localStorage.getItem('practice_call_logs');
+            if (logsStr) {
+                try {
+                    const list = JSON.parse(logsStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.date,
+                                toolType: 'Web-Calling Tool'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // File Uploads
+            const fileUploadsStr = localStorage.getItem('practice_file_uploads');
+            if (fileUploadsStr) {
+                try {
+                    const list = JSON.parse(fileUploadsStr);
+                    list.forEach(item => {
+                        if (String(item.inbox) === String(selectedItem)) {
+                            allLocal.push({
+                                timestamp: item.timestamp,
+                                toolType: 'File Uploader'
+                            });
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            setLocalFiles(allLocal);
+        } catch (err) {
+            console.error("Failed to load practice counts in inbox:", err);
+        } finally {
+            setLoadingPractice(false);
+        }
+    };
+
+    useEffect(() => {
+        if (viewMode === 'practice' && selectedItem) {
+            loadPracticeCounts();
+        }
+    }, [viewMode, selectedItem]);
+
+    const getFileCountForTool = (toolTitle) => {
+        if (toolTitle === 'Notes Writing') {
+            return notesList.length;
+        }
+
+        const dbTypeMap = {
+            'Screenshot Tool': 'screenshot',
+            'Screen Recorder': 'screen-recorder',
+            'Voice Recorder': 'voice-recorder',
+            'Video Recorder': 'video-recorder',
+            'Web-Calling Tool': 'web-calling',
+            'File Uploader': 'file-uploader'
+        };
+
+        const localCount = localFiles.filter(f => f.toolType === toolTitle).length;
+        const dbType = dbTypeMap[toolTitle];
+        const cloudCount = cloudFiles.filter(c => c.toolType === dbType).length;
+
+        return localCount + cloudCount;
+    };
 
     useEffect(() => {
         const fetch = async () => {
@@ -573,20 +724,30 @@ const StudentTests = () => {
                                             color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
                                             path: "/student/practice-tools/web-calling"
                                         }
-                                    ].map((tool, idx) => (
-                                        <div
-                                            key={idx}
-                                            onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
-                                            className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center gap-4 group hover:-translate-y-0.5 duration-200 cursor-pointer text-left h-20"
-                                        >
-                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
-                                                <tool.icon size={18} />
+                                    ].map((tool, idx) => {
+                                        const fileCount = getFileCountForTool(tool.title);
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
+                                                className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer text-left h-20"
+                                            >
+                                                {/* Left Side: Icon */}
+                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
+                                                    <tool.icon size={18} />
+                                                </div>
+                                                {/* Right Side: Files Count and Tool Title */}
+                                                <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
+                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
+                                                        fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {fileCount} {fileCount === 1 ? 'file' : 'files'}
+                                                    </span>
+                                                    <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h3 className="font-extrabold text-slate-800 text-[11px] tracking-tight leading-tight truncate">{tool.title}</h3>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : viewMode === 'chat' ? (

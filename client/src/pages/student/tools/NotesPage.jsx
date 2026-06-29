@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     ArrowLeft, FileText, Plus, Save, Trash, Search,
-    Share2, Eye, EyeOff, BookOpen, Clock, PenTool
+    Share2, Eye, EyeOff, BookOpen, Clock, PenTool,
+    Mic, MicOff
 } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
@@ -29,6 +30,65 @@ const NotesPage = () => {
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // Voice Typing (Speech Recognition) States
+    const [isListening, setIsListening] = useState(false);
+    const recognition = useMemo(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return null;
+        
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'en-US';
+        
+        return rec;
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (recognition) {
+                recognition.stop();
+            }
+        };
+    }, [recognition]);
+
+    const toggleListening = () => {
+        if (!recognition) {
+            toast.error("Voice typing is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+            return;
+        }
+
+        if (isListening) {
+            recognition.stop();
+            setIsListening(false);
+            toast.success("Voice typing stopped");
+        } else {
+            setIsListening(true);
+            toast.success("Voice typing started... Speak now!");
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[event.results.length - 1][0].transcript;
+                setContent(prev => prev + (prev ? ' ' : '') + transcript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                if (event.error === 'not-allowed') {
+                    toast.error("Microphone permission denied.");
+                } else {
+                    toast.error("Voice typing error: " + event.error);
+                }
+                setIsListening(false);
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognition.start();
+        }
+    };
 
     // Fetch notes
     const fetchNotes = async () => {
@@ -279,6 +339,20 @@ const NotesPage = () => {
                                 </div>
 
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={toggleListening}
+                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                            isListening
+                                                ? 'bg-red-50 text-red-650 border-red-200 animate-pulse'
+                                                : 'bg-slate-50 text-slate-650 hover:bg-slate-100 hover:text-slate-800 border-slate-200'
+                                        }`}
+                                        title={isListening ? "Stop Voice Typing" : "Start Voice Typing"}
+                                    >
+                                        {isListening ? <MicOff size={14} className="text-red-500" /> : <Mic size={14} className="text-indigo-600" />}
+                                        <span>{isListening ? 'Listening...' : 'Voice Type'}</span>
+                                    </button>
+
                                     {selectedNote && (
                                         <button
                                             type="button"

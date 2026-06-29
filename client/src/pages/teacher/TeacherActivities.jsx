@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-    Users, Search, ChevronRight, CheckCircle2, AlertCircle,
+    Users, Search, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
@@ -68,7 +68,19 @@ const TeacherActivities = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [loadingChat, setLoadingChat] = useState(false);
     const messagesEndRef = useRef(null);
+    const teacherTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
+
+    const handleTeacherTabsScroll = (direction) => {
+        if (teacherTabsRef.current) {
+            const { scrollLeft } = teacherTabsRef.current;
+            const scrollAmount = 150;
+            teacherTabsRef.current.scrollTo({
+                left: direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
     const [submissionsLoading, setSubmissionsLoading] = useState(false);
     const { openProfile } = useUserProfile();
     const navigate = useNavigate();
@@ -933,35 +945,62 @@ const TeacherActivities = () => {
                             </div>
 
                             {selectedInboxId && (
-                                <div className="flex bg-slate-50/80 border border-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none gap-1 shrink-0">
-                                    {[
-                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                        { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                        { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
-                                        { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
-                                        { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
-                                        { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
-                                        { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
-                                    ].map(tab => {
-                                        const isActive = viewMode === tab.id;
-                                        const TabIcon = tab.icon;
-                                        return (
-                                            <button
-                                                key={tab.id}
-                                                onClick={() => {
-                                                    setViewMode(tab.id);
-                                                    setSelectedCategory(null);
-                                                }}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                    ? tab.activeClass
-                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
-                                                    }`}
-                                            >
-                                                <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
-                                                <span>{tab.label}</span>
-                                            </button>
-                                        );
-                                    })}
+                                <div className="flex items-center gap-1 bg-slate-50/80 border border-slate-100 p-1 rounded-xl shrink-0 relative group/tabs">
+                                    {/* Left Scroll Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleTeacherTabsScroll('left')}
+                                        className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                        title="Scroll Left"
+                                    >
+                                        <ChevronLeft size={14} strokeWidth={2.5} />
+                                    </button>
+
+                                    {/* Scrollable Container */}
+                                    <div 
+                                        ref={teacherTabsRef}
+                                        className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
+                                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                                    >
+                                        {[
+                                            { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                            { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                            { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                            { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
+                                            { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
+                                            { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
+                                            { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
+                                        ].map(tab => {
+                                            const isActive = viewMode === tab.id;
+                                            const TabIcon = tab.icon;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => {
+                                                        setViewMode(tab.id);
+                                                        setSelectedCategory(null);
+                                                    }}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                                        ? tab.activeClass
+                                                        : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                        }`}
+                                                >
+                                                    <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                                    <span>{tab.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Right Scroll Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleTeacherTabsScroll('right')}
+                                        className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                        title="Scroll Right"
+                                    >
+                                        <ChevronRight size={14} strokeWidth={2.5} />
+                                    </button>
                                 </div>
                             )}
                         </div>

@@ -11,7 +11,7 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const getDisplayTitle = (title) => {
@@ -65,7 +65,19 @@ const StudentTests = () => {
     const [teacherContact, setTeacherContact] = useState(null);
     const [loadingChat, setLoadingChat] = useState(false);
     const messagesEndRef = useRef(null);
+    const studentTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
+
+    const handleStudentTabsScroll = (direction) => {
+        if (studentTabsRef.current) {
+            const { scrollLeft } = studentTabsRef.current;
+            const scrollAmount = 150;
+            studentTabsRef.current.scrollTo({
+                left: direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
 
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -586,35 +598,62 @@ const StudentTests = () => {
                         </div>
 
                         {selectedGroup && (
-                            <div className="flex bg-slate-50/80 border border-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none gap-1 shrink-0">
-                                {[
-                                    { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                    { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                    { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
-                                    { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
-                                    { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                    { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
-                                    { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
-                                ].map(tab => {
-                                    const isActive = viewMode === tab.id;
-                                    const TabIcon = tab.icon;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => {
-                                                setViewMode(tab.id);
-                                                setSelectedCategory(null);
-                                            }}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                ? tab.activeClass
-                                                : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
-                                                }`}
-                                        >
-                                            <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
-                                            <span>{tab.label}</span>
-                                        </button>
-                                    );
-                                })}
+                            <div className="flex items-center gap-1 bg-slate-50/80 border border-slate-100 p-1 rounded-xl shrink-0 relative group/tabs">
+                                {/* Left Scroll Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleStudentTabsScroll('left')}
+                                    className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                    title="Scroll Left"
+                                >
+                                    <ChevronLeft size={14} strokeWidth={2.5} />
+                                </button>
+
+                                {/* Scrollable Container */}
+                                <div 
+                                    ref={studentTabsRef}
+                                    className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
+                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                                >
+                                    {[
+                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                        { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
+                                        { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
+                                        { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
+                                        { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
+                                    ].map(tab => {
+                                        const isActive = viewMode === tab.id;
+                                        const TabIcon = tab.icon;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => {
+                                                    setViewMode(tab.id);
+                                                    setSelectedCategory(null);
+                                                }}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                                    ? tab.activeClass
+                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                    }`}
+                                            >
+                                                <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                                <span>{tab.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Right Scroll Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleStudentTabsScroll('right')}
+                                    className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                    title="Scroll Right"
+                                >
+                                    <ChevronRight size={14} strokeWidth={2.5} />
+                                </button>
                             </div>
                         )}
                     </div>

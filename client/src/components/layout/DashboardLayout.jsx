@@ -175,7 +175,7 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
     ],
     Student: [
-        { name: 'My Tests', icon: FileText, path: '/student/tests' },
+        { name: 'My Acti', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
@@ -227,8 +227,8 @@ const NotificationBell = ({ safeRole }) => {
             <button
                 onClick={() => setOpen(prev => !prev)}
                 className={`relative p-2.5 rounded-xl transition-all border ${unread > 0
-                        ? 'text-indigo-300 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20'
-                        : 'text-slate-400 border-transparent hover:bg-white/10 hover:text-slate-200'
+                    ? 'text-indigo-300 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20'
+                    : 'text-slate-400 border-transparent hover:bg-white/10 hover:text-slate-200'
                     }`}
                 title="Notifications"
             >

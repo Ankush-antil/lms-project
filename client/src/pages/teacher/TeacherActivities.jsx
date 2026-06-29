@@ -440,8 +440,14 @@ const TeacherActivities = () => {
     }, [studentSharedNotes, selectedPracticeDate]);
 
     useEffect(() => {
-        if (studentTab === 'practice' && practiceDatesList.length > 0 && !selectedPracticeDate) {
-            setSelectedPracticeDate(practiceDatesList[0]);
+        if (studentTab === 'practice') {
+            if (practiceDatesList.length > 0) {
+                if (!selectedPracticeDate || !practiceDatesList.includes(selectedPracticeDate)) {
+                    setSelectedPracticeDate(practiceDatesList[0]);
+                }
+            } else {
+                setSelectedPracticeDate('');
+            }
         }
     }, [studentTab, practiceDatesList, selectedPracticeDate]);
 
@@ -547,6 +553,41 @@ const TeacherActivities = () => {
             socket.off('receive-message', handleReceiveMessage);
         };
     }, [socket, selectedStudent, selectedInboxId]);
+
+    // Live Sync Student Tools Activities
+    useEffect(() => {
+        if (!socket || !selectedStudent) return;
+
+        const handleStudentActivitySync = (payload) => {
+            if (String(payload.studentId) === String(selectedStudent._id)) {
+                console.log("[SOCKET] Live sync student activity:", payload);
+                // 1. Auto-refresh files and notes list
+                fetchStudentPracticeFiles(selectedStudent._id);
+                
+                // 2. Format tool label
+                const toolName = payload.toolType
+                    .split('-')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+                
+                let actionLabel = 'updated';
+                if (payload.action === 'delete') actionLabel = 'deleted a record';
+                else if (payload.action === 'upload') actionLabel = 'uploaded a file';
+                else if (payload.action === 'save') actionLabel = 'saved content';
+
+                // 3. Show live notification toast
+                toast.success(`Live Sync: ${payload.studentName} ${actionLabel} in ${toolName}!`, {
+                    icon: '🔄',
+                    duration: 4000
+                });
+            }
+        };
+
+        socket.on('student-activity-sync', handleStudentActivitySync);
+        return () => {
+            socket.off('student-activity-sync', handleStudentActivitySync);
+        };
+    }, [socket, selectedStudent]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -862,8 +903,8 @@ const TeacherActivities = () => {
                                             key={tab.id}
                                             onClick={() => setStudentTab(tab.id)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isTabActive
-                                                    ? 'bg-white text-slate-900 shadow-md animate-fade-in'
-                                                    : 'text-slate-355 hover:text-white hover:bg-white/5'
+                                                ? 'bg-white text-slate-900 shadow-md animate-fade-in'
+                                                : 'text-slate-355 hover:text-white hover:bg-white/5'
                                                 }`}
                                         >
                                             <TabIcon size={12} />
@@ -1031,92 +1072,92 @@ const TeacherActivities = () => {
                                         </button>
                                     </form>
                                 </div>
-                             ) : viewMode === 'study-material' ? (
-                                 /* --- STUDY MATERIAL TAB --- */
-                                 <div className="animate-fade-in space-y-6 text-left">
-                                     <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                         <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
-                                         <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
-                                                 <input
-                                                     type="text"
-                                                     value={matTitle}
-                                                     onChange={(e) => setMatTitle(e.target.value)}
-                                                     placeholder="e.g. React Cheatsheet"
-                                                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                 />
-                                             </div>
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
-                                                 <input
-                                                     type="file"
-                                                     id="study-material-file"
-                                                     onChange={(e) => setMatFile(e.target.files[0])}
-                                                     className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                                 />
-                                             </div>
-                                             <button
-                                                 type="submit"
-                                                 disabled={uploadingMaterial}
-                                                 className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
-                                             >
-                                                 {uploadingMaterial ? 'Uploading...' : 'Upload File'}
-                                             </button>
-                                         </form>
-                                     </div>
+                            ) : viewMode === 'study-material' ? (
+                                /* --- STUDY MATERIAL TAB --- */
+                                <div className="animate-fade-in space-y-6 text-left">
+                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                        <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
+                                        <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
+                                                <input
+                                                    type="text"
+                                                    value={matTitle}
+                                                    onChange={(e) => setMatTitle(e.target.value)}
+                                                    placeholder="e.g. React Cheatsheet"
+                                                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
+                                                <input
+                                                    type="file"
+                                                    id="study-material-file"
+                                                    onChange={(e) => setMatFile(e.target.files[0])}
+                                                    className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={uploadingMaterial}
+                                                className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                            >
+                                                {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                            </button>
+                                        </form>
+                                    </div>
 
-                                     <div className="space-y-4">
-                                         <div className="flex justify-between items-center">
-                                             <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
-                                             <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
-                                                 Total Files: {studyMaterials.length}
-                                             </span>
-                                         </div>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
+                                            <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
+                                                Total Files: {studyMaterials.length}
+                                            </span>
+                                        </div>
 
-                                         {loadingMaterials ? (
-                                             <div className="flex flex-col items-center justify-center py-12 bg-white">
-                                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                                 <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
-                                             </div>
-                                         ) : studyMaterials.length === 0 ? (
-                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                                 <div className="text-4xl mb-2">📂</div>
-                                                 <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
-                                                 <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
-                                             </div>
-                                         ) : (
-                                             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                 {studyMaterials.map((mat) => (
-                                                     <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                         <div className="space-y-2">
-                                                             <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                             <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
-                                                             <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                         </div>
-                                                         <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                             <button
-                                                                 onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                 className="text-red-500 hover:text-red-700 text-[10px] font-bold"
-                                                             >
-                                                                 Delete
-                                                             </button>
-                                                             <a
-                                                                 href={mat.fileUrl}
-                                                                 target="_blank"
-                                                                 rel="noreferrer"
-                                                                 className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                             >
-                                                                 View File
-                                                             </a>
-                                                         </div>
-                                                     </div>
-                                                 ))}
-                                             </div>
-                                         )}
-                                     </div>
-                                 </div>
-                             ) : viewMode === 'analytics' ? (
+                                        {loadingMaterials ? (
+                                            <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                                <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                            </div>
+                                        ) : studyMaterials.length === 0 ? (
+                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                <div className="text-4xl mb-2">📂</div>
+                                                <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
+                                                <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                {studyMaterials.map((mat) => (
+                                                    <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                        <div className="space-y-2">
+                                                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                            <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                            <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                            <button
+                                                                onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                className="text-red-500 hover:text-red-700 text-[10px] font-bold"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                            <a
+                                                                href={mat.fileUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                            >
+                                                                View File
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : viewMode === 'analytics' ? (
                                 /* --- ANALYTICS TAB --- */
                                 <div className="animate-fade-in space-y-6">
                                     {(() => {
@@ -1248,8 +1289,8 @@ const TeacherActivities = () => {
                                                                 <button
                                                                     onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
                                                                     className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                            : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
                                                                         }`}
                                                                 >
                                                                     {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
@@ -1295,124 +1336,124 @@ const TeacherActivities = () => {
                                     </div>
                                 </div>
 
-                                ) : (activePracticeFiles.length === 0 && activePracticeNotes.length === 0) ? (
-                                    <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
-                                        No practice uploads recorded on this date.
-                                    </div>
+                                { (activePracticeFiles.length === 0 && activePracticeNotes.length === 0) ? (
+                                <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
+                                    No practice uploads recorded on this date.
+                                </div>
                                 ) : (
-                                    <div className="space-y-6 max-w-4xl">
-                                        {activePracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
-                                            const files = activePracticeFiles.filter(f => f.toolType === type);
-                                            if (files.length === 0) return null;
+                                <div className="space-y-6 max-w-4xl">
+                                    {activePracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
+                                        const files = activePracticeFiles.filter(f => f.toolType === type);
+                                        if (files.length === 0) return null;
 
-                                            const typeLabels = {
-                                                'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
-                                                'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
-                                                'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
-                                                'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
-                                                'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' }
-                                            };
-                                            const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
-                                            const ToolIcon = labelConfig.icon;
+                                        const typeLabels = {
+                                            'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                            'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                            'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                            'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                            'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' }
+                                        };
+                                        const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                        const ToolIcon = labelConfig.icon;
 
-                                            return (
-                                                <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
-                                                            <ToolIcon size={16} />
-                                                        </div>
-                                                        <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {files.map((file, fileIdx) => (
-                                                            <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
-                                                                <div className="space-y-1">
-                                                                    <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
-                                                                        {file.filename}
-                                                                    </p>
-                                                                    <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
-                                                                        Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
-                                                                    </p>
-                                                                </div>
-
-                                                                <div className="pt-2">
-                                                                    {type === 'screenshot' && (
-                                                                        <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                            <img
-                                                                                src={file.fileUrl}
-                                                                                alt="Screenshot Preview"
-                                                                                className="w-full max-h-48 object-contain bg-slate-900"
-                                                                            />
-                                                                            <a
-                                                                                href={file.fileUrl}
-                                                                                target="_blank"
-                                                                                rel="noreferrer"
-                                                                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
-                                                                            >
-                                                                                Open in New Tab
-                                                                            </a>
-                                                                        </div>
-                                                                    )}
-                                                                    {type === 'voice-recorder' && (
-                                                                        <audio controls src={file.fileUrl} className="w-full mt-1.5 focus:outline-none" />
-                                                                    )}
-                                                                    {(type === 'screen-recorder' || type === 'video-recorder') && (
-                                                                        <video controls src={file.fileUrl} className="w-full max-h-56 bg-slate-950 rounded-xl border border-slate-200 mt-1.5" />
-                                                                    )}
-                                                                    {type === 'web-calling' && (
-                                                                        <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] font-semibold text-slate-500 space-y-1">
-                                                                            <div className="flex justify-between">
-                                                                                <span>Duration</span>
-                                                                                <span className="font-bold text-slate-800">{file.metadata?.duration || 'N/A'} mins</span>
-                                                                            </div>
-                                                                            <div className="flex justify-between">
-                                                                                <span>Calling Format</span>
-                                                                                <span className="font-bold text-slate-800 uppercase">{file.metadata?.format || 'Audio'}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-
-                                        {activePracticeNotes.length > 0 && (
-                                            <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                        return (
+                                            <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
                                                 <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
-                                                        <FileText size={16} />
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                        <ToolIcon size={16} />
                                                     </div>
-                                                    <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({activePracticeNotes.length})</h3>
+                                                    <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {activePracticeNotes.map((note, idx) => (
-                                                        <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
-                                                            <div className="space-y-1.5">
-                                                                <h4 className="font-extrabold text-slate-800 text-xs truncate">
-                                                                    {note.title}
-                                                                </h4>
-                                                                <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
-                                                                    {note.content}
+                                                    {files.map((file, fileIdx) => (
+                                                        <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                            <div className="space-y-1">
+                                                                <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                    {file.filename}
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
+                                                                    Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
                                                                 </p>
                                                             </div>
-                                                            <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                                                                <span>Time: {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
-                                                                    Shared
-                                                                </span>
+
+                                                            <div className="pt-2">
+                                                                {type === 'screenshot' && (
+                                                                    <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                        <img
+                                                                            src={file.fileUrl}
+                                                                            alt="Screenshot Preview"
+                                                                            className="w-full max-h-48 object-contain bg-slate-900"
+                                                                        />
+                                                                        <a
+                                                                            href={file.fileUrl}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
+                                                                        >
+                                                                            Open in New Tab
+                                                                        </a>
+                                                                    </div>
+                                                                )}
+                                                                {type === 'voice-recorder' && (
+                                                                    <audio controls src={file.fileUrl} className="w-full mt-1.5 focus:outline-none" />
+                                                                )}
+                                                                {(type === 'screen-recorder' || type === 'video-recorder') && (
+                                                                    <video controls src={file.fileUrl} className="w-full max-h-56 bg-slate-950 rounded-xl border border-slate-200 mt-1.5" />
+                                                                )}
+                                                                {type === 'web-calling' && (
+                                                                    <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] font-semibold text-slate-500 space-y-1">
+                                                                        <div className="flex justify-between">
+                                                                            <span>Duration</span>
+                                                                            <span className="font-bold text-slate-800">{file.metadata?.duration || 'N/A'} mins</span>
+                                                                        </div>
+                                                                        <div className="flex justify-between">
+                                                                            <span>Calling Format</span>
+                                                                            <span className="font-bold text-slate-800 uppercase">{file.metadata?.format || 'Audio'}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                        );
+                                    })}
+
+                                    {activePracticeNotes.length > 0 && (
+                                        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                    <FileText size={16} />
+                                                </div>
+                                                <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({activePracticeNotes.length})</h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {activePracticeNotes.map((note, idx) => (
+                                                    <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                        <div className="space-y-1.5">
+                                                            <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                {note.title}
+                                                            </h4>
+                                                            <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                {note.content}
+                                                            </p>
+                                                        </div>
+                                                        <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                            <span>Time: {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                Shared
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                ) }
                             </div>
                         ) : (
                             /* --- STUDENT PERFORMANCE DASHBOARD --- */

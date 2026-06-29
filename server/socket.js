@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const CallLog = require('./models/CallLog');
 
 const onlineUsers = {}; // Map of userId -> socket.id
+let ioInstance = null;
 
 const initSocket = (server) => {
     const io = new Server(server, {
@@ -11,6 +12,7 @@ const initSocket = (server) => {
             credentials: true
         }
     });
+    ioInstance = io;
 
     io.on('connection', (socket) => {
         console.log(`[SOCKET] Socket connected: ${socket.id}`);
@@ -214,6 +216,12 @@ const initSocket = (server) => {
             }
         });
 
+        // Student live activity updates
+        socket.on('student-activity-update', (payload) => {
+            console.log(`[SOCKET] Broadcast student activity:`, payload);
+            socket.broadcast.emit('student-activity-sync', payload);
+        });
+
         // Handle disconnect
         socket.on('disconnect', async () => {
             console.log(`[SOCKET] Socket disconnected: ${socket.id}`);
@@ -260,6 +268,14 @@ const initSocket = (server) => {
     return io;
 };
 
+const notifyStudentActivity = (payload) => {
+    if (ioInstance) {
+        console.log(`[SOCKET] Broadcasting student activity:`, payload);
+        ioInstance.emit('student-activity-sync', payload);
+    }
+};
+
 module.exports = {
-    initSocket
+    initSocket,
+    notifyStudentActivity
 };

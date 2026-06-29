@@ -819,6 +819,19 @@ export const SocketProvider = ({ children }) => {
         return `${m}:${s}`;
     };
 
+    const emitStudentActivity = (toolType, action = 'update') => {
+        const s = socketRef.current || socket;
+        const activeUser = user || guestInfo;
+        if (s && activeUser && activeUser.role === 'Student') {
+            s.emit('student-activity-update', {
+                studentId: activeUser._id,
+                studentName: activeUser.name,
+                toolType,
+                action
+            });
+        }
+    };
+
     const isVideoCall = callInfo.callType === 'video';
 
     return (
@@ -838,7 +851,8 @@ export const SocketProvider = ({ children }) => {
             endCall,
             toggleMute,
             toggleCamera,
-            registerGuest
+            registerGuest,
+            emitStudentActivity
         }}>
             {children}
 

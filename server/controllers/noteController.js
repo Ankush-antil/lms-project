@@ -40,6 +40,18 @@ const saveNote = asyncHandler(async (req, res) => {
         });
     }
 
+    try {
+        const { notifyStudentActivity } = require('../socket');
+        notifyStudentActivity({
+            studentId: req.user._id,
+            studentName: req.user.name,
+            toolType: 'notes',
+            action: id ? 'update' : 'save'
+        });
+    } catch (err) {
+        console.error('[SOCKET] Error notifying note activity:', err);
+    }
+
     res.status(201).json(note);
 });
 
@@ -99,6 +111,19 @@ const deleteNote = asyncHandler(async (req, res) => {
     }
 
     await note.deleteOne();
+
+    try {
+        const { notifyStudentActivity } = require('../socket');
+        notifyStudentActivity({
+            studentId: req.user._id,
+            studentName: req.user.name,
+            toolType: 'notes',
+            action: 'delete'
+        });
+    } catch (err) {
+        console.error('[SOCKET] Error notifying note deletion:', err);
+    }
+
     res.json({ message: 'Note deleted successfully' });
 });
 

@@ -111,6 +111,18 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
 
         const updatedUsedBytes = totalUsedBytes + req.file.size;
 
+        try {
+            const { notifyStudentActivity } = require('../../socket');
+            notifyStudentActivity({
+                studentId: req.user._id,
+                studentName: req.user.name,
+                toolType,
+                action: 'upload'
+            });
+        } catch (err) {
+            console.error('[SOCKET] Error notifying practice upload activity:', err);
+        }
+
         res.status(201).json({
             message: 'File uploaded to cloud successfully!',
             file: newFile,
@@ -148,6 +160,18 @@ router.delete('/:id', protect, async (req, res) => {
         // Recalculate space usage
         const remainingFiles = await PracticeFile.find({ user: req.user._id });
         const totalUsedBytes = remainingFiles.reduce((sum, f) => sum + f.size, 0);
+
+        try {
+            const { notifyStudentActivity } = require('../../socket');
+            notifyStudentActivity({
+                studentId: req.user._id,
+                studentName: req.user.name,
+                toolType: file.toolType,
+                action: 'delete'
+            });
+        } catch (err) {
+            console.error('[SOCKET] Error notifying practice deletion activity:', err);
+        }
 
         res.json({
             message: 'File deleted from cloud storage.',

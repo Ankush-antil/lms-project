@@ -1,28 +1,32 @@
-name: Deploy to DEV
+name: Deploy LMS DEV
 
 on:
   push:
     branches:
-      - main   # ya dev branch bhi use kar sakte ho
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to VPS DEV
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
+          username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /var/www/lms   # 👈 DEV folder fixed
+            cd /var/www/lms
 
             git pull origin main
 
             npm install
 
+            cd client
+            npm install
             npm run build
 
-            pm2 restart lms-dev
+            cd ../server
+
+            pm2 restart lms-dev --update-env

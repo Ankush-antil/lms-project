@@ -63,6 +63,8 @@ const getNotes = asyncHandler(async (req, res) => {
     
     if (req.query.inboxId) {
         query.inboxId = req.query.inboxId;
+    } else {
+        query.inboxId = { $in: ['', null] };
     }
 
     const notes = await Note.find(query).sort({ updatedAt: -1 });
@@ -87,6 +89,8 @@ const getSharedNotes = asyncHandler(async (req, res) => {
 
     if (inboxId) {
         query.inboxId = inboxId;
+    } else {
+        query.inboxId = { $in: ['', null] };
     }
 
     const notes = await Note.find(query).sort({ updatedAt: -1 });

@@ -45,11 +45,14 @@ router.get('/', protect, async (req, res) => {
         }
         if (req.query.inbox) {
             filter.inbox = req.query.inbox;
+        } else {
+            filter.inbox = { $in: ['', null] };
         }
         const files = await PracticeFile.find(filter).sort({ createdAt: -1 });
         
-        // Calculate total space used
-        const totalUsedBytes = files.reduce((sum, file) => sum + file.size, 0);
+        // Calculate total space used by all files of this user
+        const allUserFiles = await PracticeFile.find({ user: filter.user });
+        const totalUsedBytes = allUserFiles.reduce((sum, file) => sum + file.size, 0);
         
         res.json({
             files,

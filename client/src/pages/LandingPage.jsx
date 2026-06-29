@@ -12,6 +12,181 @@ import {
 import { useAuth } from '../context/AuthContext';
 import loginIllustration from './login-illustration.png';
 
+// Fixed Futuristic Animated Background Component
+const FuturisticBackground = () => {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            const x = (e.clientX / window.innerWidth) - 0.5;
+            const y = (e.clientY / window.innerHeight) - 0.5;
+            setMousePos({ x, y });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    return (
+        <div className="fixed inset-0 w-full h-full -z-20 pointer-events-none overflow-hidden select-none bg-gradient-to-br from-[#dce4ec] via-[#b6d0e6] to-[#1e60a3]">
+            <style>{`
+                .glass-blob {
+                    position: absolute;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(200,225,255,0.15) 100%);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255,255,255,0.45);
+                    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15),
+                                inset 0 8px 16px 0 rgba(255,255,255,0.25);
+                }
+                .blob-primary {
+                    width: 380px;
+                    height: 380px;
+                    border-radius: 53% 47% 43% 57% / 45% 52% 48% 55%;
+                    animation: morphBlob 16s ease-in-out infinite;
+                }
+                .blob-secondary {
+                    width: 260px;
+                    height: 260px;
+                    border-radius: 40% 60% 50% 50% / 60% 40% 60% 40%;
+                    animation: morphBlob2 12s ease-in-out infinite;
+                }
+                .blob-glow {
+                    position: absolute;
+                    border-radius: 50%;
+                    filter: blur(100px);
+                }
+                @keyframes morphBlob {
+                    0% { border-radius: 53% 47% 43% 57% / 45% 52% 48% 55%; transform: rotate(0deg); }
+                    33% { border-radius: 40% 60% 55% 45% / 55% 40% 60% 45%; transform: rotate(120deg); }
+                    66% { border-radius: 60% 40% 45% 55% / 40% 60% 45% 60%; transform: rotate(240deg); }
+                    100% { border-radius: 53% 47% 43% 57% / 45% 52% 48% 55%; transform: rotate(360deg); }
+                }
+                @keyframes morphBlob2 {
+                    0% { border-radius: 40% 60% 50% 50% / 60% 40% 60% 40%; transform: rotate(360deg); }
+                    50% { border-radius: 60% 40% 60% 40% / 40% 60% 40% 60%; transform: rotate(180deg); }
+                    100% { border-radius: 40% 60% 50% 50% / 60% 40% 60% 40%; transform: rotate(0deg); }
+                }
+                .float-slow {
+                    animation: floatingVertical 6s ease-in-out infinite;
+                }
+                @keyframes floatingVertical {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-15px); }
+                }
+                .float-delay {
+                    animation: floatingVerticalDelay 8s ease-in-out infinite;
+                }
+                @keyframes floatingVerticalDelay {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-20px); }
+                }
+            `}</style>
+
+            {/* Background grids and glowing lights */}
+            <div 
+                className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0c_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0c_1px,transparent_1px)] bg-[size:50px_50px] transition-transform duration-500 ease-out"
+                style={{
+                    transform: `translate(${mousePos.x * 15}px, ${mousePos.y * 15}px)`
+                }}
+            />
+
+            {/* Glowing orbs representing the background lights in the image */}
+            <div className="absolute top-[20%] left-[45%] w-[450px] h-[450px] bg-[#49a8f5]/25 blob-glow animate-pulse"></div>
+            <div className="absolute bottom-[10%] right-[5%] w-[500px] h-[500px] bg-[#2860a4]/40 blob-glow"></div>
+            <div className="absolute top-[10%] left-[5%] w-[350px] h-[350px] bg-[#a8c2d9]/35 blob-glow"></div>
+
+            {/* Center glassmorphism cluster */}
+            <div 
+                className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-transform duration-1000 ease-out"
+                style={{
+                    transform: `translate(calc(-50% + ${mousePos.x * -70}px), calc(-50% + ${mousePos.y * -70}px))`
+                }}
+            >
+                {/* Cluster of glass circles layered over each other to create the organic fluid shape */}
+                <div className="relative w-[500px] h-[500px] flex items-center justify-center">
+                    <div className="glass-blob blob-primary opacity-90 float-slow shadow-xl"></div>
+                    <div className="glass-blob blob-secondary opacity-80 float-delay -mt-16 -ml-24 border-[#ffffff40]"></div>
+                    <div className="absolute w-[200px] h-[200px] rounded-full glass-blob opacity-60 float-slow border-white/20 mt-20 ml-28 flex items-center justify-center">
+                        <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-tr from-[#1e60a3]/20 to-[#49a8f5]/20 blur-md"></div>
+                    </div>
+
+                    {/* Floating mechanical elements - SVG line nodes representing the metal rods in the user's reference */}
+                    <svg className="absolute w-[600px] h-[600px] pointer-events-none opacity-60" viewBox="0 0 600 600">
+                        <path d="M 100 150 L 220 230" stroke="rgba(255,255,255,0.7)" strokeWidth="3" fill="none" />
+                        <circle cx="100" cy="150" r="6" fill="#ffffff" />
+                        <circle cx="220" cy="230" r="5" fill="#49a8f5" />
+                        
+                        <path d="M 500 320 L 380 270" stroke="rgba(255,255,255,0.7)" strokeWidth="3" fill="none" />
+                        <circle cx="500" cy="320" r="6" fill="#ffffff" />
+                        <circle cx="380" cy="270" r="5" fill="#1e60a3" />
+
+                        {/* Floating connecting links */}
+                        <line x1="220" y1="230" x2="380" y2="270" stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="5,5" />
+                    </svg>
+
+                    {/* Floating Stats Card mimicking the "82%" glass block in the image */}
+                    <div 
+                        className="absolute w-[180px] p-5 rounded-3xl border border-white/40 bg-white/25 backdrop-blur-xl shadow-2xl flex flex-col justify-between items-center text-center float-slow border-[#ffffff40] -mt-10 ml-6"
+                        style={{
+                            transform: `translate(${mousePos.x * 35}px, ${mousePos.y * 35}px)`
+                        }}
+                    >
+                        <div className="text-3xl font-black text-white drop-shadow-md select-none tracking-tight">82%</div>
+                        
+                        {/* Circular Progress Ring */}
+                        <div className="relative w-14 h-14 my-3 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle cx="28" cy="28" r="22" stroke="rgba(255,255,255,0.2)" strokeWidth="4.5" fill="transparent" />
+                                <circle cx="28" cy="28" r="22" stroke="url(#blue-grad)" strokeWidth="4.5" fill="transparent"
+                                        strokeDasharray="138" strokeDashoffset="25" strokeLinecap="round" />
+                                <defs>
+                                    <linearGradient id="blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stopColor="#ffffff" />
+                                        <stop offset="100%" stopColor="#49a8f5" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div className="absolute w-2 h-2 rounded-full bg-white shadow-md shadow-indigo-600/50"></div>
+                        </div>
+
+                        <div className="text-[9px] font-bold text-slate-100/90 leading-normal tracking-wide">
+                            LMS Interactive Sandbox Platform Efficiency
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Floating ambient icons/notes from the LMS system */}
+            <div 
+                className="absolute top-[18%] left-[10%] opacity-40 transition-transform duration-1000 ease-out"
+                style={{ transform: `translate(${mousePos.x * 20}px, ${mousePos.y * 20}px) rotate(15deg)` }}
+            >
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-lg">
+                    <GraduationCap size={24} />
+                </div>
+            </div>
+
+            <div 
+                className="absolute bottom-[22%] left-[15%] opacity-40 transition-transform duration-1000 ease-out"
+                style={{ transform: `translate(${mousePos.x * -25}px, ${mousePos.y * 25}px) rotate(-10deg)` }}
+            >
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-lg">
+                    <BookOpen size={24} />
+                </div>
+            </div>
+
+            <div 
+                className="absolute top-[35%] right-[12%] opacity-35 transition-transform duration-1000 ease-out"
+                style={{ transform: `translate(${mousePos.x * -20}px, ${mousePos.y * -20}px) rotate(8deg)` }}
+            >
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-lg">
+                    <Sparkles size={24} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const LandingPage = () => {
     const navigate = useNavigate();
     const { user, loading, login, logout } = useAuth();
@@ -448,10 +623,9 @@ const LandingPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans select-none relative overflow-x-hidden">
-            {/* Background design elements */}
-            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-            <div className="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+        <div className="min-h-screen bg-transparent text-slate-800 flex flex-col font-sans select-none relative overflow-x-hidden">
+            {/* Fixed Futuristic Animated Background */}
+            <FuturisticBackground />
 
             {/* ─────────────── HEADER ─────────────── */}
             <header className="h-14 border-b border-slate-800/50 bg-[#0b1329] sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between">
@@ -589,10 +763,10 @@ const LandingPage = () => {
                                     {loadingCourses ? (
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {[1, 2, 3, 4].map(n => (
-                                                <div key={n} className="bg-white border border-slate-200 rounded-2xl p-5 h-40 animate-pulse space-y-3">
-                                                    <div className="h-4 bg-slate-100 rounded w-3/4" />
-                                                    <div className="h-3 bg-slate-100 rounded w-full" />
-                                                    <div className="h-3 bg-slate-100 rounded w-2/3" />
+                                                <div key={n} className="bg-white/20 border border-white/30 backdrop-blur-md rounded-2xl p-5 h-40 animate-pulse space-y-3">
+                                                    <div className="h-4 bg-white/30 rounded w-3/4" />
+                                                    <div className="h-3 bg-white/20 rounded w-full" />
+                                                    <div className="h-3 bg-white/20 rounded w-2/3" />
                                                 </div>
                                             ))}
                                         </div>
@@ -606,28 +780,34 @@ const LandingPage = () => {
                                                 return (
                                                     <motion.div
                                                         key={courseName}
-                                                        whileHover={{ y: -4, boxShadow: '0 12px 32px rgba(99,102,241,0.10)' }}
-                                                        transition={{ duration: 0.18 }}
-                                                        className="bg-white border border-slate-100 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-200 transition-all shadow-sm"
+                                                        whileHover={{ y: -6, scale: 1.01, boxShadow: '0 20px 40px rgba(30, 96, 163, 0.12)' }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="group bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-300 hover:bg-white/65 transition-all duration-300 shadow-md"
                                                     >
                                                         <div className="space-y-2 flex-1">
-                                                            <h3 className="font-extrabold text-slate-800 text-sm leading-snug">
-                                                                {courseName}
-                                                            </h3>
-                                                            <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3">
+                                                            <div className="flex justify-between items-start gap-2.5">
+                                                                <h3 className="font-black text-slate-800 text-sm leading-snug tracking-tight">
+                                                                    {courseName}
+                                                                </h3>
+                                                                <span className="p-1.5 bg-indigo-50/50 rounded-lg text-indigo-650 flex-shrink-0">
+                                                                    <BookOpen size={14} />
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-slate-500 text-[11px] leading-relaxed line-clamp-3 mt-1.5">
                                                                 {previewCourse?.description || 'Comprehensive LMS curriculum designed by experienced educators.'}
                                                             </p>
                                                         </div>
 
-                                                        <div className="mt-4 space-y-2">
-                                                            <p className="text-[10px] font-semibold text-slate-400">
-                                                                Available at {instituteCount} {instituteCount === 1 ? 'Institute' : 'Institutes'}
-                                                            </p>
+                                                        <div className="mt-4 space-y-3">
+                                                            <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-650/90 bg-indigo-50/40 border border-indigo-100/50 px-2 py-0.5 rounded-lg w-fit">
+                                                                <Building size={10} />
+                                                                <span>{instituteCount} {instituteCount === 1 ? 'Institute' : 'Institutes'}</span>
+                                                            </div>
                                                             <button
                                                                 onClick={() => setSelectedCourseName(courseName)}
-                                                                className="w-full text-xs font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 py-1.5 rounded-xl transition-all"
+                                                                className="w-full text-xs font-black text-white bg-gradient-to-r from-[#1e60a3] to-[#49a8f5] hover:from-[#1b5592] hover:to-[#3b93db] py-2 rounded-xl transition-all shadow-md shadow-[#1e60a3]/10 hover:shadow-[#1e60a3]/20 flex items-center justify-center gap-1 active:scale-[0.98]"
                                                             >
-                                                                Explore →
+                                                                Explore Program <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-0.5" />
                                                             </button>
                                                         </div>
                                                     </motion.div>
@@ -670,14 +850,14 @@ const LandingPage = () => {
                                         ].map((stat, idx) => {
                                             const IconComp = stat.icon;
                                             return (
-                                                <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-                                                    <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
+                                                <div key={idx} className="bg-white/40 border border-white/65 rounded-3xl p-5 text-center shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 hover:-translate-y-1.5 transition-all duration-300 group backdrop-blur-md relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-50/30 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
                                                     <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mx-auto mb-3`}>
                                                         <IconComp size={18} />
                                                     </div>
                                                     <h4 className="text-2xl font-black text-slate-900 leading-none">{stat.count}</h4>
-                                                    <p className="text-[11px] font-bold text-slate-800 mt-1.5 leading-none">{stat.label}</p>
-                                                    <p className="text-[9px] text-slate-400 font-medium mt-1 leading-none">{stat.desc}</p>
+                                                    <p className="text-[11px] font-extrabold text-slate-850 mt-1.5 leading-none">{stat.label}</p>
+                                                    <p className="text-[9.5px] text-slate-500 font-bold mt-1 leading-none">{stat.desc}</p>
                                                 </div>
                                             );
                                         })}
@@ -697,12 +877,12 @@ const LandingPage = () => {
                                             ].map((feature, i) => {
                                                 const IconC = feature.icon;
                                                 return (
-                                                    <div key={i} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all space-y-3 hover:-translate-y-1 duration-300">
+                                                    <div key={i} className="bg-white/45 border border-white/65 p-6 rounded-2xl shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 transition-all duration-300 space-y-3 hover:-translate-y-1.5 backdrop-blur-md">
                                                         <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center`}>
                                                             <IconC size={20} />
                                                         </div>
-                                                        <h4 className="font-extrabold text-slate-800 text-sm">{feature.title}</h4>
-                                                        <p className="text-slate-500 text-xs leading-relaxed">{feature.desc}</p>
+                                                        <h4 className="font-black text-slate-900 text-sm">{feature.title}</h4>
+                                                        <p className="text-slate-600 text-xs leading-relaxed font-semibold">{feature.desc}</p>
                                                     </div>
                                                 );
                                             })}
@@ -796,9 +976,9 @@ const LandingPage = () => {
                                             return (
                                                 <motion.div
                                                     key={courseObj._id}
-                                                    whileHover={{ y: -4, scale: 1.005 }}
-                                                    transition={{ duration: 0.18 }}
-                                                    className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all overflow-hidden flex flex-col justify-between"
+                                                    whileHover={{ y: -6, scale: 1.01, boxShadow: '0 20px 40px rgba(30, 96, 163, 0.12)' }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 transition-all overflow-hidden flex flex-col justify-between"
                                                 >
                                                     <div>
                                                         {/* Top Image / Colored Block */}

@@ -177,9 +177,11 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                                     <p className="text-[9px] font-black uppercase tracking-widest leading-none">Course Subjects List</p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {user.studentProfile.course.subjects.map((sub, idx) => {
-                                                        const isAssigned = sub.trim().toLowerCase() === user?.studentProfile?.subject?.trim().toLowerCase();
-                                                        return (
+                                                     {user.studentProfile.course.subjects.map((sub, idx) => {
+                                                         const isAssigned = user?.studentProfile?.subject
+                                                             ? user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase())
+                                                             : false;
+                                                         return (
                                                              <span 
                                                                  key={idx} 
                                                                  className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors ${

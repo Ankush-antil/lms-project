@@ -75,8 +75,33 @@ const TeacherActivities = () => {
 
     const [studentTab, setStudentTab] = useState('tests'); // 'tests' | 'practice' | 'performance'
     const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
+    const [studentSharedNotes, setStudentSharedNotes] = useState([]);
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
     const [loadingPracticeFiles, setLoadingPracticeFiles] = useState(false);
+
+    const [studyMaterials, setStudyMaterials] = useState([]);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+    const [matTitle, setMatTitle] = useState('');
+    const [matFile, setMatFile] = useState(null);
+    const [uploadingMaterial, setUploadingMaterial] = useState(false);
+
+    useEffect(() => {
+        if (viewMode === 'study-material' && selectedInboxId) {
+            const fetchMaterials = async () => {
+                try {
+                    setLoadingMaterials(true);
+                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedInboxId}`);
+                    setStudyMaterials(data);
+                } catch (err) {
+                    console.error("Error fetching study materials:", err);
+                    toast.error("Failed to load study materials");
+                } finally {
+                    setLoadingMaterials(false);
+                }
+            };
+            fetchMaterials();
+        }
+    }, [viewMode, selectedInboxId]);
 
     // ERP Fee Accounting & Ledger Mock States
     const [erpPresent, setErpPresent] = useState(42);
@@ -105,8 +130,12 @@ const TeacherActivities = () => {
     const fetchStudentPracticeFiles = async (studentId) => {
         try {
             setLoadingPracticeFiles(true);
-            const { data } = await axios.get(`/api/practice-files?studentId=${studentId}`);
-            setStudentPracticeFiles(data.files || []);
+            const [filesRes, notesRes] = await Promise.all([
+                axios.get(`/api/practice-files?studentId=${studentId}`),
+                axios.get(`/api/notes/shared?studentId=${studentId}`).catch(() => ({ data: [] }))
+            ]);
+            setStudentPracticeFiles(filesRes.data.files || []);
+            setStudentSharedNotes(notesRes.data || []);
         } catch (error) {
             console.error("Error fetching student practice files:", error);
         } finally {
@@ -155,6 +184,49 @@ const TeacherActivities = () => {
             console.error("Error fetching student submissions:", error);
         } finally {
             setSubmissionsLoading(false);
+        }
+    };
+
+    const handleUploadStudyMaterial = async (e) => {
+        e.preventDefault();
+        if (!matTitle.trim() || !matFile || !selectedInboxId) {
+            toast.error("Please fill in the title and select a file");
+            return;
+        }
+        try {
+            setUploadingMaterial(true);
+            const formData = new FormData();
+            formData.append('title', matTitle.trim());
+            formData.append('inboxId', selectedInboxId);
+            formData.append('file', matFile);
+
+            const { data } = await axios.post('/api/study-materials', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            toast.success("Study material uploaded successfully!");
+            setStudyMaterials(prev => [data, ...prev]);
+            setMatTitle('');
+            setMatFile(null);
+            const fileInput = document.getElementById('study-material-file');
+            if (fileInput) fileInput.value = '';
+        } catch (err) {
+            console.error("Error uploading study material:", err);
+            toast.error(err.response?.data?.message || "Failed to upload study material");
+        } finally {
+            setUploadingMaterial(false);
+        }
+    };
+
+    const handleDeleteStudyMaterial = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this study material?")) return;
+        try {
+            await axios.delete(`/api/study-materials/${id}`);
+            toast.success("Study material deleted successfully!");
+            setStudyMaterials(prev => prev.filter(m => m._id !== id));
+        } catch (err) {
+            console.error("Error deleting study material:", err);
+            toast.error("Failed to delete study material");
         }
     };
 
@@ -326,6 +398,14 @@ const TeacherActivities = () => {
             const parsed = `${day}-${month}-${year}`;
             datesMap[parsed] = true;
         });
+        studentSharedNotes.forEach(n => {
+            const date = new Date(n.createdAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const parsed = `${day}-${month}-${year}`;
+            datesMap[parsed] = true;
+        });
         return Object.keys(datesMap).sort((a, b) => {
             const aParts = a.split('-');
             const bParts = b.split('-');
@@ -333,7 +413,7 @@ const TeacherActivities = () => {
             const bTime = new Date(`${bParts[2]}-${bParts[1]}-${bParts[0]}`).getTime();
             return bTime - aTime;
         });
-    }, [studentPracticeFiles]);
+    }, [studentPracticeFiles, studentSharedNotes]);
 
     const activePracticeFiles = useMemo(() => {
         if (!selectedPracticeDate) return [];
@@ -346,6 +426,18 @@ const TeacherActivities = () => {
             return parsed === selectedPracticeDate;
         });
     }, [studentPracticeFiles, selectedPracticeDate]);
+
+    const activePracticeNotes = useMemo(() => {
+        if (!selectedPracticeDate) return [];
+        return studentSharedNotes.filter(n => {
+            const date = new Date(n.createdAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const parsed = `${day}-${month}-${year}`;
+            return parsed === selectedPracticeDate;
+        });
+    }, [studentSharedNotes, selectedPracticeDate]);
 
     useEffect(() => {
         if (studentTab === 'practice' && practiceDatesList.length > 0 && !selectedPracticeDate) {
@@ -364,6 +456,10 @@ const TeacherActivities = () => {
             const dateStr = new Date(file.createdAt).toDateString();
             dates[dateStr] = { type: 'Practice Tool', desc: `Uploaded ${file.filename} via ${file.toolType}` };
         });
+        studentSharedNotes.forEach(note => {
+            const dateStr = new Date(note.createdAt).toDateString();
+            dates[dateStr] = { type: 'Notes Tool', desc: `Shared Note: ${note.title}` };
+        });
 
         const logs = [];
         for (let i = 0; i < 7; i++) {
@@ -380,7 +476,7 @@ const TeacherActivities = () => {
             });
         }
         return logs;
-    }, [studentSubmissions, studentPracticeFiles]);
+    }, [studentSubmissions, studentPracticeFiles, studentSharedNotes]);
 
     const activeDaysCount = useMemo(() => {
         const dates = {};
@@ -392,8 +488,12 @@ const TeacherActivities = () => {
             const dateStr = new Date(file.createdAt).toDateString();
             dates[dateStr] = true;
         });
+        studentSharedNotes.forEach(note => {
+            const dateStr = new Date(note.createdAt).toDateString();
+            dates[dateStr] = true;
+        });
         return Object.keys(dates).length;
-    }, [studentSubmissions, studentPracticeFiles]);
+    }, [studentSubmissions, studentPracticeFiles, studentSharedNotes]);
 
     const performanceAttendancePercentage = useMemo(() => {
         const baseline = 88;
@@ -585,7 +685,7 @@ const TeacherActivities = () => {
                                                     onClick={() => {
                                                         setSelectedInboxId(item.id);
                                                         setSelectedCategory(null);
-                                                        if (!viewMode || !['pending', 'submitted', 'evaluated', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
+                                                        if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
                                                             setViewMode('pending');
                                                         }
                                                     }}
@@ -797,6 +897,7 @@ const TeacherActivities = () => {
                                         { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
                                         { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
@@ -930,7 +1031,92 @@ const TeacherActivities = () => {
                                         </button>
                                     </form>
                                 </div>
-                            ) : viewMode === 'analytics' ? (
+                             ) : viewMode === 'study-material' ? (
+                                 /* --- STUDY MATERIAL TAB --- */
+                                 <div className="animate-fade-in space-y-6 text-left">
+                                     <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                         <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
+                                         <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                             <div className="space-y-1.5">
+                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
+                                                 <input
+                                                     type="text"
+                                                     value={matTitle}
+                                                     onChange={(e) => setMatTitle(e.target.value)}
+                                                     placeholder="e.g. React Cheatsheet"
+                                                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                 />
+                                             </div>
+                                             <div className="space-y-1.5">
+                                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
+                                                 <input
+                                                     type="file"
+                                                     id="study-material-file"
+                                                     onChange={(e) => setMatFile(e.target.files[0])}
+                                                     className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                                 />
+                                             </div>
+                                             <button
+                                                 type="submit"
+                                                 disabled={uploadingMaterial}
+                                                 className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                             >
+                                                 {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                             </button>
+                                         </form>
+                                     </div>
+
+                                     <div className="space-y-4">
+                                         <div className="flex justify-between items-center">
+                                             <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
+                                             <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
+                                                 Total Files: {studyMaterials.length}
+                                             </span>
+                                         </div>
+
+                                         {loadingMaterials ? (
+                                             <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                                 <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                             </div>
+                                         ) : studyMaterials.length === 0 ? (
+                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                 <div className="text-4xl mb-2">📂</div>
+                                                 <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
+                                                 <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                             </div>
+                                         ) : (
+                                             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                 {studyMaterials.map((mat) => (
+                                                     <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                         <div className="space-y-2">
+                                                             <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                             <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                             <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                         </div>
+                                                         <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                             <button
+                                                                 onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                 className="text-red-500 hover:text-red-700 text-[10px] font-bold"
+                                                             >
+                                                                 Delete
+                                                             </button>
+                                                             <a
+                                                                 href={mat.fileUrl}
+                                                                 target="_blank"
+                                                                 rel="noreferrer"
+                                                                 className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                             >
+                                                                 View File
+                                                             </a>
+                                                         </div>
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
+                             ) : viewMode === 'analytics' ? (
                                 /* --- ANALYTICS TAB --- */
                                 <div className="animate-fade-in space-y-6">
                                     {(() => {
@@ -1109,17 +1295,13 @@ const TeacherActivities = () => {
                                     </div>
                                 </div>
 
-                                {!selectedPracticeDate ? (
-                                    <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
-                                        Select a date from the left sidebar to view the practice files.
-                                    </div>
-                                ) : activePracticeFiles.length === 0 ? (
+                                ) : (activePracticeFiles.length === 0 && activePracticeNotes.length === 0) ? (
                                     <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
                                         No practice uploads recorded on this date.
                                     </div>
                                 ) : (
                                     <div className="space-y-6 max-w-4xl">
-                                        {['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
+                                        {activePracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
                                             const files = activePracticeFiles.filter(f => f.toolType === type);
                                             if (files.length === 0) return null;
 
@@ -1149,7 +1331,7 @@ const TeacherActivities = () => {
                                                                     <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
                                                                         {file.filename}
                                                                     </p>
-                                                                    <p className="text-[10px] text-slate-450 font-semibold uppercase tracking-wider">
+                                                                    <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
                                                                         Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
                                                                     </p>
                                                                 </div>
@@ -1197,6 +1379,38 @@ const TeacherActivities = () => {
                                                 </div>
                                             );
                                         })}
+
+                                        {activePracticeNotes.length > 0 && (
+                                            <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({activePracticeNotes.length})</h3>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {activePracticeNotes.map((note, idx) => (
+                                                        <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                            <div className="space-y-1.5">
+                                                                <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                    {note.title}
+                                                                </h4>
+                                                                <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                    {note.content}
+                                                                </p>
+                                                            </div>
+                                                            <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                                <span>Time: {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                    Shared
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

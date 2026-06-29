@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
     Calendar, Camera, Video, Mic, MonitorPlay, Phone, Settings, 
-    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen, Upload
+    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen, Upload, FileText
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../utils/dateUtils';
@@ -23,16 +23,21 @@ const StudentPracticeTools = () => {
     // Storage lists
     const [cloudFiles, setCloudFiles] = useState([]);
     const [localFiles, setLocalFiles] = useState([]);
+    const [notesList, setNotesList] = useState([]);
     const [datesList, setDatesList] = useState([]);
 
     // Fetch and sync dates
     const loadAllPracticeData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch Cloud Files
-            const cloudRes = await axios.get('/api/practice-files');
+            // 1. Fetch Cloud Files and Notes
+            const [cloudRes, notesRes] = await Promise.all([
+                axios.get('/api/practice-files'),
+                axios.get('/api/notes').catch(() => ({ data: [] }))
+            ]);
             const cFiles = cloudRes.data.files || [];
             setCloudFiles(cFiles);
+            setNotesList(notesRes.data || []);
 
             // 2. Fetch Local Files from LocalStorage
             const allLocal = [];
@@ -143,6 +148,11 @@ const StudentPracticeTools = () => {
                 if (f.parsedDate !== 'Unknown Date') datesMap[f.parsedDate] = true;
             });
 
+            notesList.forEach(n => {
+                const parsed = parseDateToDdMmYyyy(n.createdAt);
+                if (parsed !== 'Unknown Date') datesMap[parsed] = true;
+            });
+
             // Sort dates descending
             const sortedDates = Object.keys(datesMap).sort((a, b) => {
                 const aParts = a.split('-');
@@ -183,6 +193,10 @@ const StudentPracticeTools = () => {
 
     // Count utility for tools on the active selected date
     const getFileCountForTool = (toolTitle) => {
+        if (toolTitle === 'Notes Writing') {
+            return notesList.filter(n => parseDateToDdMmYyyy(n.createdAt) === selectedDate).length;
+        }
+
         const dbTypeMap = {
             'Screenshot Tool': 'screenshot',
             'Screen Recorder': 'screen-recorder',
@@ -215,18 +229,6 @@ const StudentPracticeTools = () => {
 
     const practiceToolsConfig = [
         {
-            title: "Screenshot Tool",
-            icon: Camera,
-            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
-            path: "/student/practice-tools/screenshot"
-        },
-        {
-            title: "Screen Recorder",
-            icon: Video,
-            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
-            path: "/student/practice-tools/screen-recorder"
-        },
-        {
             title: "Voice Recorder",
             icon: Mic,
             color: "text-blue-600 bg-blue-50 border-blue-150 hover:border-blue-300",
@@ -239,16 +241,34 @@ const StudentPracticeTools = () => {
             path: "/student/practice-tools/video-recorder"
         },
         {
-            title: "Web-Calling Tool",
-            icon: Phone,
-            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
-            path: "/student/practice-tools/web-calling"
-        },
-        {
             title: "File Uploader",
             icon: Upload,
             color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
             path: "/student/practice-tools/file-uploader"
+        },
+        {
+            title: "Notes Writing",
+            icon: FileText,
+            color: "text-amber-500 bg-amber-50 border-amber-150 hover:border-amber-300",
+            path: "/student/practice-tools/notes"
+        },
+        {
+            title: "Screenshot Tool",
+            icon: Camera,
+            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
+            path: "/student/practice-tools/screenshot"
+        },
+        {
+            title: "Screen Recorder",
+            icon: Video,
+            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
+            path: "/student/practice-tools/screen-recorder"
+        },
+        {
+            title: "Web-Calling Tool",
+            icon: Phone,
+            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
+            path: "/student/practice-tools/web-calling"
         }
     ];
 
@@ -378,7 +398,7 @@ const StudentPracticeTools = () => {
 
                     {/* Tools Grid */}
                     <div className="flex-1 p-8 overflow-y-auto custom-scrollbar bg-slate-50/30">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {practiceToolsConfig.map((tool, idx) => {
                                 const ToolIcon = tool.icon;
                                 const fileCount = getFileCountForTool(tool.title);
@@ -387,22 +407,21 @@ const StudentPracticeTools = () => {
                                     <div 
                                         key={idx} 
                                         onClick={() => handleLaunchTool(tool.path)}
-                                        className="bg-white p-6 rounded-3xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between group hover:-translate-y-0.5 duration-200 relative overflow-hidden cursor-pointer"
+                                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer h-20"
                                     >
-                                        <div>
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200`}>
-                                                    <ToolIcon size={22} />
-                                                </div>
-                                                
-                                                <span className={`px-2.5 py-1 rounded-full font-black text-[9px] uppercase tracking-wider ${
-                                                    fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
-                                                }`}>
-                                                    {fileCount} {fileCount === 1 ? 'file' : 'files'}
-                                                </span>
-                                            </div>
-
-                                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{tool.title}</h3>
+                                        {/* Left Side: Icon */}
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
+                                            <ToolIcon size={18} />
+                                        </div>
+                                        
+                                        {/* Right Side: Files Count and Tool Title */}
+                                        <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
+                                            <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
+                                                fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                            }`}>
+                                                {fileCount} {fileCount === 1 ? 'file' : 'files'}
+                                            </span>
+                                            <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
                                         </div>
                                     </div>
                                 );

@@ -135,7 +135,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (isOpen) {
             let defaultInstName = '';
             if (user?.role === 'Institute' || user?.role === 'Editor') {
-                defaultInstName = typeof user.institute === 'object' ? (user.institute.name || '') : '';
+                defaultInstName = (user.institute && typeof user.institute === 'object') ? (user.institute.name || '') : '';
             }
 
             if (initialData) {

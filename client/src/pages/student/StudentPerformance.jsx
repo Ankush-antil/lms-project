@@ -28,6 +28,7 @@ const StudentPerformance = () => {
     });
     const [profile, setProfile] = useState(null);
     const [activeTab, setActiveTab] = useState('graded'); // 'graded' | 'pending' | 'unattempted'
+    const [notesCount, setNotesCount] = useState(0);
 
     // College ERP Integration Mock States
     const [isSyncing, setIsSyncing] = useState(false);
@@ -58,17 +59,19 @@ const StudentPerformance = () => {
     useEffect(() => {
         const fetchAllData = async () => {
             try {
-                const [testsRes, subsRes, cloudRes, profileRes] = await Promise.all([
+                const [testsRes, subsRes, cloudRes, profileRes, notesRes] = await Promise.all([
                     axios.get('/api/tests'),
                     axios.get('/api/submissions'),
                     axios.get('/api/practice-files').catch(() => ({ data: { files: [] } })),
-                    axios.get('/api/users/profile')
+                    axios.get('/api/users/profile'),
+                    axios.get('/api/notes').catch(() => ({ data: [] }))
                 ]);
 
                 setTests(testsRes.data || []);
                 setSubmissions(subsRes.data || []);
                 setCloudFiles(cloudRes.data?.files || []);
                 setProfile(profileRes.data || null);
+                setNotesCount(notesRes.data?.length || 0);
 
                 // Load local storage counts
                 const localCounts = {
@@ -123,20 +126,6 @@ const StudentPerformance = () => {
 
         return [
             {
-                title: "Screenshot Tool",
-                icon: Camera,
-                count: localFilesCount.screenshots + cloudCountForTool('screenshot'),
-                color: "text-indigo-600 bg-indigo-50 border-indigo-100",
-                path: "/student/practice-tools/screenshot"
-            },
-            {
-                title: "Screen Recorder",
-                icon: Video,
-                count: localFilesCount.screenRecordings + cloudCountForTool('screen-recorder'),
-                color: "text-emerald-600 bg-emerald-50 border-emerald-100",
-                path: "/student/practice-tools/screen-recorder"
-            },
-            {
                 title: "Voice Recorder",
                 icon: Mic,
                 count: localFilesCount.audios + cloudCountForTool('voice-recorder'),
@@ -151,18 +140,39 @@ const StudentPerformance = () => {
                 path: "/student/practice-tools/video-recorder"
             },
             {
-                title: "Web-Calling Tool",
-                icon: Phone,
-                count: localFilesCount.calls + cloudCountForTool('web-calling'),
-                color: "text-pink-600 bg-pink-50 border-pink-100",
-                path: "/student/practice-tools/web-calling"
-            },
-            {
                 title: "File Uploader",
                 icon: Upload,
                 count: localFilesCount.fileUploads + cloudCountForTool('file-uploader'),
                 color: "text-amber-600 bg-amber-50 border-amber-100",
                 path: "/student/practice-tools/file-uploader"
+            },
+            {
+                title: "Notes Writing",
+                icon: FileText,
+                count: notesCount,
+                color: "text-amber-500 bg-amber-50 border-amber-100",
+                path: "/student/practice-tools/notes"
+            },
+            {
+                title: "Screenshot Tool",
+                icon: Camera,
+                count: localFilesCount.screenshots + cloudCountForTool('screenshot'),
+                color: "text-indigo-600 bg-indigo-50 border-indigo-100",
+                path: "/student/practice-tools/screenshot"
+            },
+            {
+                title: "Screen Recorder",
+                icon: Video,
+                count: localFilesCount.screenRecordings + cloudCountForTool('screen-recorder'),
+                color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+                path: "/student/practice-tools/screen-recorder"
+            },
+            {
+                title: "Web-Calling Tool",
+                icon: Phone,
+                count: localFilesCount.calls + cloudCountForTool('web-calling'),
+                color: "text-pink-600 bg-pink-50 border-pink-100",
+                path: "/student/practice-tools/web-calling"
             }
         ];
     }, [cloudFiles, localFilesCount]);

@@ -8,13 +8,16 @@ const User = require('../../models/User');
 const getTests = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id)
         .populate('institute')
-        .populate('studentProfile.course');
+        .populate({
+            path: 'studentProfile.course',
+            populate: { path: 'institute' }
+        });
 
     if (!user) {
         return res.status(404).json({ message: 'User not found' });
     }
 
-    const studentInstitute = user.institute?.name?.trim();
+    const studentInstitute = user.institute?.name?.trim() || user.studentProfile?.course?.institute?.name?.trim();
     const studentCourse = user.studentProfile?.course?.name?.trim();
     const studentSubject = user.studentProfile?.subject?.trim();
 

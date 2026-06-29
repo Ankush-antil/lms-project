@@ -38,6 +38,7 @@ import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
 import VideoRecorderPage from './pages/student/tools/VideoRecorderPage';
 import WebCallingPage from './pages/student/tools/WebCallingPage';
 import FileUploadPage from './pages/student/tools/FileUploadPage';
+import NotesPage from './pages/student/tools/NotesPage';
 import SharedAudioPage from './pages/SharedAudioPage';
 import SharedVideoPage from './pages/SharedVideoPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
@@ -308,6 +309,11 @@ function App() {
                         <Route path="/student/practice-tools/file-uploader" element={
                             <PrivateRoute role="Student">
                                 <FileUploadPage />
+                            </PrivateRoute>
+                        } />
+                        <Route path="/student/practice-tools/notes" element={
+                            <PrivateRoute role="Student">
+                                <NotesPage />
                             </PrivateRoute>
                         } />
                         <Route path="/student/performance" element={

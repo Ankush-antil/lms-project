@@ -67,6 +67,27 @@ const StudentTests = () => {
     const messagesEndRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
 
+    const [studyMaterials, setStudyMaterials] = useState([]);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+
+    useEffect(() => {
+        if (viewMode === 'study-material' && selectedItem) {
+            const fetchMaterials = async () => {
+                try {
+                    setLoadingMaterials(true);
+                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedItem}`);
+                    setStudyMaterials(data);
+                } catch (err) {
+                    console.error("Error fetching study materials:", err);
+                    toast.error("Failed to load study materials");
+                } finally {
+                    setLoadingMaterials(false);
+                }
+            };
+            fetchMaterials();
+        }
+    }, [viewMode, selectedItem]);
+
     useEffect(() => {
         const fetch = async () => {
             try {
@@ -356,7 +377,7 @@ const StudentTests = () => {
                                         onClick={() => {
                                             setSelectedItem(item.id);
                                             setSelectedCategory(null);
-                                            if (!viewMode || !['pending', 'submitted', 'evaluated', 'practice', 'chat', 'analytics'].includes(viewMode)) {
+                                            if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
                                                 setViewMode('pending');
                                             }
                                         }}
@@ -419,6 +440,7 @@ const StudentTests = () => {
                                     { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                     { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                     { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                    { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
                                     { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                     { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                     { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
@@ -456,24 +478,59 @@ const StudentTests = () => {
                                     </p>
                                 </div>
                             </div>
+                        ) : viewMode === 'study-material' ? (
+                            /* --- STUDY MATERIAL TAB --- */
+                            <div className="animate-fade-in space-y-6 text-left">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-sm font-bold text-slate-800">Study Materials</h2>
+                                    <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold">
+                                        Total Files: {studyMaterials.length}
+                                    </span>
+                                </div>
+                                {loadingMaterials ? (
+                                    <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                        <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                    </div>
+                                ) : studyMaterials.length === 0 ? (
+                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                        <div className="text-4xl mb-2">📚</div>
+                                        <p className="font-bold text-slate-700 text-sm">No Study Material Yet</p>
+                                        <p className="text-slate-450 text-xs mt-1 font-medium">Your instructor hasn't uploaded any study materials for this Inbox.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                        {studyMaterials.map((mat) => (
+                                            <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                <div className="space-y-2">
+                                                    <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                    <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                    <p className="text-[10px] text-slate-450">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                    <span className="text-[10px] font-bold text-[#3E3ADD] bg-indigo-50 px-2.5 py-1 rounded-lg">
+                                                        By: {mat.uploadedBy?.name || 'Instructor'}
+                                                    </span>
+                                                    <a
+                                                        href={mat.fileUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                    >
+                                                        Open File
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         ) : viewMode === 'practice' ? (
                             /* --- PRACTICE TAB --- */
                             <div className="animate-fade-in space-y-6 text-left">
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {[
-                                        {
-                                            title: "Screenshot Tool",
-                                            icon: Camera,
-                                            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
-                                            path: "/student/practice-tools/screenshot"
-                                        },
-                                        {
-                                            title: "Screen Recorder",
-                                            icon: Video,
-                                            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
-                                            path: "/student/practice-tools/screen-recorder"
-                                        },
                                         {
                                             title: "Voice Recorder",
                                             icon: Mic,
@@ -487,28 +544,46 @@ const StudentTests = () => {
                                             path: "/student/practice-tools/video-recorder"
                                         },
                                         {
-                                            title: "Web-Calling Tool",
-                                            icon: Phone,
-                                            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
-                                            path: "/student/practice-tools/web-calling"
-                                        },
-                                        {
                                             title: "File Uploader",
                                             icon: Upload,
                                             color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
                                             path: "/student/practice-tools/file-uploader"
+                                        },
+                                        {
+                                            title: "Notes Writing",
+                                            icon: FileText,
+                                            color: "text-amber-500 bg-amber-50 border-amber-150 hover:border-amber-300",
+                                            path: "/student/practice-tools/notes"
+                                        },
+                                        {
+                                            title: "Screenshot Tool",
+                                            icon: Camera,
+                                            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
+                                            path: "/student/practice-tools/screenshot"
+                                        },
+                                        {
+                                            title: "Screen Recorder",
+                                            icon: Video,
+                                            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
+                                            path: "/student/practice-tools/screen-recorder"
+                                        },
+                                        {
+                                            title: "Web-Calling Tool",
+                                            icon: Phone,
+                                            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
+                                            path: "/student/practice-tools/web-calling"
                                         }
                                     ].map((tool, idx) => (
                                         <div
                                             key={idx}
                                             onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
-                                            className="bg-white p-5 rounded-3xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer text-left"
+                                            className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center gap-4 group hover:-translate-y-0.5 duration-200 cursor-pointer text-left h-20"
                                         >
-                                            <div>
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} mb-4 group-hover:scale-105 transition-all duration-200`}>
-                                                    <tool.icon size={22} />
-                                                </div>
-                                                <h3 className="font-extrabold text-slate-800 text-xs tracking-tight">{tool.title}</h3>
+                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
+                                                <tool.icon size={18} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="font-extrabold text-slate-800 text-[11px] tracking-tight leading-tight truncate">{tool.title}</h3>
                                             </div>
                                         </div>
                                     ))}

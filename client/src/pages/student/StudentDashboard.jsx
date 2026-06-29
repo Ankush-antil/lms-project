@@ -245,7 +245,9 @@ const StudentDashboard = () => {
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {profile.studentProfile.course.subjects.map((sub, i) => {
-                                    const isAssigned = sub.trim().toLowerCase() === profile?.studentProfile?.subject?.trim().toLowerCase();
+                                    const isAssigned = profile?.studentProfile?.subject
+                                        ? profile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase())
+                                        : false;
                                     return (
                                         <div 
                                             key={i} 

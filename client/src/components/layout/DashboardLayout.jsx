@@ -162,6 +162,7 @@ const menuItems = {
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
+        { name: 'Subjects', icon: BookOpen, path: '/institute/subjects' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Activities Builder', icon: PenTool, path: '/institute/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },

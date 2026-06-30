@@ -6,7 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import AddCourseModal from '../../components/AddCourseModal';
 import CollaborateModal from '../../components/CollaborateModal';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpen, FileText, Plus, PenTool, Sparkles, Folder, Calendar, ArrowRight, Users } from 'lucide-react';
+import { BookOpen, FileText, Plus, PenTool, Sparkles, Folder, Calendar, ArrowRight, Users, Trash2 } from 'lucide-react';
 
 const EditorDashboard = () => {
     const navigate = useNavigate();
@@ -18,6 +18,18 @@ const EditorDashboard = () => {
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
     const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
     const [selectedTest, setSelectedTest] = useState(null);
+
+    const handleDeleteTest = async (testId) => {
+        if (!window.confirm("Are you sure you want to delete this test permanently from the database?")) return;
+        try {
+            await axios.delete(`/api/tests/${testId}`);
+            toast.success("Test deleted successfully");
+            setTests(prev => prev.filter(t => t._id !== testId));
+        } catch (error) {
+            console.error("Error deleting test:", error);
+            toast.error(error.response?.data?.message || "Failed to delete test");
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -70,7 +82,7 @@ const EditorDashboard = () => {
                             <Plus size={16} /> Create Course
                         </button>
                         <button
-                            onClick={() => navigate('/admin/tests/builder')}
+                            onClick={() => navigate('/editor/activities-builder')}
                             className="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg shadow-purple-900/30 hover:scale-[1.02] active:scale-[0.98]"
                         >
                             <PenTool size={16} /> Launch Test Builder
@@ -187,12 +199,21 @@ const EditorDashboard = () => {
                                             <span className="text-xs text-slate-400 font-bold">
                                                 {test.questions?.length || 0} Questions
                                             </span>
-                                            <button
-                                                onClick={() => navigate(`/admin/tests/edit/${test._id}`)}
-                                                className="text-xs text-purple-600 font-bold flex items-center gap-1 hover:underline"
-                                            >
-                                                Edit Test <ArrowRight size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => handleDeleteTest(test._id)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all"
+                                                    title="Delete Test"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => navigate(`/editor/activities-edit/${test._id}`)}
+                                                    className="text-xs text-purple-600 font-bold flex items-center gap-1 hover:underline"
+                                                >
+                                                    Edit Test <ArrowRight size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -203,7 +224,7 @@ const EditorDashboard = () => {
                                 <h4 className="font-bold text-slate-700">No Tests Found</h4>
                                 <p className="text-sm mt-1 mb-4">You have not created any tests yet.</p>
                                 <button
-                                    onClick={() => navigate('/admin/tests/builder')}
+                                    onClick={() => navigate('/editor/activities-builder')}
                                     className="px-5 py-2.5 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all inline-flex items-center gap-2"
                                 >
                                     <Plus size={14} /> Build Your First Test
@@ -229,7 +250,7 @@ const EditorDashboard = () => {
                         </div>
                         <div className="pt-6">
                             <button
-                                onClick={() => navigate('/admin/tests/builder')}
+                                onClick={() => navigate('/editor/activities-builder')}
                                 className="px-6 py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl shadow-xl shadow-purple-900/30 transition-all hover:scale-[1.02] flex items-center gap-2 text-sm"
                             >
                                 <Plus size={16} /> Create New Assessment

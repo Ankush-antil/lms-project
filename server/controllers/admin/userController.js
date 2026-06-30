@@ -10,8 +10,8 @@ const getUsers = asyncHandler(async (req, res) => {
     const role = req.query.role;
     const query = role ? { role } : {};
     
-    // Isolate by institute for Institute role
-    if (req.user && req.user.role === 'Institute') {
+    // Isolate by institute for Institute and Editor roles
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         query.institute = req.user.institute;
     }
     
@@ -31,11 +31,11 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/users
 // @access  Private/Admin or Institute
 const createUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role, course, subjects, subject, mobileNumber } = req.body;
+    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled } = req.body;
     let institute = req.body.institute;
 
-    // Enforce creator's institute for Institute users
-    if (req.user && req.user.role === 'Institute') {
+    // Enforce creator's institute for Institute and Editor users
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         institute = req.user.institute;
     }
 
@@ -51,13 +51,15 @@ const createUser = asyncHandler(async (req, res) => {
         password, // Middleware will hash this
         role,
         institute,
-        mobileNumber: mobileNumber || ''
+        mobileNumber: mobileNumber || '',
+        callEnabled: callEnabled !== undefined ? callEnabled : false
     };
 
     if (role === 'Student') {
         userFields.studentProfile = {
             course,
             subject: subject || '',
+            batch: batch || '',
             enrollmentDate: new Date()
         };
     } else if (role === 'Teacher') {
@@ -104,8 +106,8 @@ const createUser = asyncHandler(async (req, res) => {
 const deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (user) {
-        // Enforce institute isolation
-        if (req.user && req.user.role === 'Institute' && user.institute?.toString() !== req.user.institute?.toString()) {
+        // Enforce institute isolation for Institute and Editor roles
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
             res.status(403);
             throw new Error('Not authorized to delete users belonging to other institutes');
         }
@@ -125,8 +127,8 @@ const updateUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
 
     if (user) {
-        // Enforce institute isolation
-        if (req.user && req.user.role === 'Institute' && user.institute?.toString() !== req.user.institute?.toString()) {
+        // Enforce institute isolation for Institute and Editor roles
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
             res.status(403);
             throw new Error('Not authorized to update users belonging to other institutes');
         }
@@ -135,12 +137,13 @@ const updateUser = asyncHandler(async (req, res) => {
         user.email = req.body.email !== undefined ? req.body.email : user.email;
         user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
         
-        // Prevent Institute users from changing user's institute
-        if (req.user.role !== 'Institute') {
+        // Prevent Institute/Editor users from changing user's institute
+        if (req.user.role !== 'Institute' && req.user.role !== 'Editor') {
             user.institute = req.body.institute !== undefined ? req.body.institute : user.institute;
         }
         
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
+        user.callEnabled = req.body.callEnabled !== undefined ? req.body.callEnabled : user.callEnabled;
         user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
 
         if (req.body.password && req.body.password.trim() !== '') {
@@ -151,7 +154,8 @@ const updateUser = asyncHandler(async (req, res) => {
             user.studentProfile = {
                 ...user.studentProfile,
                 course: req.body.course || user.studentProfile?.course,
-                subject: req.body.subject !== undefined ? req.body.subject : user.studentProfile?.subject
+                subject: req.body.subject !== undefined ? req.body.subject : user.studentProfile?.subject,
+                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch
             };
         } else if (user.role === 'Teacher') {
             user.teacherProfile = {
@@ -162,7 +166,7 @@ const updateUser = asyncHandler(async (req, res) => {
         }
 
         const updatedUser = await user.save();
-
+ 
         res.json({
             _id: updatedUser._id,
             name: updatedUser.name,
@@ -175,9 +179,158 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Mark physical attendance for a student
+// @route   POST /api/users/:id/physical-attendance
+// @access  Private/Admin, Editor, Institute, Teacher
+const markPhysicalAttendance = asyncHandler(async (req, res) => {
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'Student') {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Verify authorized access
+    if (req.user.role === 'Teacher') {
+        // Teacher must teach in student's course
+        const teacher = await User.findById(req.user._id);
+        const courseId = student.studentProfile?.course;
+        const teachesCourse = teacher.teacherProfile?.assignedCourses?.some(c => c.toString() === courseId?.toString());
+        if (!teachesCourse) {
+            res.status(403);
+            throw new Error('Not authorized to mark attendance for this student');
+        }
+    } else if (req.user.role === 'Institute' || req.user.role === 'Editor') {
+        if (student.institute?.toString() !== req.user.institute?.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to mark attendance for this student');
+        }
+    }
+
+    const { date, status } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent"
+    if (!date || !status) {
+        res.status(400);
+        throw new Error('Please provide both date and status');
+    }
+
+    if (!student.studentProfile) {
+        student.studentProfile = {};
+    }
+    if (!student.studentProfile.physicalAttendance) {
+        student.studentProfile.physicalAttendance = [];
+    }
+
+    // Check if attendance already exists for this date
+    const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+    if (existingIndex !== -1) {
+        student.studentProfile.physicalAttendance[existingIndex].status = status;
+    } else {
+        student.studentProfile.physicalAttendance.push({ date, status });
+    }
+
+    await student.save();
+    res.json({ success: true, physicalAttendance: student.studentProfile.physicalAttendance });
+});
+
+// @desc    Update student fee status
+// @route   PUT /api/users/:id/fee-status
+// @access  Private/Admin, Editor, Institute, Teacher
+const updateFeeStatus = asyncHandler(async (req, res) => {
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'Student') {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Verify authorized access
+    if (req.user.role === 'Teacher') {
+        const teacher = await User.findById(req.user._id);
+        const courseId = student.studentProfile?.course;
+        const teachesCourse = teacher.teacherProfile?.assignedCourses?.some(c => c.toString() === courseId?.toString());
+        if (!teachesCourse) {
+            res.status(403);
+            throw new Error('Not authorized to manage fees for this student');
+        }
+    } else if (req.user.role === 'Institute' || req.user.role === 'Editor') {
+        if (student.institute?.toString() !== req.user.institute?.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to manage fees for this student');
+        }
+    }
+
+    const { feeStatus } = req.body; // 'Paid' or 'Pending'
+    if (!feeStatus || !['Paid', 'Pending'].includes(feeStatus)) {
+        res.status(400);
+        throw new Error('Invalid feeStatus');
+    }
+
+    if (!student.studentProfile) {
+        student.studentProfile = {};
+    }
+    student.studentProfile.feeStatus = feeStatus;
+
+    await student.save();
+    res.json({ success: true, feeStatus: student.studentProfile.feeStatus });
+});
+
+// @desc    Mark bulk physical attendance for students
+// @route   POST /api/users/bulk-physical-attendance
+// @access  Private/Admin, Editor, Institute, Teacher
+const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
+    const { date, attendanceRecords } = req.body; 
+    // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent" }]
+    if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
+        res.status(400);
+        throw new Error('Please provide date and attendanceRecords array');
+    }
+
+    try {
+        for (const record of attendanceRecords) {
+            const { studentId, status } = record;
+            if (!studentId || !status) continue;
+
+            const student = await User.findById(studentId);
+            if (!student || student.role !== 'Student') continue;
+
+            // Verify authority
+            if (req.user.role === 'Institute' || req.user.role === 'Editor') {
+                if (student.institute?.toString() !== req.user.institute?.toString()) continue;
+            } else if (req.user.role === 'Teacher') {
+                // Check course assignment matching
+                const teacher = await User.findById(req.user._id);
+                const courseId = student.studentProfile?.course;
+                const teachesCourse = teacher.teacherProfile?.assignedCourses?.some(c => c.toString() === courseId?.toString());
+                if (!teachesCourse) continue;
+            }
+
+            if (!student.studentProfile) {
+                student.studentProfile = {};
+            }
+            if (!student.studentProfile.physicalAttendance) {
+                student.studentProfile.physicalAttendance = [];
+            }
+
+            const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+            if (existingIndex !== -1) {
+                student.studentProfile.physicalAttendance[existingIndex].status = status;
+            } else {
+                student.studentProfile.physicalAttendance.push({ date, status });
+            }
+
+            await student.save();
+        }
+
+        res.json({ success: true, message: 'Bulk attendance recorded successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = {
     getUsers,
     createUser,
     deleteUser,
-    updateUser
+    updateUser,
+    markPhysicalAttendance,
+    updateFeeStatus,
+    markBulkPhysicalAttendance
 };

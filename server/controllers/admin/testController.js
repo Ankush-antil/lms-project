@@ -79,14 +79,7 @@ const createTest = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getTests = asyncHandler(async (req, res) => {
     let query = {};
-    if (req.user && req.user.role === 'Editor') {
-        query = {
-            $or: [
-                { createdBy: req.user._id },
-                { collaborators: req.user._id }
-            ]
-        };
-    } else if (req.user && req.user.role === 'Institute') {
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         if (userWithInst && userWithInst.institute) {
             const escapedName = userWithInst.institute.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -170,8 +163,8 @@ const updateTest = asyncHandler(async (req, res) => {
 const deleteTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
     if (test) {
-        // Enforce institute ownership for Institute role
-        if (req.user && req.user.role === 'Institute') {
+        // Enforce institute ownership for Institute and Editor roles
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
             const userWithInst = await User.findById(req.user._id).populate('institute');
             const instName = userWithInst?.institute?.name?.trim().toLowerCase();
             const testInstName = test.institute?.trim().toLowerCase();

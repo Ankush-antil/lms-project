@@ -76,6 +76,46 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                         </div>
                     ) : (
                         <>
+                            {/* Image Banner / Logo if exists */}
+                            {details?.imageUrl && (
+                                <div className="w-full h-32 rounded-3xl overflow-hidden border border-slate-100 shadow-sm relative bg-slate-50 flex items-center justify-center">
+                                    <img src={details.imageUrl} alt="Institute Logo/Banner" className="max-w-full max-h-full object-contain" />
+                                </div>
+                            )}
+
+                            {/* Description About */}
+                            {details?.description && (
+                                <div className="p-5 bg-indigo-50/20 rounded-3xl border border-indigo-100/30 space-y-2">
+                                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">About Institute</h4>
+                                    <p className="text-sm font-medium text-slate-600 leading-relaxed">{details.description}</p>
+                                </div>
+                            )}
+
+                            {/* Admissions & Hiring Toggles Status */}
+                            <div className="flex flex-wrap gap-2.5">
+                                <span className={`px-4 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
+                                    details?.admissionOpen 
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200'
+                                }`}>
+                                    🎓 Admissions {details?.admissionOpen ? 'Open' : 'Closed'}
+                                </span>
+                                <span className={`px-4 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
+                                    details?.teacherHiring 
+                                        ? 'bg-indigo-50 text-indigo-600 border-indigo-100' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200'
+                                }`}>
+                                    👨‍🏫 Teacher Hiring {details?.teacherHiring ? 'Open' : 'Closed'}
+                                </span>
+                                <span className={`px-4 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
+                                    details?.editorHiring 
+                                        ? 'bg-purple-50 text-purple-600 border-purple-100' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200'
+                                }`}>
+                                    ✍️ Editor Hiring {details?.editorHiring ? 'Open' : 'Closed'}
+                                </span>
+                            </div>
+
                             {/* Basic Info Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4">
@@ -98,6 +138,36 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                                 </div>
                             </div>
 
+                            {/* Contact Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Primary Phone</p>
+                                    <p className="font-bold text-slate-750">{details?.phone || 'N/A'}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Helpline Number</p>
+                                    <p className="font-bold text-slate-750">{details?.helplineNumber || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            {/* Terms & Policies document */}
+                            {details?.termsAndPolicies && (
+                                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 text-sm">Terms & Policies</h4>
+                                        <p className="text-xs text-slate-400 font-medium mt-0.5">Official rules, guidelines, and terms of use.</p>
+                                    </div>
+                                    <a
+                                        href={details.termsAndPolicies}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-100/50"
+                                    >
+                                        View Document
+                                    </a>
+                                </div>
+                            )}
+
                             {/* Assigned Courses Section */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -109,7 +179,7 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                                         {details?.courses?.length || 0} TOTAL
                                     </span>
                                 </div>
-
+ 
                                 <div className="grid grid-cols-1 gap-3">
                                     {details?.courses?.length > 0 ? (
                                         details.courses.map((course) => (
@@ -138,7 +208,7 @@ const InstituteDetailsModal = ({ isOpen, onClose, instituteId }) => {
                                     )}
                                 </div>
                             </div>
-
+ 
                             {/* Footer Stats */}
                             <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-8">
                                 <div className="flex items-center gap-3">

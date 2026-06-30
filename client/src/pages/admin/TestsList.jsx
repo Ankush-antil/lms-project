@@ -16,7 +16,7 @@ const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
-    const basePath = userInfo?.role === 'Institute' ? '/institute' : '/admin';
+    const basePath = userInfo?.role === 'Institute' ? '/institute' : (userInfo?.role === 'Editor' ? '/editor' : '/admin');
 
     // Search and tab filters
     const [searchTerm, setSearchTerm] = useState('');

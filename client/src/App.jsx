@@ -27,6 +27,7 @@ import ViewTestResult from './pages/student/ViewTestResult';
 import StudentPerformance from './pages/student/StudentPerformance';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
+import TeacherSnapshots from './pages/teacher/TeacherSnapshots';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -85,260 +86,320 @@ function App() {
                         <ScreenshotProvider>
                             <Toaster position="top-right" reverseOrder={false} />
                             <Routes>
-                        <Route path="/" element={<LandingPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        {/* Public Shared Recording Page — no auth */}
-                        <Route path="/share/voice/:id" element={<SharedAudioPage />} />
-                        <Route path="/share/video/:id" element={<SharedVideoPage />} />
-                        <Route path="/share/screenshot/:id" element={<SharedScreenshotPage />} />
-                        <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
+                                <Route path="/" element={<LandingPage />} />
+                                <Route path="/login" element={<LoginPage />} />
+                                {/* Public Shared Recording Page — no auth */}
+                                <Route path="/share/voice/:id" element={<SharedAudioPage />} />
+                                <Route path="/share/video/:id" element={<SharedVideoPage />} />
+                                <Route path="/share/screenshot/:id" element={<SharedScreenshotPage />} />
+                                <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
 
-                        {/* Institute Routes */}
-                        <Route path="/institute" element={
-                            <PrivateRoute role="Institute">
-                                <InstituteDashboard />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/students" element={
-                            <PrivateRoute role="Institute">
-                                <StudentsList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/teachers" element={
-                            <PrivateRoute role="Institute">
-                                <TeachersList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/editors" element={
-                            <PrivateRoute role="Institute">
-                                <EditorsList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/courses" element={
-                            <PrivateRoute role="Institute">
-                                <CoursesList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/tests" element={
-                            <PrivateRoute role="Institute">
-                                <TestsList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/tests/builder" element={
-                            <PrivateRoute role="Institute">
-                                <TestBuilder />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/institute/tests/edit/:id" element={
-                            <PrivateRoute role="Institute">
-                                <TestBuilder />
-                            </PrivateRoute>
-                        } />
+                                {/* Institute Routes */}
+                                <Route path="/institute" element={
+                                    <PrivateRoute role="Institute">
+                                        <InstituteDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/students" element={
+                                    <PrivateRoute role="Institute">
+                                        <StudentsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/teachers" element={
+                                    <PrivateRoute role="Institute">
+                                        <TeachersList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/editors" element={
+                                    <PrivateRoute role="Institute">
+                                        <EditorsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/courses" element={
+                                    <PrivateRoute role="Institute">
+                                        <CoursesList />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* Admin Routes */}
-                        <Route path="/admin" element={
-                            <PrivateRoute role="Admin">
-                                <AdminDashboard />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/users" element={
-                            <PrivateRoute role="Admin">
-                                <UsersList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/subjects" element={
-                            <PrivateRoute role="Admin">
-                                <SubjectsList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/institutes" element={
-                            <PrivateRoute role="Admin">
-                                <InstitutesList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/students" element={
-                            <PrivateRoute role="Admin">
-                                <StudentsList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/students/:id" element={
-                            <PrivateRoute role="Admin">
-                                <StudentDetails />
-                            </PrivateRoute>
-                        } />
+                                <Route path="/institute/subjects" element={
+                                    <PrivateRoute role="Institute">
+                                        <SubjectsList />
+                                    </PrivateRoute>
+                                } />
 
-                        <Route path="/admin/teachers" element={
-                            <PrivateRoute role="Admin">
-                                <TeachersList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/teachers/:id" element={
-                            <PrivateRoute role="Admin">
-                                <TeacherDetails />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/editors" element={
-                            <PrivateRoute role="Admin">
-                                <EditorsList />
-                            </PrivateRoute>
-                        } />
+                                <Route path="/institute/activities" element={
+                                    <PrivateRoute role="Institute">
+                                        <TestsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/activities-builder" element={
+                                    <PrivateRoute role="Institute">
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/activities/edit/:id" element={
+                                    <PrivateRoute role="Institute">
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
 
-                        <Route path="/admin/courses" element={
-                            <PrivateRoute role="Admin">
-                                <CoursesList />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/tests" element={
-                            <PrivateRoute role="Admin">
-                                <TestsList />
-                            </PrivateRoute>
-                        } />
-                        {/* <Route path="/admin/tools" element={
+                                {/* Admin Routes */}
+                                <Route path="/admin" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/users" element={
+                                    <PrivateRoute role="Admin">
+                                        <UsersList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/subjects" element={
+                                    <PrivateRoute role="Admin">
+                                        <SubjectsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/institutes" element={
+                                    <PrivateRoute role="Admin">
+                                        <InstitutesList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/students" element={
+                                    <PrivateRoute role="Admin">
+                                        <StudentsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/students/:id" element={
+                                    <PrivateRoute role="Admin">
+                                        <StudentDetails />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/admin/teachers" element={
+                                    <PrivateRoute role="Admin">
+                                        <TeachersList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/teachers/:id" element={
+                                    <PrivateRoute role="Admin">
+                                        <TeacherDetails />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/editors" element={
+                                    <PrivateRoute role="Admin">
+                                        <EditorsList />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/admin/courses" element={
+                                    <PrivateRoute role="Admin">
+                                        <CoursesList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/activities" element={
+                                    <PrivateRoute role="Admin">
+                                        <TestsList />
+                                    </PrivateRoute>
+                                } />
+                                {/* <Route path="/admin/tools" element={
                             <PrivateRoute role="Admin">
                                 <ToolsPage />
                             </PrivateRoute>
                         } /> */}
 
 
-                        <Route path="/admin/tests/builder" element={
-                            <PrivateRoute role={['Admin', 'Editor']}>
-                                <TestBuilder />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/admin/tests/edit/:id" element={
-                            <PrivateRoute role={['Admin', 'Editor']}>
-                                <TestBuilder />
-                            </PrivateRoute>
-                        } />
+                                <Route path="/admin/activities-builder" element={
+                                    <PrivateRoute role={['Admin', 'Editor']}>
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/activities-edit/:id" element={
+                                    <PrivateRoute role={['Admin', 'Editor']}>
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* Editor Routes */}
-                        <Route path="/editor" element={
-                            <PrivateRoute role="Editor">
-                                <EditorDashboard />
-                            </PrivateRoute>
-                        } />
+                                {/* Editor Routes */}
+                                <Route path="/editor" element={
+                                    <PrivateRoute role="Editor">
+                                        <EditorDashboard />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* Teacher Routes */}
-                        <Route path="/teacher" element={
-                            <PrivateRoute role="Teacher">
-                                <TeacherDashboard />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/teacher/activities" element={
-                            <PrivateRoute role="Teacher">
-                                <TeacherActivities />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/teacher/evaluate" element={
-                            <PrivateRoute role="Teacher">
-                                <EvaluatePage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/teacher/evaluate/:id" element={
-                            <PrivateRoute role="Teacher">
-                                <EvaluatePage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/teacher/chat" element={
-                            <PrivateRoute role="Teacher">
-                                <ChatPage />
-                            </PrivateRoute>
-                        } />
+                                <Route path='/editor/teachers' element={
+                                    <PrivateRoute role="Editor">
+                                        <TeachersList />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* Student Routes */}
-                        <Route path="/student" element={
-                            <PrivateRoute role="Student">
-                                <StudentDashboard />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/tests" element={
-                            <PrivateRoute role="Student">
-                                <StudentTests />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools" element={
-                            <PrivateRoute role="Student">
-                                <StudentPracticeTools />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/tests/short-answer" element={
-                            <PrivateRoute role="Student">
-                                <ShortAnswerTest />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/take-test/:id" element={
-                            <PrivateRoute role="Student">
-                                <ShortAnswerTest />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/chat" element={
-                            <PrivateRoute role="Student">
-                                <ChatPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/test-result/:id" element={
-                            <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
-                                <ViewTestResult />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/screenshot" element={
-                            <PrivateRoute role="Student">
-                                <ScreenshotToolPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/screen-recorder" element={
-                            <PrivateRoute role="Student">
-                                <ScreenRecorderPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/voice-recorder" element={
-                            <PrivateRoute role="Student">
-                                <VoiceRecorderPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/video-recorder" element={
-                            <PrivateRoute role="Student">
-                                <VideoRecorderPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/web-calling" element={
-                            <PrivateRoute role="Student">
-                                <WebCallingPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/file-uploader" element={
-                            <PrivateRoute role="Student">
-                                <FileUploadPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/practice-tools/notes" element={
-                            <PrivateRoute role="Student">
-                                <NotesPage />
-                            </PrivateRoute>
-                        } />
-                        <Route path="/student/performance" element={
-                            <PrivateRoute role="Student">
-                                <StudentPerformance />
-                            </PrivateRoute>
-                        } />
+                                <Route path='/editor/courses' element={
+                                    <PrivateRoute role="Editor">
+                                        <CoursesList />
+                                    </PrivateRoute>
+                                } />
 
-                        <Route path="/profile" element={
-                            <PrivateRoute>
-                                <ProfilePage />
-                            </PrivateRoute>
-                        } />
+                                <Route path='/editor/subjects' element={
+                                    <PrivateRoute role="Editor">
+                                        <SubjectsList />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* Public: shared test link — handles auth internally */}
-                        <Route path="/take-test/:id" element={<TakeTestPage />} />
-                        <Route path="/public-test/:id" element={<PublicTestPage />} />
-                        <Route path="/shared/test-result/:id" element={<ViewTestResult isSharedView={true} />} />
+                                <Route path='/editor/activities' element={
+                                    <PrivateRoute role="Editor">
+                                        <TestsList />
+                                    </PrivateRoute>
+                                } />
 
-                        {/* 404 – catch all unmatched routes */}
-                        <Route path="*" element={<NotFoundPage />} />
+                                <Route path='/editor/activities-builder' element={
+                                    <PrivateRoute role="Editor">
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
 
-                    </Routes>
+                                <Route path='/editor/activities-edit/:id' element={
+                                    <PrivateRoute role="Editor">
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/editor/chat" element={
+                                    <PrivateRoute role="Editor">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Teacher Routes */}
+                                <Route path="/teacher" element={
+                                    <PrivateRoute role="Teacher">
+                                        <TeacherDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/activities" element={
+                                    <PrivateRoute role="Teacher">
+                                        <TeacherActivities />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/evaluate" element={
+                                    <PrivateRoute role="Teacher">
+                                        <EvaluatePage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/evaluate/:id" element={
+                                    <PrivateRoute role="Teacher">
+                                        <EvaluatePage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/activities-builder" element={
+                                    <PrivateRoute role="Teacher">
+                                        <TestBuilder />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/chat" element={
+                                    <PrivateRoute role="Teacher">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/teacher/snapshots" element={
+                                    <PrivateRoute role="Teacher">
+                                        <TeacherSnapshots />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Student Routes */}
+                                <Route path="/student" element={
+                                    <PrivateRoute role="Student">
+                                        <StudentDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/tests" element={
+                                    <PrivateRoute role="Student">
+                                        <StudentTests />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools" element={
+                                    <PrivateRoute role="Student">
+                                        <StudentPracticeTools />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/tests/short-answer" element={
+                                    <PrivateRoute role="Student">
+                                        <ShortAnswerTest />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/take-test/:id" element={
+                                    <PrivateRoute role="Student">
+                                        <ShortAnswerTest />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/chat" element={
+                                    <PrivateRoute role="Student">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/test-result/:id" element={
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
+                                        <ViewTestResult />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/screenshot" element={
+                                    <PrivateRoute role="Student">
+                                        <ScreenshotToolPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/screen-recorder" element={
+                                    <PrivateRoute role="Student">
+                                        <ScreenRecorderPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/voice-recorder" element={
+                                    <PrivateRoute role="Student">
+                                        <VoiceRecorderPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/video-recorder" element={
+                                    <PrivateRoute role="Student">
+                                        <VideoRecorderPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/web-calling" element={
+                                    <PrivateRoute role="Student">
+                                        <WebCallingPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/file-uploader" element={
+                                    <PrivateRoute role="Student">
+                                        <FileUploadPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/practice-tools/notes" element={
+                                    <PrivateRoute role="Student">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/performance" element={
+                                    <PrivateRoute role="Student">
+                                        <StudentPerformance />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/profile" element={
+                                    <PrivateRoute>
+                                        <ProfilePage />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Public: shared test link — handles auth internally */}
+                                <Route path="/take-test/:id" element={<TakeTestPage />} />
+                                <Route path="/public-test/:id" element={<PublicTestPage />} />
+                                <Route path="/shared/test-result/:id" element={<ViewTestResult isSharedView={true} />} />
+
+                                {/* 404 – catch all unmatched routes */}
+                                <Route path="*" element={<NotFoundPage />} />
+
+                            </Routes>
                         </ScreenshotProvider>
-                </UserProfileProvider>
+                    </UserProfileProvider>
                 </SocketProvider>
             </AuthProvider>
         </BrowserRouter>

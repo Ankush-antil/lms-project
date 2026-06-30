@@ -32,25 +32,28 @@ const StudentPerformance = () => {
 
     // College ERP Integration Mock States
     const [isSyncing, setIsSyncing] = useState(false);
-    const [erpPresent, setErpPresent] = useState(42);
-    const [erpTotal] = useState(50);
-
+    const [localErpPresent, setLocalErpPresent] = useState(null);
+ 
+    const physicalAttendanceList = profile?.studentProfile?.physicalAttendance || [];
+    const erpPresent = localErpPresent !== null ? localErpPresent : (physicalAttendanceList.length > 0 ? physicalAttendanceList.filter(a => a.status === 'Present').length : 42);
+    const erpTotal = physicalAttendanceList.length > 0 ? physicalAttendanceList.length : 50;
+ 
     const handleSyncERP = () => {
         setIsSyncing(true);
         const loadingToast = toast.loading("Syncing data with College ERP Server...");
-
+ 
         setTimeout(() => {
             toast.dismiss(loadingToast);
             // Randomly update attendance slightly to simulate live sync
             const randomAdd = Math.floor(Math.random() * 3) - 1; // -1, 0, 1, or 2
             const newPresent = Math.min(erpTotal, Math.max(35, erpPresent + randomAdd));
-            setErpPresent(newPresent);
-
+            setLocalErpPresent(newPresent);
+ 
             toast.success("ERP Attendance and Fees records synced successfully!");
             setIsSyncing(false);
         }, 1500);
     };
-
+ 
     // Calculate dynamic percentage
     const erpAttendancePercent = useMemo(() => {
         return Math.round((erpPresent / erpTotal) * 100);
@@ -381,66 +384,117 @@ const StudentPerformance = () => {
 
                 {/* ── METRICS GRID ─────────────────────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+ 
+                     {/* CARD 1: Attendance Rate */}
+                     <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                         <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
+ 
+                         <div>
+                             <div className="flex justify-between items-center mb-4">
+                                 <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
+                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${attendanceStatus.color}`}>
+                                     {attendanceStatus.label}
+                                 </span>
+                             </div>
+ 
+                             <div className="flex items-center gap-6 my-2">
+                                 {/* Circular SVG Indicator */}
+                                 <div className="relative w-20 h-20 shrink-0">
+                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                         <path
+                                             className="text-slate-100"
+                                             strokeWidth="3.5"
+                                             stroke="currentColor"
+                                             fill="transparent"
+                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                         />
+                                         <path
+                                             className="text-indigo-600 transition-all duration-1000 ease-out"
+                                             strokeWidth="3.5"
+                                             strokeDasharray={`${attendancePercentage}, 100`}
+                                             strokeLinecap="round"
+                                             stroke="currentColor"
+                                             fill="transparent"
+                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                         />
+                                     </svg>
+                                     <div className="absolute inset-0 flex items-center justify-center">
+                                         <span className="text-base font-black text-slate-800">{attendancePercentage}%</span>
+                                     </div>
+                                 </div>
+                                 <div>
+                                     <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
+                                     <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
+                                 </div>
+                             </div>
+                         </div>
+ 
+                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                             <Info size={14} className="text-indigo-500 shrink-0" />
+                             <p className="text-[11px] text-slate-500 font-medium">
+                                 Calculated from test submissions and workspace practice sessions.
+                             </p>
+                         </div>
+                     </div>
 
-                    {/* CARD 1: Attendance Rate */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                        <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
-
-                        <div>
-                            <div className="flex justify-between items-center mb-4">
-                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${attendanceStatus.color}`}>
-                                    {attendanceStatus.label}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center gap-6 my-2">
-                                {/* Circular SVG Indicator */}
-                                <div className="relative w-20 h-20 shrink-0">
-                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                        <path
-                                            className="text-slate-100"
-                                            strokeWidth="3.5"
-                                            stroke="currentColor"
-                                            fill="transparent"
-                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                        />
-                                        <path
-                                            className="text-indigo-600 transition-all duration-1000 ease-out"
-                                            strokeWidth="3.5"
-                                            strokeDasharray={`${attendancePercentage}, 100`}
-                                            strokeLinecap="round"
-                                            stroke="currentColor"
-                                            fill="transparent"
-                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                        />
-                                    </svg>
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-base font-black text-slate-800">{attendancePercentage}%</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
-                                    <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-                            <Info size={14} className="text-indigo-500 shrink-0" />
-                            <p className="text-[11px] text-slate-500 font-medium">
-                                Calculated from test submissions and workspace practice sessions.
-                            </p>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
+                     {/* CARD 2: Physical Attendance */}
+                     <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                         <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
+ 
+                         <div>
+                             <div className="flex justify-between items-center mb-4">
+                                 <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Physical Attendance</span>
+                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider text-emerald-600 bg-emerald-50 border-emerald-200">
+                                     Good
+                                 </span>
+                             </div>
+ 
+                             <div className="flex items-center gap-6 my-2">
+                                 {/* Circular SVG Indicator */}
+                                 <div className="relative w-20 h-20 shrink-0">
+                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                         <path
+                                             className="text-slate-100"
+                                             strokeWidth="3.5"
+                                             stroke="currentColor"
+                                             fill="transparent"
+                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                         />
+                                         <path
+                                             className="text-emerald-600 transition-all duration-1000 ease-out"
+                                             strokeWidth="3.5"
+                                             strokeDasharray="84, 100"
+                                             strokeLinecap="round"
+                                             stroke="currentColor"
+                                             fill="transparent"
+                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                         />
+                                     </svg>
+                                     <div className="absolute inset-0 flex items-center justify-center">
+                                         <span className="text-base font-black text-slate-800">84%</span>
+                                     </div>
+                                 </div>
+                                 <div>
+                                     <h4 className="text-2xl font-black text-slate-800">42 / 50 Days</h4>
+                                     <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Lectures Attended</p>
+                                 </div>
+                             </div>
+                         </div>
+ 
+                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                             <Info size={14} className="text-emerald-500 shrink-0" />
+                             <p className="text-[11px] text-slate-500 font-medium">
+                                 Calculated from classroom biometric scans and manual register logs.
+                             </p>
+                         </div>
+                     </div>
+                 </div>
+ 
+                 {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
                     <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
+                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-650 flex items-center justify-center border border-purple-100 shadow-sm">
                                 <CreditCard size={18} />
                             </div>
                             <div>
@@ -448,31 +502,51 @@ const StudentPerformance = () => {
                                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Semester fee transactions and official receipts</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-655">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Account Status: <span className="text-emerald-700 font-black">CLEARED</span>
-                        </div>
+                        {profile?.studentProfile?.feeStatus === 'Pending' ? (
+                            <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-red-200 text-xs font-bold text-red-650">
+                                <span className="w-2 h-2 rounded-full bg-red-500" /> Account Status: <span className="text-red-700 font-black">PENDING DUES</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-655">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Account Status: <span className="text-emerald-700 font-black">CLEARED</span>
+                            </div>
+                        )}
                     </div>
-
+ 
                     <div className="p-6 space-y-6">
                         {/* Summary Stats Row */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
                                 <span className="text-slate-450 text-[10px] font-bold uppercase tracking-wider">Total Semester Fee</span>
                                 <h4 className="text-xl font-black text-slate-800 mt-2">₹48,500</h4>
-                                <span className="text-[9px] text-slate-400 font-semibold mt-1">Course: BCA / Semester V</span>
+                                <span className="text-[9px] text-slate-400 font-semibold mt-1">Course: {profile?.studentProfile?.course?.name || 'BCA'} / Semester V</span>
                             </div>
                             <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col justify-between">
                                 <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Total Amount Paid</span>
-                                <h4 className="text-xl font-black text-emerald-800 mt-2">₹48,500</h4>
-                                <span className="text-[9px] text-emerald-600/80 font-semibold mt-1">100% Cleared on 18 Jan 2026</span>
+                                <h4 className="text-xl font-black text-emerald-800 mt-2">
+                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '₹36,000' : '₹48,500'}
+                                </h4>
+                                <span className="text-[9px] text-emerald-600/80 font-semibold mt-1">
+                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '74.2% Paid' : '100% Cleared on 18 Jan 2026'}
+                                </span>
                             </div>
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
+                            <div className={`p-4 border rounded-2xl flex flex-col justify-between ${
+                                profile?.studentProfile?.feeStatus === 'Pending' 
+                                    ? 'bg-red-50/40 border-red-100' 
+                                    : 'bg-slate-50 border-slate-105'
+                            }`}>
                                 <span className="text-slate-455 text-[10px] font-bold uppercase tracking-wider">Outstanding Dues</span>
-                                <h4 className="text-xl font-black text-slate-800 mt-2">₹0</h4>
-                                <span className="text-[9px] text-emerald-600 font-extrabold mt-1">No pending dues found</span>
+                                <h4 className="text-xl font-black text-slate-800 mt-2">
+                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '₹12,500' : '₹0'}
+                                </h4>
+                                <span className={`text-[9px] font-extrabold mt-1 ${
+                                    profile?.studentProfile?.feeStatus === 'Pending' ? 'text-red-500' : 'text-emerald-650'
+                                }`}>
+                                    {profile?.studentProfile?.feeStatus === 'Pending' ? 'Please complete payment' : 'No pending dues found'}
+                                </span>
                             </div>
                         </div>
-
+ 
                         {/* Fee Allocation Meter */}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center text-[10px] font-bold text-slate-450 uppercase tracking-wider">

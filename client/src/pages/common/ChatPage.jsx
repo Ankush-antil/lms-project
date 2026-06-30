@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { 
-    Search, Send, Phone, Video, MessageSquare, 
+import {
+    Search, Send, Phone, Video, MessageSquare,
     MoreVertical, User, Circle, ArrowLeft, Pencil,
     Paperclip, File, Download, X, Loader2
 } from 'lucide-react';
@@ -28,6 +29,55 @@ const ChatPage = () => {
     const [mobileActiveTab, setMobileActiveTab] = useState('list'); // 'list' | 'chat'
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [showOriginalMap, setShowOriginalMap] = useState({});
+
+    // Contact filtering and custom lists states
+    const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
+    const [customLists, setCustomLists] = useState([]);
+
+    // Lists creation flow states
+    const [showListsIntro, setShowListsIntro] = useState(false);
+    const [showCreateList, setShowCreateList] = useState(false);
+    const [showAddUsers, setShowAddUsers] = useState(false);
+
+    const [draftListName, setDraftListName] = useState('');
+    const [draftSelectedUsers, setDraftSelectedUsers] = useState([]); // Array of user objects
+
+    const [directoryUsers, setDirectoryUsers] = useState([]);
+    const [directorySearch, setDirectorySearch] = useState('');
+    const [loadingDirectory, setLoadingDirectory] = useState(false);
+
+    // Load custom lists from local storage
+    useEffect(() => {
+        if (user?._id) {
+            const saved = localStorage.getItem(`chat_lists_${user._id}`);
+            if (saved) {
+                try {
+                    setCustomLists(JSON.parse(saved));
+                } catch (e) {
+                    console.error("Failed to parse custom lists", e);
+                }
+            }
+        }
+    }, [user?._id]);
+
+    // Fetch all users in the institute for starting a new chat or building custom lists
+    useEffect(() => {
+        if (showListsIntro || showAddUsers) {
+            const fetchDirectory = async () => {
+                try {
+                    setLoadingDirectory(true);
+                    const { data } = await axios.get('/api/chat/directory');
+                    setDirectoryUsers(data);
+                    setLoadingDirectory(false);
+                } catch (error) {
+                    console.error("Error loading chat directory:", error);
+                    toast.error("Failed to load user directory");
+                    setLoadingDirectory(false);
+                }
+            };
+            fetchDirectory();
+        }
+    }, [showListsIntro, showAddUsers]);
 
     // Test relevant chat states
     const [selectedTestId, setSelectedTestId] = useState(null);
@@ -220,7 +270,7 @@ const ChatPage = () => {
                 // Mark as read (only if not searching)
                 if (!searchKeyword && !searchDate) {
                     await axios.put(`/api/chat/messages/${selectedContact._id}/read`);
-                    setContacts(prev => prev.map(c => 
+                    setContacts(prev => prev.map(c =>
                         c._id === selectedContact._id ? { ...c, unreadCount: 0 } : c
                     ));
                 }
@@ -568,7 +618,7 @@ const ChatPage = () => {
 
         // Scroll immediately
         doScroll();
-        
+
         // Scroll again progressively to account for DOM layout passes, style applications, and image/media loading
         setTimeout(doScroll, 50);
         setTimeout(doScroll, 150);
@@ -853,7 +903,7 @@ const ChatPage = () => {
         const currentQIndex = selectedQuestionIndexRef.current;
         const isDoubt = currentTestId !== null && currentQIndex !== null;
         console.log("[SOCKET] Emitting typing: target =", selectedContact._id, "isDoubt =", isDoubt, "test =", currentTestId, "qIndex =", currentQIndex);
-        socket.emit('typing', { 
+        socket.emit('typing', {
             targetId: selectedContact._id,
             ...(isDoubt ? { test: currentTestId, questionIndex: currentQIndex } : {})
         });
@@ -870,7 +920,7 @@ const ChatPage = () => {
             const currentTestId = selectedTestIdRef.current;
             const currentQIndex = selectedQuestionIndexRef.current;
             const isDoubt = currentTestId !== null && currentQIndex !== null;
-            socket.emit('stop-typing', { 
+            socket.emit('stop-typing', {
                 targetId: selectedContact._id,
                 ...(isDoubt ? { test: currentTestId, questionIndex: currentQIndex } : {})
             });
@@ -878,17 +928,79 @@ const ChatPage = () => {
     };
 
     const selectContactHandler = (contact) => {
+        const exists = contacts.some(c => String(c._id) === String(contact._id));
+        if (!exists) {
+            setContacts(prev => [contact, ...prev]);
+        }
         setSelectedContact(contact);
         setMobileActiveTab('chat');
         setSelectedTestId(null);
         setSelectedQuestionIndex(null);
     };
 
-    // Filters contacts based on search keyword
-    const filteredContacts = contacts.filter(contact => 
-        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleSaveCustomList = () => {
+        if (!draftListName.trim() || draftSelectedUsers.length === 0) {
+            toast.error("Please provide a name and select at least one user.");
+            return;
+        }
+
+        const newList = {
+            id: 'list_' + Date.now(),
+            name: draftListName.trim(),
+            users: draftSelectedUsers
+        };
+
+        const updated = [...customLists, newList];
+        setCustomLists(updated);
+        localStorage.setItem(`chat_lists_${user._id}`, JSON.stringify(updated));
+
+        toast.success(`List "${draftListName}" created successfully!`);
+        setShowCreateList(false);
+        setDraftListName('');
+        setDraftSelectedUsers([]);
+        setActiveFilterTab(newList.id);
+    };
+
+    // Combine core filters with custom lists
+    const filterTabs = useMemo(() => {
+        const core = ['All', 'Teacher', 'Editor', 'Student'];
+        const customItems = customLists.map(l => ({ id: l.id, name: l.name }));
+        return [...core, ...customItems];
+    }, [customLists]);
+
+    // Enhanced contacts list that includes custom list users so they can be chatted with instantly
+    const allAvailableContacts = useMemo(() => {
+        const list = [...contacts];
+        customLists.forEach(cl => {
+            if (cl.users) {
+                cl.users.forEach(u => {
+                    if (!list.some(c => String(c._id) === String(u._id))) {
+                        list.push(u);
+                    }
+                });
+            }
+        });
+        return list;
+    }, [contacts, customLists]);
+
+    // Filters contacts based on search keyword and active filter tab
+    const filteredContacts = useMemo(() => {
+        return allAvailableContacts.filter(contact => {
+            const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                contact.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+            // Check if activeFilterTab is a custom list ID
+            const activeCustomList = customLists.find(l => l.id === activeFilterTab);
+            if (activeCustomList) {
+                const isInCustomList = activeCustomList.users?.some(u => String(u._id) === String(contact._id));
+                return matchesSearch && isInCustomList;
+            }
+
+            // Otherwise, filter by core role
+            const matchesTab = activeFilterTab === 'All' || contact.role === activeFilterTab;
+            return matchesSearch && matchesTab;
+        });
+    }, [allAvailableContacts, searchTerm, activeFilterTab, customLists]);
 
     const isContactOnline = (contactId) => {
         return onlineUsers.includes(contactId);
@@ -905,7 +1017,7 @@ const ChatPage = () => {
         const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(${escapedKeyword})`, 'gi');
         const parts = text.split(regex);
-        return parts.map((part, index) => 
+        return parts.map((part, index) =>
             regex.test(part) ? (
                 <mark key={index} className="bg-yellow-200 text-slate-950 rounded-sm px-0.5 font-black">
                     {part}
@@ -967,9 +1079,8 @@ const ChatPage = () => {
         <DashboardLayout role={user?.role} fullWidth={true}>
             <div className="flex bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-140px)] min-h-[500px]">
                 {/* Left Side Pane: Contact List */}
-                <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-100 flex-shrink-0 ${
-                    mobileActiveTab === 'chat' ? 'hidden md:flex' : 'flex'
-                }`}>
+                <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-100 flex-shrink-0 ${mobileActiveTab === 'chat' ? 'hidden md:flex' : 'flex'
+                    }`}>
                     {showSidebarTests && selectedContact ? (
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                             <button
@@ -1006,6 +1117,39 @@ const ChatPage = () => {
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                                 />
                             </div>
+
+                            {/* Contact Filter Tabs & Custom Lists & Create Button */}
+                            <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
+                                {filterTabs.map((tab) => {
+                                    const tabId = typeof tab === 'object' ? tab.id : tab;
+                                    const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                    const isActive = activeFilterTab === tabId;
+                                    return (
+                                        <button
+                                            key={tabId}
+                                            type="button"
+                                            onClick={() => setActiveFilterTab(tabId)}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
+                                                ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
+                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                }`}
+                                        >
+                                            {tabLabel}
+                                        </button>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => {
+                                        setDraftListName('');
+                                        setDraftSelectedUsers([]);
+                                        setShowListsIntro(true);
+                                    }}
+                                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
+                                    title="Create Chat List"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -1033,11 +1177,10 @@ const ChatPage = () => {
                                                         setSelectedTestId(null);
                                                         setSelectedQuestionIndex(null);
                                                     }}
-                                                    className={`w-full text-left py-3 px-4 flex items-center justify-between text-xs font-black rounded-2xl border transition-all ${
-                                                        isSelectedInbox 
-                                                            ? 'border-indigo-600 bg-indigo-50/40 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10' 
-                                                            : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50 text-slate-700'
-                                                    }`}
+                                                    className={`w-full text-left py-3 px-4 flex items-center justify-between text-xs font-black rounded-2xl border transition-all ${isSelectedInbox
+                                                        ? 'border-indigo-600 bg-indigo-50/40 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10'
+                                                        : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50 text-slate-700'
+                                                        }`}
                                                 >
                                                     <span className="truncate flex items-center gap-2">
                                                         <span className={`w-2 h-2 rounded-full ${isSelectedInbox ? 'bg-indigo-600' : 'bg-slate-400'}`}></span>
@@ -1068,9 +1211,8 @@ const ChatPage = () => {
                                 return (
                                     <div
                                         key={c._id}
-                                        className={`flex flex-col transition-colors border-b border-slate-100/50 relative ${
-                                            isSelected ? 'bg-indigo-50/20' : 'hover:bg-slate-50/30'
-                                        }`}
+                                        className={`flex flex-col transition-colors border-b border-slate-100/50 relative ${isSelected ? 'bg-indigo-50/20' : 'hover:bg-slate-50/30'
+                                            }`}
                                     >
                                         {/* Clickable Header Info card */}
                                         <div
@@ -1139,15 +1281,14 @@ const ChatPage = () => {
                 </div>
 
                 {/* Right Side Pane: Conversation Window */}
-                <div className={`flex-1 flex flex-col bg-slate-50/50 ${
-                    mobileActiveTab === 'list' ? 'hidden md:flex' : 'flex'
-                }`}>
+                <div className={`flex-1 flex flex-col bg-slate-50/50 ${mobileActiveTab === 'list' ? 'hidden md:flex' : 'flex'
+                    }`}>
                     {selectedContact ? (
                         <>
                             {/* Active Chat Header */}
                             <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <button 
+                                    <button
                                         onClick={() => setMobileActiveTab('list')}
                                         className="p-2 -ml-1 text-slate-500 hover:bg-slate-100 rounded-full md:hidden flex-shrink-0 transition-colors"
                                     >
@@ -1178,38 +1319,37 @@ const ChatPage = () => {
                                 </div>
 
                                 {/* Call Quick Action System */}
-                                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                                            {((user.role === 'Teacher' && selectedContact.role === 'Student') ||
-                                              (user.role === 'Student' && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin'))) && (
-                                                <button
-                                                    onClick={() => {
-                                                        if (selectedTestId !== null || selectedInboxId !== null) {
-                                                            setSelectedTestId(null);
-                                                            setSelectedQuestionIndex(null);
-                                                            setSelectedInboxId(null);
-                                                            setShowSidebarTests(false);
-                                                        } else {
-                                                            setShowSidebarTests(prev => !prev);
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
-                                                >
-                                                    {(selectedTestId !== null || selectedInboxId !== null) 
-                                                        ? 'Show General Chat' 
-                                                        : (showSidebarTests 
-                                                            ? (user.role === 'Student' ? 'Hide My Doubts' : 'Hide Test Chat') 
-                                                            : (user.role === 'Student' ? 'My Test Doubts' : 'Test Relevant Chat')
-                                                        )
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {((user.role === 'Teacher' && selectedContact.role === 'Student') ||
+                                        (user.role === 'Student' && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin'))) && (
+                                            <button
+                                                onClick={() => {
+                                                    if (selectedTestId !== null || selectedInboxId !== null) {
+                                                        setSelectedTestId(null);
+                                                        setSelectedQuestionIndex(null);
+                                                        setSelectedInboxId(null);
+                                                        setShowSidebarTests(false);
+                                                    } else {
+                                                        setShowSidebarTests(prev => !prev);
                                                     }
-                                                </button>
-                                            )}
+                                                }}
+                                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
+                                            >
+                                                {(selectedTestId !== null || selectedInboxId !== null)
+                                                    ? 'Show General Chat'
+                                                    : (showSidebarTests
+                                                        ? (user.role === 'Student' ? 'Hide My Doubts' : 'Hide Test Chat')
+                                                        : (user.role === 'Student' ? 'My Test Doubts' : 'Test Relevant Chat')
+                                                    )
+                                                }
+                                            </button>
+                                        )}
                                     <button
                                         onClick={() => setShowSearch(prev => !prev)}
-                                        className={`p-2.5 rounded-xl transition-all active:scale-95 shadow-sm border ${
-                                            showSearch 
-                                                ? 'bg-indigo-50 border-indigo-200 text-indigo-650' 
-                                                : 'bg-white border-slate-100 text-slate-550 hover:bg-slate-50'
-                                        }`}
+                                        className={`p-2.5 rounded-xl transition-all active:scale-95 shadow-sm border ${showSearch
+                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
+                                            : 'bg-white border-slate-100 text-slate-550 hover:bg-slate-50'
+                                            }`}
                                         title="Search Chat History"
                                     >
                                         <Search size={16} />
@@ -1274,7 +1414,7 @@ const ChatPage = () => {
                                 <>
                                     {/* Doubt Question Header */}
                                     <div className="p-3.5 bg-white border-b border-slate-100 flex items-center gap-3 flex-shrink-0 text-left">
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setSelectedQuestionIndex(null)}
                                             className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex-shrink-0"
@@ -1288,8 +1428,8 @@ const ChatPage = () => {
                                                 {studentTests.find(t => String(t._id) === String(selectedTestId))?.title || testMap[selectedTestId]?.title || 'Untitled Test'}
                                             </h3>
                                             <p className="text-[10px] text-slate-500 truncate font-semibold mt-0.5">
-                                                Q{selectedQuestionIndex + 1}: {studentTests.find(t => String(t._id) === String(selectedTestId))?.questions?.[selectedQuestionIndex]?.text 
-                                                    ? studentTests.find(t => String(t._id) === String(selectedTestId))?.questions[selectedQuestionIndex].text.replace(/<[^>]*>/g, '').trim() 
+                                                Q{selectedQuestionIndex + 1}: {studentTests.find(t => String(t._id) === String(selectedTestId))?.questions?.[selectedQuestionIndex]?.text
+                                                    ? studentTests.find(t => String(t._id) === String(selectedTestId))?.questions[selectedQuestionIndex].text.replace(/<[^>]*>/g, '').trim()
                                                     : (testMap[selectedTestId]?.questions?.[selectedQuestionIndex]?.text || `Question ${selectedQuestionIndex + 1}`)}
                                             </p>
                                         </div>
@@ -1315,11 +1455,10 @@ const ChatPage = () => {
                                                 const isSelf = msg.sender === user._id;
                                                 return (
                                                     <div key={msg._id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${
-                                                            isSelf 
-                                                                ? 'bg-indigo-600 text-white rounded-tr-none' 
-                                                                : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
-                                                        }`}>
+                                                        <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${isSelf
+                                                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
+                                                            }`}>
                                                             {msg.fileUrl && (
                                                                 <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
                                                                     {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
@@ -1333,10 +1472,10 @@ const ChatPage = () => {
                                                                                 <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
                                                                                 <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
                                                                             </div>
-                                                                            <a 
-                                                                                href={msg.fileUrl} 
+                                                                            <a
+                                                                                href={msg.fileUrl}
                                                                                 download={msg.fileName}
-                                                                                target="_blank" 
+                                                                                target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-600'}`}
                                                                                 title="Download file"
@@ -1425,7 +1564,7 @@ const ChatPage = () => {
                                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                     {/* Header for Test Doubts List */}
                                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setSelectedTestId(null)}
                                             className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex-shrink-0"
@@ -1526,15 +1665,15 @@ const ChatPage = () => {
                                         return (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {inboxTests.map(test => {
-                                                     const testId = String(test._id);
-                                                     const doubtData = testDoubtCounts[testId];
-                                                     // doubtData is a map of questionIndex -> count
-                                                     const totalDoubtQs = doubtData ? Object.keys(doubtData).length : 0;
-                                                     const hasDoubts = totalDoubtQs > 0;
+                                                    const testId = String(test._id);
+                                                    const doubtData = testDoubtCounts[testId];
+                                                    // doubtData is a map of questionIndex -> count
+                                                    const totalDoubtQs = doubtData ? Object.keys(doubtData).length : 0;
+                                                    const hasDoubts = totalDoubtQs > 0;
 
                                                     return (
-                                                        <div 
-                                                            key={test._id} 
+                                                        <div
+                                                            key={test._id}
                                                             className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                                                         >
                                                             <div>
@@ -1553,7 +1692,7 @@ const ChatPage = () => {
                                                                 <div className="flex items-center gap-2 mb-5">
                                                                     <span className={`w-2 h-2 rounded-full ${hasDoubts ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></span>
                                                                     <span className="text-xs font-semibold text-slate-500">
-                                                                        {hasDoubts 
+                                                                        {hasDoubts
                                                                             ? `${totalDoubtQs} active doubt${totalDoubtQs === 1 ? '' : 's'}`
                                                                             : 'No active doubts'
                                                                         }
@@ -1568,15 +1707,14 @@ const ChatPage = () => {
                                                                     setSelectedQuestionIndex(null);
                                                                 }}
                                                                 disabled={!hasDoubts}
-                                                                className={`w-full py-2.5 px-4 text-xs font-black rounded-2xl border transition-all flex items-center justify-center gap-2 shadow-sm ${
-                                                                    hasDoubts 
-                                                                        ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 cursor-pointer' 
-                                                                        : 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed'
-                                                                }`}
+                                                                className={`w-full py-2.5 px-4 text-xs font-black rounded-2xl border transition-all flex items-center justify-center gap-2 shadow-sm ${hasDoubts
+                                                                    ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 cursor-pointer'
+                                                                    : 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed'
+                                                                    }`}
                                                             >
                                                                 <MessageSquare size={14} />
-                                                                {hasDoubts 
-                                                                    ? (user.role === 'Student' ? 'View My Doubts' : 'View Test Doubts') 
+                                                                {hasDoubts
+                                                                    ? (user.role === 'Student' ? 'View My Doubts' : 'View Test Doubts')
                                                                     : 'No Doubts Raised'}
                                                             </button>
                                                         </div>
@@ -1599,8 +1737,8 @@ const ChatPage = () => {
                                             generalMessages.map((msg) => {
                                                 const isSelf = msg.sender === user._id;
                                                 return (
-                                                    <div 
-                                                        key={msg._id} 
+                                                    <div
+                                                        key={msg._id}
                                                         className={`flex items-end gap-2 group ${isSelf ? 'justify-end' : 'justify-start'}`}
                                                     >
                                                         {isSelf && (
@@ -1613,11 +1751,10 @@ const ChatPage = () => {
                                                                 <Pencil size={14} />
                                                             </button>
                                                         )}
-                                                        <div className={`max-w-[70%] rounded-3xl px-4 py-2.5 shadow-sm ${
-                                                            isSelf 
-                                                                ? 'bg-indigo-600 text-white rounded-tr-none' 
-                                                                : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
-                                                        }`}>
+                                                        <div className={`max-w-[70%] rounded-3xl px-4 py-2.5 shadow-sm ${isSelf
+                                                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
+                                                            }`}>
                                                             {msg.fileUrl && (
                                                                 <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
                                                                     {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
@@ -1631,10 +1768,10 @@ const ChatPage = () => {
                                                                                 <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
                                                                                 <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
                                                                             </div>
-                                                                            <a 
-                                                                                href={msg.fileUrl} 
+                                                                            <a
+                                                                                href={msg.fileUrl}
                                                                                 download={msg.fileName}
-                                                                                target="_blank" 
+                                                                                target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-600'}`}
                                                                                 title="Download file"
@@ -1646,7 +1783,7 @@ const ChatPage = () => {
                                                                 </div>
                                                             )}
                                                             {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderHighlightedText(msg.text, searchKeyword)}</p>}
-                                                            
+
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
                                                                 <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left">
                                                                     <span className="font-bold block text-[9px] uppercase tracking-wider text-indigo-300 mb-0.5">Original message</span>
@@ -1674,9 +1811,8 @@ const ChatPage = () => {
                                                                         {showOriginalMap[msg._id] ? 'Hide Original' : 'Show Original'}
                                                                     </button>
                                                                 )}
-                                                                <span className={`text-[9px] font-bold block ${
-                                                                    isSelf ? 'text-indigo-200' : 'text-slate-400'
-                                                                }`}>
+                                                                <span className={`text-[9px] font-bold block ${isSelf ? 'text-indigo-200' : 'text-slate-400'
+                                                                    }`}>
                                                                     {formatMessageTime(msg.createdAt)}
                                                                 </span>
                                                             </div>
@@ -1722,9 +1858,9 @@ const ChatPage = () => {
                                                 <Pencil size={12} />
                                                 Editing message...
                                             </span>
-                                            <button 
-                                                type="button" 
-                                                onClick={cancelEditing} 
+                                            <button
+                                                type="button"
+                                                onClick={cancelEditing}
                                                 className="text-red-500 hover:text-red-750 underline"
                                             >
                                                 Cancel
@@ -1757,8 +1893,8 @@ const ChatPage = () => {
                                     )}
 
                                     {/* Message composer box */}
-                                    <form 
-                                        onSubmit={handleSendMessage} 
+                                    <form
+                                        onSubmit={handleSendMessage}
                                         className="p-4 bg-white border-t border-slate-100 flex gap-3 items-center flex-shrink-0"
                                     >
                                         <button
@@ -1807,6 +1943,267 @@ const ChatPage = () => {
                 onChange={handleFileChange}
                 className="hidden"
             />
+
+            {/* 1. Lists Intro Modal */}
+            {showListsIntro && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowListsIntro(false)}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                        >
+                            ✕
+                        </button>
+
+                        {/* Logo / Cards Art */}
+                        <div className="flex justify-center gap-4 py-8 bg-indigo-50/20 rounded-3xl mb-6 mt-4">
+                            {/* Heart Card */}
+                            <div className="w-14 h-14 bg-white border border-slate-200/80 shadow-md rounded-2xl flex items-center justify-center -rotate-12 translate-x-2">
+                                <span className="text-2xl text-emerald-500">❤️</span>
+                            </div>
+                            {/* Suitcase Card */}
+                            <div className="w-14 h-14 bg-white border border-slate-200/85 shadow-md rounded-2xl flex items-center justify-center z-10 scale-110">
+                                <span className="text-2xl text-indigo-500">💼</span>
+                            </div>
+                            {/* Plus Card */}
+                            <div className="w-14 h-14 bg-white border border-slate-200/80 shadow-md rounded-2xl flex items-center justify-center rotate-12 -translate-x-2">
+                                <span className="text-2xl text-emerald-400">➕</span>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="text-center space-y-2 mb-6">
+                            <h3 className="font-extrabold text-slate-800 text-lg">Organise your chats with Lists</h3>
+                        </div>
+
+                        {/* Bullet points info */}
+                        <div className="space-y-4 text-xs font-semibold text-slate-650 px-2 mb-6">
+                            <div className="flex gap-3 items-start">
+                                <span className="text-slate-400 mt-0.5">📁</span>
+                                <p>Any list you create becomes a filter at the top of your Chats tab.</p>
+                            </div>
+                            <div className="flex gap-3 items-start">
+                                <span className="text-slate-400 mt-0.5">🔒</span>
+                                <p>Only you can see your lists.</p>
+                            </div>
+                            <div className="flex gap-3 items-start">
+                                <span className="text-slate-400 mt-0.5">⚙️</span>
+                                <p>Edit or delete your lists anytime to stay organised.</p>
+                            </div>
+                        </div>
+
+                        {/* Action button */}
+                        <button
+                            onClick={() => {
+                                setShowListsIntro(false);
+                                setShowCreateList(true);
+                            }}
+                            className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center"
+                        >
+                            Continue
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 2. Create New List Modal */}
+            {showCreateList && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50 shrink-0">
+                            <button
+                                onClick={() => {
+                                    setShowCreateList(false);
+                                    setShowListsIntro(true);
+                                }}
+                                className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-450 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                            >
+                                ←
+                            </button>
+                            <div>
+                                <h3 className="font-extrabold text-slate-800 text-base">Create new list</h3>
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mt-0.5">Set name and select members</p>
+                            </div>
+                        </div>
+
+                        {/* List Name Input */}
+                        <div className="p-6 border-b border-slate-100 bg-white shrink-0 space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">List Name</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Enter list name..."
+                                    className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all"
+                                    value={draftListName}
+                                    onChange={e => setDraftListName(e.target.value)}
+                                />
+                                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm select-none">😊</span>
+                            </div>
+                        </div>
+
+                        {/* Included Users */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/20 space-y-4">
+                            <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-wider">Included Members</h4>
+
+                            {/* Add Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowAddUsers(true)}
+                                className="w-full py-4 px-5 bg-white hover:bg-indigo-50/20 border border-dashed border-slate-250 rounded-2xl flex items-center gap-3.5 transition-all text-left text-slate-700 cursor-pointer shadow-sm animate-fade-in"
+                            >
+                                <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm">+</span>
+                                <span className="text-xs font-black uppercase tracking-wider text-slate-700">Add people or groups</span>
+                            </button>
+
+                            {/* List of draft users */}
+                            {draftSelectedUsers.length > 0 ? (
+                                <div className="divide-y divide-slate-100 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                                    {draftSelectedUsers.map(u => (
+                                        <div key={u._id} className="p-3.5 flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 overflow-hidden">
+                                                    {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : u.name[0]?.toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{u.role}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDraftSelectedUsers(prev => prev.filter(x => x._id !== u._id))}
+                                                className="w-6 h-6 rounded-lg text-slate-450 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all cursor-pointer font-bold text-xs"
+                                                title="Remove"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-center text-slate-400 font-bold italic py-4">No members added yet.</p>
+                            )}
+                        </div>
+
+                        {/* Footer / Create Button */}
+                        <div className="p-6 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                            <button
+                                type="button"
+                                onClick={handleSaveCustomList}
+                                disabled={!draftListName.trim() || draftSelectedUsers.length === 0}
+                                className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 disabled:bg-slate-200 disabled:text-slate-400 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-75 cursor-pointer shadow-md text-center"
+                            >
+                                Create List
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 3. Add to List Users Select Modal */}
+            {showAddUsers && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden flex flex-col h-[75vh]">
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                            <div>
+                                <h3 className="font-extrabold text-slate-800 text-base">Add to list</h3>
+                                <p className="text-slate-450 text-[10px] font-bold uppercase tracking-wider mt-0.5">Select members to include</p>
+                            </div>
+                            <button
+                                onClick={() => setShowAddUsers(false)}
+                                className="w-7 h-7 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="p-4 border-b border-slate-100 bg-white shrink-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450" size={14} />
+                                <input
+                                    type="text"
+                                    placeholder="Search name or role..."
+                                    className="w-full pl-8 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all"
+                                    value={directorySearch}
+                                    onChange={e => setDirectorySearch(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Directory list */}
+                        <div className="flex-1 overflow-y-auto divide-y divide-slate-50 bg-slate-50/20">
+                            {loadingDirectory ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-650 mx-auto mb-2"></div>
+                                    Loading directory...
+                                </div>
+                            ) : directoryUsers.length > 0 ? (
+                                directoryUsers
+                                    .filter(u =>
+                                        u.name.toLowerCase().includes(directorySearch.toLowerCase()) ||
+                                        u.role.toLowerCase().includes(directorySearch.toLowerCase())
+                                    )
+                                    .map(u => {
+                                        const isSelected = draftSelectedUsers.some(x => String(x._id) === String(u._id));
+                                        return (
+                                            <button
+                                                key={u._id}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isSelected) {
+                                                        setDraftSelectedUsers(prev => prev.filter(x => String(x._id) !== String(u._id)));
+                                                    } else {
+                                                        setDraftSelectedUsers(prev => [...prev, u]);
+                                                    }
+                                                }}
+                                                className="w-full p-4 flex items-center justify-between hover:bg-white transition-all cursor-pointer border-b border-slate-100/50"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 overflow-hidden shadow-sm">
+                                                        {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : u.name[0]?.toUpperCase()}
+                                                    </div>
+                                                    <div className="min-w-0 text-left">
+                                                        <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
+                                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{u.role}</p>
+                                                    </div>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${isSelected
+                                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm'
+                                                    : 'bg-white border-slate-350'
+                                                    }`}>
+                                                    {isSelected && <span className="text-[10px] font-black">✓</span>}
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                            ) : (
+                                <div className="p-8 text-center text-slate-400 font-bold text-xs select-none">
+                                    No users found in your institute.
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Floating Checkmark Confirm Button */}
+                        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowAddUsers(false)}
+                                className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer font-bold text-lg"
+                                title="Confirm Selection"
+                            >
+                                ✓
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </DashboardLayout>
     );
 };

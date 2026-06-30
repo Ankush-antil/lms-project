@@ -41,7 +41,12 @@ const userSchema = new mongoose.Schema({
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
         subject: { type: String, default: '' },   // ← new: subject assigned by admin
         batch: { type: String },
-        enrollmentDate: { type: Date, default: Date.now }
+        enrollmentDate: { type: Date, default: Date.now },
+        feeStatus: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
+        physicalAttendance: [{
+            date: { type: String }, // e.g. "2026-06-30"
+            status: { type: String, enum: ['Present', 'Absent'] }
+        }]
     },
 
     teacherProfile: {

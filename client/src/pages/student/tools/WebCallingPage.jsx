@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye } from 'lucide-react';
+import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye, CheckCircle, X } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import { useSocket } from '../../../context/SocketContext';
 import axios from 'axios';
@@ -55,6 +55,9 @@ const WebCallingPage = () => {
 
     // Local History Modal State
     const [localHistoryModalOpen, setLocalHistoryModalOpen] = useState(false);
+
+    // Cloud Gallery Modal State
+    const [cloudGalleryModalOpen, setCloudGalleryModalOpen] = useState(false);
 
     // Active Gallery View: 'local' | 'cloud'
     const [galleryTab, setGalleryTab] = useState('local');
@@ -402,7 +405,63 @@ const WebCallingPage = () => {
 
         setDriveFileMeta({
             name: `call_log_${latest.id || Date.now()}.txt`,
-            blob: blob
+            blob: blob,
+            itemId: latest.id
+        });
+        setDriveModalOpen(true);
+    };
+
+    const handleSyncSingleWithCloud = async (item) => {
+        if (isReadOnly) {
+            toast.error("Syncing files is disabled in Read-Only archive.");
+            return;
+        }
+        const toastId = toast.loading(`Syncing log to cloud...`);
+        try {
+            const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+
+            const formData = new FormData();
+            formData.append('file', blob, `call_log_${item.id}.txt`);
+            formData.append('toolType', 'web-calling');
+            formData.append('duration', item.duration);
+            formData.append('format', 'TXT');
+            if (item.inbox) {
+                formData.append('inbox', item.inbox);
+            }
+
+            await axios.post('/api/practice-files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Update local state and localStorage
+            const updated = callLogs.map(log =>
+                log.id === item.id ? { ...log, synced: true } : log
+            );
+            setCallLogs(updated);
+            localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+
+            toast.success(`Successfully synced log to cloud!`, { id: toastId });
+            await fetchCloudFiles();
+        } catch (err) {
+            console.error("Sync error for log:", item.id, err);
+            const errMsg = err.response?.data?.message || 'Failed to sync call log to cloud.';
+            toast.error(errMsg, { id: toastId });
+        }
+    };
+
+    const handleSyncSingleWithDrive = (item) => {
+        if (isReadOnly) {
+            toast.error("Google Drive upload is disabled in Read-Only archive.");
+            return;
+        }
+        const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
+        const blob = new Blob([logContent], { type: 'text/plain' });
+
+        setDriveFileMeta({
+            name: `call_log_${item.id || Date.now()}.txt`,
+            blob: blob,
+            itemId: item.id
         });
         setDriveModalOpen(true);
     };
@@ -487,32 +546,79 @@ const WebCallingPage = () => {
     return (
         <DashboardLayout role="Student" fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
-                {/* Back Link */}
-                <button
-                    onClick={() => {
-                        if (inboxParam) {
-                            navigate('/student/tests');
-                        } else {
-                            navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
-                        }
-                    }}
-                    className="h-[65px] w-45 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-6 font-bold text-sm"
-                >
-                    <ArrowLeft size={16} />
-                    Back to Practice Tools
-                </button>
+                {/* Back Link & Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
+                    {/* Left: Title */}
+                    <div>
+                        <h1 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                            <Phone className="text-pink-600" size={20} />
+                            Web-Calling Tool {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
+                        </h1>
+                    </div>
 
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
-                        <Phone className="text-pink-600" />
-                        Web-Calling Tool
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1">Connect with active teachers or practice solo with an interactive AI Roleplay partner.</p>
+                    {/* Center: Data Settings Quick Access */}
+                    <div className="flex items-center gap-3 flex-wrap border rounded-xl p-3 bg-gray-100 h-15 w-[750px] justify-center">
+                        {/* Local Data */}
+                        <button
+                            onClick={() => setLocalHistoryModalOpen(true)}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 bg-slate-55 hover:bg-pink-50 border border-slate-205 hover:border-pink-200 text-slate-600 hover:text-pink-700 rounded-xl text-xs font-bold transition-all shadow-sm"
+                            title="Go to Local Data"
+                        >
+                            <Folder size={13} className="text-pink-500 shrink-0" />
+                            <span className="hidden sm:inline">Data on Local Cloud</span>
+                            <span className="text-[9px] font-black text-slate-400 hidden sm:inline">• {filteredLocalLogs.length}</span>
+                        </button>
+
+                        {/* Cloud Data */}
+                        <button
+                            onClick={async () => {
+                                await fetchCloudFiles();
+                                setCloudGalleryModalOpen(true);
+                            }}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 border border-slate-205 hover:border-pink-200 bg-slate-50 hover:bg-pink-55 text-slate-600 hover:text-pink-700 rounded-xl text-xs font-bold transition-all shadow-sm"
+                            title="Go to Cloud Data"
+                        >
+                            <Database size={13} className="text-pink-500 shrink-0" />
+                            <span className="hidden sm:inline">Data on DS Cloud</span>
+                            <span className="text-[9px] font-black text-slate-400 hidden sm:inline">• {filteredCloudFiles.length}</span>
+                        </button>
+
+                        {/* Drive History */}
+                        <button
+                            onClick={() => {
+                                setDriveFileMeta({ name: '', blob: null });
+                                setDriveModalOpen(true);
+                            }}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-amber-50 border border-slate-205 hover:border-amber-200 text-slate-600 hover:text-amber-700 rounded-xl text-xs font-bold transition-all shadow-sm"
+                            title="Go to Drive History"
+                        >
+                            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 48 48">
+                                <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                            </svg>
+                            <span className="hidden sm:inline">Data On Google Drive</span>
+                        </button>
+                    </div>
+
+                    {/* Right: Back to Practice Tools */}
+                    <button
+                        onClick={() => {
+                            if (inboxParam) {
+                                navigate('/student/tests');
+                            } else {
+                                navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');
+                            }
+                        }}
+                        className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm"
+                    >
+                        <ArrowLeft size={14} />
+                        Back to Practice Tools
+                    </button>
                 </div>
 
                 {isReadOnly && (
-                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex items-center gap-2.5 text-xs font-semibold leading-relaxed">
+                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex items-center gap-2.5 text-xs font-semibold leading-relaxed">
                         <AlertTriangle className="text-amber-600 shrink-0" size={16} />
                         <div>
                             <p className="font-bold">Past Workspace Preview (Read-Only)</p>
@@ -521,8 +627,8 @@ const WebCallingPage = () => {
                     </div>
                 )}
 
-                {/* 3-Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+                {/* 2-Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 relative">
 
                     {/* Simulated Call Active Screen Overlay (Takes over center-panel) */}
                     {simulatedCall && (
@@ -530,7 +636,7 @@ const WebCallingPage = () => {
                             <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[500px]">
 
                                 {/* AI Partner Avatar Panel */}
-                                <div className="flex-1 bg-slate-950 p-6 flex flex-col justify-between items-center relative min-h-[240px]">
+                                <div className="flex-1 bg-slate-955 p-6 flex flex-col justify-between items-center relative min-h-[240px]">
                                     <span className="text-[10px] font-black text-pink-500 tracking-widest uppercase mt-2">
                                         Active AI Practice Session
                                     </span>
@@ -617,7 +723,7 @@ const WebCallingPage = () => {
                                                         localStream.getAudioTracks().forEach(t => t.enabled = !micEnabled);
                                                     }
                                                 }}
-                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${micEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
+                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${micEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-955/40 border-red-900/30 text-red-400'
                                                     }`}
                                             >
                                                 {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
@@ -630,7 +736,7 @@ const WebCallingPage = () => {
                                                         localStream.getVideoTracks().forEach(t => t.enabled = !cameraEnabled);
                                                     }
                                                 }}
-                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${cameraEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-950/40 border-red-900/30 text-red-400'
+                                                className={`flex-1 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all ${cameraEnabled ? 'bg-slate-850 border-slate-750 text-slate-300 hover:bg-slate-800' : 'bg-red-955/40 border-red-900/30 text-red-400'
                                                     }`}
                                             >
                                                 {cameraEnabled ? <Video size={14} /> : <VideoOff size={14} />}
@@ -652,97 +758,8 @@ const WebCallingPage = () => {
                         </div>
                     )}
 
-                    {/* Column 1: Source Settings */}
-                    <div className="lg:col-span-3 space-y-6">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Source</h3>
-
-                            {/* Device togglers */}
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Microphone</span>
-                                    <button
-                                        onClick={() => setMicEnabled(!micEnabled)}
-                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${micEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
-                                            }`}
-                                    >
-                                        {micEnabled ? 'ACTIVE' : 'MUTED'}
-                                    </button>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Camera</span>
-                                    <button
-                                        onClick={() => setCameraEnabled(!cameraEnabled)}
-                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${cameraEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
-                                            }`}
-                                    >
-                                        {cameraEnabled ? 'ACTIVE' : 'OFF'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Signal Indicator */}
-                            <div className="space-y-2 text-xs">
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Line Quality</span>
-                                <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl flex items-center justify-between">
-                                    <span className="font-bold text-slate-600">P2P Connection</span>
-                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black">EXCELLENT</span>
-                                </div>
-                            </div>
-
-                            {/* Call Limit */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Clock size={14} /> Call Limit Limit
-                                </label>
-                                <select
-                                    value={callLimit}
-                                    onChange={(e) => setCallLimit(parseInt(e.target.value))}
-                                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700"
-                                >
-                                    <option value={5}>5 Minutes</option>
-                                    <option value={10}>10 Minutes</option>
-                                    <option value={30}>30 Minutes</option>
-                                </select>
-                            </div>
-
-                            {/* Auto-Recording */}
-                            <div className="flex justify-between items-center p-3 bg-pink-50/40 border border-pink-100 rounded-xl">
-                                <div className="text-left">
-                                    <span className="text-[11px] font-black text-pink-850 uppercase tracking-wide">Call Recording</span>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Saves Call logs</p>
-                                </div>
-                                <span className="px-2 py-0.5 bg-indigo-650 text-white text-[8px] font-black rounded-md uppercase tracking-wider shadow-sm">
-                                    AUTO
-                                </span>
-                            </div>
-
-                            {/* Additional Settings */}
-                            <details className="group border border-slate-100 rounded-xl p-3 bg-slate-50/50">
-                                <summary className="list-none flex justify-between items-center cursor-pointer text-xs font-bold text-slate-600 select-none">
-                                    <span className="flex items-center gap-1.5"><Settings size={14} /> Advanced settings</span>
-                                    <span className="transition-transform group-open:rotate-180">▼</span>
-                                </summary>
-                                <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 text-xs">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-500">Video Call Bitrate</span>
-                                        <select className="bg-white border border-slate-200 rounded p-1 font-medium text-[10px]">
-                                            <option>Auto (Adaptive)</option>
-                                            <option>High (1.5 Mbps)</option>
-                                            <option>Low (500 kbps)</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-500">Bypass TURN Server</span>
-                                        <input type="checkbox" className="rounded text-pink-600 focus:ring-pink-500" />
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
-                    </div>
-
-                    {/* Center Column: Dialer / Connections Selector */}
-                    <div className="lg:col-span-6 space-y-6">
+                    {/* Left Column: Dialer / Connections Selector & Recent Call Logs */}
+                    <div className="lg:col-span-9 space-y-6">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col min-h-[460px]">
 
                             {/* Navigation tabs */}
@@ -782,7 +799,7 @@ const WebCallingPage = () => {
                                                     return (
                                                         <div
                                                             key={teacher._id}
-                                                            className="flex justify-between items-center p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-150 transition-colors"
+                                                            className="flex justify-between items-center p-3.5 bg-slate-50 hover:bg-slate-105 rounded-2xl border border-slate-150 transition-colors"
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <div className="relative">
@@ -812,7 +829,7 @@ const WebCallingPage = () => {
                                                                 <button
                                                                     disabled={isReadOnly}
                                                                     onClick={() => handleTeacherCall(teacher, 'video')}
-                                                                    className={`p-2 bg-purple-50 text-purple-600 rounded-xl transition-colors border border-purple-100 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-100'
+                                                                    className={`p-2 bg-purple-50 text-purple-650 rounded-xl transition-colors border border-purple-100 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-100'
                                                                         }`}
                                                                     title="Video Call"
                                                                 >
@@ -825,7 +842,7 @@ const WebCallingPage = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="border border-indigo-50 bg-indigo-50/20 rounded-xl p-3 flex items-start gap-2.5 text-[10px] text-indigo-700/80 font-bold leading-normal mt-4">
+                                    <div className="border border-indigo-50 bg-indigo-50/20 rounded-xl p-3 flex items-start gap-2.5 text-[10px] text-indigo-700/80 font-bold leading-normal mt-4 text-left">
                                         <Shield size={14} className="shrink-0 mt-0.5" />
                                         <span>Clicking voice or video call starts a secure WebRTC calling line with the teacher. Make sure they are online and active in their dashboard.</span>
                                     </div>
@@ -836,7 +853,7 @@ const WebCallingPage = () => {
                             {activeTab === 'ai' && (
                                 <div className="flex-1 flex flex-col justify-between mt-4">
                                     <div className="space-y-4">
-                                        <p className="text-xs text-slate-500">Configure your simulation role and click start to call.</p>
+                                        <p className="text-xs text-slate-550">Configure your simulation role and click start to call.</p>
 
                                         {/* Grid of Roles */}
                                         <div className="grid grid-cols-2 gap-3">
@@ -856,7 +873,7 @@ const WebCallingPage = () => {
                                             ))}
                                         </div>
 
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-150 text-[11px] text-slate-505 font-medium leading-relaxed">
+                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-150 text-[11px] text-slate-505 font-medium leading-relaxed text-left">
                                             <strong>Scenario Objective:</strong> {aiScenarios[aiRole].description}
                                         </div>
                                     </div>
@@ -877,197 +894,186 @@ const WebCallingPage = () => {
                             )}
 
                         </div>
-                    </div>
 
-                    {/* Column 3: Data & Call logs */}
-                    <div className="lg:col-span-3 space-y-6">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Data Settings</h3>
+                        {/* Recent Call Logs Card */}
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
+                                <span>Recent Call Logs</span>
+                                <span className="text-xs px-2 py-0.5 bg-pink-100 text-pink-800 font-bold rounded-full">
+                                    {filteredLocalLogs.length} Saved
+                                </span>
+                            </h3>
 
-                            <div className="space-y-3">
-                                {/* Save in Google Drive */}
-                                <button
-                                    disabled={isReadOnly}
-                                    onClick={handleSaveToDriveClick}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                        }`}
-                                >
-                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
-                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
-                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
-                                    </svg>
-                                    <div className="text-left flex-1">
-                                        <p>Save in Google Drive</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest Log</span>
-                                    </div>
-                                </button>
+                            {filteredLocalLogs.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic text-center py-6">
+                                    No local call logs found. Start a practice call to see them here.
+                                </p>
+                            ) : (
+                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                                    {filteredLocalLogs.map((item, index) => (
+                                        <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors">
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0 text-left">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider font-sans">
+                                                        {item.name || `Call Log ${filteredLocalLogs.length - index}`}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-bold font-sans">
+                                                        {item.type} • Duration: {item.duration} • Status: {item.status}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-450 font-bold font-sans">
+                                                    {item.date}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {/* Sync with Cloud Indicator / Sync Button */}
+                                                {item.synced ? (
+                                                    <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold font-sans">
+                                                        <CheckCircle size={14} className="text-emerald-600" />
+                                                        <span>Synced</span>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        disabled={isReadOnly}
+                                                        onClick={() => handleSyncSingleWithCloud(item)}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 bg-pink-50 border border-pink-200 text-pink-700 rounded-xl text-[10px] font-extrabold transition-all font-sans ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-pink-100'}`}
+                                                        title="Sync with Cloud"
+                                                    >
+                                                        <Cloud size={14} />
+                                                        <span className="text-[9px] leading-none text-left">Not Sync<br />Click to Sync</span>
+                                                    </button>
+                                                )}
 
-                                {/* Go to Drive History */}
-                                <button
-                                    onClick={() => {
-                                        setDriveFileMeta({ name: '', blob: null });
-                                        setDriveModalOpen(true);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors"
-                                >
-                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
-                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
-                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
-                                    </svg>
-                                    <div className="text-left flex-1">
-                                        <p>Go to Drive History</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            View & Manage Drive Folders
-                                        </span>
-                                    </div>
-                                </button>
+                                                {/* Google Drive Sync Indicator / Sync Button */}
+                                                {item.driveSynced ? (
+                                                    <div className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold font-sans">
+                                                        <CheckCircle size={14} className="text-amber-600" />
+                                                        <span>Drive Synced</span>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        disabled={isReadOnly}
+                                                        onClick={() => handleSyncSingleWithDrive(item)}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-805 rounded-xl text-[10px] font-extrabold transition-all font-sans ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-100'}`}
+                                                        title="Sync with Google Drive"
+                                                    >
+                                                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
+                                                            <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                                            <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                                            <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                                        </svg>
+                                                        <span className="text-[9px] leading-none text-left">Not Sync<br />Click to Sync</span>
+                                                    </button>
+                                                )}
 
-                                {/* Go to Local Data */}
-                                <button
-                                    onClick={() => {
-                                        setLocalHistoryModalOpen(true);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-700 rounded-xl text-xs font-bold transition-colors"
-                                >
-                                    <Folder className="text-pink-650 shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredLocalLogs.length} Call Logs • View structured folders
-                                        </span>
-                                    </div>
-                                </button>
-
-                                {/* Go to Cloud Data */}
-                                <button
-                                    onClick={async () => {
-                                        setGalleryTab('cloud');
-                                        await fetchCloudFiles();
-                                        toast.success("Switched to Cloud Storage");
-                                    }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all ${galleryTab === 'cloud'
-                                        ? 'bg-pink-50/40 border-pink-100 text-pink-850 shadow-sm'
-                                        : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                        }`}
-                                >
-                                    <Database className="text-pink-600 shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Cloud Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredCloudFiles.length} Cloud Logs • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
-                                        </span>
-                                    </div>
-                                </button>
-
-                                {/* Sync with Cloud */}
-                                <button
-                                    disabled={isReadOnly}
-                                    onClick={handleSyncWithCloud}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors ${isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
-                                        }`}
-                                >
-                                    <RefreshCw className="text-pink-600 shrink-0 animate-hover-spin" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Sync with Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredLocalLogs.filter(log => !log.synced).length} logs not synced
-                                        </span>
-                                    </div>
-                                </button>
-                            </div>
+                                                {/* Delete Button */}
+                                                {!isReadOnly && (
+                                                    <button
+                                                        onClick={() => handleDeleteLog(item.id)}
+                                                        className="p-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all active:scale-95 shadow-sm"
+                                                        title="Delete Call Log"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Recent Call Logs / Cloud space limit and items list */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 text-left">
-                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
-                                    {galleryTab === 'local' ? 'Local Logs' : 'Cloud Logs'}
-                                </h3>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-655 font-black text-[9px] uppercase tracking-wider">
-                                    {galleryTab === 'local' ? 'Offline' : 'Server'}
+                    </div>
+
+                    {/* Right Column: Source Settings */}
+                    <div className="lg:col-span-3 space-y-6 text-left">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Source</h3>
+
+                            {/* Device togglers */}
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Microphone</span>
+                                    <button
+                                        onClick={() => setMicEnabled(!micEnabled)}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${micEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                            }`}
+                                    >
+                                        {micEnabled ? 'ACTIVE' : 'MUTED'}
+                                    </button>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Camera</span>
+                                    <button
+                                        onClick={() => setCameraEnabled(!cameraEnabled)}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors ${cameraEnabled ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                            }`}
+                                    >
+                                        {cameraEnabled ? 'ACTIVE' : 'OFF'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Signal Indicator */}
+                            <div className="space-y-2 text-xs">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Line Quality</span>
+                                <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl flex items-center justify-between">
+                                    <span className="font-bold text-slate-600 font-sans">P2P Connection</span>
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black font-sans">EXCELLENT</span>
+                                </div>
+                            </div>
+
+                            {/* Call Limit */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                    <Clock size={14} /> Call Limit
+                                </label>
+                                <select
+                                    value={callLimit}
+                                    onChange={(e) => setCallLimit(parseInt(e.target.value))}
+                                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none font-bold text-slate-700 font-sans"
+                                >
+                                    <option value={5}>5 Minutes</option>
+                                    <option value={10}>10 Minutes</option>
+                                    <option value={30}>30 Minutes</option>
+                                </select>
+                            </div>
+
+                            {/* Auto-Recording */}
+                            <div className="flex justify-between items-center p-3 bg-pink-50/40 border border-pink-100 rounded-xl">
+                                <div className="text-left">
+                                    <span className="text-[11px] font-black text-pink-850 uppercase tracking-wide font-sans">Call Recording</span>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 font-sans">Saves Call logs</p>
+                                </div>
+                                <span className="px-2 py-0.5 bg-pink-600 text-white text-[8px] font-black rounded-md uppercase tracking-wider shadow-sm font-sans">
+                                    AUTO
                                 </span>
                             </div>
 
-                            {/* Cloud Space limit bar if on cloud tab */}
-                            {galleryTab === 'cloud' && (
-                                <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-150 rounded-xl">
-                                    <div className="flex justify-between items-center text-[9px] text-slate-450 font-black uppercase tracking-wider">
-                                        <span>Cloud Space Limit</span>
-                                        <span>{(cloudSpace.used / (1024 * 1024)).toFixed(1)}MB / 300MB</span>
+                            {/* Additional Settings */}
+                            <details className="group border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                                <summary className="list-none flex justify-between items-center cursor-pointer text-xs font-bold text-slate-600 select-none font-sans">
+                                    <span className="flex items-center gap-1.5"><Settings size={14} /> Advanced settings</span>
+                                    <span className="transition-transform group-open:rotate-180">▼</span>
+                                </summary>
+                                <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 text-xs">
+                                    <div className="flex items-center justify-between font-sans">
+                                        <span className="text-slate-500">Video Call Bitrate</span>
+                                        <select className="bg-white border border-slate-200 rounded p-1 font-medium text-[10px]">
+                                            <option>Auto (Adaptive)</option>
+                                            <option>High (1.5 Mbps)</option>
+                                            <option>Low (500 kbps)</option>
+                                        </select>
                                     </div>
-                                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300">
-                                        <div
-                                            className="bg-pink-600 h-full transition-all duration-300"
-                                            style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
-                                        ></div>
+                                    <div className="flex items-center justify-between font-sans">
+                                        <span className="text-slate-500">Bypass TURN Server</span>
+                                        <input type="checkbox" className="rounded text-pink-600 focus:ring-pink-500" />
                                     </div>
                                 </div>
-                            )}
-
-                            {galleryTab === 'local' ? (
-                                <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl text-center space-y-3.5">
-                                    <Folder className="w-10 h-10 text-indigo-500 mx-auto" />
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Structured Offline History</p>
-                                        <p className="text-[10px] text-slate-500 font-bold leading-normal">
-                                            Your offline files are structured inside date folders and sequential names: <b>LMS / [Date] / Web-Calling Tool</b>.
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => setLocalHistoryModalOpen(true)}
-                                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
-                                    >
-                                        Browse Local Folders
-                                    </button>
-                                </div>
-                            ) : (
-                                cloudLoading ? (
-                                    <div className="text-xs text-slate-500 text-center py-10 font-medium">Loading cloud logs...</div>
-                                ) : filteredCloudFiles.length === 0 ? (
-                                    <p className="text-xs text-slate-400 italic text-center py-4">No synced cloud logs.</p>
-                                ) : (
-                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {filteredCloudFiles.map(file => (
-                                            <div key={file._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors relative text-left">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="text-left">
-                                                        <h4 className="text-[11px] font-bold text-slate-700">{file.filename}</h4>
-                                                        <p className="text-[9px] text-slate-400 mt-0.5">
-                                                            Duration: {file.metadata?.duration || 'N/A'} • Size: {(file.size / 1024).toFixed(1)} KB
-                                                        </p>
-                                                        <span className="text-[8px] text-slate-350 block mt-1">{new Date(file.createdAt).toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex gap-1.5 items-center">
-                                                        <a
-                                                            href={file.fileUrl}
-                                                            download={file.filename}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-1 hover:bg-slate-200 rounded text-slate-450 hover:text-slate-700"
-                                                            title="Download File"
-                                                        >
-                                                            <Download size={12} />
-                                                        </a>
-                                                        {!isReadOnly && (
-                                                            <button
-                                                                onClick={() => handleDeleteCloudFile(file._id)}
-                                                                className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-655"
-                                                                title="Delete from Cloud"
-                                                            >
-                                                                <Trash size={12} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )
-                            )}
+                            </details>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -1077,14 +1083,31 @@ const WebCallingPage = () => {
                 onClose={() => setDriveModalOpen(false)}
                 fileName={driveFileMeta.name}
                 fileBlob={driveFileMeta.blob}
-                onSaveSuccess={() => {
-                    // Update latest call log synced status locally
-                    if (callLogs.length > 0) {
-                        const updated = [...callLogs];
-                        updated[0].synced = true;
-                        setCallLogs(updated);
-                        localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+                onSaveSuccess={(driveData) => {
+                    toast.success("Saved to Google Drive!");
+                    if (driveFileMeta.itemId) {
+                        const driveFileViewUrl = driveData?.id
+                            ? `https://drive.google.com/file/d/${driveData.id}/view`
+                            : driveData?.webViewLink || null;
+
+                        setCallLogs(prev => {
+                            const updated = prev.map(log =>
+                                log.id === driveFileMeta.itemId
+                                    ? { ...log, driveSynced: true, driveUrl: driveFileViewUrl }
+                                    : log
+                            );
+                            localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+                            return updated;
+                        });
+                    } else if (callLogs.length > 0) {
+                        setCallLogs(prev => {
+                            const updated = [...prev];
+                            updated[0].driveSynced = true;
+                            localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+                            return updated;
+                        });
                     }
+                    fetchCloudFiles();
                 }}
             />
 
@@ -1100,6 +1123,110 @@ const WebCallingPage = () => {
                     loadLocalLogs();
                 }}
             />
+
+            {/* Cloud Gallery Center Modal */}
+            {cloudGalleryModalOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center shrink-0">
+                                    <Database className="text-pink-600" size={18} />
+                                </div>
+                                <div>
+                                    <span className="font-extrabold text-slate-800 text-sm tracking-tight block">Cloud Storage</span>
+                                    <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
+                                        {filteredCloudFiles.length} Cloud Logs • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB used
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setCloudGalleryModalOpen(false)}
+                                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Space limit bar */}
+                        <div className="px-6 pt-4 shrink-0">
+                            <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                <div className="flex justify-between items-center text-[9px] text-slate-400 font-black uppercase tracking-wider">
+                                    <span>Cloud Space Limit</span>
+                                    <span>{(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB</span>
+                                </div>
+                                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden border border-slate-300">
+                                    <div
+                                        className="bg-pink-600 h-full transition-all duration-300"
+                                        style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Cloud Files List */}
+                        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                            {cloudLoading ? (
+                                <div className="text-center py-10 text-xs text-slate-400 animate-pulse font-bold uppercase tracking-wider">
+                                    Loading Cloud Data...
+                                </div>
+                            ) : filteredCloudFiles.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <Database className="mx-auto text-slate-300 mb-3" size={36} />
+                                    <p className="text-xs text-slate-400 italic font-medium">No cloud logs found.</p>
+                                    <p className="text-[10px] text-slate-400 mt-1">Click "Sync with Cloud" on any saved call log to upload.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {filteredCloudFiles.map(file => (
+                                        <div key={file._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-350 transition-colors text-left">
+                                            <div className="min-w-0 text-left col-span-2">
+                                                <h4 className="text-xs font-bold text-slate-700 truncate">{file.filename}</h4>
+                                                <p className="text-[10px] text-slate-400 mt-0.5 font-sans">
+                                                    Duration: {file.metadata?.duration || 'N/A'} • Size: {(file.size / 1024).toFixed(1)} KB
+                                                </p>
+                                                <span className="text-[9px] text-slate-350 block mt-1 font-sans">{new Date(file.createdAt).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0">
+                                                <a
+                                                    href={file.fileUrl}
+                                                    download={file.filename}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 hover:bg-slate-200 rounded-xl text-slate-455 hover:text-slate-700 transition-colors border border-slate-200"
+                                                    title="Download File"
+                                                >
+                                                    <Download size={14} />
+                                                </a>
+                                                {!isReadOnly && (
+                                                    <button
+                                                        onClick={() => handleDeleteCloudFile(file._id)}
+                                                        className="p-2 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-600 transition-colors border border-slate-200 hover:border-red-200"
+                                                        title="Delete from Cloud"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 shrink-0 flex justify-end">
+                            <button
+                                onClick={() => setCloudGalleryModalOpen(false)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 };

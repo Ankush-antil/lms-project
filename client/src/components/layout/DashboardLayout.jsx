@@ -147,14 +147,14 @@ const menuItems = {
     Admin: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
         { name: 'Users', icon: User, path: '/admin/users' },
-        { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
+        { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
-        { name: 'Class Content', icon: FileText, path: '/admin/tests' },
-        { name: 'Tools', icon: PenTool, path: '/admin/tests/builder' },
+        { name: 'Activities', icon: FileText, path: '/admin/activities' },
+        { name: 'Activities Builder', icon: PenTool, path: '/admin/activities-builder' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -162,24 +162,33 @@ const menuItems = {
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
-        { name: 'Tests', icon: FileText, path: '/institute/tests' },
-        { name: 'Test Builder', icon: PenTool, path: '/institute/tests/builder' },
+        { name: 'Activities', icon: FileText, path: '/institute/activities' },
+        { name: 'Activities Builder', icon: PenTool, path: '/institute/activities-builder' },
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
-        { name: 'Activities', icon: FileText, path: '/teacher/activities' },
+        { name: 'Student Activities', icon: FileText, path: '/teacher/activities' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
+        { name: 'Snapshots', icon: ClipboardCheck, path: '/teacher/snapshots' },
+        { name: 'Activities Builder', icon: ClipboardCheck, path: '/teacher/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/teacher/chat' },
     ],
     Editor: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
+        { name: 'Teachers', icon: FileText, path: '/editor/teachers' },
+        { name: 'Courses', icon: ClipboardCheck, path: '/editor/courses' },
+        { name: 'Subjects', icon: ClipboardCheck, path: '/editor/subjects' },
+        { name: 'Activities', icon: ClipboardCheck, path: '/editor/activities' },
+        { name: 'Activities Builder', icon: ClipboardCheck, path: '/editor/activities-builder' },
+        { name: 'Chat', icon: MessageSquare, path: '/editor/chat' },
     ],
     Student: [
         { name: 'My Activities', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
-        { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
-        { name: 'My Performance', icon: BarChart3, path: '/student/performance' }
+        { name: 'My SnapShots', icon: BarChart3, path: '/student/performance' },
+        { name: 'Chat', icon: MessageSquare, path: '/student/chat' }
     ]
 };
 

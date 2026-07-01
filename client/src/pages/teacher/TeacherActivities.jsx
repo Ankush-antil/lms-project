@@ -52,6 +52,7 @@ const TeacherActivities = () => {
     const userInfo = user;
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [inboxConfigs, setInboxConfigs] = useState([]);
+    const [activityConfigs, setActivityConfigs] = useState([]);
     const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
@@ -233,11 +234,41 @@ const TeacherActivities = () => {
 
     const fetchInboxConfigs = async (studentId) => {
         try {
-            const { data } = await axios.get(`/api/users/inbox-configs/${studentId}`);
-            setInboxConfigs(data || []);
+            const [inboxRes, actRes] = await Promise.all([
+                axios.get(`/api/users/inbox-configs/${studentId}`),
+                axios.get(`/api/users/activity-configs/${studentId}`).catch(() => ({ data: [] }))
+            ]);
+            setInboxConfigs(inboxRes.data || []);
+            setActivityConfigs(actRes.data || []);
         } catch (err) {
-            console.error("Error fetching inbox configs:", err);
+            console.error("Error fetching configs:", err);
             setInboxConfigs([]);
+            setActivityConfigs([]);
+        }
+    };
+
+    const handleUpdateActivityConfig = async (testId, visible) => {
+        if (!selectedStudent) return;
+        try {
+            const { data } = await axios.post('/api/users/activity-configs', {
+                studentId: selectedStudent._id,
+                testId,
+                visible
+            });
+            setActivityConfigs(prev => {
+                const copy = [...prev];
+                const idx = copy.findIndex(c => c.test === testId);
+                if (idx !== -1) {
+                    copy[idx] = data;
+                } else {
+                    copy.push(data);
+                }
+                return copy;
+            });
+            toast.success("Activity visibility updated successfully!");
+        } catch (err) {
+            console.error("Error saving activity config:", err);
+            toast.error("Failed to update activity visibility");
         }
     };
 
@@ -1589,11 +1620,13 @@ const TeacherActivities = () => {
                                             {activeTests.map(test => {
                                                 const sub = submissionMap.get(test._id);
                                                 const isEvaluated = sub && sub.status === 'evaluated';
-
+                                                const config = activityConfigs.find(c => c.test === test._id);
+                                                const isActivityVisible = config ? config.visible : true;
+ 
                                                 return (
                                                     <div
                                                         key={test._id}
-                                                        className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
+                                                        className={`bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
                                                     >
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
@@ -1602,19 +1635,36 @@ const TeacherActivities = () => {
                                                                 {test.title}
                                                             </h3>
                                                         </div>
-
+ 
                                                         <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setInfoModalData(test);
-                                                                }}
-                                                                className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                                title="RI Details"
-                                                            >
-                                                                <Eye size={14} />
-                                                            </button>
-
+                                                            <div className="flex items-center space-x-1.5">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setInfoModalData(test);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                                                                    title="RI Details"
+                                                                >
+                                                                    <Eye size={14} />
+                                                                </button>
+ 
+                                                                {viewMode === 'pending' && (
+                                                                    <div className="flex items-center gap-1" title={isActivityVisible ? "Visible to Student" : "Hidden from Student"}>
+                                                                        <button
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                await handleUpdateActivityConfig(test._id, !isActivityVisible);
+                                                                            }}
+                                                                            className="w-7 h-3.5 rounded-full p-0.5 transition-colors duration-200 shrink-0"
+                                                                            style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
+                                                                        >
+                                                                            <div className="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(12px)' : 'translateX(0px)' }} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+ 
                                                             {sub ? (
                                                                 <button
                                                                     onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
@@ -1626,9 +1676,16 @@ const TeacherActivities = () => {
                                                                     {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
                                                                 </button>
                                                             ) : (
-                                                                <span className="text-[9px] font-black uppercase text-slate-400 select-none mr-1">
-                                                                    Pending Submit
-                                                                </span>
+                                                                <div className="flex items-center gap-1 select-none mr-1">
+                                                                    {!isActivityVisible && (
+                                                                        <span className="text-[9px] font-black uppercase text-red-500">
+                                                                            (Hidden)
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-[9px] font-black uppercase text-slate-400">
+                                                                        Pending Submit
+                                                                    </span>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>

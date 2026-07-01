@@ -53,6 +53,7 @@ const StudentTests = () => {
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
     const [inboxConfigs, setInboxConfigs] = useState([]);
+    const [activityConfigs, setActivityConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
@@ -256,14 +257,16 @@ const StudentTests = () => {
         const fetch = async () => {
             try {
                 if (!userInfo) return;
-                const [testsRes, subsRes, configsRes] = await Promise.all([
+                const [testsRes, subsRes, configsRes, actConfigsRes] = await Promise.all([
                     axios.get('/api/tests'),
                     axios.get('/api/submissions'),
-                    axios.get('/api/users/inbox-configs').catch(() => ({ data: [] }))
+                    axios.get('/api/users/inbox-configs').catch(() => ({ data: [] })),
+                    axios.get('/api/users/activity-configs').catch(() => ({ data: [] }))
                 ]);
                 setTests(testsRes.data);
                 setSubmissions(subsRes.data);
                 setInboxConfigs(configsRes.data || []);
+                setActivityConfigs(actConfigsRes.data || []);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -352,7 +355,8 @@ const StudentTests = () => {
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
             if (viewMode === 'pending') {
-                return !sub;
+                const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
+                return !sub && !isConfiguredHidden;
             } else if (viewMode === 'submitted') {
                 return sub && sub.status !== 'evaluated';
             } else if (viewMode === 'evaluated') {
@@ -360,7 +364,7 @@ const StudentTests = () => {
             }
             return false;
         });
-    }, [selectedGroup, viewMode, submissionMap]);
+    }, [selectedGroup, viewMode, submissionMap, activityConfigs]);
 
     const categoriesMap = useMemo(() => {
         const map = {};

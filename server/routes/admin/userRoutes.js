@@ -9,7 +9,9 @@ const {
     updateFeeStatus,
     markBulkPhysicalAttendance,
     getInboxConfigs,
-    saveInboxConfig
+    saveInboxConfig,
+    getActivityConfigs,
+    saveActivityConfig
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -21,6 +23,11 @@ router.get('/view/:id', protect, getUserById);
 router.get('/inbox-configs', protect, getInboxConfigs);
 router.get('/inbox-configs/:studentId', protect, getInboxConfigs);
 router.post('/inbox-configs', protect, saveInboxConfig);
+
+// Student Activity Configs
+router.get('/activity-configs', protect, getActivityConfigs);
+router.get('/activity-configs/:studentId', protect, getActivityConfigs);
+router.post('/activity-configs', protect, saveActivityConfig);
 
 // Specific routes
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);

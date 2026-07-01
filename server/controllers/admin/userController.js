@@ -3,6 +3,7 @@ const User = require('../../models/User');
 const Activity = require('../../models/Activity');
 const Course = require('../../models/Course');
 const StudentInboxConfig = require('../../models/StudentInboxConfig');
+const StudentActivityConfig = require('../../models/StudentActivityConfig');
 
 // @desc    Get all users (filtered by role)
 // @route   GET /api/users
@@ -10,12 +11,12 @@ const StudentInboxConfig = require('../../models/StudentInboxConfig');
 const getUsers = asyncHandler(async (req, res) => {
     const role = req.query.role;
     const query = role ? { role } : {};
-    
+
     // Isolate by institute for Institute and Editor roles
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         query.institute = req.user.institute;
     }
-    
+
     console.log(`[API] Fetching users with query:`, query);
 
     const users = await User.find(query)
@@ -137,12 +138,12 @@ const updateUser = asyncHandler(async (req, res) => {
         user.name = req.body.name !== undefined ? req.body.name : user.name;
         user.email = req.body.email !== undefined ? req.body.email : user.email;
         user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
-        
+
         // Prevent Institute/Editor users from changing user's institute
         if (req.user.role !== 'Institute' && req.user.role !== 'Editor') {
             user.institute = req.body.institute !== undefined ? req.body.institute : user.institute;
         }
-        
+
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
         user.callEnabled = req.body.callEnabled !== undefined ? req.body.callEnabled : user.callEnabled;
         user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
@@ -167,7 +168,7 @@ const updateUser = asyncHandler(async (req, res) => {
         }
 
         const updatedUser = await user.save();
- 
+
         res.json({
             _id: updatedUser._id,
             name: updatedUser.name,
@@ -277,7 +278,7 @@ const updateFeeStatus = asyncHandler(async (req, res) => {
 // @route   POST /api/users/bulk-physical-attendance
 // @access  Private/Admin, Editor, Institute, Teacher
 const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
-    const { date, attendanceRecords } = req.body; 
+    const { date, attendanceRecords } = req.body;
     // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent" }]
     if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
         res.status(400);
@@ -367,6 +368,45 @@ const saveInboxConfig = asyncHandler(async (req, res) => {
     res.json(config);
 });
 
+const getActivityConfigs = asyncHandler(async (req, res) => {
+    let targetStudentId = req.params.studentId;
+    if (!targetStudentId) {
+        if (req.user && req.user.role === 'Student') {
+            targetStudentId = req.user._id;
+        } else {
+            res.status(400);
+            throw new Error('Student ID is required');
+        }
+    }
+
+    const configs = await StudentActivityConfig.find({ student: targetStudentId });
+    res.json(configs);
+});
+
+const saveActivityConfig = asyncHandler(async (req, res) => {
+    const { studentId, testId, visible } = req.body;
+
+    if (!studentId || !testId) {
+        res.status(400);
+        throw new Error('studentId and testId are required');
+    }
+
+    let config = await StudentActivityConfig.findOne({ student: studentId, test: testId });
+
+    if (config) {
+        if (visible !== undefined) config.visible = visible;
+        await config.save();
+    } else {
+        config = await StudentActivityConfig.create({
+            student: studentId,
+            test: testId,
+            visible: visible !== undefined ? visible : true
+        });
+    }
+
+    res.json(config);
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -376,5 +416,7 @@ module.exports = {
     updateFeeStatus,
     markBulkPhysicalAttendance,
     getInboxConfigs,
-    saveInboxConfig
+    saveInboxConfig,
+    getActivityConfigs,
+    saveActivityConfig
 };

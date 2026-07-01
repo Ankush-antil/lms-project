@@ -51,6 +51,7 @@ const TeacherActivities = () => {
     const { user } = useAuth();
     const userInfo = user;
     const [selectedStudent, setSelectedStudent] = useState(null);
+    const [inboxConfigs, setInboxConfigs] = useState([]);
     const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
@@ -63,6 +64,9 @@ const TeacherActivities = () => {
     const [selectedInboxId, setSelectedInboxId] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [infoModalData, setInfoModalData] = useState(null);
+    const [activeDropdownInboxId, setActiveDropdownInboxId] = useState(null);
+    const [renameInboxId, setRenameInboxId] = useState(null);
+    const [renameValue, setRenameValue] = useState('');
     const [showStudentList, setShowStudentList] = useState(true);
     const [chatInput, setChatInput] = useState('');
     const [chatMessages, setChatMessages] = useState([]);
@@ -227,6 +231,41 @@ const TeacherActivities = () => {
         }
     };
 
+    const fetchInboxConfigs = async (studentId) => {
+        try {
+            const { data } = await axios.get(`/api/users/inbox-configs/${studentId}`);
+            setInboxConfigs(data || []);
+        } catch (err) {
+            console.error("Error fetching inbox configs:", err);
+            setInboxConfigs([]);
+        }
+    };
+
+    const handleUpdateInboxConfig = async (inboxId, displayName, visible) => {
+        if (!selectedStudent) return;
+        try {
+            const { data } = await axios.post('/api/users/inbox-configs', {
+                studentId: selectedStudent._id,
+                inboxId,
+                displayName,
+                visible
+            });
+            setInboxConfigs(prev => {
+                const copy = [...prev];
+                const idx = copy.findIndex(c => c.inboxId === inboxId);
+                if (idx !== -1) {
+                    copy[idx] = data;
+                } else {
+                    copy.push(data);
+                }
+                return copy;
+            });
+        } catch (err) {
+            console.error("Error saving inbox config:", err);
+            toast.error("Failed to update inbox settings");
+        }
+    };
+
     const handleUploadStudyMaterial = async (e) => {
         e.preventDefault();
         if (!matTitle.trim() || !matFile || !selectedInboxId) {
@@ -336,20 +375,27 @@ const TeacherActivities = () => {
 
         return Object.keys(grouped)
             .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => ({
-                id: indexStr,
-                title: indexStr,
-                completed: grouped[indexStr].filter(t => {
-                    const sub = submissionMap.get(t._id);
-                    return sub && sub.status === 'evaluated';
-                }).length,
-                pending: grouped[indexStr].filter(t => {
-                    const sub = submissionMap.get(t._id);
-                    return !sub || sub.status !== 'evaluated';
-                }).length,
-                tests: grouped[indexStr]
-            }));
-    }, [assignedTests, submissionMap]);
+            .map(indexStr => {
+                const config = inboxConfigs.find(c => c.inboxId === indexStr);
+                const isVisible = config ? config.visible : true;
+                const customTitle = config && config.displayName ? config.displayName : indexStr;
+
+                return {
+                    id: indexStr,
+                    title: customTitle,
+                    completed: grouped[indexStr].filter(t => {
+                        const sub = submissionMap.get(t._id);
+                        return sub && sub.status === 'evaluated';
+                    }).length,
+                    pending: grouped[indexStr].filter(t => {
+                        const sub = submissionMap.get(t._id);
+                        return !sub || sub.status !== 'evaluated';
+                    }).length,
+                    tests: grouped[indexStr],
+                    visible: isVisible
+                };
+            });
+    }, [assignedTests, submissionMap, inboxConfigs]);
 
     // Auto-select first group when student changes
     useEffect(() => {
@@ -780,24 +826,89 @@ const TeacherActivities = () => {
                                                             }`}>
                                                             <BookOpen size={14} />
                                                         </div>
-                                                        <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                        <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${!item.visible ? 'opacity-60' : ''}`}>
                                                             {getDisplayTitle(item.title)}
+                                                            {!item.visible && (
+                                                                <span className="ml-1 text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-1 py-0.5 rounded shrink-0">
+                                                                    Hidden
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                     </div>
 
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (firstTest) setInfoModalData(firstTest);
-                                                        }}
-                                                        className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                            ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                            : 'border-slate-200 text-slate-400 bg-white'
-                                                            }`}
-                                                        title="Inbox Details"
-                                                    >
-                                                        <Info size={12} />
-                                                    </button>
+                                                    <div className="relative shrink-0 flex items-center space-x-1">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (firstTest) setInfoModalData(firstTest);
+                                                            }}
+                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                : 'border-slate-200 text-slate-400 bg-white'
+                                                                }`}
+                                                            title="Inbox Details"
+                                                        >
+                                                            <Info size={12} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveDropdownInboxId(activeDropdownInboxId === item.id ? null : item.id);
+                                                            }}
+                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                : 'border-slate-200 text-slate-400 bg-white'
+                                                                }`}
+                                                            title="Settings"
+                                                        >
+                                                            <MoreVertical size={12} />
+                                                        </button>
+
+                                                        {activeDropdownInboxId === item.id && (
+                                                            <>
+                                                                <div
+                                                                    className="fixed inset-0 z-40 bg-transparent"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveDropdownInboxId(null);
+                                                                    }}
+                                                                />
+                                                                <div
+                                                                    className="absolute right-0 top-7 bg-white border border-slate-150 rounded-xl shadow-xl py-1 z-50 w-44 animate-fade-in text-slate-705 text-left"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            const isVisible = config ? config.visible : true;
+                                                                            const currentDisplayName = config ? config.displayName : '';
+                                                                            await handleUpdateInboxConfig(item.id, currentDisplayName, !isVisible);
+                                                                            setActiveDropdownInboxId(null);
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
+                                                                    >
+                                                                        <span>Visible to Student</span>
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: item.visible ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: item.visible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        </div>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setRenameInboxId(item.id);
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            setRenameValue(config && config.displayName ? config.displayName : item.id);
+                                                                            setActiveDropdownInboxId(null);
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 text-[10px] font-extrabold text-left transition-colors border-t border-slate-100 flex items-center gap-1.5"
+                                                                    >
+                                                                        <span>✏️ </span>
+                                                                        <span>Rename Inbox</span>
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })
@@ -964,7 +1075,7 @@ const TeacherActivities = () => {
                                 </div>
                                 <div>
                                     <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                        {selectedInboxId ? getDisplayTitle(selectedInboxId) : 'Select an Inbox'}
+                                        {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
                                     </h1>
                                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                                         Your activities for this inbox
@@ -1231,7 +1342,7 @@ const TeacherActivities = () => {
                                     <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
                                         <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
                                         <p className="text-slate-500 text-xs leading-relaxed">
-                                            Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{getDisplayTitle(selectedInboxId)}</strong>.
+                                            Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{selectedGroup ? getDisplayTitle(selectedGroup.title) : getDisplayTitle(selectedInboxId)}</strong>.
                                         </p>
                                     </div>
 
@@ -1924,6 +2035,7 @@ const TeacherActivities = () => {
                                             setSelectedPracticeDate('');
                                             fetchStudentSubmissions(student._id);
                                             fetchStudentPracticeFiles(student._id);
+                                            fetchInboxConfigs(student._id);
                                             setShowStudentList(false);
                                         }}
                                         className={`flex items-center space-x-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-md shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}
@@ -2023,6 +2135,48 @@ const TeacherActivities = () => {
                                 className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all active:scale-95 uppercase tracking-widest text-xs"
                             >
                                 Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rename Inbox Modal */}
+            {renameInboxId && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-sm w-full p-8 animate-slide-up relative">
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">Rename Inbox</h3>
+                        <p className="text-xs text-slate-400 mb-6">Enter a new display name for this student's inbox.</p>
+
+                        <input
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            placeholder="Enter new inbox name..."
+                            className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-805 font-bold mb-6"
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setRenameInboxId(null);
+                                    setRenameValue('');
+                                }}
+                                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const config = inboxConfigs.find(c => c.inboxId === renameInboxId);
+                                    const isVisible = config ? config.visible : true;
+                                    await handleUpdateInboxConfig(renameInboxId, renameValue.trim(), isVisible);
+                                    setRenameInboxId(null);
+                                    setRenameValue('');
+                                }}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100"
+                            >
+                                Save Name
                             </button>
                         </div>
                     </div>

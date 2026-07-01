@@ -7,7 +7,9 @@ const {
     updateUser,
     markPhysicalAttendance,
     updateFeeStatus,
-    markBulkPhysicalAttendance
+    markBulkPhysicalAttendance,
+    getInboxConfigs,
+    saveInboxConfig
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -20,6 +22,11 @@ router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);
 router.get('/:id', protect, getUserById);
 router.delete('/:id', protect, adminOrEditor, deleteUser);
 router.put('/:id', protect, adminOrEditor, updateUser);
+
+// Student Inbox Configs
+router.get('/inbox-configs', protect, getInboxConfigs);
+router.get('/inbox-configs/:studentId', protect, getInboxConfigs);
+router.post('/inbox-configs', protect, saveInboxConfig);
 
 // ERP student services
 router.post('/:id/physical-attendance', protect, markPhysicalAttendance);

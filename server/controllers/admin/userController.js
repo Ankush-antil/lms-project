@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../../models/User');
 const Activity = require('../../models/Activity');
 const Course = require('../../models/Course');
+const StudentInboxConfig = require('../../models/StudentInboxConfig');
 
 // @desc    Get all users (filtered by role)
 // @route   GET /api/users
@@ -325,6 +326,47 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
     }
 });
 
+const getInboxConfigs = asyncHandler(async (req, res) => {
+    let targetStudentId = req.params.studentId;
+    if (!targetStudentId) {
+        if (req.user && req.user.role === 'Student') {
+            targetStudentId = req.user._id;
+        } else {
+            res.status(400);
+            throw new Error('Student ID is required');
+        }
+    }
+
+    const configs = await StudentInboxConfig.find({ student: targetStudentId });
+    res.json(configs);
+});
+
+const saveInboxConfig = asyncHandler(async (req, res) => {
+    const { studentId, inboxId, displayName, visible } = req.body;
+
+    if (!studentId || !inboxId) {
+        res.status(400);
+        throw new Error('studentId and inboxId are required');
+    }
+
+    let config = await StudentInboxConfig.findOne({ student: studentId, inboxId });
+
+    if (config) {
+        if (displayName !== undefined) config.displayName = displayName;
+        if (visible !== undefined) config.visible = visible;
+        await config.save();
+    } else {
+        config = await StudentInboxConfig.create({
+            student: studentId,
+            inboxId,
+            displayName: displayName || '',
+            visible: visible !== undefined ? visible : true
+        });
+    }
+
+    res.json(config);
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -332,5 +374,7 @@ module.exports = {
     updateUser,
     markPhysicalAttendance,
     updateFeeStatus,
-    markBulkPhysicalAttendance
+    markBulkPhysicalAttendance,
+    getInboxConfigs,
+    saveInboxConfig
 };

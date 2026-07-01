@@ -52,6 +52,7 @@ const StudentTests = () => {
     const navigate = useNavigate();
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
+    const [inboxConfigs, setInboxConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
@@ -255,12 +256,14 @@ const StudentTests = () => {
         const fetch = async () => {
             try {
                 if (!userInfo) return;
-                const [testsRes, subsRes] = await Promise.all([
+                const [testsRes, subsRes, configsRes] = await Promise.all([
                     axios.get('/api/tests'),
-                    axios.get('/api/submissions')
+                    axios.get('/api/submissions'),
+                    axios.get('/api/users/inbox-configs').catch(() => ({ data: [] }))
                 ]);
                 setTests(testsRes.data);
                 setSubmissions(subsRes.data);
+                setInboxConfigs(configsRes.data || []);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -285,16 +288,25 @@ const StudentTests = () => {
 
         const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
 
-        return Object.keys(grouped)
+        const items = Object.keys(grouped)
             .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => ({
-                id: indexStr,
-                title: indexStr,
-                completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
-                pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
-                tests: grouped[indexStr]
-            }));
-    }, [tests, submittedTestIds]);
+            .map(indexStr => {
+                const config = inboxConfigs.find(c => c.inboxId === indexStr);
+                const isVisible = config ? config.visible : true;
+                const customTitle = config && config.displayName ? config.displayName : indexStr;
+
+                return {
+                    id: indexStr,
+                    title: customTitle,
+                    completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
+                    pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
+                    tests: grouped[indexStr],
+                    visible: isVisible
+                };
+            });
+
+        return items.filter(item => item.visible);
+    }, [tests, submittedTestIds, inboxConfigs]);
 
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {

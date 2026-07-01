@@ -3015,7 +3015,7 @@ const PublicTestPage = () => {
                                                     </div>
                                                 ) : (
                                                     /* Textarea answer input for other standard types (assignment, activity, fallback) */
-                                                    (isTextType || isAssignment || isActivity || (!isMcq && !isCheckboxes && !isTrueFalse && !isFillBlanks && !isMatching && !isAudio && !isVideo && !isDropdown && !isDateTime && !isRating && !isUpload && !isImageDisplay && !isVideoDisplay && !isPdfDisplay && !isWebpageDisplay && !isEmbeddedVideo && !isEmbeddedSM && !isAudioListening && !isMultiFile && !isScreenshot && !isScreenRec && !isAudioCall && !isVideoCall && !isTextAI && !isVoiceAI)) && (
+                                                    (isTextType || isAssignment || isActivity || (!isMcq && !isCheckboxes && !isTrueFalse && !isFillBlanks && !isMatching && !isAudio && !isVideo && !isDropdown && !isDateTime && !isRating && !isUpload && !isImageDisplay && !isVideoDisplay && !isPdfDisplay && !isWebpageDisplay && !isEmbeddedVideo && !isEmbeddedSM && !isAudioListening && !isMultiFile && !isScreenshot && !isScreenRec && !isAudioCall && !isVoiceAI && !isTextAI && !isVideoCall && !isTabularData)) && (
                                                         <div className="relative group">
                                                             <textarea
                                                                 disabled={!isEditable}

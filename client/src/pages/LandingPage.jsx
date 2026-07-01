@@ -258,6 +258,13 @@ const LandingPage = () => {
     const [showPolicyModal, setShowPolicyModal] = useState(false);
     const [activePolicyText, setActivePolicyText] = useState('');
 
+    // Institutes state
+    const [institutes, setInstitutes] = useState([]);
+    const [loadingInstitutes, setLoadingInstitutes] = useState(true);
+    const [selectedInstitutePage, setSelectedInstitutePage] = useState(null); // clicked institute
+    const [showPolicyModal, setShowPolicyModal] = useState(false);
+    const [activePolicyText, setActivePolicyText] = useState('');
+
     // Apply Modal States
     const [selectedInstitute, setSelectedInstitute] = useState(null);
     const [selectedCourseForApply, setSelectedCourseForApply] = useState(null);
@@ -720,7 +727,11 @@ const LandingPage = () => {
                     {!showLockModal && guestSession && (
                         <button
                             onClick={() => navigate(`/track-applications?phone=${encodeURIComponent(guestSession.phone)}&name=${encodeURIComponent(guestSession.username)}`)}
+<<<<<<< Updated upstream
                             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold text-xs"
+=======
+                            className="flex items-center space-x-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold text-xs md:text-sm"
+>>>>>>> Stashed changes
                         >
                             <FileText size={14} />
                             <span>Track Applications</span>
@@ -840,10 +851,17 @@ const LandingPage = () => {
                                     {loadingCourses ? (
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {[1, 2, 3, 4].map(n => (
+<<<<<<< Updated upstream
                                                 <div key={n} className="bg-white/20 border border-white/30 backdrop-blur-md rounded-2xl p-5 h-40 animate-pulse space-y-3">
                                                     <div className="h-4 bg-white/30 rounded w-3/4" />
                                                     <div className="h-3 bg-white/20 rounded w-full" />
                                                     <div className="h-3 bg-white/20 rounded w-2/3" />
+=======
+                                                <div key={n} className="bg-white border border-slate-200 rounded-2xl p-5 h-40 animate-pulse space-y-3">
+                                                    <div className="h-4 bg-slate-100 rounded w-3/4" />
+                                                    <div className="h-3 bg-slate-100 rounded w-full" />
+                                                    <div className="h-3 bg-slate-100 rounded w-2/3" />
+>>>>>>> Stashed changes
                                                 </div>
                                             ))}
                                         </div>
@@ -857,6 +875,7 @@ const LandingPage = () => {
                                                 return (
                                                     <motion.div
                                                         key={courseName}
+<<<<<<< Updated upstream
                                                         whileHover={{ y: -6, scale: 1.01, boxShadow: '0 20px 40px rgba(30, 96, 163, 0.12)' }}
                                                         transition={{ duration: 0.2 }}
                                                         className="group bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-300 hover:bg-white/65 transition-all duration-300 shadow-md"
@@ -871,10 +890,22 @@ const LandingPage = () => {
                                                                 </span>
                                                             </div>
                                                             <p className="text-slate-500 text-[11px] leading-relaxed line-clamp-3 mt-1.5">
+=======
+                                                        whileHover={{ y: -4, boxShadow: '0 12px 32px rgba(99,102,241,0.10)' }}
+                                                        transition={{ duration: 0.18 }}
+                                                        className="bg-white border border-slate-100 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-200 transition-all shadow-sm"
+                                                    >
+                                                        <div className="space-y-2 flex-1">
+                                                            <h3 className="font-extrabold text-slate-800 text-sm leading-snug">
+                                                                {courseName}
+                                                            </h3>
+                                                            <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3">
+>>>>>>> Stashed changes
                                                                 {previewCourse?.description || 'Comprehensive LMS curriculum designed by experienced educators.'}
                                                             </p>
                                                         </div>
 
+<<<<<<< Updated upstream
                                                         <div className="mt-4 space-y-3">
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-650/90 bg-indigo-50/40 border border-indigo-100/50 px-2 py-0.5 rounded-lg w-fit">
                                                                 <Building size={10} />
@@ -885,6 +916,17 @@ const LandingPage = () => {
                                                                 className="w-full text-xs font-black text-white bg-gradient-to-r from-[#1e60a3] to-[#49a8f5] hover:from-[#1b5592] hover:to-[#3b93db] py-2 rounded-xl transition-all shadow-md shadow-[#1e60a3]/10 hover:shadow-[#1e60a3]/20 flex items-center justify-center gap-1 active:scale-[0.98]"
                                                             >
                                                                 Explore Program <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+=======
+                                                        <div className="mt-4 space-y-2">
+                                                            <p className="text-[10px] font-semibold text-slate-400">
+                                                                Available at {instituteCount} {instituteCount === 1 ? 'Institute' : 'Institutes'}
+                                                            </p>
+                                                            <button
+                                                                onClick={() => setSelectedCourseName(courseName)}
+                                                                className="w-full text-xs font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 py-1.5 rounded-xl transition-all"
+                                                            >
+                                                                Explore →
+>>>>>>> Stashed changes
                                                             </button>
                                                         </div>
                                                     </motion.div>
@@ -927,14 +969,24 @@ const LandingPage = () => {
                                         ].map((stat, idx) => {
                                             const IconComp = stat.icon;
                                             return (
+<<<<<<< Updated upstream
                                                 <div key={idx} className="bg-white/40 border border-white/65 rounded-3xl p-5 text-center shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 hover:-translate-y-1.5 transition-all duration-300 group backdrop-blur-md relative overflow-hidden">
                                                     <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-50/30 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
+=======
+                                                <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-all duration-500"></div>
+>>>>>>> Stashed changes
                                                     <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mx-auto mb-3`}>
                                                         <IconComp size={18} />
                                                     </div>
                                                     <h4 className="text-2xl font-black text-slate-900 leading-none">{stat.count}</h4>
+<<<<<<< Updated upstream
                                                     <p className="text-[11px] font-extrabold text-slate-850 mt-1.5 leading-none">{stat.label}</p>
                                                     <p className="text-[9.5px] text-slate-500 font-bold mt-1 leading-none">{stat.desc}</p>
+=======
+                                                    <p className="text-[11px] font-bold text-slate-800 mt-1.5 leading-none">{stat.label}</p>
+                                                    <p className="text-[9px] text-slate-400 font-medium mt-1 leading-none">{stat.desc}</p>
+>>>>>>> Stashed changes
                                                 </div>
                                             );
                                         })}
@@ -954,12 +1006,21 @@ const LandingPage = () => {
                                             ].map((feature, i) => {
                                                 const IconC = feature.icon;
                                                 return (
+<<<<<<< Updated upstream
                                                     <div key={i} className="bg-white/45 border border-white/65 p-6 rounded-2xl shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 transition-all duration-300 space-y-3 hover:-translate-y-1.5 backdrop-blur-md">
                                                         <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center`}>
                                                             <IconC size={20} />
                                                         </div>
                                                         <h4 className="font-black text-slate-900 text-sm">{feature.title}</h4>
                                                         <p className="text-slate-600 text-xs leading-relaxed font-semibold">{feature.desc}</p>
+=======
+                                                    <div key={i} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all space-y-3 hover:-translate-y-1 duration-300">
+                                                        <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center`}>
+                                                            <IconC size={20} />
+                                                        </div>
+                                                        <h4 className="font-extrabold text-slate-800 text-sm">{feature.title}</h4>
+                                                        <p className="text-slate-500 text-xs leading-relaxed">{feature.desc}</p>
+>>>>>>> Stashed changes
                                                     </div>
                                                 );
                                             })}
@@ -1053,9 +1114,15 @@ const LandingPage = () => {
                                             return (
                                                 <motion.div
                                                     key={courseObj._id}
+<<<<<<< Updated upstream
                                                     whileHover={{ y: -6, scale: 1.01, boxShadow: '0 20px 40px rgba(30, 96, 163, 0.12)' }}
                                                     transition={{ duration: 0.2 }}
                                                     className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl shadow-md hover:shadow-xl hover:border-indigo-300 hover:bg-white/65 transition-all overflow-hidden flex flex-col justify-between"
+=======
+                                                    whileHover={{ y: -4, scale: 1.005 }}
+                                                    transition={{ duration: 0.18 }}
+                                                    className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all overflow-hidden flex flex-col justify-between"
+>>>>>>> Stashed changes
                                                 >
                                                     <div>
                                                         {/* Top Image / Colored Block */}
@@ -1090,6 +1157,7 @@ const LandingPage = () => {
                                                             <div>
                                                                 <div className="flex items-center justify-between gap-2">
                                                                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{inst.code}</span>
+<<<<<<< Updated upstream
                                                                     {inst.admissionOpen ? (
                                                                         <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
                                                                             Admissions Open
@@ -1099,6 +1167,11 @@ const LandingPage = () => {
                                                                             Admissions Closed
                                                                         </span>
                                                                     )}
+=======
+                                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                                                                        Admissions Open
+                                                                    </span>
+>>>>>>> Stashed changes
                                                                 </div>
                                                                 <h3 className="font-extrabold text-slate-800 text-base leading-tight mt-1 transition-colors">
                                                                     {inst.name}
@@ -1143,7 +1216,11 @@ const LandingPage = () => {
                                                     </div>
 
                                                     {/* Card Actions at Bottom */}
+<<<<<<< Updated upstream
                                                     <div className="px-5 pt-3 pb-5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
+=======
+                                                    <div className="p-5 pt-0 border-t border-slate-50 flex items-center justify-between gap-2 mt-2">
+>>>>>>> Stashed changes
                                                         <div>
                                                             {courseObj.syllabusUrl && (
                                                                 <button
@@ -1154,6 +1231,7 @@ const LandingPage = () => {
                                                                 </button>
                                                             )}
                                                         </div>
+<<<<<<< Updated upstream
                                                         <div className="flex items-center gap-1.5">
                                                             {inst.admissionOpen && (
                                                                 <button
@@ -1193,6 +1271,14 @@ const LandingPage = () => {
                                                                 </span>
                                                             )}
                                                         </div>
+=======
+                                                        <button
+                                                            onClick={() => handleOpenApplyModal(courseObj)}
+                                                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/15"
+                                                        >
+                                                            Apply Now <ArrowRight size={12} />
+                                                        </button>
+>>>>>>> Stashed changes
                                                     </div>
                                                 </motion.div>
                                             );
@@ -2336,6 +2422,7 @@ const LandingPage = () => {
                                 </button>
                             </div>
                             <div className="text-xs text-slate-600 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap pr-1">
+<<<<<<< Updated upstream
                                 {activePolicyText ? (
                                     (activePolicyText.startsWith('http') || activePolicyText.startsWith('/uploads')) ? (
                                         <div className="flex flex-col items-center justify-center p-6 border border-slate-100 rounded-2xl bg-slate-50 space-y-3 my-1">
@@ -2355,6 +2442,9 @@ const LandingPage = () => {
                                 ) : (
                                     "No custom terms or policies specified by this institute."
                                 )}
+=======
+                                {activePolicyText || "No custom terms or policies specified by this institute."}
+>>>>>>> Stashed changes
                             </div>
                             <div className="pt-2 flex justify-end">
                                 <button
@@ -2368,6 +2458,7 @@ const LandingPage = () => {
                     </div>
                 )}
             </AnimatePresence>
+<<<<<<< Updated upstream
 
             {/* ─────────────── ROLE REGISTRATION REQUEST MODAL ─────────────── */}
             <AnimatePresence>
@@ -2599,6 +2690,8 @@ const LandingPage = () => {
                     </div>
                 )}
             </AnimatePresence>
+=======
+>>>>>>> Stashed changes
         </div>
     );
 };

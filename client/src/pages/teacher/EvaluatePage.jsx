@@ -563,9 +563,49 @@ const EvaluatePage = () => {
                                                           <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                                                               {/* Top container displaying answers */}
                                                               <div className="p-4 bg-slate-50/50 text-slate-700 font-medium text-sm leading-relaxed whitespace-pre-wrap text-left flex flex-col gap-3">
-                                                                  {ans.textAnswer && (
-                                                                      <div>{ans.textAnswer}</div>
-                                                                  )}
+                                                                  {ans.textAnswer && (() => {
+                                                                       if (ans.questionType?.toLowerCase() === 'tabular data' || q?.type?.toLowerCase() === 'tabular data') {
+                                                                           try {
+                                                                               const parsedRows = JSON.parse(ans.textAnswer);
+                                                                               const headers = q?.tableData?.headers || [];
+                                                                               const origRows = q?.tableData?.rows || [];
+                                                                               
+                                                                               return (
+                                                                                   <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white my-1">
+                                                                                       <table className="min-w-full divide-y divide-slate-200">
+                                                                                           <thead className="bg-slate-50">
+                                                                                               <tr>
+                                                                                                   {headers.map((header, colIdx) => (
+                                                                                                       <th key={colIdx} className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
+                                                                                                           {header}
+                                                                                                       </th>
+                                                                                                   ))}
+                                                                                               </tr>
+                                                                                           </thead>
+                                                                                           <tbody className="divide-y divide-slate-150 bg-white">
+                                                                                               {parsedRows.map((row, rowIdx) => (
+                                                                                                   <tr key={rowIdx}>
+                                                                                                       {row.map((cell, colIdx) => {
+                                                                                                           const wasEmpty = !origRows[rowIdx]?.[colIdx];
+                                                                                                           return (
+                                                                                                               <td key={colIdx} className={`px-3 py-2 text-xs ${wasEmpty ? 'bg-purple-50/30 text-purple-750 font-bold' : 'text-slate-600 font-medium'}`}>
+                                                                                                                   {cell || <span className="text-slate-405 italic">Empty</span>}
+                                                                                                               </td>
+                                                                                                           );
+                                                                                                       })}
+                                                                                                   </tr>
+                                                                                               ))}
+                                                                                           </tbody>
+                                                                                       </table>
+                                                                                   </div>
+                                                                               );
+                                                                           } catch (e) {
+                                                                               console.error("Error parsing tabular answer:", e);
+                                                                               return <div>{ans.textAnswer}</div>;
+                                                                           }
+                                                                       }
+                                                                       return <div>{ans.textAnswer}</div>;
+                                                                   })()}
                                                                   {ans.audioData && (
                                                                       <div>
                                                                           <audio controls src={ans.audioData} className="w-full h-9" />
@@ -1053,9 +1093,49 @@ const EvaluatePage = () => {
                                                         <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                                                             {/* Top container displaying answers */}
                                                             <div className="p-4 bg-slate-50/50 text-slate-700 font-medium text-sm leading-relaxed whitespace-pre-wrap text-left flex flex-col gap-3">
-                                                                {ans.textAnswer && (
-                                                                    <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">{ans.textAnswer}</div>
-                                                                )}
+                                                                {ans.textAnswer && (() => {
+                                                                    if (ans.questionType?.toLowerCase() === 'tabular data' || q?.type?.toLowerCase() === 'tabular data') {
+                                                                        try {
+                                                                            const parsedRows = JSON.parse(ans.textAnswer);
+                                                                            const headers = q?.tableData?.headers || [];
+                                                                            const origRows = q?.tableData?.rows || [];
+                                                                            
+                                                                            return (
+                                                                                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white my-1">
+                                                                                    <table className="min-w-full divide-y divide-slate-200">
+                                                                                        <thead className="bg-slate-50">
+                                                                                            <tr>
+                                                                                                {headers.map((header, colIdx) => (
+                                                                                                    <th key={colIdx} className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
+                                                                                                        {header}
+                                                                                                    </th>
+                                                                                                ))}
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody className="divide-y divide-slate-150 bg-white">
+                                                                                            {parsedRows.map((row, rowIdx) => (
+                                                                                                <tr key={rowIdx}>
+                                                                                                    {row.map((cell, colIdx) => {
+                                                                                                        const wasEmpty = !origRows[rowIdx]?.[colIdx];
+                                                                                                        return (
+                                                                                                            <td key={colIdx} className={`px-3 py-2 text-xs ${wasEmpty ? 'bg-purple-50/30 text-purple-750 font-bold' : 'text-slate-600 font-medium'}`}>
+                                                                                                                {cell || <span className="text-slate-405 italic">Empty</span>}
+                                                                                                            </td>
+                                                                                                        );
+                                                                                                    })}
+                                                                                                </tr>
+                                                                                            ))}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            );
+                                                                        } catch (e) {
+                                                                            console.error("Error parsing tabular answer:", e);
+                                                                            return <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">{ans.textAnswer}</div>;
+                                                                        }
+                                                                    }
+                                                                    return <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">{ans.textAnswer}</div>;
+                                                                })()}
                                                                 {ans.audioData && (
                                                                     <div>
                                                                         <audio controls src={ans.audioData} className="w-full h-9" />

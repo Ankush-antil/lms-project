@@ -164,7 +164,11 @@ const PublicTestPage = () => {
                 // Initialize answers dictionary
                 const initialAnswers = {};
                 res.data.questions.forEach((q, idx) => {
-                    initialAnswers[idx] = q.type?.toLowerCase() === 'checkboxes' ? [] : '';
+                    if (q.type?.toLowerCase() === 'tabular data') {
+                        initialAnswers[idx] = q.tableData?.rows ? JSON.parse(JSON.stringify(q.tableData.rows)) : [];
+                    } else {
+                        initialAnswers[idx] = q.type?.toLowerCase() === 'checkboxes' ? [] : '';
+                    }
                 });
                 setAnswers(initialAnswers);
 
@@ -240,7 +244,11 @@ const PublicTestPage = () => {
         if (viewState === 'test' && test) {
             const initialAnswers = {};
             test.questions.forEach((q, idx) => {
-                initialAnswers[idx] = q.type?.toLowerCase() === 'checkboxes' ? [] : "";
+                if (q.type?.toLowerCase() === 'tabular data') {
+                    initialAnswers[idx] = q.tableData?.rows ? JSON.parse(JSON.stringify(q.tableData.rows)) : [];
+                } else {
+                    initialAnswers[idx] = q.type?.toLowerCase() === 'checkboxes' ? [] : "";
+                }
             });
             const savedDrafts = localStorage.getItem(`public_draft_${testId}`);
             if (savedDrafts) {
@@ -1509,6 +1517,7 @@ const PublicTestPage = () => {
                         const isTrueFalse = type?.includes('true') || type?.includes('false') || type === 'true false';
                         const isFillBlanks = type?.includes('blank') || type === 'fill in the blanks';
                         const isMatching = type?.includes('match') || type === 'matching';
+                        const isTabularData = type === 'tabular data';
                         const isAudio = type === 'audio' || type === 'voice recording' || type === 'voice rec';
                         const isVideo = type === 'video' || type === 'video recording' || type === 'video rec';
                         const isUpload = type === 'upload' || type === 'file upload';
@@ -1901,6 +1910,67 @@ const PublicTestPage = () => {
                                                                 </div>
                                                             );
                                                         })}
+                                                    </div>
+                                                )}
+
+                                                {/* Tabular Data */}
+                                                {isTabularData && (
+                                                    <div className="space-y-3 text-left">
+                                                        <span className="text-xs text-slate-400 font-bold block">Fill in the table:</span>
+                                                        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                                                            <table className="min-w-full divide-y divide-slate-200">
+                                                                <thead className="bg-slate-50">
+                                                                    <tr>
+                                                                        {(q.tableData?.headers || []).map((header, colIdx) => (
+                                                                            <th key={colIdx} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
+                                                                                {header}
+                                                                            </th>
+                                                                        ))}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-150 bg-white">
+                                                                    {(q.tableData?.rows || []).map((row, rowIdx) => (
+                                                                        <tr key={rowIdx}>
+                                                                            {row.map((cell, colIdx) => {
+                                                                                const isPreFilled = cell !== '';
+                                                                                const currentVal = (answers[idx]?.[rowIdx]?.[colIdx] !== undefined)
+                                                                                    ? answers[idx][rowIdx][colIdx]
+                                                                                    : '';
+                                                                                return (
+                                                                                    <td key={colIdx} className="px-4 py-3 text-sm text-slate-700">
+                                                                                        {isPreFilled ? (
+                                                                                            <span className="font-semibold text-slate-800">{cell}</span>
+                                                                                        ) : (
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={currentVal}
+                                                                                                disabled={!isEditable}
+                                                                                                onChange={(e) => {
+                                                                                                    const val = e.target.value;
+                                                                                                    setAnswers(prev => {
+                                                                                                        const copy = prev[idx] ? JSON.parse(JSON.stringify(prev[idx])) : [];
+                                                                                                        while (copy.length <= rowIdx) {
+                                                                                                            copy.push(Array(row.length).fill(''));
+                                                                                                        }
+                                                                                                        copy[rowIdx][colIdx] = val;
+                                                                                                        return {
+                                                                                                            ...prev,
+                                                                                                            [idx]: copy
+                                                                                                        };
+                                                                                                    });
+                                                                                                }}
+                                                                                                placeholder="Type answer..."
+                                                                                                className={`w-full text-xs font-medium text-slate-650 bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 rounded px-2.5 py-1.5 outline-none transition-all ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                                            />
+                                                                                        )}
+                                                                                    </td>
+                                                                                );
+                                                                            })}
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
                                                 )}
 

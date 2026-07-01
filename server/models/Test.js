@@ -61,6 +61,7 @@ const testSchema = new mongoose.Schema({
             value: String
         }],
         blankAnswers: [String],
+        tableData: { type: mongoose.Schema.Types.Mixed },
         uploadedFiles: [{
             name: String,
             size: Number

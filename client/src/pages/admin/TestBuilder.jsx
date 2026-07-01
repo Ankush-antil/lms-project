@@ -74,6 +74,7 @@ import EmbeddedVideoBuilder from '../../components/builder/elements/EmbeddedVide
 import EmbeddedSMBuilder from '../../components/builder/elements/EmbeddedSMContentDisplaying';
 import MultiFileBuilder from '../../components/builder/elements/MultiFileDisplaying';
 import VideoCallBuilder from '../../components/builder/elements/WebBasedVideoCalling';
+import TabularDataBuilder from '../../components/builder/elements/TabularDataBuilder';
 
 // Helper to strip HTML tags from rich text content
 const stripHtml = (html) => {
@@ -1379,6 +1380,8 @@ const QuestionBuilderCard = ({
                                     return <AssignmentBuilder {...commonProps} />;
                                 case 'Activity':
                                     return <ActivityBuilder {...commonProps} />;
+                                case 'Tabular Data':
+                                    return <TabularDataBuilder {...commonProps} />;
                                 case 'Date & Time':
                                 case 'Date/Time':
                                     return <DateTimeBuilder {...commonProps} />;
@@ -2115,7 +2118,8 @@ const TestBuilder = () => {
         { icon: Sliders, label: 'Matching', category: 'Advanced Fields' },
         { icon: Type, label: 'Fill in the Blanks', category: 'Advanced Fields' },
         { icon: FileText, label: 'Assignment', category: 'Advanced Fields' },
-        { icon: Activity, label: 'Activity', category: 'Advanced Fields' }
+        { icon: Activity, label: 'Activity', category: 'Advanced Fields' },
+        { icon: Table, label: 'Tabular Data', category: 'Advanced Fields' }
     ];
 
     // Fetch existing test details if editing
@@ -2442,6 +2446,10 @@ const TestBuilder = () => {
             ? ['frontend']
             : [];
 
+        const defaultTableData = element.label === 'Tabular Data'
+            ? { headers: ['Column 1', 'Column 2', 'Column 3'], rows: [['', '', ''], ['', '', '']] }
+            : null;
+
         setFormElements(prev => [...prev, {
             id: Math.random().toString(36).substring(2, 9),
             label: element.label,
@@ -2449,6 +2457,7 @@ const TestBuilder = () => {
             options: defaultOptions,
             matchingPairs: defaultMatchingPairs,
             blankAnswers: defaultBlankAnswers,
+            tableData: defaultTableData,
             icon: sidebarElements.find(s => s.label === element.label)?.icon || FileText,
             description: '',
             helperText: '',

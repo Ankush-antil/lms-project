@@ -125,6 +125,7 @@ const uploadSyllabusController = asyncHandler(async (req, res) => {
     });
 });
 
+<<<<<<< Updated upstream
 // @desc    Upload institute document (Terms/Policies)
 // @route   POST /api/setup/institutes/upload-document
 // @access  Private/Admin
@@ -144,11 +145,17 @@ const uploadInstituteDocumentController = asyncHandler(async (req, res) => {
     });
 });
 
+=======
+>>>>>>> Stashed changes
 // @desc    Update institute
 // @route   PUT /api/setup/institutes/:id
 // @access  Private/Admin
 const updateInstitute = asyncHandler(async (req, res) => {
+<<<<<<< Updated upstream
     const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber, admissionOpen, teacherHiring, editorHiring } = req.body;
+=======
+    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber } = req.body;
+>>>>>>> Stashed changes
     const institute = await Institute.findById(req.params.id);
 
     if (institute) {
@@ -161,9 +168,12 @@ const updateInstitute = asyncHandler(async (req, res) => {
         if (termsAndPolicies !== undefined) institute.termsAndPolicies = termsAndPolicies;
         if (phone !== undefined) institute.phone = phone;
         if (helplineNumber !== undefined) institute.helplineNumber = helplineNumber;
+<<<<<<< Updated upstream
         if (admissionOpen !== undefined) institute.admissionOpen = admissionOpen;
         if (teacherHiring !== undefined) institute.teacherHiring = teacherHiring;
         if (editorHiring !== undefined) institute.editorHiring = editorHiring;
+=======
+>>>>>>> Stashed changes
 
         const updatedInstitute = await institute.save();
 
@@ -309,6 +319,18 @@ const getCourses = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
     const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
+<<<<<<< Updated upstream
+=======
+
+    const courseExists = await Course.findOne({ code });
+    if (courseExists) {
+        res.status(400);
+        throw new Error('Course code already exists');
+    }
+
+    // subjects can be comma separated string or array
+    const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim());
+>>>>>>> Stashed changes
 
     // Determine status based on user role (req.user is populated by protect middleware)
     const status = 'active';
@@ -889,7 +911,10 @@ module.exports = {
     deleteCourse,
     uploadInstituteImageController,
     uploadSyllabusController,
+<<<<<<< Updated upstream
     uploadInstituteDocumentController,
+=======
+>>>>>>> Stashed changes
 
     submitApplication,
     getApplications,

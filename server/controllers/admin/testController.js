@@ -48,8 +48,8 @@ const createTest = asyncHandler(async (req, res) => {
 
     validateWebpageQuestions(questions);
 
-    // Enforce institute name for Institute role
-    if (req.user && req.user.role === 'Institute') {
+    // Enforce institute name for Institute, Teacher and Editor roles
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         if (userWithInst && userWithInst.institute) {
             testDetails.institute = userWithInst.institute.name;
@@ -79,7 +79,7 @@ const createTest = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getTests = asyncHandler(async (req, res) => {
     let query = {};
-    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor' || req.user.role === 'Teacher')) {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         if (userWithInst && userWithInst.institute) {
             const escapedName = userWithInst.institute.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -119,14 +119,22 @@ const updateTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
 
     if (test) {
-        // Enforce institute ownership for Institute role
-        if (req.user && req.user.role === 'Institute') {
+        // Enforce institute ownership for Institute, Teacher and Editor roles
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
             const userWithInst = await User.findById(req.user._id).populate('institute');
             const instName = userWithInst?.institute?.name?.trim().toLowerCase();
             const testInstName = test.institute?.trim().toLowerCase();
             if (!instName || instName !== testInstName) {
                 res.status(403);
                 throw new Error('Not authorized to update tests of other institutes');
+            }
+            // Enforce edit permission for teachers
+            if (req.user.role === 'Teacher') {
+                const isCreator = test.createdBy && test.createdBy.toString() === req.user._id.toString();
+                if (!isCreator && !test.allowTeacherEdit) {
+                    res.status(403);
+                    throw new Error('Not authorized to edit this test (Editor permission required)');
+                }
             }
             // Enforce their own institute name on update
             if (testDetails.institute !== undefined && userWithInst?.institute) {
@@ -145,6 +153,7 @@ const updateTest = asyncHandler(async (req, res) => {
         if (testDetails.publicSettings !== undefined) test.publicSettings = testDetails.publicSettings;
         if (testDetails.status !== undefined) test.status = testDetails.status;
         if (testDetails.discussionActivity !== undefined) test.discussionActivity = testDetails.discussionActivity;
+        if (testDetails.allowTeacherEdit !== undefined) test.allowTeacherEdit = testDetails.allowTeacherEdit;
 
         if (settings !== undefined) test.settings = settings;
         if (questions !== undefined) test.questions = questions;
@@ -163,14 +172,22 @@ const updateTest = asyncHandler(async (req, res) => {
 const deleteTest = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id);
     if (test) {
-        // Enforce institute ownership for Institute and Editor roles
-        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        // Enforce institute ownership for Institute, Teacher and Editor roles
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor' || req.user.role === 'Teacher')) {
             const userWithInst = await User.findById(req.user._id).populate('institute');
             const instName = userWithInst?.institute?.name?.trim().toLowerCase();
             const testInstName = test.institute?.trim().toLowerCase();
             if (!instName || instName !== testInstName) {
                 res.status(403);
                 throw new Error('Not authorized to delete tests of other institutes');
+            }
+            // Enforce delete permission for teachers
+            if (req.user.role === 'Teacher') {
+                const isCreator = test.createdBy && test.createdBy.toString() === req.user._id.toString();
+                if (!isCreator && !test.allowTeacherEdit) {
+                    res.status(403);
+                    throw new Error('Not authorized to delete this test (Editor permission required)');
+                }
             }
         }
 

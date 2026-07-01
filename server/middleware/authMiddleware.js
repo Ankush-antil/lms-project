@@ -45,11 +45,11 @@ const admin = (req, res, next) => {
 };
 
 const adminOrEditor = (req, res, next) => {
-    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Editor' || req.user.role === 'Institute')) {
+    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Editor' || req.user.role === 'Institute' || req.user.role === 'Teacher')) {
         next();
     } else {
-        console.warn(`ADMIN/EDITOR/INSTITUTE UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
-        res.status(401).json({ message: 'Not authorized as admin, editor or institute' });
+        console.warn(`ADMIN/EDITOR/INSTITUTE/TEACHER UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
+        res.status(401).json({ message: 'Not authorized as admin, editor, institute or teacher' });
     }
 };
 

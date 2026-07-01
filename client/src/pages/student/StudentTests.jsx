@@ -946,18 +946,26 @@ const StudentTests = () => {
                                         {activeTests.map(test => {
                                             const sub = submissionMap.get(test._id);
                                             const isEvaluated = sub && sub.status === 'evaluated';
+                                            const config = activityConfigs.find(c => c.test === test._id);
+                                            const isActivityDisabled = config ? !!config.disabled : false;
 
                                             return (
                                                 <div
                                                     key={test._id}
                                                     onClick={() => {
+                                                        if (isActivityDisabled) {
+                                                            toast.error("This activity has been disabled by the teacher.");
+                                                            return;
+                                                        }
                                                         if (!sub) {
                                                             navigate(`/student/take-test/${test._id}`);
                                                         } else {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group"
+                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group ${
+                                                        isActivityDisabled ? 'opacity-65 bg-slate-50 border-slate-200 cursor-not-allowed' : ''
+                                                    }`}
                                                 >
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
@@ -980,21 +988,30 @@ const StudentTests = () => {
                                                         </button>
 
                                                         <button
-                                                            onClick={() => {
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (isActivityDisabled) {
+                                                                    toast.error("This activity has been disabled by the teacher.");
+                                                                    return;
+                                                                }
                                                                 if (!sub) {
                                                                     navigate(`/student/take-test/${test._id}`);
                                                                 } else {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${!sub
-                                                                ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                : isEvaluated
-                                                                    ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                    : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                                }`}
+                                                            disabled={isActivityDisabled}
+                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                isActivityDisabled
+                                                                    ? 'bg-slate-250 text-slate-450 border-slate-300 cursor-not-allowed'
+                                                                    : !sub
+                                                                        ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                        : isEvaluated
+                                                                            ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                            : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                            }`}
                                                         >
-                                                            {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isActivityDisabled ? 'Disabled by Teacher' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>

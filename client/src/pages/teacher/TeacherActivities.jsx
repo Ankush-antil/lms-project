@@ -6,10 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Users, Search, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
-    BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
+    BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
-    CreditCard, Activity
+    CreditCard, Activity, Edit3
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -66,6 +66,7 @@ const TeacherActivities = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [infoModalData, setInfoModalData] = useState(null);
     const [activeDropdownInboxId, setActiveDropdownInboxId] = useState(null);
+    const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
     const [renameInboxId, setRenameInboxId] = useState(null);
     const [renameValue, setRenameValue] = useState('');
     const [showStudentList, setShowStudentList] = useState(true);
@@ -121,6 +122,15 @@ const TeacherActivities = () => {
             fetchInboxPractice();
         }
     }, [selectedStudent, selectedInboxId, viewMode]);
+
+    useEffect(() => {
+        const handleGlobalClick = () => {
+            setActiveDropdownInboxId(null);
+            setActiveDropdownTestId(null);
+        };
+        document.addEventListener('click', handleGlobalClick);
+        return () => document.removeEventListener('click', handleGlobalClick);
+    }, []);
 
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -247,13 +257,14 @@ const TeacherActivities = () => {
         }
     };
 
-    const handleUpdateActivityConfig = async (testId, visible) => {
+    const handleUpdateActivityConfig = async (testId, visible, disabled) => {
         if (!selectedStudent) return;
         try {
             const { data } = await axios.post('/api/users/activity-configs', {
                 studentId: selectedStudent._id,
                 testId,
-                visible
+                visible,
+                disabled
             });
             setActivityConfigs(prev => {
                 const copy = [...prev];
@@ -265,10 +276,10 @@ const TeacherActivities = () => {
                 }
                 return copy;
             });
-            toast.success("Activity visibility updated successfully!");
+            toast.success("Activity configuration updated successfully!");
         } catch (err) {
             console.error("Error saving activity config:", err);
-            toast.error("Failed to update activity visibility");
+            toast.error("Failed to update activity configuration");
         }
     };
 
@@ -369,6 +380,14 @@ const TeacherActivities = () => {
             // 3. Match Course
             const testCourse = test.course?.trim().toLowerCase() || '';
             if (testCourse && testCourse !== studentCourse.toLowerCase()) return false;
+
+            // 4. Match student-specific assignment
+            if (test.assignedStudents && test.assignedStudents.length > 0) {
+                const isAssignedToThisStudent = test.assignedStudents.some(id => 
+                    id.toString() === selectedStudent._id.toString()
+                );
+                if (!isAssignedToThisStudent) return false;
+            }
 
             return true;
         });
@@ -1191,7 +1210,8 @@ const TeacherActivities = () => {
                                 </div>
                             </div>
                         ) : studentTab === 'tests' ? (
-                            !selectedInboxId ? (
+                            <>
+                            {!selectedInboxId ? (
                                 <div className="h-full flex items-center justify-center">
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
                                         <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
@@ -1622,49 +1642,136 @@ const TeacherActivities = () => {
                                                 const isEvaluated = sub && sub.status === 'evaluated';
                                                 const config = activityConfigs.find(c => c.test === test._id);
                                                 const isActivityVisible = config ? config.visible : true;
+                                                const isActivityDisabled = config ? !!config.disabled : false;
  
                                                 return (
                                                     <div
                                                         key={test._id}
                                                         className={`bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
                                                     >
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                                }`} />
-                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                                {test.title}
-                                                            </h3>
-                                                        </div>
- 
-                                                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                            <div className="flex items-center space-x-1.5">
+                                                        <div className="flex items-start justify-between gap-2 min-w-0">
+                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                                                <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                                    {test.title}
+                                                                </h3>
+                                                            </div>
+
+                                                            {/* Three-dot menu */}
+                                                            <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        setInfoModalData(test);
+                                                                        setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
                                                                     }}
-                                                                    className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                                    title="RI Details"
+                                                                    className="p-1 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                    title="Options"
                                                                 >
-                                                                    <Eye size={14} />
+                                                                    <MoreVertical size={14} />
                                                                 </button>
- 
-                                                                {viewMode === 'pending' && (
-                                                                    <div className="flex items-center gap-1" title={isActivityVisible ? "Visible to Student" : "Hidden from Student"}>
+
+                                                                {activeDropdownTestId === test._id && (
+                                                                    <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in">
+                                                                        {/* View Details */}
                                                                         <button
-                                                                            onClick={async (e) => {
+                                                                            onClick={(e) => {
                                                                                 e.stopPropagation();
-                                                                                await handleUpdateActivityConfig(test._id, !isActivityVisible);
+                                                                                setActiveDropdownTestId(null);
+                                                                                setInfoModalData(test);
                                                                             }}
-                                                                            className="w-7 h-3.5 rounded-full p-0.5 transition-colors duration-200 shrink-0"
-                                                                            style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
+                                                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
                                                                         >
-                                                                            <div className="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(12px)' : 'translateX(0px)' }} />
+                                                                            <Eye size={13} className="text-slate-400" />
+                                                                            View Details
                                                                         </button>
+
+                                                                        {/* Edit Activity */}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveDropdownTestId(null);
+                                                                                const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
+                                                                                if (isCreator || test.allowTeacherEdit) {
+                                                                                    navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
+                                                                                } else {
+                                                                                    toast.error("Permission Denied: Editor has not authorized editing for this activity.");
+                                                                                }
+                                                                            }}
+                                                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                        >
+                                                                            <Edit3 size={13} className="text-slate-400" />
+                                                                            Edit Activity
+                                                                        </button>
+
+                                                                        {viewMode === 'pending' && (
+                                                                            <>
+                                                                                <div className="border-t border-slate-100 my-1" />
+
+                                                                                {/* Visibility toggle */}
+                                                                                <div
+                                                                                    className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                    onClick={async (e) => {
+                                                                                        e.stopPropagation();
+                                                                                        await handleUpdateActivityConfig(test._id, !isActivityVisible, isActivityDisabled);
+                                                                                    }}
+                                                                                >
+                                                                                    <span className="text-xs font-bold text-slate-700">
+                                                                                        {isActivityVisible ? 'Hide from Student' : 'Show to Student'}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                        style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
+                                                                                        onClick={async (e) => {
+                                                                                            e.stopPropagation();
+                                                                                            await handleUpdateActivityConfig(test._id, !isActivityVisible, isActivityDisabled);
+                                                                                        }}
+                                                                                    >
+                                                                                        <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                    </button>
+                                                                                </div>
+
+                                                                                {/* Disable toggle */}
+                                                                                <div
+                                                                                    className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                    onClick={async (e) => {
+                                                                                        e.stopPropagation();
+                                                                                        await handleUpdateActivityConfig(test._id, isActivityVisible, !isActivityDisabled);
+                                                                                    }}
+                                                                                >
+                                                                                    <span className="text-xs font-bold text-slate-700">
+                                                                                        {isActivityDisabled ? 'Enable Activity' : 'Disable Activity'}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                        style={{ backgroundColor: isActivityDisabled ? '#ef4444' : '#cbd5e1' }}
+                                                                                        onClick={async (e) => {
+                                                                                            e.stopPropagation();
+                                                                                            await handleUpdateActivityConfig(test._id, isActivityVisible, !isActivityDisabled);
+                                                                                        }}
+                                                                                    >
+                                                                                        <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
- 
+                                                        </div>
+
+                                                        {/* Status badges */}
+                                                        {((!isActivityVisible) || isActivityDisabled) && (
+                                                            <div className="flex items-center gap-1 mt-1.5">
+                                                                {!isActivityVisible && (
+                                                                    <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">Hidden</span>
+                                                                )}
+                                                                {isActivityDisabled && (
+                                                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">Disabled</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex items-center justify-end mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                             {sub ? (
                                                                 <button
                                                                     onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
@@ -1676,16 +1783,9 @@ const TeacherActivities = () => {
                                                                     {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
                                                                 </button>
                                                             ) : (
-                                                                <div className="flex items-center gap-1 select-none mr-1">
-                                                                    {!isActivityVisible && (
-                                                                        <span className="text-[9px] font-black uppercase text-red-500">
-                                                                            (Hidden)
-                                                                        </span>
-                                                                    )}
-                                                                    <span className="text-[9px] font-black uppercase text-slate-400">
-                                                                        Pending Submit
-                                                                    </span>
-                                                                </div>
+                                                                <span className="text-[9px] font-black uppercase text-slate-400 select-none">
+                                                                    Pending Submit
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1694,7 +1794,20 @@ const TeacherActivities = () => {
                                         </div>
                                     )}
                                 </div>
-                            )
+                            )}
+
+                            {selectedInboxId && (
+                                <div className="pt-6 flex justify-start">
+                                    <button
+                                        onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-100 hover:shadow-indigo-200 active:scale-95 border border-transparent"
+                                    >
+                                        <Plus size={14} strokeWidth={3} />
+                                        <span>Add More</span>
+                                    </button>
+                                </div>
+                            )}
+                            </>
                         ) : studentTab === 'practice' ? (
                             /* --- PRACTICE WORKSPACE REVIEW --- */
                             <div className="animate-fade-in space-y-6">

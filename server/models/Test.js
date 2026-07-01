@@ -190,7 +190,20 @@ const testSchema = new mongoose.Schema({
     collaborators: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    assignedStudents: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    assignmentType: {
+        type: String,
+        enum: ['all', 'particular', 'selected'],
+        default: 'all'
+    },
+    allowTeacherEdit: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true
 });

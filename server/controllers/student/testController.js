@@ -58,6 +58,17 @@ const getTests = asyncHandler(async (req, res) => {
         ];
     }
 
+    // 4. MUST either be assigned to all students, or specifically assigned to this student
+    query.$and = [
+        {
+            $or: [
+                { assignedStudents: { $exists: false } },
+                { assignedStudents: { $size: 0 } },
+                { assignedStudents: req.user._id }
+            ]
+        }
+    ];
+
     console.log(`[Student-Tests-Query] Formulated Query:`, JSON.stringify(query));
 
     const tests = await Test.find(query).sort({ createdAt: -1 });

@@ -384,7 +384,7 @@ const getActivityConfigs = asyncHandler(async (req, res) => {
 });
 
 const saveActivityConfig = asyncHandler(async (req, res) => {
-    const { studentId, testId, visible } = req.body;
+    const { studentId, testId, visible, disabled } = req.body;
 
     if (!studentId || !testId) {
         res.status(400);
@@ -395,12 +395,14 @@ const saveActivityConfig = asyncHandler(async (req, res) => {
 
     if (config) {
         if (visible !== undefined) config.visible = visible;
+        if (disabled !== undefined) config.disabled = disabled;
         await config.save();
     } else {
         config = await StudentActivityConfig.create({
             student: studentId,
             test: testId,
-            visible: visible !== undefined ? visible : true
+            visible: visible !== undefined ? visible : true,
+            disabled: disabled !== undefined ? disabled : false
         });
     }
 

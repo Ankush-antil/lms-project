@@ -18,7 +18,9 @@ const ProfilePage = () => {
         name: '',
         email: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        mobileNumber: '',
+        callEnabled: false
     });
 
 
@@ -34,7 +36,9 @@ const ProfilePage = () => {
                     name: data.name,
                     email: data.email,
                     password: '',
-                    confirmPassword: ''
+                    confirmPassword: '',
+                    mobileNumber: data.mobileNumber || '',
+                    callEnabled: data.callEnabled || false
                 });
                 setLoading(false);
             } catch (err) {
@@ -68,11 +72,20 @@ const ProfilePage = () => {
                 name: formData.name,
                 email: formData.email,
                 avatar: user.avatar, // Include the current/new avatar
-                password: formData.password
+                password: formData.password,
+                mobileNumber: formData.mobileNumber,
+                callEnabled: formData.callEnabled
             });
 
             // Update local storage so the header updates immediately
-            const updatedInfo = { ...userInfo, name: data.name, email: data.email, avatar: data.avatar };
+            const updatedInfo = { 
+                ...userInfo, 
+                name: data.name, 
+                email: data.email, 
+                avatar: data.avatar,
+                mobileNumber: data.mobileNumber,
+                callEnabled: data.callEnabled
+            };
             localStorage.setItem('userInfo', JSON.stringify(updatedInfo));
 
             setUser(data);
@@ -207,6 +220,34 @@ const ProfilePage = () => {
                                         />
                                     </div>
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Mobile Number</label>
+                                    <input
+                                        type="tel"
+                                        name="mobileNumber"
+                                        value={formData.mobileNumber}
+                                        onChange={handleChange}
+                                        placeholder="+91 98765"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                    />
+                                </div>
+
+                                {(user.role === 'Student' || user.role === 'Teacher') && (
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="callEnabled"
+                                            name="callEnabled"
+                                            checked={formData.callEnabled}
+                                            onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                            className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                        />
+                                        <label htmlFor="callEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                            Allow Web Calling
+                                        </label>
+                                    </div>
+                                )}
 
                                 <div className="pt-4 border-t border-slate-50">
                                     <h4 className="text-sm font-bold text-slate-800 mb-4">Update Password</h4>

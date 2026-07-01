@@ -28,7 +28,8 @@ const TeacherDetails = () => {
         subjects: '',
         status: 'Active',
         avatar: '',
-        mobileNumber: ''
+        mobileNumber: '',
+        callEnabled: false
     });
 
     const fetchData = async () => {
@@ -56,7 +57,8 @@ const TeacherDetails = () => {
                 subjects: teacher.teacherProfile?.subjects?.join(', ') || '',
                 status: teacher.status || 'Active',
                 avatar: teacher.avatar || '',
-                mobileNumber: teacher.mobileNumber || ''
+                mobileNumber: teacher.mobileNumber || '',
+                callEnabled: teacher.callEnabled || false
             });
 
             setLoading(false);
@@ -256,6 +258,16 @@ const TeacherDetails = () => {
                                                 ))}
                                             </div>
                                         </div>
+                                        <div className="md:col-span-2 space-y-1">
+                                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Calling Status</p>
+                                            <p className="text-lg font-bold text-slate-800">
+                                                {user?.callEnabled ? (
+                                                    <span className="text-emerald-600 font-extrabold uppercase text-xs">Enabled</span>
+                                                ) : (
+                                                    <span className="text-slate-400 font-extrabold uppercase text-xs">Disabled</span>
+                                                )}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="pt-8 border-t border-slate-50 italic text-slate-400 text-sm font-medium">
@@ -387,6 +399,18 @@ const TeacherDetails = () => {
                                             onChange={e => setFormData({ ...formData, mobileNumber: e.target.value })}
                                             placeholder="+91 98765"
                                         />
+                                    </div>
+                                    <div className="space-y-2 flex items-center gap-3 mt-6 pl-2">
+                                        <input
+                                            type="checkbox"
+                                            id="teacherCallEnabled"
+                                            checked={formData.callEnabled}
+                                            onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                            className="w-5 h-5 rounded border-slate-350 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                                        />
+                                        <label htmlFor="teacherCallEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                            Allow Web Calling
+                                        </label>
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">

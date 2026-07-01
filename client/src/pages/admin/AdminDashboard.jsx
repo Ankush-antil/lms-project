@@ -104,7 +104,7 @@ const AdminDashboard = () => {
                 <StatCard title="Total Students" value={stats.students} icon={Users} color="bg-indigo-600 text-indigo-600" onClick={() => navigate('/admin/students')} />
                 <StatCard title="Total Teachers" value={stats.teachers} icon={CheckCircle} color="bg-emerald-500 text-emerald-500" onClick={() => navigate('/admin/teachers')} />
                 <StatCard title="Active Courses" value={stats.courses} icon={BookOpen} color="bg-blue-500 text-blue-500" onClick={() => navigate('/admin/courses')} />
-                <StatCard title="Tests Published" value={stats.tests} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/admin/tests')} />
+                <StatCard title="Tests Published" value={stats.tests} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/admin/activities')} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

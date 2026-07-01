@@ -27,15 +27,29 @@ const getContacts = asyncHandler(async (req, res) => {
             }).select('_id');
             teachers.forEach(t => relatedUserIds.add(t._id.toString()));
         }
-    } else if (userRole === 'Teacher') {
-        const assignedCourses = req.user.teacherProfile?.assignedCourses || [];
-        if (assignedCourses.length > 0) {
-            // Find students in these courses
-            const students = await User.find({
-                role: 'Student',
-                'studentProfile.course': { $in: assignedCourses }
+        // Also fetch all editors in the student's institute
+        if (req.user.institute) {
+            const editors = await User.find({
+                role: 'Editor',
+                institute: req.user.institute
             }).select('_id');
-            students.forEach(s => relatedUserIds.add(s._id.toString()));
+            editors.forEach(ed => relatedUserIds.add(ed._id.toString()));
+        }
+    } else if (userRole === 'Teacher') {
+        if (req.user.institute) {
+            const instituteUsers = await User.find({
+                institute: req.user.institute,
+                _id: { $ne: userId }
+            }).select('_id');
+            instituteUsers.forEach(u => relatedUserIds.add(u._id.toString()));
+        }
+    } else if (userRole === 'Editor' || userRole === 'Institute') {
+        if (req.user.institute) {
+            const instituteUsers = await User.find({
+                institute: req.user.institute,
+                _id: { $ne: userId }
+            }).select('_id');
+            instituteUsers.forEach(u => relatedUserIds.add(u._id.toString()));
         }
     }
 
@@ -404,6 +418,25 @@ const uploadFile = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get all users in the same institute for starting a new chat
+// @route   GET /api/chat/directory
+// @access  Private
+const getDirectoryUsers = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    if (!req.user.institute) {
+        return res.json([]);
+    }
+
+    // Find all active users in the same institute, excluding current user
+    const users = await User.find({
+        institute: req.user.institute,
+        _id: { $ne: userId },
+        isActive: true
+    }).select('name email role avatar mobileNumber isActive');
+
+    res.json(users);
+});
+
 module.exports = {
     getContacts,
     getMessages,
@@ -412,5 +445,6 @@ module.exports = {
     editMessage,
     getStudentTests,
     getTestDoubtMessages,
-    uploadFile
+    uploadFile,
+    getDirectoryUsers
 };

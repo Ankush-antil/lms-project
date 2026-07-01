@@ -603,13 +603,13 @@ const TeacherActivities = () => {
                 console.log("[SOCKET] Live sync student activity:", payload);
                 // 1. Auto-refresh files and notes list
                 fetchStudentPracticeFiles(selectedStudent._id);
-                
+
                 // 2. Format tool label
                 const toolName = payload.toolType
                     .split('-')
                     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
                     .join(' ');
-                
+
                 let actionLabel = 'updated';
                 if (payload.action === 'delete') actionLabel = 'deleted a record';
                 else if (payload.action === 'upload') actionLabel = 'uploaded a file';
@@ -934,7 +934,7 @@ const TeacherActivities = () => {
                                 {[
                                     { id: 'tests', label: 'Tests', icon: FileText },
                                     { id: 'practice', label: 'Tool', icon: Settings },
-                                    { id: 'performance', label: 'Performance', icon: BarChart3 }
+                                    { id: 'performance', label: 'SnapShots', icon: BarChart3 }
                                 ].map(tab => {
                                     const TabIcon = tab.icon;
                                     const isTabActive = studentTab === tab.id;
@@ -985,7 +985,7 @@ const TeacherActivities = () => {
                                     </button>
 
                                     {/* Scrollable Container */}
-                                    <div 
+                                    <div
                                         ref={teacherTabsRef}
                                         className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
                                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -1555,124 +1555,124 @@ const TeacherActivities = () => {
                                     </div>
                                 </div>
 
-                                { (activePracticeFiles.length === 0 && activePracticeNotes.length === 0) ? (
-                                <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
-                                    No practice uploads recorded on this date.
-                                </div>
+                                {(activePracticeFiles.length === 0 && activePracticeNotes.length === 0) ? (
+                                    <div className="text-center py-12 text-slate-400 text-xs italic font-medium">
+                                        No practice uploads recorded on this date.
+                                    </div>
                                 ) : (
-                                <div className="space-y-6 max-w-4xl">
-                                    {activePracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
-                                        const files = activePracticeFiles.filter(f => f.toolType === type);
-                                        if (files.length === 0) return null;
+                                    <div className="space-y-6 max-w-4xl">
+                                        {activePracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling'].map(type => {
+                                            const files = activePracticeFiles.filter(f => f.toolType === type);
+                                            if (files.length === 0) return null;
 
-                                        const typeLabels = {
-                                            'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
-                                            'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
-                                            'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
-                                            'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
-                                            'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' }
-                                        };
-                                        const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
-                                        const ToolIcon = labelConfig.icon;
+                                            const typeLabels = {
+                                                'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                                'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                                'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                                'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                                'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' }
+                                            };
+                                            const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                            const ToolIcon = labelConfig.icon;
 
-                                        return (
-                                            <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
-                                                        <ToolIcon size={16} />
+                                            return (
+                                                <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                            <ToolIcon size={16} />
+                                                        </div>
+                                                        <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
                                                     </div>
-                                                    <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {files.map((file, fileIdx) => (
+                                                            <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                        {file.filename}
+                                                                    </p>
+                                                                    <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
+                                                                        Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="pt-2">
+                                                                    {type === 'screenshot' && (
+                                                                        <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                            <img
+                                                                                src={file.fileUrl}
+                                                                                alt="Screenshot Preview"
+                                                                                className="w-full max-h-48 object-contain bg-slate-900"
+                                                                            />
+                                                                            <a
+                                                                                href={file.fileUrl}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
+                                                                            >
+                                                                                Open in New Tab
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                    {type === 'voice-recorder' && (
+                                                                        <audio controls src={file.fileUrl} className="w-full mt-1.5 focus:outline-none" />
+                                                                    )}
+                                                                    {(type === 'screen-recorder' || type === 'video-recorder') && (
+                                                                        <video controls src={file.fileUrl} className="w-full max-h-56 bg-slate-950 rounded-xl border border-slate-200 mt-1.5" />
+                                                                    )}
+                                                                    {type === 'web-calling' && (
+                                                                        <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] font-semibold text-slate-500 space-y-1">
+                                                                            <div className="flex justify-between">
+                                                                                <span>Duration</span>
+                                                                                <span className="font-bold text-slate-800">{file.metadata?.duration || 'N/A'} mins</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between">
+                                                                                <span>Calling Format</span>
+                                                                                <span className="font-bold text-slate-800 uppercase">{file.metadata?.format || 'Audio'}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {activePracticeNotes.length > 0 && (
+                                            <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({activePracticeNotes.length})</h3>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {files.map((file, fileIdx) => (
-                                                        <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
-                                                            <div className="space-y-1">
-                                                                <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
-                                                                    {file.filename}
-                                                                </p>
-                                                                <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
-                                                                    Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                                    {activePracticeNotes.map((note, idx) => (
+                                                        <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                            <div className="space-y-1.5">
+                                                                <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                    {note.title}
+                                                                </h4>
+                                                                <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                    {note.content}
                                                                 </p>
                                                             </div>
-
-                                                            <div className="pt-2">
-                                                                {type === 'screenshot' && (
-                                                                    <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                        <img
-                                                                            src={file.fileUrl}
-                                                                            alt="Screenshot Preview"
-                                                                            className="w-full max-h-48 object-contain bg-slate-900"
-                                                                        />
-                                                                        <a
-                                                                            href={file.fileUrl}
-                                                                            target="_blank"
-                                                                            rel="noreferrer"
-                                                                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-all"
-                                                                        >
-                                                                            Open in New Tab
-                                                                        </a>
-                                                                    </div>
-                                                                )}
-                                                                {type === 'voice-recorder' && (
-                                                                    <audio controls src={file.fileUrl} className="w-full mt-1.5 focus:outline-none" />
-                                                                )}
-                                                                {(type === 'screen-recorder' || type === 'video-recorder') && (
-                                                                    <video controls src={file.fileUrl} className="w-full max-h-56 bg-slate-950 rounded-xl border border-slate-200 mt-1.5" />
-                                                                )}
-                                                                {type === 'web-calling' && (
-                                                                    <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] font-semibold text-slate-500 space-y-1">
-                                                                        <div className="flex justify-between">
-                                                                            <span>Duration</span>
-                                                                            <span className="font-bold text-slate-800">{file.metadata?.duration || 'N/A'} mins</span>
-                                                                        </div>
-                                                                        <div className="flex justify-between">
-                                                                            <span>Calling Format</span>
-                                                                            <span className="font-bold text-slate-800 uppercase">{file.metadata?.format || 'Audio'}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
+                                                            <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                                <span>Time: {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                    Shared
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-
-                                    {activePracticeNotes.length > 0 && (
-                                        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
-                                                    <FileText size={16} />
-                                                </div>
-                                                <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({activePracticeNotes.length})</h3>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {activePracticeNotes.map((note, idx) => (
-                                                    <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
-                                                        <div className="space-y-1.5">
-                                                            <h4 className="font-extrabold text-slate-800 text-xs truncate">
-                                                                {note.title}
-                                                            </h4>
-                                                            <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
-                                                                {note.content}
-                                                            </p>
-                                                        </div>
-                                                        <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                                                            <span>Time: {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                            <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
-                                                                Shared
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                ) }
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             /* --- STUDENT PERFORMANCE DASHBOARD --- */

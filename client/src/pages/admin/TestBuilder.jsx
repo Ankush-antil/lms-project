@@ -2846,7 +2846,7 @@ const TestBuilder = () => {
                     publishMode: mode
                 });
             } else {
-                navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/tests' : '/admin/tests');
+                navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
             }
         } catch (error) {
             console.error("Error publishing form:", error);
@@ -4146,7 +4146,7 @@ const TestBuilder = () => {
                     isOpen={!!publishSuccessInfo}
                     onClose={() => {
                         setPublishSuccessInfo(null);
-                        navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/tests' : '/admin/tests');
+                        navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
                     }}
                     testId={publishSuccessInfo?.testId}
                     testTitle={publishSuccessInfo?.testTitle}

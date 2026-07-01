@@ -8,12 +8,14 @@ const {
     editMessage,
     getStudentTests,
     getTestDoubtMessages,
-    uploadFile
+    uploadFile,
+    getDirectoryUsers
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
 const uploadAttachment = require('../middleware/uploadAttachment');
 
 router.get('/contacts', protect, getContacts);
+router.get('/directory', protect, getDirectoryUsers);
 router.get('/messages/:userId', protect, getMessages);
 router.post('/messages', protect, sendMessage);
 router.post('/upload', protect, uploadAttachment.single('file'), uploadFile);

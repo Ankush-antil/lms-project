@@ -292,8 +292,8 @@ const getCourses = asyncHandler(async (req, res) => {
         query.status = status || 'active';
     }
 
-    // Isolate courses for Institute role
-    if (req.user && req.user.role === 'Institute') {
+    // Isolate courses for Institute and Editor roles
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         query.institute = req.user.institute;
     }
 
@@ -760,9 +760,28 @@ const registerStudent = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getSubjects = asyncHandler(async (req, res) => {
     const Test = require('../../models/Test');
-    const courses = await Course.find({ status: 'active' }).populate('institute', 'name');
-    const teachers = await User.find({ role: 'Teacher' });
-    const tests = await Test.find({});
+    
+    const courseQuery = { status: 'active' };
+    const teacherQuery = { role: 'Teacher' };
+    const testQuery = {};
+
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        courseQuery.institute = req.user.institute;
+        teacherQuery.institute = req.user.institute;
+        
+        // Find institute to get its name (since test.institute is a string name)
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        if (userWithInst && userWithInst.institute) {
+            const escapedName = userWithInst.institute.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            testQuery.institute = { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') };
+        } else {
+            testQuery.institute = 'NON_EXISTENT_INSTITUTE';
+        }
+    }
+
+    const courses = await Course.find(courseQuery).populate('institute', 'name');
+    const teachers = await User.find(teacherQuery);
+    const tests = await Test.find(testQuery);
 
     const subjectsList = [];
 

@@ -47,6 +47,31 @@ const TeacherDashboard = () => {
     const [historyLogs, setHistoryLogs] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
 
+    const [callEnabled, setCallEnabled] = useState(user?.callEnabled || false);
+
+    useEffect(() => {
+        if (user) {
+            setCallEnabled(user.callEnabled || false);
+        }
+    }, [user]);
+
+    const handleToggleCall = async () => {
+        try {
+            const { data } = await axios.put(`/api/calls/teachers/${user._id}/toggle`);
+            setCallEnabled(data.callEnabled);
+            
+            // Sync with local storage
+            const cachedUser = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            cachedUser.callEnabled = data.callEnabled;
+            localStorage.setItem('userInfo', JSON.stringify(cachedUser));
+            
+            toast.success(`Receiving calls: ${data.callEnabled ? 'ON' : 'OFF'}`);
+        } catch (err) {
+            console.error("Failed to toggle call receiving status:", err);
+            toast.error("Failed to update call receiving status");
+        }
+    };
+
     const fetchCallHistory = async (student) => {
         setSelectedStudent(student);
         setShowHistoryModal(true);
@@ -152,7 +177,17 @@ const TeacherDashboard = () => {
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>
                     <p className="text-slate-500 mt-1">Manage your courses, students, and evaluate tests in real-time.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2.5">
+                    <button
+                        onClick={handleToggleCall}
+                        className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${
+                            callEnabled 
+                                ? 'bg-emerald-650 hover:bg-emerald-700 text-white shadow-emerald-100' 
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
+                        }`}
+                    >
+                        <Phone size={18} /> Receiving Calls: {callEnabled ? 'ON' : 'OFF'}
+                    </button>
                     <button
                         onClick={() => navigate('/teacher/activities')}
                         className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
@@ -161,7 +196,7 @@ const TeacherDashboard = () => {
                     </button>
                     <button
                         onClick={() => setShowContactModal(true)}
-                        className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                        className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-lg shadow-slate-250 hover:bg-slate-800 transition-all flex items-center gap-2"
                     >
                         <Phone size={18} /> Contact Students
                     </button>

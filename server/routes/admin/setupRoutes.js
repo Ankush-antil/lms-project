@@ -52,7 +52,7 @@ router.route('/courses')
     .post(protect, adminOrEditor, createCourse);
 
 router.route('/subjects')
-    .get(protect, admin, getSubjects);
+    .get(protect, adminOrEditor, getSubjects);
 
 // Syllabus upload (must be before /courses/:id)
 router.route('/courses/upload-syllabus')

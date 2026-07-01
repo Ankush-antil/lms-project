@@ -27,7 +27,9 @@ const StudentDetails = () => {
         subject: '',
         status: 'Active',
         avatar: '',
-        mobileNumber: ''
+        mobileNumber: '',
+        batch: '',
+        callEnabled: false
     });
 
     const fetchData = async () => {
@@ -54,7 +56,9 @@ const StudentDetails = () => {
                 subject: userRes.data.studentProfile?.subject || '',
                 status: userRes.data.status || 'Active',
                 avatar: userRes.data.avatar || '',
-                mobileNumber: userRes.data.mobileNumber || ''
+                mobileNumber: userRes.data.mobileNumber || '',
+                batch: userRes.data.studentProfile?.batch || '',
+                callEnabled: userRes.data.callEnabled || false
             });
 
             setLoading(false);
@@ -245,10 +249,20 @@ const StudentDetails = () => {
                                                     : <span className="text-slate-400 italic text-sm">No subject assigned</span>}
                                             </p>
                                         </div>
-                                        <div className="space-y-1">
-                                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Batch/Session</p>
-                                            <p className="text-lg font-bold text-slate-800">{user?.studentProfile?.batch || '2024 - Standard'}</p>
-                                        </div>
+                                         <div className="space-y-1">
+                                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Batch/Session</p>
+                                             <p className="text-lg font-bold text-slate-800">{user?.studentProfile?.batch || 'N/A'}</p>
+                                         </div>
+                                         <div className="space-y-1">
+                                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Calling Status</p>
+                                             <p className="text-lg font-bold text-slate-800">
+                                                 {user?.callEnabled ? (
+                                                     <span className="text-emerald-600 font-extrabold uppercase text-xs">Enabled</span>
+                                                 ) : (
+                                                     <span className="text-slate-400 font-extrabold uppercase text-xs">Disabled</span>
+                                                 )}
+                                             </p>
+                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest text-emerald-500">Security Status</p>
                                             <div className="flex items-center gap-2 py-1">
@@ -345,6 +359,30 @@ const StudentDetails = () => {
                                             onChange={e => setFormData({ ...formData, mobileNumber: e.target.value })}
                                             placeholder="+91 98765"
                                         />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
+                                            🎓 Batch / Session
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-slate-800"
+                                            value={formData.batch}
+                                            onChange={e => setFormData({ ...formData, batch: e.target.value })}
+                                            placeholder="e.g. 2024-25"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 flex items-center gap-3 mt-6 pl-2">
+                                        <input
+                                            type="checkbox"
+                                            id="studentCallEnabled"
+                                            checked={formData.callEnabled}
+                                            onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                            className="w-5 h-5 rounded border-slate-350 text-indigo-650 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                        />
+                                        <label htmlFor="studentCallEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                            Allow Web Calling
+                                        </label>
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">

@@ -15,7 +15,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         institute: '',
         subjects: '',
         subject: '',
-        mobileNumber: ''
+        mobileNumber: '',
+        batch: '',
+        callEnabled: false
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -23,7 +25,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
-
+ 
     useEffect(() => {
         if (isOpen) {
             // Auto-generate a password on open
@@ -39,7 +41,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                 institute: userInstId,
                 subjects: '',
                 subject: '',
-                mobileNumber: ''
+                mobileNumber: '',
+                batch: '',
+                callEnabled: false
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -206,31 +210,58 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                     value={formData.course}
                                                     onChange={e => {
                                                         const courseId = e.target.value;
-                                                        const courseObj = courses.find(c => c._id === courseId);
-                                                        const subs = courseObj?.subjects || [];
                                                         setFormData({ 
                                                             ...formData, 
                                                             course: courseId, 
-                                                            subject: subs.join(', ') 
+                                                            subject: '' 
                                                         });
                                                     }}
                                                     disabled={user?.role !== 'Institute' && user?.role !== 'Editor' && !formData.institute}
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Select Course</option>
                                                     {filteredCourses.map(course => (
                                                         <option key={course._id} value={course._id}>{course.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Assigned Subjects (Automatic)</label>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Subject</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                                    required
+                                                    value={formData.subject}
+                                                    onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                                    disabled={!formData.course}
+                                                >
+                                                    <option value="">Select Subject</option>
+                                                    {availableSubjects.map(sub => (
+                                                        <option key={sub} value={sub}>{sub}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
                                                 <input
                                                     type="text"
-                                                    className="w-full bg-slate-100 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-500 cursor-not-allowed outline-none"
-                                                    readOnly
-                                                    value={formData.subject || ''}
-                                                    placeholder="No subjects assigned yet"
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                    value={formData.batch}
+                                                    onChange={e => setFormData({ ...formData, batch: e.target.value })}
+                                                    placeholder="e.g. 2024-25"
                                                 />
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-6">
+                                                <input
+                                                    type="checkbox"
+                                                    id="callEnabled"
+                                                    checked={formData.callEnabled}
+                                                    onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                                />
+                                                <label htmlFor="callEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                                    Allow Web Calling
+                                                </label>
                                             </div>
                                         </div>
                                     </>
@@ -312,6 +343,18 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                     <p className="mt-1.5 text-[10px] text-slate-400 italic">Select a course to view available subjects.</p>
                                                 )}
                                             </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-4">
+                                            <input
+                                                type="checkbox"
+                                                id="teacherCallEnabled"
+                                                checked={formData.callEnabled}
+                                                onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                            />
+                                            <label htmlFor="teacherCallEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                                Allow Web Calling
+                                            </label>
                                         </div>
                                     </>
                                 )}

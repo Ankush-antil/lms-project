@@ -39,13 +39,10 @@ import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
 import VideoRecorderPage from './pages/student/tools/VideoRecorderPage';
 import WebCallingPage from './pages/student/tools/WebCallingPage';
 import FileUploadPage from './pages/student/tools/FileUploadPage';
-<<<<<<< Updated upstream
 import NotesPage from './pages/student/tools/NotesPage';
 import SharedAudioPage from './pages/SharedAudioPage';
 import SharedVideoPage from './pages/SharedVideoPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
-=======
->>>>>>> Stashed changes
 import ApplicationsTrackingPage from './pages/ApplicationsTrackingPage';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -89,7 +86,6 @@ function App() {
                         <ScreenshotProvider>
                             <Toaster position="top-right" reverseOrder={false} />
                             <Routes>
-<<<<<<< Updated upstream
                                 <Route path="/" element={<LandingPage />} />
                                 <Route path="/login" element={<LoginPage />} />
                                 {/* Public Shared Recording Page — no auth */}
@@ -97,11 +93,6 @@ function App() {
                                 <Route path="/share/video/:id" element={<SharedVideoPage />} />
                                 <Route path="/share/screenshot/:id" element={<SharedScreenshotPage />} />
                                 <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
-=======
-                        <Route path="/" element={<LandingPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
->>>>>>> Stashed changes
 
                                 {/* Institute Routes */}
                                 <Route path="/institute" element={

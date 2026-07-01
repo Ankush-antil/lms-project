@@ -26,7 +26,6 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             };
             fetchInstitutes();
 
-<<<<<<< Updated upstream
             if (course) {
                 setFormData({
                     name: course.name || '',
@@ -52,44 +51,9 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                 });
                 setSyllabusMode('link');
             }
-=======
-            setFormData({
-                name: '',
-                code: '',
-                description: '',
-                instituteId: user && user.institute
-                    ? (typeof user.institute === 'object' ? user.institute._id : user.institute)
-                    : '',
-                subjects: '',
-                syllabusUrl: '',
-                syllabusType: 'link'
-            });
-            setSyllabusMode('link');
->>>>>>> Stashed changes
             setSyllabusFile(null);
         }
     }, [isOpen, user, course]);
-
-    const handleSyllabusFileUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        setSyllabusFile(file);
-        setSyllabusUploading(true);
-        try {
-            const fd = new FormData();
-            fd.append('syllabus', file);
-            const { data } = await axios.post('/api/setup/courses/upload-syllabus', fd, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            setFormData(prev => ({ ...prev, syllabusUrl: data.syllabusUrl, syllabusType: 'file' }));
-            toast.success(`Syllabus uploaded: ${data.originalName}`);
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Syllabus upload failed');
-            setSyllabusFile(null);
-        } finally {
-            setSyllabusUploading(false);
-        }
-    };
 
     const handleSyllabusFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -116,7 +80,6 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
         e.preventDefault();
         setLoading(true);
         try {
-<<<<<<< Updated upstream
             if (course) {
                 await axios.put(`/api/setup/courses/${course._id}`, formData);
                 toast.success('Course Updated!');
@@ -131,17 +94,6 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             setLoading(false);
             onClose();
             if (refreshData) refreshData();
-=======
-            await axios.post('/api/setup/courses', formData);
-            setLoading(false);
-            onClose();
-            if (refreshData) refreshData();
-            if (user?.role === 'Editor') {
-                toast.success('Course submitted for Admin approval!');
-            } else {
-                toast.success('Course Added!');
-            }
->>>>>>> Stashed changes
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error saving course');
             setLoading(false);
@@ -159,11 +111,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                         <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
                             <BookOpen size={20} className="text-indigo-400" />
                         </div>
-<<<<<<< Updated upstream
                         <h3 className="text-xl font-black text-white tracking-tight">{course ? 'Edit Course' : 'Add New Course'}</h3>
-=======
-                        <h3 className="text-xl font-black text-white tracking-tight">Add New Course</h3>
->>>>>>> Stashed changes
                     </div>
                     <button
                         onClick={onClose}
@@ -296,9 +244,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                         onChange={handleSyllabusFileUpload}
                                     />
                                     <div
-                                        onClick={() => syllabusFileRef.current?.click()}
-<<<<<<< Updated upstream
-                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3.5 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
+                                        onClick={() => syllabusFileRef.current?.click()}                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3.5 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
                                     >
                                         {syllabusUploading ? (
                                             <div className="flex flex-col items-center gap-1.5">
@@ -331,26 +277,6 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                                 <Upload size={18} className="text-slate-400" />
                                                 <p className="text-xs font-bold text-slate-650">Click to upload PDF / Word</p>
                                                 <p className="text-[9px] text-slate-400 leading-none">PDF, DOC, DOCX — max 10MB</p>
-=======
-                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-6 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
-                                    >
-                                        {syllabusUploading ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                                                <p className="text-xs text-indigo-600 font-bold">Uploading...</p>
-                                            </div>
-                                        ) : syllabusFile && formData.syllabusUrl ? (
-                                            <div className="flex flex-col items-center gap-1">
-                                                <FileText size={20} className="text-emerald-500" />
-                                                <p className="text-xs font-bold text-emerald-700">{syllabusFile.name}</p>
-                                                <p className="text-[10px] text-slate-400">Uploaded successfully ✓ — click to change</p>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Upload size={20} className="text-slate-400" />
-                                                <p className="text-xs font-bold text-slate-600">Click to upload PDF / Word</p>
-                                                <p className="text-[10px] text-slate-400">PDF, DOC, DOCX — max 10MB</p>
->>>>>>> Stashed changes
                                             </div>
                                         )}
                                     </div>
@@ -364,11 +290,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                             className="w-full py-4 bg-[#0b1329] text-white font-bold rounded-2xl shadow-xl shadow-[#0b1329]/10 hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-<<<<<<< Updated upstream
                             {loading ? (course ? 'Updating Course...' : 'Creating Course...') : (course ? 'Save Changes' : 'Create Course')}
-=======
-                            {loading ? 'Creating Course...' : 'Create Course'}
->>>>>>> Stashed changes
                         </button>
                     </form>
                 </div>

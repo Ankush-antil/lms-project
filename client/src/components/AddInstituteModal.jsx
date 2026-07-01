@@ -19,10 +19,7 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
     });
     const [imagePreview, setImagePreview] = useState(null);
     const [imageUploading, setImageUploading] = useState(false);
-<<<<<<< Updated upstream
     const [docUploading, setDocUploading] = useState(false);
-=======
->>>>>>> Stashed changes
     const [loading, setLoading] = useState(false);
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
@@ -77,7 +74,6 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
         }
     };
 
-<<<<<<< Updated upstream
     const handleDocUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -97,9 +93,6 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
             setDocUploading(false);
         }
     };
-
-=======
->>>>>>> Stashed changes
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -362,16 +355,11 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
                                             Terms & Admission Policies
                                         </label>
                                         <textarea
-<<<<<<< Updated upstream
                                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[70px] resize-none"
-=======
-                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all min-h-[140px] resize-none"
->>>>>>> Stashed changes
                                             value={formData.termsAndPolicies}
                                             onChange={e => handleChange('termsAndPolicies', e.target.value)}
                                             placeholder="Admission eligibility criteria, fee policies, refund policies, code of conduct, etc."
                                         />
-<<<<<<< Updated upstream
                                         
                                         {/* Merged Document Upload Row */}
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 px-1">
@@ -402,9 +390,6 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
                                                 )}
                                             </div>
                                         </div>
-=======
-                                        <p className="text-[10px] text-slate-400 mt-1 ml-1">This will be shown as T&C on course application forms.</p>
->>>>>>> Stashed changes
                                     </div>
 
                                     <div className="flex gap-3 pt-2">

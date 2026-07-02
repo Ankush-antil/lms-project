@@ -77,6 +77,13 @@ const TeacherActivities = () => {
     const teacherTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
 
+    // Multi-student bulk config modal state
+    const [bulkConfigModal, setBulkConfigModal] = useState(null);
+    const [bulkInboxConfigModal, setBulkInboxConfigModal] = useState(null);
+    // { testId, visible, disabled, actionType: 'hide'|'disable' }
+    const [bulkSelectedStudents, setBulkSelectedStudents] = useState([]);
+    const [bulkSaving, setBulkSaving] = useState(false);
+
     const handleTeacherTabsScroll = (direction) => {
         if (teacherTabsRef.current) {
             const { scrollLeft } = teacherTabsRef.current;
@@ -283,6 +290,80 @@ const TeacherActivities = () => {
         }
     };
 
+    // Open the bulk config modal (intercepts hide/disable toggle clicks)
+    const openBulkConfigModal = (testId, newVisible, newDisabled, actionType) => {
+        setBulkConfigModal({ testId, newVisible, newDisabled, actionType });
+        // Pre-select the current student
+        setBulkSelectedStudents(selectedStudent ? [selectedStudent._id] : []);
+        setActiveDropdownTestId(null);
+    };
+
+    // Save config for ALL selected students
+    const handleBulkSave = async () => {
+        if (!bulkConfigModal || bulkSelectedStudents.length === 0) return;
+        setBulkSaving(true);
+        try {
+            await Promise.all(
+                bulkSelectedStudents.map(studentId =>
+                    axios.post('/api/users/activity-configs', {
+                        studentId,
+                        testId: bulkConfigModal.testId,
+                        visible: bulkConfigModal.newVisible,
+                        disabled: bulkConfigModal.newDisabled
+                    })
+                )
+            );
+            // Refresh configs for the currently viewed student
+            if (selectedStudent) {
+                await fetchInboxConfigs(selectedStudent._id);
+            }
+            toast.success(`Applied to ${bulkSelectedStudents.length} student(s)!`);
+            setBulkConfigModal(null);
+        } catch (err) {
+            console.error('Bulk config error:', err);
+            toast.error('Failed to apply changes to some students.');
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
+    // Open bulk inbox config modal
+    const openBulkInboxConfigModal = (inboxId, newVisible, newDisabled, currentDisplayName, actionType) => {
+        setBulkInboxConfigModal({ inboxId, visible: newVisible, disabled: newDisabled, currentDisplayName, actionType });
+        setBulkSelectedStudents(selectedStudent ? [selectedStudent._id] : []);
+        setActiveDropdownInboxId(null);
+    };
+
+    // Save inbox config for ALL selected students
+    const handleBulkInboxSave = async () => {
+        if (!bulkInboxConfigModal || bulkSelectedStudents.length === 0) return;
+        setBulkSaving(true);
+        try {
+            await Promise.all(
+                bulkSelectedStudents.map(studentId =>
+                    axios.post('/api/users/inbox-configs', {
+                        studentId,
+                        inboxId: bulkInboxConfigModal.inboxId,
+                        displayName: bulkInboxConfigModal.currentDisplayName,
+                        visible: bulkInboxConfigModal.visible,
+                        disabled: bulkInboxConfigModal.disabled
+                    })
+                )
+            );
+            // Refresh configs for the currently viewed student
+            if (selectedStudent) {
+                await fetchInboxConfigs(selectedStudent._id);
+            }
+            toast.success(`Applied to ${bulkSelectedStudents.length} student(s)!`);
+            setBulkInboxConfigModal(null);
+        } catch (err) {
+            console.error('Bulk inbox config error:', err);
+            toast.error('Failed to apply changes to some students.');
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
     const handleUpdateInboxConfig = async (inboxId, displayName, visible) => {
         if (!selectedStudent) return;
         try {
@@ -428,6 +509,7 @@ const TeacherActivities = () => {
             .map(indexStr => {
                 const config = inboxConfigs.find(c => c.inboxId === indexStr);
                 const isVisible = config ? config.visible : true;
+                const isInboxDisabled = config ? !!config.disabled : false;
                 const customTitle = config && config.displayName ? config.displayName : indexStr;
 
                 return {
@@ -442,7 +524,8 @@ const TeacherActivities = () => {
                         return !sub || sub.status !== 'evaluated';
                     }).length,
                     tests: grouped[indexStr],
-                    visible: isVisible
+                    visible: isVisible,
+                    disabled: isInboxDisabled
                 };
             });
     }, [assignedTests, submissionMap, inboxConfigs]);
@@ -470,7 +553,15 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status !== 'evaluated';
+            return sub && sub.status === 'submitted';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const returnedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -497,7 +588,9 @@ const TeacherActivities = () => {
             if (viewMode === 'pending') {
                 return !sub;
             } else if (viewMode === 'submitted') {
-                return sub && sub.status !== 'evaluated';
+                return sub && sub.status === 'submitted';
+            } else if (viewMode === 'returned') {
+                return sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
             } else if (viewMode === 'student-feedback') {
@@ -855,6 +948,7 @@ const TeacherActivities = () => {
                                         filteredInboxItems.map(item => {
                                             const isActive = selectedInboxId === item.id;
                                             const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                            const isInboxDisabled = item.disabled;
 
                                             return (
                                                 <div
@@ -862,7 +956,7 @@ const TeacherActivities = () => {
                                                     onClick={() => {
                                                         setSelectedInboxId(item.id);
                                                         setSelectedCategory(null);
-                                                        if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
+                                                        if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
                                                             setViewMode('pending');
                                                         }
                                                     }}
@@ -876,11 +970,16 @@ const TeacherActivities = () => {
                                                             }`}>
                                                             <BookOpen size={14} />
                                                         </div>
-                                                        <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${!item.visible ? 'opacity-60' : ''}`}>
+                                                        <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${(!item.visible || isInboxDisabled) ? 'opacity-60' : ''}`}>
                                                             {getDisplayTitle(item.title)}
                                                             {!item.visible && (
-                                                                <span className="ml-1 text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-1 py-0.5 rounded shrink-0">
+                                                                <span className="ml-1 text-[9px] font-black text-red-500 bg-red-50 px-1 py-0.5 rounded shrink-0">
                                                                     Hidden
+                                                                </span>
+                                                            )}
+                                                            {isInboxDisabled && (
+                                                                <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                                    Disabled
                                                                 </span>
                                                             )}
                                                         </h3>
@@ -929,18 +1028,33 @@ const TeacherActivities = () => {
                                                                     onClick={(e) => e.stopPropagation()}
                                                                 >
                                                                     <button
-                                                                        onClick={async () => {
+                                                                        onClick={() => {
                                                                             const config = inboxConfigs.find(c => c.inboxId === item.id);
                                                                             const isVisible = config ? config.visible : true;
+                                                                            const isInboxDisabled = config ? !!config.disabled : false;
                                                                             const currentDisplayName = config ? config.displayName : '';
-                                                                            await handleUpdateInboxConfig(item.id, currentDisplayName, !isVisible);
-                                                                            setActiveDropdownInboxId(null);
+                                                                            openBulkInboxConfigModal(item.id, !isVisible, isInboxDisabled, currentDisplayName, 'hide');
                                                                         }}
                                                                         className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
                                                                     >
                                                                         <span>Visible to Student</span>
                                                                         <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: item.visible ? '#3E3ADD' : '#cbd5e1' }}>
                                                                             <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: item.visible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        </div>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            const isVisible = config ? config.visible : true;
+                                                                            const isInboxDisabled = config ? !!config.disabled : false;
+                                                                            const currentDisplayName = config ? config.displayName : '';
+                                                                            openBulkInboxConfigModal(item.id, isVisible, !isInboxDisabled, currentDisplayName, 'disable');
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
+                                                                    >
+                                                                        <span>Disable Inbox</span>
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: isInboxDisabled ? '#ef4444' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isInboxDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
                                                                         </div>
                                                                     </button>
                                                                     <button
@@ -1154,6 +1268,7 @@ const TeacherActivities = () => {
                                         {[
                                             { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                             { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                            { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                             { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
                                             { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
                                             { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
@@ -1549,9 +1664,13 @@ const TeacherActivities = () => {
                                         }).length;
                                         const submittedTests = (selectedGroup.tests || []).filter(t => {
                                             const sub = submissionMap.get(t._id);
-                                            return sub && sub.status !== 'evaluated';
+                                            return sub && sub.status === 'submitted';
                                         }).length;
-                                        const unattemptedTests = totalTests - evaluatedTests - submittedTests;
+                                        const returnedTests = (selectedGroup.tests || []).filter(t => {
+                                            const sub = submissionMap.get(t._id);
+                                            return sub && sub.status === 'returned';
+                                        }).length;
+                                        const unattemptedTests = totalTests - evaluatedTests - submittedTests - returnedTests;
 
                                         const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
                                         const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
@@ -1647,7 +1766,7 @@ const TeacherActivities = () => {
                                                 return (
                                                     <div
                                                         key={test._id}
-                                                        className={`bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
+                                                        className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
                                                     >
                                                         <div className="flex items-start justify-between gap-2 min-w-0">
                                                             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1710,9 +1829,9 @@ const TeacherActivities = () => {
                                                                                 {/* Visibility toggle */}
                                                                                 <div
                                                                                     className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
-                                                                                    onClick={async (e) => {
+                                                                                    onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        await handleUpdateActivityConfig(test._id, !isActivityVisible, isActivityDisabled);
+                                                                                        openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
                                                                                     }}
                                                                                 >
                                                                                     <span className="text-xs font-bold text-slate-700">
@@ -1721,9 +1840,9 @@ const TeacherActivities = () => {
                                                                                     <button
                                                                                         className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
                                                                                         style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
-                                                                                        onClick={async (e) => {
+                                                                                        onClick={(e) => {
                                                                                             e.stopPropagation();
-                                                                                            await handleUpdateActivityConfig(test._id, !isActivityVisible, isActivityDisabled);
+                                                                                            openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
                                                                                         }}
                                                                                     >
                                                                                         <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
@@ -1733,9 +1852,9 @@ const TeacherActivities = () => {
                                                                                 {/* Disable toggle */}
                                                                                 <div
                                                                                     className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
-                                                                                    onClick={async (e) => {
+                                                                                    onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        await handleUpdateActivityConfig(test._id, isActivityVisible, !isActivityDisabled);
+                                                                                        openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
                                                                                     }}
                                                                                 >
                                                                                     <span className="text-xs font-bold text-slate-700">
@@ -1744,9 +1863,9 @@ const TeacherActivities = () => {
                                                                                     <button
                                                                                         className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
                                                                                         style={{ backgroundColor: isActivityDisabled ? '#ef4444' : '#cbd5e1' }}
-                                                                                        onClick={async (e) => {
+                                                                                        onClick={(e) => {
                                                                                             e.stopPropagation();
-                                                                                            await handleUpdateActivityConfig(test._id, isActivityVisible, !isActivityDisabled);
+                                                                                            openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
                                                                                         }}
                                                                                     >
                                                                                         <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
@@ -1771,8 +1890,8 @@ const TeacherActivities = () => {
                                                             </div>
                                                         )}
 
-                                                        <div className="flex items-center justify-end mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                            {sub ? (
+                                                        <div className="flex items-center justify-end mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                            {sub && (
                                                                 <button
                                                                     onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
                                                                     className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
@@ -1782,10 +1901,6 @@ const TeacherActivities = () => {
                                                                 >
                                                                     {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
                                                                 </button>
-                                                            ) : (
-                                                                <span className="text-[9px] font-black uppercase text-slate-400 select-none">
-                                                                    Pending Submit
-                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1796,17 +1911,6 @@ const TeacherActivities = () => {
                                 </div>
                             )}
 
-                            {selectedInboxId && (
-                                <div className="pt-6 flex justify-start">
-                                    <button
-                                        onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-100 hover:shadow-indigo-200 active:scale-95 border border-transparent"
-                                    >
-                                        <Plus size={14} strokeWidth={3} />
-                                        <span>Add More</span>
-                                    </button>
-                                </div>
-                            )}
                             </>
                         ) : studentTab === 'practice' ? (
                             /* --- PRACTICE WORKSPACE REVIEW --- */
@@ -2149,6 +2253,19 @@ const TeacherActivities = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Sticky bottom bar — Add More (only on pending tab) */}
+                    {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'pending' && (
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end">
+                            <button
+                                onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
+                            >
+                                <Plus size={14} strokeWidth={3} />
+                                <span>Add More</span>
+                            </button>
+                        </div>
+                    )}
                 </main>
 
                 {/* --- Right Sidebar: Students Selecting --- */}
@@ -2347,6 +2464,238 @@ const TeacherActivities = () => {
                                 className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100"
                             >
                                 Save Name
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Config Modal */}
+            {bulkConfigModal && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-md w-full p-8 animate-slide-up relative flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="mb-4">
+                            <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
+                                {bulkConfigModal.actionType === 'hide' 
+                                    ? (bulkConfigModal.newVisible ? 'Show Activity' : 'Hide Activity')
+                                    : (bulkConfigModal.newDisabled ? 'Disable Activity' : 'Enable Activity')
+                                }
+                            </h3>
+                            <p className="text-xs text-slate-400">
+                                Apply this configuration for "{allTests.find(t => t._id === bulkConfigModal.testId)?.title || 'Activity'}" to selected students.
+                            </p>
+                        </div>
+
+                        {/* Search & Select All Actions */}
+                        <div className="flex items-center justify-between gap-3 mb-4 bg-slate-50 p-2 rounded-xl">
+                            <button
+                                onClick={() => {
+                                    const allIds = students.map(s => s._id);
+                                    const allSelected = allIds.every(id => bulkSelectedStudents.includes(id));
+                                    if (allSelected) {
+                                        setBulkSelectedStudents([]);
+                                    } else {
+                                        setBulkSelectedStudents(allIds);
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-[#3E3ADD] uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                            >
+                                {students.map(s => s._id).every(id => bulkSelectedStudents.includes(id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+
+                            <span className="text-[10px] font-bold text-slate-550">
+                                {bulkSelectedStudents.length} of {students.length} Selected
+                            </span>
+                        </div>
+
+                        {/* Scrollable list of students */}
+                        <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[300px] border border-slate-100 rounded-2xl p-2.5 space-y-1.5 custom-scrollbar mb-6">
+                            {students.map(student => {
+                                const isChecked = bulkSelectedStudents.includes(student._id);
+                                const isCurrent = selectedStudent?._id === student._id;
+                                return (
+                                    <div
+                                        key={student._id}
+                                        onClick={() => {
+                                            if (isChecked) {
+                                                setBulkSelectedStudents(prev => prev.filter(id => id !== student._id));
+                                            } else {
+                                                setBulkSelectedStudents(prev => [...prev, student._id]);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
+                                            isChecked 
+                                                ? 'bg-indigo-50/50 border-indigo-150' 
+                                                : 'bg-white border-slate-100 hover:bg-slate-50/50'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                                                {student.name?.[0]?.toUpperCase() || 'S'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-700 truncate">{student.name}</h4>
+                                                <p className="text-[9px] text-slate-400 truncate">{student.email}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isCurrent && (
+                                                <span className="px-1.5 py-0.5 bg-[#3E3ADD]/10 text-[#3E3ADD] border border-[#3E3ADD]/20 text-[8px] font-black uppercase tracking-wider rounded-md">
+                                                    Current
+                                                </span>
+                                            )}
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {}} // Handled by parent div onClick
+                                                className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setBulkConfigModal(null)}
+                                className="flex-1 py-3.5 bg-slate-105 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors uppercase tracking-wider"
+                                disabled={bulkSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkSave}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                                disabled={bulkSaving || bulkSelectedStudents.length === 0}
+                            >
+                                {bulkSaving ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <span>Save & Apply</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Inbox Config Modal */}
+            {bulkInboxConfigModal && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-md w-full p-8 animate-slide-up relative flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="mb-4">
+                            <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
+                                {bulkInboxConfigModal.actionType === 'hide' 
+                                    ? (bulkInboxConfigModal.visible ? 'Show Inbox' : 'Hide Inbox')
+                                    : (bulkInboxConfigModal.disabled ? 'Disable Inbox' : 'Enable Inbox')
+                                }
+                            </h3>
+                            <p className="text-xs text-slate-400">
+                                Apply this configuration for "{getDisplayTitle(bulkInboxConfigModal.inboxId)}" to selected students.
+                            </p>
+                        </div>
+
+                        {/* Search & Select All Actions */}
+                        <div className="flex items-center justify-between gap-3 mb-4 bg-slate-50 p-2 rounded-xl">
+                            <button
+                                onClick={() => {
+                                    const allIds = students.map(s => s._id);
+                                    const allSelected = allIds.every(id => bulkSelectedStudents.includes(id));
+                                    if (allSelected) {
+                                        setBulkSelectedStudents([]);
+                                    } else {
+                                        setBulkSelectedStudents(allIds);
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-[#3E3ADD] uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                            >
+                                {students.map(s => s._id).every(id => bulkSelectedStudents.includes(id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+
+                            <span className="text-[10px] font-bold text-slate-550">
+                                {bulkSelectedStudents.length} of {students.length} Selected
+                            </span>
+                        </div>
+
+                        {/* Scrollable list of students */}
+                        <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[300px] border border-slate-100 rounded-2xl p-2.5 space-y-1.5 custom-scrollbar mb-6">
+                            {students.map(student => {
+                                const isChecked = bulkSelectedStudents.includes(student._id);
+                                const isCurrent = selectedStudent?._id === student._id;
+                                return (
+                                    <div
+                                        key={student._id}
+                                        onClick={() => {
+                                            if (isChecked) {
+                                                setBulkSelectedStudents(prev => prev.filter(id => id !== student._id));
+                                            } else {
+                                                setBulkSelectedStudents(prev => [...prev, student._id]);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
+                                            isChecked 
+                                                ? 'bg-indigo-50/50 border-indigo-150' 
+                                                : 'bg-white border-slate-100 hover:bg-slate-50/50'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                                                {student.name?.[0]?.toUpperCase() || 'S'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-700 truncate">{student.name}</h4>
+                                                <p className="text-[9px] text-slate-400 truncate">{student.email}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isCurrent && (
+                                                <span className="px-1.5 py-0.5 bg-[#3E3ADD]/10 text-[#3E3ADD] border border-[#3E3ADD]/20 text-[8px] font-black uppercase tracking-wider rounded-md">
+                                                    Current
+                                                </span>
+                                            )}
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {}} // Handled by parent div onClick
+                                                className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setBulkInboxConfigModal(null)}
+                                className="flex-1 py-3.5 bg-slate-105 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors uppercase tracking-wider"
+                                disabled={bulkSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkInboxSave}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                                disabled={bulkSaving || bulkSelectedStudents.length === 0}
+                            >
+                                {bulkSaving ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <span>Save & Apply</span>
+                                )}
                             </button>
                         </div>
                     </div>

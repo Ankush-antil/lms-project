@@ -54,21 +54,28 @@ const TakeTestPage = () => {
             const assignedTests = testsRes.data;
             const isAssigned = assignedTests.some(t => t._id === testId);
 
-            if (isAssigned) {
-                // Check if already submitted
+                if (isAssigned) {
+                // Check if activity is disabled
+                const configRes = await axios.get('/api/users/activity-configs').catch(() => ({ data: [] }));
+                const actConfigs = configRes.data || [];
+                const isActivityDisabled = actConfigs.some(c => c.test === testId && c.disabled === true);
+                if (isActivityDisabled) {
+                    setDenyReason('This test has been disabled by your teacher.');
+                    setCheckState('denied');
+                    return;
+                }
+
+                // Check if already submitted (but not returned — returned tests can be redone)
                 const subsRes = await axios.get('/api/submissions');
-                const alreadySubmitted = subsRes.data.some(s => {
+                const existingSubmission = subsRes.data.find(s => {
                     const sid = s.test?._id || s.test;
                     return sid === testId;
                 });
+                const alreadySubmitted = existingSubmission && existingSubmission.status !== 'returned';
 
                 if (alreadySubmitted) {
                     // Find the actual submission to get its _id for the results page
-                    const submission = subsRes.data.find(s => {
-                        const sid = s.test?._id || s.test;
-                        return sid === testId;
-                    });
-                    setSubmissionId(submission?._id || null);
+                    setSubmissionId(existingSubmission?._id || null);
                     setCheckState('submitted');
                 } else {
                     setCheckState('allowed');

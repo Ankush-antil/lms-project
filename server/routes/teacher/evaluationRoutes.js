@@ -4,7 +4,8 @@ const {
     getSubmissions,
     getSubmissionsByTest,
     getSubmissionById,
-    evaluateSubmission
+    evaluateSubmission,
+    returnSubmission
 } = require('../../controllers/teacher/evaluationController');
 const { protect } = require('../../middleware/authMiddleware');
 
@@ -19,5 +20,8 @@ router.route('/:id')
 
 router.route('/:id/evaluate')
     .put(protect, evaluateSubmission);
+
+router.route('/:id/return')
+    .put(protect, returnSubmission);
 
 module.exports = router;

@@ -17,6 +17,10 @@ const studentInboxConfigSchema = new mongoose.Schema({
     visible: {
         type: Boolean,
         default: true
+    },
+    disabled: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

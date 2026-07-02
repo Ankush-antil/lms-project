@@ -152,4 +152,33 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
     res.json(updated);
 });
 
-module.exports = { getSubmissions, getSubmissionsByTest, getSubmissionById, evaluateSubmission };
+// @desc    Return a submission back to student (teacher requests redo)
+// @route   PUT /api/submissions/:id/return
+// @access  Private (Admin/Teacher)
+const returnSubmission = asyncHandler(async (req, res) => {
+    const { returnNote } = req.body;
+
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        res.status(404);
+        throw new Error('Submission not found');
+    }
+
+    // Reset the submission so student must redo it
+    submission.status = 'returned';
+    submission.returnedAt = new Date();
+    submission.returnNote = returnNote || '';
+    // Reset marks so student starts fresh
+    submission.totalMarks = 0;
+    submission.answers = submission.answers.map(a => ({
+        ...a.toObject(),
+        marks: 0,
+        reaction: '',
+        conversation: a.conversation || []
+    }));
+
+    const updated = await submission.save();
+    res.json(updated);
+});
+
+module.exports = { getSubmissions, getSubmissionsByTest, getSubmissionById, evaluateSubmission, returnSubmission };

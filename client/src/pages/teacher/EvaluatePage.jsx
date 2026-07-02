@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, ChevronLeft, ChevronDown, ChevronUp, User, BookOpen,
     CheckCircle2, Clock, Mic, Video, FileText, Star, MessageSquare, Info, RefreshCw, Send,
-    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2
+    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2, RotateCcw
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -48,6 +48,7 @@ const EvaluatePage = () => {
     const [feedback, setFeedback] = useState({}); // submissionId -> { qIdx -> feedback }
     const [updatedVideoData, setUpdatedVideoData] = useState({}); // submissionId -> { qIdx -> videoDataJSON }
     const [saving, setSaving] = useState(null);
+    const [returning, setReturning] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
     const [collapsedFeedback, setCollapsedFeedback] = useState({}); // subId-qi -> boolean
     const { openProfile } = useUserProfile();
@@ -202,6 +203,23 @@ const EvaluatePage = () => {
             toast.error('Error saving evaluation.');
         } finally {
             setSaving(null);
+        }
+    };
+
+    const returnToStudent = async (submission) => {
+        if (!window.confirm('Are you sure you want to return this test to the student? They will need to redo it.')) return;
+        try {
+            setReturning(true);
+            await axios.put(`/api/submissions/${submission._id}/return`);
+            toast.success('Test returned to student for redo!');
+            setTimeout(() => {
+                navigate('/teacher/activities');
+            }, 1000);
+        } catch (err) {
+            console.error('Return error:', err);
+            toast.error('Error returning submission.');
+        } finally {
+            setReturning(false);
         }
     };
 
@@ -852,6 +870,16 @@ const EvaluatePage = () => {
                         >
                             <MessageSquare size={16} />
                             <span>Checking</span>
+                        </button>
+                        <div className="w-[1px] h-4 bg-slate-700"></div>
+                        <button
+                            onClick={() => returnToStudent(submission)}
+                            disabled={returning}
+                            className="flex items-center gap-2 text-sm font-semibold hover:text-orange-400 transition-colors font-bold disabled:opacity-50"
+                            title="Return this test to student for redo"
+                        >
+                            <RotateCcw size={16} className={returning ? 'animate-spin' : ''} />
+                            <span>{returning ? 'Returning...' : 'Return It'}</span>
                         </button>
                         <div className="w-[1px] h-4 bg-slate-700"></div>
                         <button

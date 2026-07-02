@@ -343,7 +343,7 @@ const getInboxConfigs = asyncHandler(async (req, res) => {
 });
 
 const saveInboxConfig = asyncHandler(async (req, res) => {
-    const { studentId, inboxId, displayName, visible } = req.body;
+    const { studentId, inboxId, displayName, visible, disabled } = req.body;
 
     if (!studentId || !inboxId) {
         res.status(400);
@@ -355,13 +355,15 @@ const saveInboxConfig = asyncHandler(async (req, res) => {
     if (config) {
         if (displayName !== undefined) config.displayName = displayName;
         if (visible !== undefined) config.visible = visible;
+        if (disabled !== undefined) config.disabled = disabled;
         await config.save();
     } else {
         config = await StudentInboxConfig.create({
             student: studentId,
             inboxId,
             displayName: displayName || '',
-            visible: visible !== undefined ? visible : true
+            visible: visible !== undefined ? visible : true,
+            disabled: disabled !== undefined ? disabled : false
         });
     }
 

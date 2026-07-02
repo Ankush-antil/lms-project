@@ -1192,6 +1192,21 @@ const StudentTests = () => {
                                         <span className="font-bold text-slate-900">{infoModalData.activity || 'N/A'}</span>
                                     </div>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created By</span>
+                                        <span className="font-bold text-slate-900">
+                                            {infoModalData.createdBy?.name || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Creator Role</span>
+                                        <span className="font-bold text-slate-900 uppercase text-xs">
+                                            {infoModalData.createdBy?.role || 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             <button

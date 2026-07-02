@@ -36,7 +36,7 @@ const getSubmissions = asyncHandler(async (req, res) => {
     }
 
     const submissions = await Submission.find(query)
-        .populate('test')
+        .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email studentProfile')
         .sort({ submittedAt: -1 });
 
@@ -77,7 +77,7 @@ const getSubmissionsByTest = asyncHandler(async (req, res) => {
 // @access  Private
 const getSubmissionById = asyncHandler(async (req, res) => {
     const submission = await Submission.findById(req.params.id)
-        .populate('test')
+        .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email');
 
     if (!submission) {

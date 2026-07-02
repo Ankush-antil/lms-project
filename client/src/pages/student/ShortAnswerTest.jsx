@@ -113,6 +113,11 @@ const ShortAnswerTest = () => {
     const [showGameModal, setShowGameModal] = useState(false);
     const [board, setBoard] = useState(Array(9).fill(''));
     const [xIsNext, setXIsNext] = useState(true);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportMessage, setReportMessage] = useState('');
+    const [submittingReport, setSubmittingReport] = useState(false);
+    const [isTemporaryMode, setIsTemporaryMode] = useState(false);
+    const [tempFillWarningOpen, setTempFillWarningOpen] = useState(false);
 
     useEffect(() => {
         const fetchTeachers = async () => {
@@ -298,6 +303,7 @@ const ShortAnswerTest = () => {
 
     // Save draft to local storage when answers change
     useEffect(() => {
+        if (isTemporaryMode) return;
         if (test && Object.keys(answers).length > 0) {
             const filteredAnswers = {};
             Object.keys(answers).forEach(key => {
@@ -925,6 +931,62 @@ const ShortAnswerTest = () => {
         }
     };
 
+    const handleSendReport = async () => {
+        if (!reportMessage.trim()) {
+            toast.error('Please describe the issue you are facing.');
+            return;
+        }
+
+        setSubmittingReport(true);
+
+        try {
+            const finalAnswers = await Promise.all(
+                test.questions.map(async (q, idx) => {
+                    if (submittedAnswers[idx]) return submittedAnswers[idx];
+
+                    const type = q.type?.toLowerCase();
+                    const isAudio = type?.includes('voice') || type?.includes('audio') || type?.includes('mic');
+                    const isVideo = type?.includes('video') || type?.includes('cam');
+
+                    let audioData = '';
+                    let videoData = '';
+
+                    if (isAudio && blobsRef.current[idx]) {
+                        audioData = await blobToBase64(blobsRef.current[idx].blob);
+                    }
+                    if (isVideo && blobsRef.current[idx]) {
+                        videoData = await blobToBase64(blobsRef.current[idx].blob);
+                    }
+
+                    return {
+                        questionId: q.id || `q${idx}`,
+                        questionText: q.text || q.questionText || `Question ${idx + 1}`,
+                        questionType: q.type,
+                        textAnswer: typeof answers[idx] === 'object' ? JSON.stringify(answers[idx]) : (answers[idx] || ''),
+                        audioData,
+                        videoData
+                    };
+                })
+            );
+
+            const subRes = await axios.post('/api/submissions', { testId: id, answers: finalAnswers });
+            const submissionId = subRes.data?._id;
+
+            if (submissionId) {
+                await axios.post(`/api/submissions/${submissionId}/feedback`, { message: reportMessage.trim() });
+            }
+
+            setSubmitted(true);
+            setReportModalOpen(false);
+            toast.success('Issue reported and test submitted successfully!');
+        } catch (err) {
+            console.error('Report error:', err);
+            toast.error(err.response?.data?.message || 'Failed to submit report. Please try again.');
+        } finally {
+            setSubmittingReport(false);
+        }
+    };
+
     if (loading) return (
         <LoadingPlaceholder type="test" />
     );
@@ -1001,7 +1063,7 @@ const ShortAnswerTest = () => {
                                         style: { background: '#334155', color: '#fff', fontSize: '11px' }
                                     });
                                 } else {
-                                    toast.info("No relevant info provided.", { style: { fontSize: '11px' } });
+                                    toast("No relevant info provided.", { style: { fontSize: '11px' } });
                                 }
                             }}
                             className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
@@ -1021,20 +1083,44 @@ const ShortAnswerTest = () => {
                         </button>
 
                         {/* Temporary Fill Button */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                test.questions?.forEach((q, qIdx) => {
-                                    if (!answers[qIdx]) {
-                                        handleTemporaryFill(qIdx, q.type);
+                        {isTemporaryMode ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsTemporaryMode(false);
+                                    const savedDrafts = localStorage.getItem(`draft_${id}`);
+                                    const restoredAnswers = {};
+                                    test.questions?.forEach((q, idx) => {
+                                        if (q.type?.toLowerCase() === 'tabular data') {
+                                            restoredAnswers[idx] = q.tableData?.rows ? JSON.parse(JSON.stringify(q.tableData.rows)) : [];
+                                        } else {
+                                            restoredAnswers[idx] = q.type?.toLowerCase() === 'checkboxes' ? [] : "";
+                                        }
+                                    });
+                                    if (savedDrafts) {
+                                        try { setAnswers({ ...restoredAnswers, ...JSON.parse(savedDrafts) }); }
+                                        catch (e) { setAnswers(restoredAnswers); }
+                                    } else {
+                                        setAnswers(restoredAnswers);
                                     }
-                                });
-                                toast.success("Questions filled with temporary placeholders.", { style: { fontSize: '11px' } });
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1 bg-[#ffc107] hover:bg-[#e0a800] text-slate-900 text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
-                        >
-                            <Clock size={11} /> Temporary Fill
-                        </button>
+                                    toast.success("Exited Temporary Fill mode. Restored your drafts.");
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-[#DC3545] hover:bg-[#c82333] text-white text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
+                            >
+                                <X size={11} /> Exit Temp Fill
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsTemporaryMode(true);
+                                    setTempFillWarningOpen(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-[#ffc107] hover:bg-[#e0a800] text-slate-900 text-[11px] font-bold rounded-full transition-all shadow-sm shrink-0"
+                            >
+                                <Clock size={11} /> Temporary Fill
+                            </button>
+                        )}
 
                         {/* More Menu */}
                         <div className="relative group/menu shrink-0">
@@ -3309,14 +3395,27 @@ const ShortAnswerTest = () => {
 
                     {/* Action Buttons (Right) */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                            type="button"
-                            onClick={submitAll}
-                            disabled={submitting}
-                            className="px-6 py-2 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Submit"}
-                        </button>
+                        {isTemporaryMode ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    toast.success("Temporary submission completed. No data was saved.");
+                                    navigate(-1);
+                                }}
+                                className="px-6 py-2 bg-[#ffc107] hover:bg-[#e0a800] text-slate-900 font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                            >
+                                Temporary Submit
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={submitAll}
+                                disabled={submitting}
+                                className="px-6 py-2 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                                {submitting ? <Loader2 size={13} className="animate-spin" /> : "Submit"}
+                            </button>
+                        )}
 
                         <button
                             type="button"
@@ -3328,14 +3427,9 @@ const ShortAnswerTest = () => {
                             Save as Draft
                         </button>
 
-                        <button
+                                                <button
                             type="button"
-                            onClick={() => {
-                                toast("If you're facing technical difficulties, contact support@lmsassessments.com", {
-                                    icon: '⚠️',
-                                    duration: 4000
-                                });
-                            }}
+                            onClick={() => setReportModalOpen(true)}
                             className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
                         >
                             Report
@@ -3344,7 +3438,130 @@ const ShortAnswerTest = () => {
                 </div>
             </div>
 
-            {/* 🎮 Tic-Tac-Toe Popup Game Modal */}
+                        {/* ⚠️ Report Issue Modal */}
+            {reportModalOpen && (
+                <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100 text-left">
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <h4 className="font-extrabold text-base text-slate-800 flex items-center gap-1.5">
+                                ⚠️ Report Issue to Teacher
+                            </h4>
+                            <button 
+                                onClick={() => setReportModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 font-bold"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        
+                        <p className="text-xs text-slate-550 font-bold leading-relaxed">
+                            Reporting an issue will submit your current answers to the teacher for evaluation along with your message. You will not be able to continue taking the test.
+                        </p>
+                        
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Describe the issue/difficulty</label>
+                            <textarea
+                                value={reportMessage}
+                                onChange={(e) => setReportMessage(e.target.value)}
+                                placeholder="Type the issue details here..."
+                                rows={4}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 justify-end pt-2 border-t border-slate-150">
+                            <button
+                                type="button"
+                                onClick={() => setReportModalOpen(false)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSendReport}
+                                disabled={submittingReport || !reportMessage.trim()}
+                                className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                                {submittingReport ? (
+                                    <>
+                                        <Loader2 size={12} className="animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : 'Submit Report'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ⚠️ Temporary Fill Warning Modal */}
+            {tempFillWarningOpen && (
+                <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4 border border-slate-100 animate-fade-in">
+                        <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-3xl">
+                            ⚠️
+                        </div>
+                        <h4 className="font-extrabold text-base text-slate-800">
+                            Temporary Fill Active
+                        </h4>
+                        <p className="text-xs text-slate-550 font-bold leading-relaxed">
+                            This data is not stored in the database.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setTempFillWarningOpen(false)}
+                            className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                        >
+                            Got It
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 🎨 Temporary Dark Theme Overlay Style */}
+            {isTemporaryMode && (
+                <style>{`
+                    body, .min-h-screen, .bg-\\[\\#e9ecef\\] {
+                        background-color: #0c0d0e !important;
+                    }
+                    .bg-white, .bg-slate-55, .bg-slate-50, .bg-\\[\\#F8FAFC\\], .bg-slate-50\\/50 {
+                        background-color: #16181a !important;
+                        border-color: #2b2e31 !important;
+                        color: #e2e8f0 !important;
+                    }
+                    h1, h2, h3, h4, h5, h6, .text-slate-850, .text-slate-800, .text-slate-700, .text-slate-900, .text-slate-650 {
+                        color: #f1f5f9 !important;
+                    }
+                    .text-slate-500, .text-slate-400, .text-slate-450 {
+                        color: #94a3b8 !important;
+                    }
+                    input, textarea, select {
+                        background-color: #1e2022 !important;
+                        border-color: #2e3235 !important;
+                        color: #f1f5f9 !important;
+                    }
+                    input:focus, textarea:focus {
+                        border-color: #ffc107 !important;
+                        box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2) !important;
+                    }
+                    .sticky, .border-b {
+                        background-color: #16181a !important;
+                        border-color: #2b2e31 !important;
+                    }
+                    .fixed.bottom-0 {
+                        background-color: #16181a !important;
+                        border-color: #2b2e31 !important;
+                    }
+                    .text-slate-700, .font-bold {
+                        color: #cbd5e1 !important;
+                    }
+                `}</style>
+            )}
+
+
+
+{/* 🎮 Tic-Tac-Toe Popup Game Modal */}
             {showGameModal && (
                 <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4 border border-slate-100">

@@ -28,7 +28,12 @@ const submissionSchema = new mongoose.Schema({
     returnedAt: { type: Date },          // timestamp when teacher returned it
     returnNote: { type: String, default: '' }, // optional note from teacher
     totalMarks: { type: Number, default: 0 },  // sum after teacher evaluation
-    submittedAt: { type: Date, default: Date.now }
+    submittedAt: { type: Date, default: Date.now },
+    conversation: [{
+        role: { type: String, enum: ['Teacher', 'Student', 'Guest'] },
+        message: { type: String },
+        timestamp: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Submission', submissionSchema);

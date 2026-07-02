@@ -1568,8 +1568,6 @@ const TeacherActivities = () => {
                                             { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-600 text-white shadow-md' },
                                             { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
                                             { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                            { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
-                                            { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                             { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                         ].map(tab => {
                                             const isActive = viewMode === tab.id;

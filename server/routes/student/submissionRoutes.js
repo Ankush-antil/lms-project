@@ -6,7 +6,9 @@ const {
     getSubmissionById,
     updateStudentComment,
     getSharedSubmissionById,
-    updateSharedComment
+    updateSharedComment,
+    addSubmissionFeedback,
+    getSubmissionFeedback
 } = require('../../controllers/student/submissionController');
 const { protect } = require('../../middleware/authMiddleware');
 
@@ -20,6 +22,10 @@ router.route('/shared/:id/comment')
 router.route('/')
     .get(protect, getSubmissions)
     .post(protect, submitTest);
+
+router.route('/:id/feedback')
+    .get(protect, getSubmissionFeedback)
+    .post(protect, addSubmissionFeedback);
 
 router.route('/:id')
     .get(protect, getSubmissionById);

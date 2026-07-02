@@ -786,6 +786,14 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Type</span>
                         <span className="font-bold text-slate-900 break-words block">{test?.activity || 'N/A'}</span>
                     </div>
+                    <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created By</span>
+                        <span className="font-bold text-slate-900 break-words block">{test?.createdBy?.name || 'N/A'}</span>
+                    </div>
+                    <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Creator Role</span>
+                        <span className="font-bold text-slate-900 break-words block uppercase text-xs">{test?.createdBy?.role || 'N/A'}</span>
+                    </div>
                     <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100 col-span-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Submitted At</span>
                         <span className="font-bold text-slate-900 break-words block">{formattedDate} at {formattedTime}</span>

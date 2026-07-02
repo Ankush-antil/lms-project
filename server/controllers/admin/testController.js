@@ -100,7 +100,7 @@ const getTests = asyncHandler(async (req, res) => {
 // @route   GET /api/tests/:id
 // @access  Private
 const getTestById = asyncHandler(async (req, res) => {
-    const test = await Test.findById(req.params.id);
+    const test = await Test.findById(req.params.id).populate('createdBy', 'name email role');
     if (!test) {
         res.status(404);
         throw new Error('Test not found');

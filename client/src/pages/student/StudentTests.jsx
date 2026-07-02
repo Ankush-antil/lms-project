@@ -22,6 +22,92 @@ const isTestExpired = (test) => {
     return false;
 };
 
+const getRemainingTimeText = (endTime) => {
+    if (!endTime) return "No Expiry";
+    const diff = new Date(endTime) - new Date();
+    if (diff <= 0) return "Expired";
+
+    const mins = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+        return `${days}d ${hours % 24}h left`;
+    }
+    if (hours > 0) {
+        return `${hours}h ${mins % 60}m left`;
+    }
+    return `${mins}m left`;
+};
+
+const ActivityTimer = ({ endTime }) => {
+    const [timeLeftMs, setTimeLeftMs] = useState(() => {
+        if (!endTime) return null;
+        return new Date(endTime) - new Date();
+    });
+
+    useEffect(() => {
+        if (!endTime) return;
+
+        const interval = setInterval(() => {
+            const diff = new Date(endTime) - new Date();
+            setTimeLeftMs(diff);
+            if (diff <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endTime]);
+
+    if (!endTime) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-slate-50 border-slate-200/50 text-slate-500 shrink-0">
+                <Clock size={9} />
+                No Expiry
+            </span>
+        );
+    }
+
+    if (timeLeftMs <= 0) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-rose-50 border-rose-100 text-rose-600 shrink-0 animate-pulse">
+                <Clock size={9} />
+                Expired
+            </span>
+        );
+    }
+
+    const totalSecs = Math.floor(timeLeftMs / 1000);
+    const mins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    let displayStr = "";
+    if (days > 0) {
+        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
+    } else if (hours > 0) {
+        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    } else {
+        displayStr = `${mins}m ${totalSecs % 60}s left`;
+    }
+
+    const isCritical = totalSecs < 600;
+
+    return (
+        <span 
+            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${
+                isCritical 
+                    ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse' 
+                    : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
+            }`}
+        >
+            <Clock size={9} className={isCritical ? 'text-red-500' : 'text-[#3E3ADD]'} />
+            {displayStr}
+        </span>
+    );
+};
+
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
     const cleanTitle = title.trim();
@@ -77,6 +163,7 @@ const StudentTests = () => {
     const messagesEndRef = useRef(null);
     const studentTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
+    const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
 
     const handleStudentTabsScroll = (direction) => {
         if (studentTabsRef.current) {
@@ -261,20 +348,24 @@ const StudentTests = () => {
         return localCount + cloudCount;
     };
 
+    const [allStudyMaterials, setAllStudyMaterials] = useState([]);
+
     useEffect(() => {
         const fetch = async () => {
             try {
                 if (!userInfo) return;
-                const [testsRes, subsRes, configsRes, actConfigsRes] = await Promise.all([
+                const [testsRes, subsRes, configsRes, actConfigsRes, materialsRes] = await Promise.all([
                     axios.get('/api/tests'),
                     axios.get('/api/submissions'),
                     axios.get('/api/users/inbox-configs').catch(() => ({ data: [] })),
-                    axios.get('/api/users/activity-configs').catch(() => ({ data: [] }))
+                    axios.get('/api/users/activity-configs').catch(() => ({ data: [] })),
+                    axios.get('/api/study-materials').catch(() => ({ data: [] }))
                 ]);
                 setTests(testsRes.data);
                 setSubmissions(subsRes.data);
                 setInboxConfigs(configsRes.data || []);
                 setActivityConfigs(actConfigsRes.data || []);
+                setAllStudyMaterials(materialsRes.data || []);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -289,37 +380,90 @@ const StudentTests = () => {
         [submissions]
     );
 
+    const courseDuration = useMemo(() => {
+        const profileDuration = userInfo?.studentProfile?.course?.duration;
+        if (profileDuration && profileDuration > 0) return profileDuration;
+
+        // Fallback: find highest index in tests
+        let maxIndex = 0;
+        tests.forEach(test => {
+            if (test.index) {
+                const match = test.index.match(/\d+/);
+                if (match) {
+                    const num = parseInt(match[0]);
+                    if (num > maxIndex) maxIndex = num;
+                }
+            }
+        });
+        return Math.max(maxIndex, 5); // Default to at least 5 inboxes
+    }, [userInfo, tests]);
+
     const dynamicInboxItems = useMemo(() => {
-        const grouped = tests.reduce((acc, test) => {
+        // Group tests by normalized index
+        const testsGrouped = tests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
-            if (!acc[indexStr]) acc[indexStr] = [];
-            acc[indexStr].push(test);
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(test);
             return acc;
         }, {});
 
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        // Group study materials by normalized index
+        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
 
-        const items = Object.keys(grouped)
-            .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => {
-                const config = inboxConfigs.find(c => c.inboxId === indexStr);
-                const isVisible = config ? config.visible : true;
-                const isDisabled = config ? !!config.disabled : false;
-                const customTitle = config && config.displayName ? config.displayName : indexStr;
+        // Generate standard keys from 1 to courseDuration
+        const standardKeys = [];
+        for (let i = 1; i <= courseDuration; i++) {
+            standardKeys.push(`Index ${i}`);
+        }
 
-                return {
-                    id: indexStr,
-                    title: customTitle,
-                    completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
-                    pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
-                    tests: grouped[indexStr],
-                    visible: isVisible,
-                    disabled: isDisabled
-                };
-            });
+        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
+        const allKeys = [...standardKeys];
+        const addKeyIfNew = (key) => {
+            const norm = key.trim().toLowerCase();
+            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
+            if (!exists) {
+                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                allKeys.push(pretty);
+            }
+        };
 
-        return items.filter(item => item.visible);
-    }, [tests, submittedTestIds, inboxConfigs]);
+        Object.keys(testsGrouped).forEach(addKeyIfNew);
+        Object.keys(materialsGrouped).forEach(addKeyIfNew);
+
+        return allKeys.map(keyName => {
+            const normalized = keyName.trim().toLowerCase();
+            const testsInInbox = testsGrouped[normalized] || [];
+            const materialsInInbox = materialsGrouped[normalized] || [];
+
+            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const isVisible = config ? config.visible : true;
+            
+            // Check if inbox has any content
+            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
+            // Empty inbox is disabled/locked, or explicitly disabled in config
+            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            
+            const customTitle = config && config.displayName ? config.displayName : keyName;
+
+            return {
+                id: keyName,
+                title: customTitle,
+                completed: testsInInbox.filter(t => submittedTestIds.has(t._id)).length,
+                pending: testsInInbox.filter(t => !submittedTestIds.has(t._id)).length,
+                tests: testsInInbox,
+                visible: isVisible,
+                disabled: isInboxDisabled,
+                hasContent: hasContent
+            };
+        }).filter(item => item.visible);
+    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration]);
 
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {
@@ -590,6 +734,10 @@ const StudentTests = () => {
                                     <div
                                         key={item.id}
                                         onClick={() => {
+                                            if (isDisabled) {
+                                                toast.error("This inbox has no activities or study materials assigned yet.");
+                                                return;
+                                            }
                                             setSelectedItem(item.id);
                                             setSelectedCategory(null);
                                             if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
@@ -1020,6 +1168,10 @@ const StudentTests = () => {
                                             const config = activityConfigs.find(c => c.test === test._id);
                                             const isDisabled = config ? !!config.disabled : false;
 
+                                            const isExpired = isTestExpired(test);
+                                            const cannotTake = isExpired && (!sub || isReturned);
+                                            const isBtnDisabled = isDisabled || cannotTake;
+
                                             return (
                                                 <div
                                                     key={test._id}
@@ -1028,22 +1180,26 @@ const StudentTests = () => {
                                                             toast.error("This test has been disabled by your teacher.");
                                                             return;
                                                         }
+                                                        if (cannotTake) {
+                                                            toast.error("This activity has expired and cannot be taken.");
+                                                            return;
+                                                        }
                                                         if (!sub || isReturned) {
                                                             navigate(`/student/take-test/${test._id}`);
                                                         } else {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all cursor-pointer flex flex-col justify-between h-auto relative group ${
-                                                        isDisabled
-                                                            ? 'border-slate-205 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
+                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${
+                                                        isBtnDisabled
+                                                            ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
                                                             : isReturned
-                                                                ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100'
-                                                                : 'hover:border-[#3E3ADD]'
+                                                                ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
+                                                                : 'hover:border-[#3E3ADD] cursor-pointer'
                                                     }`}
                                                 >
                                                     {/* Returned warning banner */}
-                                                    {isReturned && (
+                                                    {isReturned && !isExpired && (
                                                         <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
                                                             ⚠ Returned — Redo Required
                                                         </div>
@@ -1054,45 +1210,78 @@ const StudentTests = () => {
                                                             🔒 Disabled by Teacher
                                                         </div>
                                                     )}
-                                                    <div className={`flex items-center gap-2 min-w-0 ${(isReturned || isDisabled) ? 'mt-3' : ''}`}>
-                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                            isDisabled 
-                                                                ? 'bg-slate-400' 
-                                                                : !sub 
-                                                                    ? 'bg-orange-500' 
-                                                                    : isEvaluated 
-                                                                        ? 'bg-emerald-500' 
-                                                                        : isReturned 
-                                                                            ? 'bg-orange-500 animate-pulse' 
-                                                                            : 'bg-blue-500'
-                                                        }`} />
-                                                        <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
-                                                            isDisabled
-                                                                ? 'text-slate-400'
-                                                                : isReturned 
-                                                                    ? 'group-hover:text-orange-500' 
-                                                                    : 'group-hover:text-[#3E3ADD]'
-                                                        }`}>
-                                                            {test.title}
-                                                        </h3>
+                                                    {/* Expired warning banner */}
+                                                    {cannotTake && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            ⏰ Expired
+                                                        </div>
+                                                    )}
+                                                    <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                                isBtnDisabled 
+                                                                    ? 'bg-slate-400' 
+                                                                    : !sub 
+                                                                        ? 'bg-orange-500' 
+                                                                        : isEvaluated 
+                                                                            ? 'bg-emerald-500' 
+                                                                            : isReturned 
+                                                                                ? 'bg-orange-500 animate-pulse' 
+                                                                                : 'bg-blue-500'
+                                                            }`} />
+                                                            <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
+                                                                isBtnDisabled
+                                                                    ? 'text-slate-400'
+                                                                    : isReturned 
+                                                                        ? 'group-hover:text-orange-500' 
+                                                                        : 'group-hover:text-[#3E3ADD]'
+                                                            }`}>
+                                                                {test.title}
+                                                            </h3>
+                                                        </div>
+
+                                                        <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
+                                                                }}
+                                                                className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                title="Options"
+                                                            >
+                                                                <MoreVertical size={14} />
+                                                            </button>
+                                                            {activeDropdownTestId === test._id && (
+                                                                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-36 animate-fade-in text-left">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveDropdownTestId(null);
+                                                                            setInfoModalData(test);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                    >
+                                                                        <Eye size={13} className="text-slate-400" />
+                                                                        View Details
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setInfoModalData(test);
-                                                            }}
-                                                            className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                            title="RI Details"
-                                                        >
-                                                            <Eye size={14} />
-                                                        </button>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <ActivityTimer endTime={test.settings?.endTime} />
+                                                        </div>
 
                                                         <button
                                                             onClick={() => {
                                                                 if (isDisabled) {
                                                                     toast.error("This test has been disabled by your teacher.");
+                                                                    return;
+                                                                }
+                                                                if (cannotTake) {
+                                                                    toast.error("This activity has expired and cannot be taken.");
                                                                     return;
                                                                 }
                                                                 if (!sub || isReturned) {
@@ -1101,9 +1290,9 @@ const StudentTests = () => {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            disabled={isDisabled}
+                                                            disabled={isBtnDisabled}
                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                isDisabled
+                                                                isBtnDisabled
                                                                     ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                                                                     : isReturned
                                                                         ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
@@ -1114,7 +1303,7 @@ const StudentTests = () => {
                                                                                 : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
                                                             }`}
                                                         >
-                                                            {isDisabled ? 'Disabled' : isReturned ? 'Redo Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>

@@ -131,9 +131,31 @@ const updateTest = asyncHandler(async (req, res) => {
             // Enforce edit permission for teachers
             if (req.user.role === 'Teacher') {
                 const isCreator = test.createdBy && test.createdBy.toString() === req.user._id.toString();
-                if (!isCreator && !test.allowTeacherEdit) {
-                    res.status(403);
-                    throw new Error('Not authorized to edit this test (Editor permission required)');
+                const hasEditPermission = isCreator || test.allowTeacherEdit;
+
+                if (!hasEditPermission) {
+                    if (questions !== undefined) {
+                        res.status(403);
+                        throw new Error('Not authorized to edit questions (Editor permission required)');
+                    }
+                    if (testDetails) {
+                        const forbiddenDetails = Object.keys(testDetails).filter(key => key !== 'isAssigned' && key !== 'institute');
+                        for (const key of forbiddenDetails) {
+                            if (testDetails[key] !== undefined && testDetails[key] !== test[key]) {
+                                res.status(403);
+                                throw new Error(`Not authorized to edit test detail: ${key} (Editor permission required)`);
+                            }
+                        }
+                    }
+                    if (settings) {
+                        const forbiddenSettings = Object.keys(settings).filter(key => key !== 'endTime');
+                        for (const key of forbiddenSettings) {
+                            if (settings[key] !== undefined && test.settings && settings[key] !== test.settings[key]) {
+                                res.status(403);
+                                throw new Error(`Not authorized to edit test setting: ${key} (Editor permission required)`);
+                            }
+                        }
+                    }
                 }
             }
             // Enforce their own institute name on update

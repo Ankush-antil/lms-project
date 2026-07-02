@@ -24,7 +24,7 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         })
             .select('-password')
             .populate('institute', 'name')
-            .populate('studentProfile.course', 'name');
+            .populate('studentProfile.course', 'name subjects duration');
 
         const studentsWithStats = await Promise.all(students.map(async (student) => {
             try {

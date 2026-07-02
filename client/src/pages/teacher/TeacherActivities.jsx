@@ -9,7 +9,7 @@ import {
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
-    CreditCard, Activity, Edit3
+    CreditCard, Activity, Edit3, Lock
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -21,6 +21,92 @@ const isTestExpired = (test) => {
     if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
     if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
     return false;
+};
+
+const getRemainingTimeText = (endTime) => {
+    if (!endTime) return "No Expiry";
+    const diff = new Date(endTime) - new Date();
+    if (diff <= 0) return "Expired";
+
+    const mins = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+        return `${days}d ${hours % 24}h left`;
+    }
+    if (hours > 0) {
+        return `${hours}h ${mins % 60}m left`;
+    }
+    return `${mins}m left`;
+};
+
+const ActivityTimer = ({ endTime }) => {
+    const [timeLeftMs, setTimeLeftMs] = useState(() => {
+        if (!endTime) return null;
+        return new Date(endTime) - new Date();
+    });
+
+    useEffect(() => {
+        if (!endTime) return;
+
+        const interval = setInterval(() => {
+            const diff = new Date(endTime) - new Date();
+            setTimeLeftMs(diff);
+            if (diff <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endTime]);
+
+    if (!endTime) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-slate-50 border-slate-200/50 text-slate-500 shrink-0">
+                <Clock size={9} />
+                No Expiry
+            </span>
+        );
+    }
+
+    if (timeLeftMs <= 0) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-rose-50 border-rose-100 text-rose-600 shrink-0 animate-pulse">
+                <Clock size={9} />
+                Expired
+            </span>
+        );
+    }
+
+    const totalSecs = Math.floor(timeLeftMs / 1000);
+    const mins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    let displayStr = "";
+    if (days > 0) {
+        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
+    } else if (hours > 0) {
+        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    } else {
+        displayStr = `${mins}m ${totalSecs % 60}s left`;
+    }
+
+    const isCritical = totalSecs < 600;
+
+    return (
+        <span 
+            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${
+                isCritical 
+                    ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse' 
+                    : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
+            }`}
+        >
+            <Clock size={9} className={isCritical ? 'text-red-500' : 'text-[#3E3ADD]'} />
+            {displayStr}
+        </span>
+    );
 };
 
 const getDisplayTitle = (title) => {
@@ -147,6 +233,93 @@ const TeacherActivities = () => {
         return () => document.removeEventListener('click', handleGlobalClick);
     }, []);
 
+    // Expiry Modal States
+    const [expiryModalOpen, setExpiryModalOpen] = useState(false);
+    const [expiryModalTest, setExpiryModalTest] = useState(null);
+    const [expiryDate, setExpiryDate] = useState('');
+    const [isNoExpiry, setIsNoExpiry] = useState(false);
+
+    const openExpiryModal = (test) => {
+        setExpiryModalTest(test);
+        if (test.settings?.endTime) {
+            const d = new Date(test.settings.endTime);
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            setExpiryDate(formatted);
+            setIsNoExpiry(false);
+        } else {
+            setExpiryDate('');
+            setIsNoExpiry(true);
+        }
+        setExpiryModalOpen(true);
+    };
+
+    const validateExpiryDate = (dateVal, isNoExpiryOption) => {
+        if (isNoExpiryOption) return { valid: true };
+        if (!dateVal) return { valid: false, error: "Please select an expiry date and time." };
+
+        const selectedDate = new Date(dateVal);
+        const now = new Date();
+
+        const maxTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        if (selectedDate <= now) {
+            return { valid: false, error: "Expiry time must be in the future." };
+        }
+        if (selectedDate > maxTime) {
+            return { valid: false, error: "Expiry time cannot exceed 30 days from now." };
+        }
+        return { valid: true };
+    };
+
+    const handleSaveExpiry = async () => {
+        if (!expiryModalTest) return;
+        const validation = validateExpiryDate(expiryDate, isNoExpiry);
+        if (!validation.valid) {
+            toast.error(validation.error);
+            return;
+        }
+
+        try {
+            const endTimeValue = isNoExpiry ? null : new Date(expiryDate);
+            await axios.put(`/api/tests/${expiryModalTest._id}`, {
+                testDetails: { isAssigned: true },
+                settings: {
+                    ...expiryModalTest.settings,
+                    endTime: endTimeValue
+                }
+            });
+            toast.success(expiryModalTest.isAssigned ? "Expiry settings updated successfully!" : "Activity assigned successfully!");
+            setExpiryModalOpen(false);
+            setExpiryModalTest(null);
+            fetchTests();
+        } catch (err) {
+            console.error("Error setting test expiry:", err);
+            toast.error("Failed to update expiry settings");
+        }
+    };
+
+    const handleForceExpire = async (test) => {
+        if (!window.confirm("Are you sure you want to force expire this activity immediately?")) return;
+        try {
+            const pastDate = new Date(Date.now() - 5 * 60 * 1000);
+            await axios.put(`/api/tests/${test._id}`, {
+                testDetails: { isAssigned: true },
+                settings: {
+                    ...test.settings,
+                    endTime: pastDate
+                }
+            });
+            toast.success("Activity force expired successfully!");
+            setExpiryModalOpen(false);
+            setExpiryModalTest(null);
+            fetchTests();
+        } catch (err) {
+            console.error("Error force expiring test:", err);
+            toast.error("Failed to force expire activity");
+        }
+    };
+
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [matTitle, setMatTitle] = useState('');
@@ -235,10 +408,16 @@ const TeacherActivities = () => {
         }
     };
 
+    const [allStudyMaterials, setAllStudyMaterials] = useState([]);
+
     const fetchTests = async () => {
         try {
-            const { data } = await axios.get('/api/tests');
-            setAllTests(data);
+            const [testsRes, materialsRes] = await Promise.all([
+                axios.get('/api/tests'),
+                axios.get('/api/study-materials').catch(() => ({ data: [] }))
+            ]);
+            setAllTests(testsRes.data);
+            setAllStudyMaterials(materialsRes.data || []);
         } catch (error) {
             console.error("Error fetching all tests:", error);
         }
@@ -501,42 +680,100 @@ const TeacherActivities = () => {
         return { completed, pending };
     }, [assignedTests, submissionMap, selectedStudent]);
 
+    const courseDuration = useMemo(() => {
+        if (!selectedStudent) return 5;
+        const profileDuration = selectedStudent.studentProfile?.course?.duration;
+        if (profileDuration && profileDuration > 0) return profileDuration;
+
+        // Fallback: find highest index in tests
+        let maxIndex = 0;
+        assignedTests.forEach(test => {
+            if (test.index) {
+                const match = test.index.match(/\d+/);
+                if (match) {
+                    const num = parseInt(match[0]);
+                    if (num > maxIndex) maxIndex = num;
+                }
+            }
+        });
+        return Math.max(maxIndex, 5); // Default to at least 5 inboxes
+    }, [selectedStudent, assignedTests]);
+
     // Group assigned tests by index for the student
     const dynamicInboxItems = useMemo(() => {
-        const grouped = assignedTests.reduce((acc, test) => {
+        if (!selectedStudent) return [];
+
+        // Group tests by normalized index
+        const testsGrouped = assignedTests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
-            if (!acc[indexStr]) acc[indexStr] = [];
-            acc[indexStr].push(test);
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(test);
             return acc;
         }, {});
 
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        // Group study materials by normalized index
+        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
 
-        return Object.keys(grouped)
-            .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => {
-                const config = inboxConfigs.find(c => c.inboxId === indexStr);
-                const isVisible = config ? config.visible : true;
-                const isInboxDisabled = config ? !!config.disabled : false;
-                const customTitle = config && config.displayName ? config.displayName : indexStr;
+        // Generate standard keys from 1 to courseDuration
+        const standardKeys = [];
+        for (let i = 1; i <= courseDuration; i++) {
+            standardKeys.push(`Index ${i}`);
+        }
 
-                return {
-                    id: indexStr,
-                    title: customTitle,
-                    completed: grouped[indexStr].filter(t => {
-                        const sub = submissionMap.get(t._id);
-                        return sub && sub.status === 'evaluated';
-                    }).length,
-                    pending: grouped[indexStr].filter(t => {
-                        const sub = submissionMap.get(t._id);
-                        return !sub || sub.status !== 'evaluated';
-                    }).length,
-                    tests: grouped[indexStr],
-                    visible: isVisible,
-                    disabled: isInboxDisabled
-                };
-            });
-    }, [assignedTests, submissionMap, inboxConfigs]);
+        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
+        const allKeys = [...standardKeys];
+        const addKeyIfNew = (key) => {
+            const norm = key.trim().toLowerCase();
+            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
+            if (!exists) {
+                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                allKeys.push(pretty);
+            }
+        };
+
+        Object.keys(testsGrouped).forEach(addKeyIfNew);
+        Object.keys(materialsGrouped).forEach(addKeyIfNew);
+
+        return allKeys.map(keyName => {
+            const normalized = keyName.trim().toLowerCase();
+            const testsInInbox = testsGrouped[normalized] || [];
+            const materialsInInbox = materialsGrouped[normalized] || [];
+
+            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const isVisible = config ? config.visible : true;
+            
+            // Check if inbox has any content
+            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
+            // Empty inbox is disabled/locked, or explicitly disabled in config
+            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            
+            const customTitle = config && config.displayName ? config.displayName : keyName;
+
+            return {
+                id: keyName,
+                title: customTitle,
+                completed: testsInInbox.filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return sub && sub.status === 'evaluated';
+                }).length,
+                pending: testsInInbox.filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return !sub || sub.status !== 'evaluated';
+                }).length,
+                tests: testsInInbox,
+                visible: isVisible,
+                disabled: isInboxDisabled,
+                hasContent: hasContent
+            };
+        });
+    }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
 
     // Auto-select first group when student changes
     useEffect(() => {
@@ -981,6 +1218,10 @@ const TeacherActivities = () => {
                                                 <div
                                                     key={item.id}
                                                     onClick={() => {
+                                                        if (isInboxDisabled) {
+                                                            toast.error("This inbox has no activities assigned for this student yet.");
+                                                            return;
+                                                        }
                                                         setSelectedInboxId(item.id);
                                                         setSelectedCategory(null);
                                                         if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
@@ -989,13 +1230,19 @@ const TeacherActivities = () => {
                                                     }}
                                                     className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
                                                         ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                        : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                        : isInboxDisabled
+                                                            ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                                         }`}
                                                 >
                                                     <div className="flex items-center space-x-2.5 min-w-0">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive 
+                                                            ? 'bg-[#3E3ADD] text-white shadow-sm' 
+                                                            : isInboxDisabled 
+                                                                ? 'bg-slate-200 text-slate-400' 
+                                                                : 'bg-slate-100 text-slate-500'
                                                             }`}>
-                                                            <BookOpen size={14} />
+                                                            {isInboxDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
                                                         </div>
                                                         <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${(!item.visible || isInboxDisabled) ? 'opacity-60' : ''}`}>
                                                             {getDisplayTitle(item.title)}
@@ -1006,7 +1253,7 @@ const TeacherActivities = () => {
                                                             )}
                                                             {isInboxDisabled && (
                                                                 <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
-                                                                    Disabled
+                                                                    Locked
                                                                 </span>
                                                             )}
                                                         </h3>
@@ -1805,7 +2052,7 @@ const TeacherActivities = () => {
                                                                     </h3>
                                                                 </div>
                                                                 {/* Options menu or direct Eye button depending on tab */}
-                                                                {viewMode === 'pending' || viewMode === 'assign' ? (
+                                                                {viewMode === 'pending' || viewMode === 'assign' || viewMode === 'expired' ? (
                                                                     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                                                                         <button
                                                                             onClick={(e) => {
@@ -1818,7 +2065,7 @@ const TeacherActivities = () => {
                                                                             <MoreVertical size={14} />
                                                                         </button>
                                                                         {activeDropdownTestId === test._id && (
-                                                                            <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in">
+                                                                            <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in text-left">
                                                                                 {/* View Details */}
                                                                                 <button
                                                                                     onClick={(e) => {
@@ -1833,22 +2080,39 @@ const TeacherActivities = () => {
                                                                                 </button>
 
                                                                                 {/* Edit Activity */}
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        setActiveDropdownTestId(null);
-                                                                                        const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
-                                                                                        if (isCreator || test.allowTeacherEdit) {
-                                                                                            navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
-                                                                                        } else {
-                                                                                            toast.error("Permission Denied: Editor has not authorized editing for this activity.");
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                                >
-                                                                                    <Edit3 size={13} className="text-slate-400" />
-                                                                                    Edit Activity
-                                                                                </button>
+                                                                                {(viewMode === 'pending' || viewMode === 'assign') && (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownTestId(null);
+                                                                                            const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
+                                                                                            if (isCreator || test.allowTeacherEdit) {
+                                                                                                navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
+                                                                                            } else {
+                                                                                                toast.error("Permission Denied: Editor has not authorized editing for this activity.");
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                                    >
+                                                                                        <Edit3 size={13} className="text-slate-400" />
+                                                                                        Edit Activity
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Edit Expiry */}
+                                                                                {(viewMode === 'pending' || viewMode === 'expired') && (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownTestId(null);
+                                                                                            openExpiryModal(test);
+                                                                                        }}
+                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                                    >
+                                                                                        <Clock size={13} className="text-slate-400" />
+                                                                                        Edit Expiry
+                                                                                    </button>
+                                                                                )}
 
                                                                                 {viewMode === 'pending' && (
                                                                                     <>
@@ -1930,33 +2194,33 @@ const TeacherActivities = () => {
                                                                 </div>
                                                             )}
 
-                                                            <div className="flex items-center justify-end mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                                {viewMode === 'assign' ? (
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            try {
-                                                                                await axios.put(`/api/tests/${test._id}`, { testDetails: { isAssigned: true } });
-                                                                                toast.success("Activity assigned successfully!");
-                                                                                fetchTests();
-                                                                            } catch (err) {
-                                                                                toast.error("Failed to assign activity");
-                                                                            }
-                                                                        }}
-                                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border border-transparent"
-                                                                    >
-                                                                        Move to upcomming
-                                                                    </button>
-                                                                ) : sub && (
-                                                                    <button
-                                                                        onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
-                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                            : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                            }`}
-                                                                    >
-                                                                        {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
-                                                                    </button>
+                                                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                                {/* Left Side: Expiry display */}
+                                                                {viewMode !== 'assign' && (
+                                                                    <ActivityTimer endTime={test.settings?.endTime} />
                                                                 )}
+
+                                                                {/* Right Side: Action Button */}
+                                                                <div className="flex-1 flex justify-end">
+                                                                    {viewMode === 'assign' ? (
+                                                                        <button
+                                                                            onClick={() => openExpiryModal(test)}
+                                                                            className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border border-transparent"
+                                                                        >
+                                                                            Move to upcoming
+                                                                        </button>
+                                                                    ) : sub ? (
+                                                                        <button
+                                                                            onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
+                                                                                ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                                : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                                }`}
+                                                                        >
+                                                                            {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );
@@ -2765,6 +3029,145 @@ const TeacherActivities = () => {
                                     <span>Save & Apply</span>
                                 )}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Expiry Configuration Modal */}
+            {expiryModalOpen && expiryModalTest && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up animate-fade-in">
+                        <div className="p-8">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-[#3E3ADD] flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                        <Clock size={20} strokeWidth={2.5} />
+                                    </div>
+                                    <h2 className="text-lg font-black text-slate-800 tracking-tight">
+                                        {expiryModalTest.isAssigned ? "Edit Expiry Settings" : "Configure Expiry"}
+                                    </h2>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setExpiryModalOpen(false);
+                                        setExpiryModalTest(null);
+                                    }}
+                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+                                >
+                                    <RotateCcw size={20} className="rotate-45" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Activity</label>
+                                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                                        <span className="font-bold text-indigo-900 text-sm block">{expiryModalTest.title}</span>
+                                        <span className="text-[10px] text-indigo-500 font-semibold block mt-0.5 uppercase tracking-wider">{expiryModalTest.activity || 'Test'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Option 1: Always Available / No Expiry */}
+                                    <div 
+                                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                                            isNoExpiry 
+                                                ? 'bg-purple-50/40 border-purple-200' 
+                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                        }`}
+                                        onClick={() => setIsNoExpiry(true)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="radio" 
+                                                id="expiry-none"
+                                                name="expiry-type"
+                                                checked={isNoExpiry}
+                                                onChange={() => setIsNoExpiry(true)}
+                                                className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                            <div className="text-left">
+                                                <label htmlFor="expiry-none" className="text-xs font-bold text-slate-850 cursor-pointer">No Expiry</label>
+                                                <p className="text-[9px] text-slate-450 mt-0.5">Always available to students in upcoming activities</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Option 2: Set Expiry Date & Time */}
+                                    <div 
+                                        className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
+                                            !isNoExpiry 
+                                                ? 'bg-indigo-50/40 border-indigo-200' 
+                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div 
+                                            className="flex items-center gap-3 cursor-pointer"
+                                            onClick={() => setIsNoExpiry(false)}
+                                        >
+                                            <input 
+                                                type="radio" 
+                                                id="expiry-set"
+                                                name="expiry-type"
+                                                checked={!isNoExpiry}
+                                                onChange={() => setIsNoExpiry(false)}
+                                                className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                            <div className="text-left">
+                                                <label htmlFor="expiry-set" className="text-xs font-bold text-slate-850 cursor-pointer">Set Expiry Date & Time</label>
+                                                <p className="text-[9px] text-slate-450 mt-0.5">Select a specific deadline for submissions</p>
+                                            </div>
+                                        </div>
+
+                                        {!isNoExpiry && (
+                                            <div className="space-y-2 animate-fade-in text-left">
+                                                <input 
+                                                    type="datetime-local" 
+                                                    value={expiryDate}
+                                                    onChange={(e) => setExpiryDate(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                />
+                                                <p className="text-[9px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100 leading-relaxed">
+                                                    ℹ Must be in the future and cannot exceed 30 days from now.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Force Expire Button (Only if test is already assigned) */}
+                                {expiryModalTest.isAssigned && (
+                                    <div className="pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleForceExpire(expiryModalTest)}
+                                            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black rounded-xl text-[10px] uppercase tracking-wider transition-all"
+                                        >
+                                            Force Expire Immediately
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                                <button
+                                    onClick={() => {
+                                        setExpiryModalOpen(false);
+                                        setExpiryModalTest(null);
+                                    }}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-[10px] transition-colors uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveExpiry}
+                                    className="flex-1 py-3 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-[10px] transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider"
+                                >
+                                    {expiryModalTest.isAssigned ? "Save Changes" : "Assign Activity"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

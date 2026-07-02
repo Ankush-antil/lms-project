@@ -10,7 +10,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [institutes, setInstitutes] = useState([]);
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
-        syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30
+        syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
+        duration: 5
     });
     const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
     const [syllabusFile, setSyllabusFile] = useState(null);
@@ -35,7 +36,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     subjects: Array.isArray(course.subjects) ? course.subjects.join(', ') : (course.subjects || ''),
                     syllabusUrl: course.syllabusUrl || '',
                     syllabusType: course.syllabusType || 'link',
-                    maxStudentsPerSection: course.maxStudentsPerSection || 30
+                    maxStudentsPerSection: course.maxStudentsPerSection || 30,
+                    duration: course.duration || 5
                 });
                 setSyllabusMode(course.syllabusType || 'link');
             } else {
@@ -49,7 +51,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     subjects: '',
                     syllabusUrl: '',
                     syllabusType: 'link',
-                    maxStudentsPerSection: 30
+                    maxStudentsPerSection: 30,
+                    duration: 5
                 });
                 setSyllabusMode('link');
             }
@@ -86,13 +89,23 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             toast.error('Max Students Per Section must be at least 1');
             return;
         }
+        const durationVal = parseInt(formData.duration);
+        if (isNaN(durationVal) || durationVal < 1) {
+            toast.error('Course Duration must be at least 1 day');
+            return;
+        }
         setLoading(true);
         try {
+            const payload = {
+                ...formData,
+                maxStudentsPerSection: sectionVal,
+                duration: durationVal
+            };
             if (course) {
-                await axios.put(`/api/setup/courses/${course._id}`, { ...formData, maxStudentsPerSection: sectionVal });
+                await axios.put(`/api/setup/courses/${course._id}`, payload);
                 toast.success('Course Updated!');
             } else {
-                await axios.post('/api/setup/courses', { ...formData, maxStudentsPerSection: sectionVal });
+                await axios.post('/api/setup/courses', payload);
                 if (user?.role === 'Editor') {
                     toast.success('Course submitted for Admin approval!');
                 } else {
@@ -218,8 +231,28 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                     placeholder="30"
                                 />
                             </div>
+                        </div>
+
+                        {/* Course Duration */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
+                                📅 Course Duration (In Days)
+                            </label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                required
+                                value={formData.duration}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setFormData({ ...formData, duration: val });
+                                }}
+                                placeholder="e.g. 5"
+                            />
                             <p className="text-[10px] text-slate-400 font-medium mt-1.5 leading-snug">
-                                Students will be auto-assigned to Section A, B, C... when enrolling. Every {formData.maxStudentsPerSection} students = 1 section.
+                                This will generate the corresponding number of day inboxes (1 to {formData.duration || 5}) for students and teachers.
                             </p>
                         </div>
 

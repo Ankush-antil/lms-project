@@ -35,6 +35,10 @@ const courseSchema = new mongoose.Schema({
         type: Number,
         default: 30,
         min: 1
+    },
+    duration: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true

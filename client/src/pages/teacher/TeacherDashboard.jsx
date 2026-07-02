@@ -181,7 +181,7 @@ const TeacherDashboard = () => {
                     <button
                         onClick={handleToggleCall}
                         className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${callEnabled
-                            ? 'bg-emerald-650 hover:bg-emerald-700 text-white shadow-emerald-100'
+                            ? 'bg-emerald-650 bg-emerald-700 text-white shadow-emerald-100'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
                             }`}
                     >

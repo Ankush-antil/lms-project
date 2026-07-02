@@ -190,9 +190,17 @@ const ShortAnswerTest = () => {
                 }
 
                 const res = await axios.get(`/api/tests/${id}`);
-                setTest(res.data);
+                const testData = res.data;
+
+                if (testData.settings?.endTime && new Date(testData.settings.endTime) < new Date()) {
+                    toast.error("This activity has expired and cannot be taken.");
+                    navigate('/student/dashboard');
+                    return;
+                }
+
+                setTest(testData);
                 const initialAnswers = {};
-                res.data.questions.forEach((q, idx) => {
+                testData.questions.forEach((q, idx) => {
                     if (q.type?.toLowerCase() === 'tabular data') {
                         initialAnswers[idx] = q.tableData?.rows ? JSON.parse(JSON.stringify(q.tableData.rows)) : [];
                     } else {

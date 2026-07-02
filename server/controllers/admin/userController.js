@@ -20,8 +20,16 @@ const computeSection = async (courseId) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-    const role = req.query.role;
-    const query = role ? { role } : {};
+    const { role, course } = req.query;
+    const query = {};
+    if (role) query.role = role;
+    if (course) {
+        if (role === 'Student') {
+            query['studentProfile.course'] = course;
+        } else if (role === 'Teacher') {
+            query['teacherProfile.assignedCourses'] = course;
+        }
+    }
 
     // Isolate by institute for Institute and Editor roles
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
@@ -34,7 +42,8 @@ const getUsers = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects')
-        .populate('teacherProfile.assignedCourses', 'name');
+        .populate('teacherProfile.assignedCourses', 'name')
+        .populate('teacherProfile.assignedStudents', 'name email studentProfile');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
     res.json(users);
@@ -44,7 +53,7 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/users
 // @access  Private/Admin or Institute
 const createUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled } = req.body;
+    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled, studentAssignmentMode, assignedSections, assignedStudents } = req.body;
     let institute = req.body.institute;
 
     // Enforce creator's institute for Institute and Editor users
@@ -81,7 +90,10 @@ const createUser = asyncHandler(async (req, res) => {
     } else if (role === 'Teacher') {
         userFields.teacherProfile = {
             assignedCourses: course ? [course] : [],
-            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : []
+            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
+            studentAssignmentMode: studentAssignmentMode || 'all',
+            assignedSections: assignedSections || [],
+            assignedStudents: assignedStudents || []
         };
     }
 
@@ -178,7 +190,10 @@ const updateUser = asyncHandler(async (req, res) => {
             user.teacherProfile = {
                 ...user.teacherProfile,
                 assignedCourses: req.body.course ? [req.body.course] : user.teacherProfile?.assignedCourses,
-                subjects: req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile?.subjects
+                subjects: req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile?.subjects,
+                studentAssignmentMode: req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile?.studentAssignmentMode,
+                assignedSections: req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile?.assignedSections,
+                assignedStudents: req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile?.assignedStudents
             };
         }
 

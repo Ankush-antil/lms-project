@@ -18,6 +18,7 @@ const TeacherSnapshots = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStudent, setSelectedStudent] = useState(null);
+    const [expandedSections, setExpandedSections] = useState({});
 
     // Attendance state
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -204,6 +205,23 @@ const TeacherSnapshots = () => {
         );
     }, [students, searchTerm]);
 
+    const showSectionsGrouped = useMemo(() => {
+        const mode = user?.teacherProfile?.studentAssignmentMode;
+        const sections = user?.teacherProfile?.assignedSections || [];
+        return mode === 'section' && sections.length > 1;
+    }, [user]);
+
+    const studentsBySection = useMemo(() => {
+        if (!showSectionsGrouped) return {};
+        const groups = {};
+        filteredStudents.forEach(student => {
+            const sec = student.studentProfile?.section || 'No Section';
+            if (!groups[sec]) groups[sec] = [];
+            groups[sec].push(student);
+        });
+        return groups;
+    }, [filteredStudents, showSectionsGrouped]);
+
     // LMS Attendance rate calculation
     const lmsAttendanceRate = useMemo(() => {
         if (!selectedStudent?.stats) return 88;
@@ -278,35 +296,85 @@ const TeacherSnapshots = () => {
 
                         <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
                             {filteredStudents.length > 0 ? (
-                                filteredStudents.map(student => {
-                                    const isSelected = selectedStudent?._id === student._id;
-                                    return (
-                                        <button
-                                            key={student._id}
-                                            onClick={() => setSelectedStudent(student)}
-                                            className={`w-full p-4 flex items-center gap-4 text-left transition-all hover:bg-slate-50/50 ${isSelected ? 'bg-indigo-50/40 border-l-4 border-indigo-650' : 'border-l-4 border-transparent'
-                                                }`}
-                                        >
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-650 flex items-center justify-center text-white font-extrabold text-sm shadow-sm shrink-0 overflow-hidden">
-                                                {student.avatar ? (
-                                                    <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    student.name[0]?.toUpperCase()
+                                showSectionsGrouped ? (
+                                    Object.keys(studentsBySection).sort().map(secName => {
+                                        const secStudents = studentsBySection[secName];
+                                        const isExpanded = !!expandedSections[secName];
+                                        return (
+                                            <div key={secName} className="space-y-1.5 p-2 bg-slate-50/20 border-b border-slate-100">
+                                                <div 
+                                                    onClick={() => setExpandedSections(prev => ({ ...prev, [secName]: !prev[secName] }))}
+                                                    className="flex items-center justify-between px-2.5 py-2 bg-slate-50 hover:bg-slate-100/70 rounded-lg border border-slate-100/85 cursor-pointer select-none transition-all"
+                                                >
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                                            Section {secName}
+                                                        </span>
+                                                        <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                            {secStudents.length} Students
+                                                        </span>
+                                                    </div>
+                                                    <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                                {isExpanded && (
+                                                    <div className="space-y-1.5 p-1 bg-white rounded-xl mt-1 animate-fade-in">
+                                                        {secStudents.map(student => {
+                                                            const isSelected = selectedStudent?._id === student._id;
+                                                            return (
+                                                                <button
+                                                                    key={student._id}
+                                                                    onClick={() => setSelectedStudent(student)}
+                                                                    className={`w-full p-2 flex items-center gap-3 text-left transition-all hover:bg-slate-50/50 rounded-xl ${isSelected ? 'bg-indigo-50/40 border-l-4 border-indigo-650' : 'border-l-4 border-transparent'
+                                                                        }`}
+                                                                >
+                                                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-650 flex items-center justify-center text-white font-extrabold text-xs shadow-sm shrink-0 overflow-hidden">
+                                                                        {student.avatar ? (
+                                                                            <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                                                                        ) : (
+                                                                            student.name[0].toUpperCase()
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <h4 className={`text-xs font-black truncate ${isSelected ? 'text-indigo-955' : 'text-slate-800'}`}>{student.name}</h4>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 )}
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className={`font-bold text-sm truncate ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>{student.name}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5 uppercase tracking-wider">
-                                                    Course: {student.studentProfile?.course?.name || 'N/A'}
-                                                </p>
-                                            </div>
-                                            <ChevronRight size={16} className={isSelected ? 'text-indigo-600' : 'text-slate-300'} />
-                                        </button>
-                                    );
-                                })
+                                        );
+                                    })
+                                ) : (
+                                    filteredStudents.map(student => {
+                                        const isSelected = selectedStudent?._id === student._id;
+                                        return (
+                                            <button
+                                                key={student._id}
+                                                onClick={() => setSelectedStudent(student)}
+                                                className={`w-full p-4 flex items-center gap-4 text-left transition-all hover:bg-slate-50/50 ${isSelected ? 'bg-indigo-50/40 border-l-4 border-indigo-650' : 'border-l-4 border-transparent'
+                                                    }`}
+                                            >
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-650 flex items-center justify-center text-white font-extrabold text-sm shadow-sm shrink-0 overflow-hidden">
+                                                    {student.avatar ? (
+                                                        <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        student.name[0].toUpperCase()
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className={`text-xs font-black truncate ${isSelected ? 'text-indigo-950' : 'text-slate-800'}`}>{student.name}</h4>
+                                                    <p className="text-[10px] text-slate-455 truncate font-semibold mt-0.5">{student.email}</p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                )
                             ) : (
-                                <div className="p-8 text-center text-slate-400 font-bold text-sm">
-                                    No students found matching search.
+                                <div className="p-8 text-center text-slate-400 text-xs font-bold">
+                                    No students found matching your search.
                                 </div>
                             )}
                         </div>

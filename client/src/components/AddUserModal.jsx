@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { X, Copy, Check } from 'lucide-react';
@@ -17,7 +17,10 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         subject: '',
         mobileNumber: '',
         batch: '',
-        callEnabled: true
+        callEnabled: true,
+        studentAssignmentMode: 'all',
+        assignedSections: [],
+        assignedStudents: []
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -26,6 +29,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     const [copied, setCopied] = useState(false);
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
     const [sectionPreview, setSectionPreview] = useState('');
+
+    const [courseStudents, setCourseStudents] = useState([]);
+    const [loadingStudents, setLoadingStudents] = useState(false);
 
     useEffect(() => {
         if (formData.course && role === 'Student') {
@@ -37,7 +43,25 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         }
     }, [formData.course, role]);
 
- 
+    useEffect(() => {
+        if (formData.course && role === 'Teacher') {
+            const fetchCourseStudents = async () => {
+                try {
+                    setLoadingStudents(true);
+                    const { data } = await axios.get(`/api/users?role=Student&course=${formData.course}`);
+                    setCourseStudents(data);
+                } catch (error) {
+                    console.error("Error fetching course students:", error);
+                } finally {
+                    setLoadingStudents(false);
+                }
+            };
+            fetchCourseStudents();
+        } else {
+            setCourseStudents([]);
+        }
+    }, [formData.course, role]);
+
     useEffect(() => {
         if (isOpen) {
             // Auto-generate a password on open
@@ -55,7 +79,10 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                 subject: '',
                 mobileNumber: '',
                 batch: '',
-                callEnabled: true
+                callEnabled: true,
+                studentAssignmentMode: 'all',
+                assignedSections: [],
+                assignedStudents: []
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -70,7 +97,6 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     setCourses(courseRes.data);
                 } catch (error) {
                     console.error("Error fetching setup data:", error);
-                    // Optionally, show an error message to the user
                 }
             };
             fetchData();
@@ -110,6 +136,12 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
 
     const selectedCourseObj = courses.find(c => c._id === formData.course);
     const availableSubjects = selectedCourseObj?.subjects || [];
+
+    const uniqueSections = useMemo(() => {
+        const secs = courseStudents.map(s => s.studentProfile?.section).filter(Boolean);
+        const unique = [...new Set(secs)].sort();
+        return unique.length > 0 ? unique : ['A', 'B', 'C'];
+    }, [courseStudents]);
 
     if (!isOpen) return null;
 
@@ -348,6 +380,104 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 )}
                                             </div>
                                         </div>
+
+                                        {formData.course && (
+                                            <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>
+                                                    <div className="flex gap-4">
+                                                        {[
+                                                            { id: 'all', label: 'All Students' },
+                                                            { id: 'section', label: 'Section Wise' },
+                                                            { id: 'selected', label: 'Selected Students' }
+                                                        ].map(mode => (
+                                                            <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="studentAssignmentMode"
+                                                                    checked={formData.studentAssignmentMode === mode.id}
+                                                                    onChange={() => setFormData({ ...formData, studentAssignmentMode: mode.id })}
+                                                                    className="text-indigo-650 focus:ring-indigo-500 cursor-pointer h-4 w-4"
+                                                                />
+                                                                <span className="text-xs font-bold text-slate-700">{mode.label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {formData.studentAssignmentMode === 'section' && (
+                                                    <div className="animate-fade-in space-y-2">
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Select Sections</label>
+                                                        <div className="flex flex-wrap gap-3">
+                                                            {uniqueSections.map(sec => {
+                                                                const isChecked = formData.assignedSections.includes(sec);
+                                                                return (
+                                                                    <label key={sec} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-slate-150 text-xs font-bold text-slate-700 select-none hover:bg-slate-50">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isChecked}
+                                                                            onChange={() => {
+                                                                                const newSecs = isChecked
+                                                                                    ? formData.assignedSections.filter(s => s !== sec)
+                                                                                    : [...formData.assignedSections, sec];
+                                                                                setFormData({ ...formData, assignedSections: newSecs });
+                                                                            }}
+                                                                            className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                                        />
+                                                                        <span>Section {sec}</span>
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {formData.studentAssignmentMode === 'selected' && (
+                                                    <div className="animate-fade-in space-y-2">
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Select Students ({formData.assignedStudents.length} selected)</label>
+                                                        {loadingStudents ? (
+                                                            <div className="flex items-center gap-2 py-2 text-xs text-slate-400">
+                                                                <div className="w-3.5 h-3.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                                                <span>Loading course students...</span>
+                                                            </div>
+                                                        ) : courseStudents.length === 0 ? (
+                                                            <p className="text-xs text-slate-450 italic">No students enrolled in this course yet.</p>
+                                                        ) : (
+                                                            <div className="border border-slate-150 rounded-2xl bg-white max-h-[160px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                                                {courseStudents.map(student => {
+                                                                    const studentId = student._id || student;
+                                                                    const isChecked = formData.assignedStudents.includes(studentId);
+                                                                    return (
+                                                                        <label key={studentId} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-all cursor-pointer select-none">
+                                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0">
+                                                                                    {student.name[0].toUpperCase()}
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="text-xs font-bold text-slate-700 truncate">{student.name}</p>
+                                                                                    <p className="text-[9px] text-slate-400 truncate">Section: {student.studentProfile?.section || 'None'}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isChecked}
+                                                                                onChange={() => {
+                                                                                    const newStudents = isChecked
+                                                                                        ? formData.assignedStudents.filter(id => id !== studentId)
+                                                                                        : [...formData.assignedStudents, studentId];
+                                                                                    setFormData({ ...formData, assignedStudents: newStudents });
+                                                                                }}
+                                                                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                                                            />
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </>
                                 )}
 

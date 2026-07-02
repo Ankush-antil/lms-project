@@ -60,7 +60,8 @@ const getMe = async (req, res) => {
             .select('-password')
             .populate('institute', 'name imageUrl')
             .populate('studentProfile.course', 'name subjects duration')
-            .populate('teacherProfile.assignedCourses', 'name');
+            .populate('teacherProfile.assignedCourses', 'name')
+            .populate('teacherProfile.assignedStudents', 'name email studentProfile');
         if (user) {
             res.json(user);
         } else {

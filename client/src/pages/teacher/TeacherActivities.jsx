@@ -193,6 +193,7 @@ const TeacherActivities = () => {
     const navigate = useNavigate();
 
     const [studentTab, setStudentTab] = useState('tests'); // 'tests' | 'practice' | 'performance'
+    const [expandedSections, setExpandedSections] = useState({});
     const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
     const [studentSharedNotes, setStudentSharedNotes] = useState([]);
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
@@ -623,6 +624,25 @@ const TeacherActivities = () => {
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Check if we should group students by section (if teacher has multiple sections assigned)
+    const showSectionsGrouped = useMemo(() => {
+        const mode = userInfo?.teacherProfile?.studentAssignmentMode;
+        const sections = userInfo?.teacherProfile?.assignedSections || [];
+        return mode === 'section' && sections.length > 1;
+    }, [userInfo]);
+
+    // Group students by section if grouping is active
+    const studentsBySection = useMemo(() => {
+        if (!showSectionsGrouped) return {};
+        const groups = {};
+        filteredStudents.forEach(student => {
+            const sec = student.studentProfile?.section || 'No Section';
+            if (!groups[sec]) groups[sec] = [];
+            groups[sec].push(student);
+        });
+        return groups;
+    }, [filteredStudents, showSectionsGrouped]);
 
     // Filter assigned tests based on student profile (institute, course, subjects)
     const assignedTests = useMemo(() => {
@@ -2628,6 +2648,63 @@ const TeacherActivities = () => {
                                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
                                     <p className="text-xs text-indigo-950 font-semibold">Loading students...</p>
                                 </div>
+                            ) : showSectionsGrouped ? (
+                                Object.keys(studentsBySection).sort().map(secName => {
+                                    const secStudents = studentsBySection[secName];
+                                    const isExpanded = !!expandedSections[secName];
+                                    return (
+                                        <div key={secName} className="space-y-1.5 mb-3 border border-slate-100 rounded-xl bg-slate-50/20 overflow-hidden">
+                                            <div 
+                                                onClick={() => setExpandedSections(prev => ({ ...prev, [secName]: !prev[secName] }))}
+                                                className="flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/70 border-b border-slate-100 cursor-pointer select-none transition-all"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                                        Section {secName}
+                                                    </span>
+                                                    <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                        {secStudents.length} Students
+                                                    </span>
+                                                </div>
+                                                <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                            {isExpanded && (
+                                                <div className="space-y-1.5 p-2 bg-white animate-fade-in">
+                                                {secStudents.map(student => {
+                                                    const isSelected = selectedStudent?._id === student._id;
+                                                    const avatarBg = getAvatarBgColor(student.name);
+                                                    return (
+                                                        <div
+                                                            key={student._id}
+                                                            onClick={() => {
+                                                                setSelectedStudent(student);
+                                                                setStudentTab('tests');
+                                                                setSelectedPracticeDate('');
+                                                                fetchStudentSubmissions(student._id);
+                                                                fetchStudentPracticeFiles(student._id);
+                                                                fetchInboxConfigs(student._id);
+                                                                setShowStudentList(false);
+                                                            }}
+                                                            className={`flex items-center space-x-2.5 p-2 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-md shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black !text-white shadow-sm transition-transform shrink-0 ${isSelected ? 'bg-[#3E3ADD] scale-105 shadow-sm shadow-indigo-500/10' : avatarBg}`} style={{ color: '#ffffff' }}>
+                                                                {student.name[0].toUpperCase()}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                                    {student.name}
+                                                                </h4>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             ) : filteredStudents.map(student => {
                                 const isSelected = selectedStudent?._id === student._id;
                                 const stats = isSelected ? selectedStudentStats : (student.stats || { completed: 0, pending: 0 });

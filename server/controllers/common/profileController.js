@@ -33,7 +33,8 @@ const getUserById = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name imageUrl')
         .populate('studentProfile.course', 'name subjects')
-        .populate('teacherProfile.assignedCourses', 'name');
+        .populate('teacherProfile.assignedCourses', 'name')
+        .populate('teacherProfile.assignedStudents', 'name email studentProfile');
 
     if (user) {
         console.log(`FETCH PROFILE - Found user: ${user.name} (${user.role})`);

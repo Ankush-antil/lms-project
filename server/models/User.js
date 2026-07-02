@@ -52,7 +52,14 @@ const userSchema = new mongoose.Schema({
 
     teacherProfile: {
         assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
-        subjects: [{ type: String }]
+        subjects: [{ type: String }],
+        studentAssignmentMode: {
+            type: String,
+            enum: ['all', 'section', 'selected'],
+            default: 'all'
+        },
+        assignedSections: [{ type: String }],
+        assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
     },
     isActive: { type: Boolean, default: true }
 }, {

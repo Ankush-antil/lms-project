@@ -25,6 +25,18 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+    const [sectionPreview, setSectionPreview] = useState('');
+
+    useEffect(() => {
+        if (formData.course && role === 'Student') {
+            axios.get(`/api/setup/courses/${formData.course}/section-preview`)
+                .then(res => setSectionPreview(res.data.section))
+                .catch(() => setSectionPreview('A'));
+        } else {
+            setSectionPreview('');
+        }
+    }, [formData.course, role]);
+
  
     useEffect(() => {
         if (isOpen) {
@@ -223,6 +235,11 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                         <option key={course._id} value={course._id}>{course.name}</option>
                                                     ))}
                                                 </select>
+                                                {sectionPreview && (
+                                                    <span className="text-[10px] text-violet-600 font-bold block mt-1.5 ml-1">
+                                                        Auto-assigned: Section {sectionPreview}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div>
                                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Subject</label>

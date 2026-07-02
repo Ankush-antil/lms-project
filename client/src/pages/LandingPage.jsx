@@ -272,6 +272,7 @@ const LandingPage = () => {
     const [applyStatement, setApplyStatement] = useState('');
     const [applyLoading, setApplyLoading] = useState(false);
     const [applySuccess, setApplySuccess] = useState(false);
+    const [sectionPreview, setSectionPreview] = useState(null); // which section student will get
 
     // Applications Tracking
     const [applications, setApplications] = useState([]);
@@ -625,7 +626,7 @@ const LandingPage = () => {
     };
 
     // Open Apply Modal
-    const handleOpenApplyModal = (courseObj) => {
+    const handleOpenApplyModal = async (courseObj) => {
         setSelectedCourseForApply(courseObj);
         setSelectedInstitute(courseObj.institute);
         setApplyName(guestSession?.username || user?.name || '');
@@ -636,7 +637,18 @@ const LandingPage = () => {
         setEmailOtpSent(false);
         setEmailOtpVerified(false);
         setEmailOtp('');
+        setSectionPreview(null);
         setShowApplyModal(true);
+        // Compute section preview
+        try {
+            const res = await axios.get(`/api/setup/courses/${courseObj._id}/section-preview`);
+            setSectionPreview(res.data.section);
+        } catch {
+            // Fallback: compute locally if API unavailable
+            const capacity = courseObj.maxStudentsPerSection || 30;
+            // We don't have exact count on frontend, so just show 'A' as default
+            setSectionPreview('A');
+        }
     };
 
     // Send Email OTP using the setup send-otp endpoint
@@ -1375,7 +1387,7 @@ const LandingPage = () => {
                                                                             className="space-y-4"
                                                                         >
                                                                             {/* Brief preview of Course & Institute */}
-                                                                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                                                                                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
                                                                                 <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Target Selection</div>
                                                                                 <div className="flex justify-between items-center text-sm">
                                                                                     <span className="font-extrabold text-slate-800">{selectedCourseForApply?.name}</span>
@@ -1385,6 +1397,19 @@ const LandingPage = () => {
                                                                                     <Building size={14} className="text-slate-400" />
                                                                                     <span className="font-semibold text-slate-700">{selectedInstitute?.name}</span>
                                                                                 </div>
+                                                                                {/* Section Preview */}
+                                                                                {selectedCourseForApply?.maxStudentsPerSection && (
+                                                                                    <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your Section</span>
+                                                                                        {sectionPreview ? (
+                                                                                            <span className="flex items-center gap-1.5 px-3 py-1 bg-violet-600 text-white rounded-full text-xs font-black shadow-sm shadow-violet-300">
+                                                                                                <span>Section {sectionPreview}</span>
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span className="w-16 h-5 bg-slate-200 rounded-full animate-pulse"></span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
 
                                                                             {/* Inputs */}

@@ -6,14 +6,108 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Users, Search, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
-    BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu,
+    BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
-    CreditCard, Activity
+    CreditCard, Activity, Edit3, Lock
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+
+const isTestExpired = (test) => {
+    if (!test) return false;
+    const now = new Date();
+    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
+    return false;
+};
+
+const getRemainingTimeText = (endTime) => {
+    if (!endTime) return "No Expiry";
+    const diff = new Date(endTime) - new Date();
+    if (diff <= 0) return "Expired";
+
+    const mins = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+        return `${days}d ${hours % 24}h left`;
+    }
+    if (hours > 0) {
+        return `${hours}h ${mins % 60}m left`;
+    }
+    return `${mins}m left`;
+};
+
+const ActivityTimer = ({ endTime }) => {
+    const [timeLeftMs, setTimeLeftMs] = useState(() => {
+        if (!endTime) return null;
+        return new Date(endTime) - new Date();
+    });
+
+    useEffect(() => {
+        if (!endTime) return;
+
+        const interval = setInterval(() => {
+            const diff = new Date(endTime) - new Date();
+            setTimeLeftMs(diff);
+            if (diff <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endTime]);
+
+    if (!endTime) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-slate-50 border-slate-200/50 text-slate-500 shrink-0">
+                <Clock size={9} />
+                No Expiry
+            </span>
+        );
+    }
+
+    if (timeLeftMs <= 0) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-rose-50 border-rose-100 text-rose-600 shrink-0 animate-pulse">
+                <Clock size={9} />
+                Expired
+            </span>
+        );
+    }
+
+    const totalSecs = Math.floor(timeLeftMs / 1000);
+    const mins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    let displayStr = "";
+    if (days > 0) {
+        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
+    } else if (hours > 0) {
+        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    } else {
+        displayStr = `${mins}m ${totalSecs % 60}s left`;
+    }
+
+    const isCritical = totalSecs < 600;
+
+    return (
+        <span 
+            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${
+                isCritical 
+                    ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse' 
+                    : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
+            }`}
+        >
+            <Clock size={9} className={isCritical ? 'text-red-500' : 'text-[#3E3ADD]'} />
+            {displayStr}
+        </span>
+    );
+};
 
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
@@ -51,6 +145,8 @@ const TeacherActivities = () => {
     const { user } = useAuth();
     const userInfo = user;
     const [selectedStudent, setSelectedStudent] = useState(null);
+    const [inboxConfigs, setInboxConfigs] = useState([]);
+    const [activityConfigs, setActivityConfigs] = useState([]);
     const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
@@ -63,6 +159,10 @@ const TeacherActivities = () => {
     const [selectedInboxId, setSelectedInboxId] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [infoModalData, setInfoModalData] = useState(null);
+    const [activeDropdownInboxId, setActiveDropdownInboxId] = useState(null);
+    const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
+    const [renameInboxId, setRenameInboxId] = useState(null);
+    const [renameValue, setRenameValue] = useState('');
     const [showStudentList, setShowStudentList] = useState(true);
     const [chatInput, setChatInput] = useState('');
     const [chatMessages, setChatMessages] = useState([]);
@@ -70,6 +170,13 @@ const TeacherActivities = () => {
     const messagesEndRef = useRef(null);
     const teacherTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
+
+    // Multi-student bulk config modal state
+    const [bulkConfigModal, setBulkConfigModal] = useState(null);
+    const [bulkInboxConfigModal, setBulkInboxConfigModal] = useState(null);
+    // { testId, visible, disabled, actionType: 'hide'|'disable' }
+    const [bulkSelectedStudents, setBulkSelectedStudents] = useState([]);
+    const [bulkSaving, setBulkSaving] = useState(false);
 
     const handleTeacherTabsScroll = (direction) => {
         if (teacherTabsRef.current) {
@@ -86,6 +193,7 @@ const TeacherActivities = () => {
     const navigate = useNavigate();
 
     const [studentTab, setStudentTab] = useState('tests'); // 'tests' | 'practice' | 'performance'
+    const [expandedSections, setExpandedSections] = useState({});
     const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
     const [studentSharedNotes, setStudentSharedNotes] = useState([]);
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
@@ -116,6 +224,102 @@ const TeacherActivities = () => {
             fetchInboxPractice();
         }
     }, [selectedStudent, selectedInboxId, viewMode]);
+
+    useEffect(() => {
+        const handleGlobalClick = () => {
+            setActiveDropdownInboxId(null);
+            setActiveDropdownTestId(null);
+        };
+        document.addEventListener('click', handleGlobalClick);
+        return () => document.removeEventListener('click', handleGlobalClick);
+    }, []);
+
+    // Expiry Modal States
+    const [expiryModalOpen, setExpiryModalOpen] = useState(false);
+    const [expiryModalTest, setExpiryModalTest] = useState(null);
+    const [expiryDate, setExpiryDate] = useState('');
+    const [isNoExpiry, setIsNoExpiry] = useState(false);
+
+    const openExpiryModal = (test) => {
+        setExpiryModalTest(test);
+        if (test.settings?.endTime) {
+            const d = new Date(test.settings.endTime);
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            setExpiryDate(formatted);
+            setIsNoExpiry(false);
+        } else {
+            setExpiryDate('');
+            setIsNoExpiry(true);
+        }
+        setExpiryModalOpen(true);
+    };
+
+    const validateExpiryDate = (dateVal, isNoExpiryOption) => {
+        if (isNoExpiryOption) return { valid: true };
+        if (!dateVal) return { valid: false, error: "Please select an expiry date and time." };
+
+        const selectedDate = new Date(dateVal);
+        const now = new Date();
+
+        const maxTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        if (selectedDate <= now) {
+            return { valid: false, error: "Expiry time must be in the future." };
+        }
+        if (selectedDate > maxTime) {
+            return { valid: false, error: "Expiry time cannot exceed 30 days from now." };
+        }
+        return { valid: true };
+    };
+
+    const handleSaveExpiry = async () => {
+        if (!expiryModalTest) return;
+        const validation = validateExpiryDate(expiryDate, isNoExpiry);
+        if (!validation.valid) {
+            toast.error(validation.error);
+            return;
+        }
+
+        try {
+            const endTimeValue = isNoExpiry ? null : new Date(expiryDate);
+            await axios.put(`/api/tests/${expiryModalTest._id}`, {
+                testDetails: { isAssigned: true },
+                settings: {
+                    ...expiryModalTest.settings,
+                    endTime: endTimeValue
+                }
+            });
+            toast.success(expiryModalTest.isAssigned ? "Expiry settings updated successfully!" : "Activity assigned successfully!");
+            setExpiryModalOpen(false);
+            setExpiryModalTest(null);
+            fetchTests();
+        } catch (err) {
+            console.error("Error setting test expiry:", err);
+            toast.error("Failed to update expiry settings");
+        }
+    };
+
+    const handleForceExpire = async (test) => {
+        if (!window.confirm("Are you sure you want to force expire this activity immediately?")) return;
+        try {
+            const pastDate = new Date(Date.now() - 5 * 60 * 1000);
+            await axios.put(`/api/tests/${test._id}`, {
+                testDetails: { isAssigned: true },
+                settings: {
+                    ...test.settings,
+                    endTime: pastDate
+                }
+            });
+            toast.success("Activity force expired successfully!");
+            setExpiryModalOpen(false);
+            setExpiryModalTest(null);
+            fetchTests();
+        } catch (err) {
+            console.error("Error force expiring test:", err);
+            toast.error("Failed to force expire activity");
+        }
+    };
 
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -205,10 +409,16 @@ const TeacherActivities = () => {
         }
     };
 
+    const [allStudyMaterials, setAllStudyMaterials] = useState([]);
+
     const fetchTests = async () => {
         try {
-            const { data } = await axios.get('/api/tests');
-            setAllTests(data);
+            const [testsRes, materialsRes] = await Promise.all([
+                axios.get('/api/tests'),
+                axios.get('/api/study-materials').catch(() => ({ data: [] }))
+            ]);
+            setAllTests(testsRes.data);
+            setAllStudyMaterials(materialsRes.data || []);
         } catch (error) {
             console.error("Error fetching all tests:", error);
         }
@@ -224,6 +434,146 @@ const TeacherActivities = () => {
             console.error("Error fetching student submissions:", error);
         } finally {
             setSubmissionsLoading(false);
+        }
+    };
+
+    const fetchInboxConfigs = async (studentId) => {
+        try {
+            const [inboxRes, actRes] = await Promise.all([
+                axios.get(`/api/users/inbox-configs/${studentId}`),
+                axios.get(`/api/users/activity-configs/${studentId}`).catch(() => ({ data: [] }))
+            ]);
+            setInboxConfigs(inboxRes.data || []);
+            setActivityConfigs(actRes.data || []);
+        } catch (err) {
+            console.error("Error fetching configs:", err);
+            setInboxConfigs([]);
+            setActivityConfigs([]);
+        }
+    };
+
+    const handleUpdateActivityConfig = async (testId, visible, disabled) => {
+        if (!selectedStudent) return;
+        try {
+            const { data } = await axios.post('/api/users/activity-configs', {
+                studentId: selectedStudent._id,
+                testId,
+                visible,
+                disabled
+            });
+            setActivityConfigs(prev => {
+                const copy = [...prev];
+                const idx = copy.findIndex(c => c.test === testId);
+                if (idx !== -1) {
+                    copy[idx] = data;
+                } else {
+                    copy.push(data);
+                }
+                return copy;
+            });
+            toast.success("Activity configuration updated successfully!");
+        } catch (err) {
+            console.error("Error saving activity config:", err);
+            toast.error("Failed to update activity configuration");
+        }
+    };
+
+    // Open the bulk config modal (intercepts hide/disable toggle clicks)
+    const openBulkConfigModal = (testId, newVisible, newDisabled, actionType) => {
+        setBulkConfigModal({ testId, newVisible, newDisabled, actionType });
+        // Pre-select the current student
+        setBulkSelectedStudents(selectedStudent ? [selectedStudent._id] : []);
+        setActiveDropdownTestId(null);
+    };
+
+    // Save config for ALL selected students
+    const handleBulkSave = async () => {
+        if (!bulkConfigModal || bulkSelectedStudents.length === 0) return;
+        setBulkSaving(true);
+        try {
+            await Promise.all(
+                bulkSelectedStudents.map(studentId =>
+                    axios.post('/api/users/activity-configs', {
+                        studentId,
+                        testId: bulkConfigModal.testId,
+                        visible: bulkConfigModal.newVisible,
+                        disabled: bulkConfigModal.newDisabled
+                    })
+                )
+            );
+            // Refresh configs for the currently viewed student
+            if (selectedStudent) {
+                await fetchInboxConfigs(selectedStudent._id);
+            }
+            toast.success(`Applied to ${bulkSelectedStudents.length} student(s)!`);
+            setBulkConfigModal(null);
+        } catch (err) {
+            console.error('Bulk config error:', err);
+            toast.error('Failed to apply changes to some students.');
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
+    // Open bulk inbox config modal
+    const openBulkInboxConfigModal = (inboxId, newVisible, newDisabled, currentDisplayName, actionType) => {
+        setBulkInboxConfigModal({ inboxId, visible: newVisible, disabled: newDisabled, currentDisplayName, actionType });
+        setBulkSelectedStudents(selectedStudent ? [selectedStudent._id] : []);
+        setActiveDropdownInboxId(null);
+    };
+
+    // Save inbox config for ALL selected students
+    const handleBulkInboxSave = async () => {
+        if (!bulkInboxConfigModal || bulkSelectedStudents.length === 0) return;
+        setBulkSaving(true);
+        try {
+            await Promise.all(
+                bulkSelectedStudents.map(studentId =>
+                    axios.post('/api/users/inbox-configs', {
+                        studentId,
+                        inboxId: bulkInboxConfigModal.inboxId,
+                        displayName: bulkInboxConfigModal.currentDisplayName,
+                        visible: bulkInboxConfigModal.visible,
+                        disabled: bulkInboxConfigModal.disabled
+                    })
+                )
+            );
+            // Refresh configs for the currently viewed student
+            if (selectedStudent) {
+                await fetchInboxConfigs(selectedStudent._id);
+            }
+            toast.success(`Applied to ${bulkSelectedStudents.length} student(s)!`);
+            setBulkInboxConfigModal(null);
+        } catch (err) {
+            console.error('Bulk inbox config error:', err);
+            toast.error('Failed to apply changes to some students.');
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
+    const handleUpdateInboxConfig = async (inboxId, displayName, visible) => {
+        if (!selectedStudent) return;
+        try {
+            const { data } = await axios.post('/api/users/inbox-configs', {
+                studentId: selectedStudent._id,
+                inboxId,
+                displayName,
+                visible
+            });
+            setInboxConfigs(prev => {
+                const copy = [...prev];
+                const idx = copy.findIndex(c => c.inboxId === inboxId);
+                if (idx !== -1) {
+                    copy[idx] = data;
+                } else {
+                    copy.push(data);
+                }
+                return copy;
+            });
+        } catch (err) {
+            console.error("Error saving inbox config:", err);
+            toast.error("Failed to update inbox settings");
         }
     };
 
@@ -275,6 +625,25 @@ const TeacherActivities = () => {
         s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Check if we should group students by section (if teacher has multiple sections assigned)
+    const showSectionsGrouped = useMemo(() => {
+        const mode = userInfo?.teacherProfile?.studentAssignmentMode;
+        const sections = userInfo?.teacherProfile?.assignedSections || [];
+        return mode === 'section' && sections.length > 1;
+    }, [userInfo]);
+
+    // Group students by section if grouping is active
+    const studentsBySection = useMemo(() => {
+        if (!showSectionsGrouped) return {};
+        const groups = {};
+        filteredStudents.forEach(student => {
+            const sec = student.studentProfile?.section || 'No Section';
+            if (!groups[sec]) groups[sec] = [];
+            groups[sec].push(student);
+        });
+        return groups;
+    }, [filteredStudents, showSectionsGrouped]);
+
     // Filter assigned tests based on student profile (institute, course, subjects)
     const assignedTests = useMemo(() => {
         if (!selectedStudent) return [];
@@ -300,6 +669,14 @@ const TeacherActivities = () => {
             const testCourse = test.course?.trim().toLowerCase() || '';
             if (testCourse && testCourse !== studentCourse.toLowerCase()) return false;
 
+            // 4. Match student-specific assignment
+            if (test.assignedStudents && test.assignedStudents.length > 0) {
+                const isAssignedToThisStudent = test.assignedStudents.some(id =>
+                    id.toString() === selectedStudent._id.toString()
+                );
+                if (!isAssignedToThisStudent) return false;
+            }
+
             return true;
         });
     }, [allTests, selectedStudent]);
@@ -323,39 +700,106 @@ const TeacherActivities = () => {
         return { completed, pending };
     }, [assignedTests, submissionMap, selectedStudent]);
 
+    const courseDuration = useMemo(() => {
+        if (!selectedStudent) return 5;
+        const profileDuration = selectedStudent.studentProfile?.course?.duration;
+        if (profileDuration && profileDuration > 0) return profileDuration;
+
+        // Fallback: find highest index in tests
+        let maxIndex = 0;
+        assignedTests.forEach(test => {
+            if (test.index) {
+                const match = test.index.match(/\d+/);
+                if (match) {
+                    const num = parseInt(match[0]);
+                    if (num > maxIndex) maxIndex = num;
+                }
+            }
+        });
+        return Math.max(maxIndex, 5); // Default to at least 5 inboxes
+    }, [selectedStudent, assignedTests]);
+
     // Group assigned tests by index for the student
     const dynamicInboxItems = useMemo(() => {
-        const grouped = assignedTests.reduce((acc, test) => {
+        if (!selectedStudent) return [];
+
+        // Group tests by normalized index
+        const testsGrouped = assignedTests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
-            if (!acc[indexStr]) acc[indexStr] = [];
-            acc[indexStr].push(test);
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(test);
             return acc;
         }, {});
 
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        // Group study materials by normalized index
+        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
 
-        return Object.keys(grouped)
-            .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => ({
-                id: indexStr,
-                title: indexStr,
-                completed: grouped[indexStr].filter(t => {
+        // Generate standard keys from 1 to courseDuration
+        const standardKeys = [];
+        for (let i = 1; i <= courseDuration; i++) {
+            standardKeys.push(`Index ${i}`);
+        }
+
+        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
+        const allKeys = [...standardKeys];
+        const addKeyIfNew = (key) => {
+            const norm = key.trim().toLowerCase();
+            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
+            if (!exists) {
+                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                allKeys.push(pretty);
+            }
+        };
+
+        Object.keys(testsGrouped).forEach(addKeyIfNew);
+        Object.keys(materialsGrouped).forEach(addKeyIfNew);
+
+        return allKeys.map(keyName => {
+            const normalized = keyName.trim().toLowerCase();
+            const testsInInbox = testsGrouped[normalized] || [];
+            const materialsInInbox = materialsGrouped[normalized] || [];
+
+            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const isVisible = config ? config.visible : true;
+            
+            // Check if inbox has any content
+            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
+            // Empty inbox is disabled/locked, or explicitly disabled in config
+            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            
+            const customTitle = config && config.displayName ? config.displayName : keyName;
+
+            return {
+                id: keyName,
+                title: customTitle,
+                completed: testsInInbox.filter(t => {
                     const sub = submissionMap.get(t._id);
                     return sub && sub.status === 'evaluated';
                 }).length,
-                pending: grouped[indexStr].filter(t => {
+                pending: testsInInbox.filter(t => {
                     const sub = submissionMap.get(t._id);
                     return !sub || sub.status !== 'evaluated';
                 }).length,
-                tests: grouped[indexStr]
-            }));
-    }, [assignedTests, submissionMap]);
+                tests: testsInInbox,
+                visible: isVisible,
+                disabled: isInboxDisabled,
+                hasContent: hasContent
+            };
+        });
+    }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
 
     // Auto-select first group when student changes
     useEffect(() => {
         if (dynamicInboxItems.length > 0) {
             setSelectedInboxId(dynamicInboxItems[0].id);
-            setViewMode('pending');
+            setViewMode('assign');
             setSelectedCategory(null);
         } else {
             setSelectedInboxId(null);
@@ -365,16 +809,29 @@ const TeacherActivities = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
 
+    const assignCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned === false).length;
+    }, [selectedGroup]);
+
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned === true && !isTestExpired(t) && !submissionMap.get(t._id)).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status !== 'evaluated';
+            return t.isAssigned === true && sub && sub.status === 'submitted';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const returnedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned === true && !isTestExpired(t) && sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -382,7 +839,16 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated';
+            return t.isAssigned === true && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned';
+            return t.isAssigned === true && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -390,7 +856,7 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
+            return t.isAssigned === true && sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -398,14 +864,21 @@ const TeacherActivities = () => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
-            if (viewMode === 'pending') {
-                return !sub;
+            if (viewMode === 'assign') {
+                return test.isAssigned === false;
+            } else if (viewMode === 'pending') {
+                return test.isAssigned === true && !isTestExpired(test) && !sub;
             } else if (viewMode === 'submitted') {
-                return sub && sub.status !== 'evaluated';
+                return test.isAssigned === true && sub && sub.status === 'submitted';
+            } else if (viewMode === 'returned') {
+                return test.isAssigned === true && !isTestExpired(test) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
-                return sub && sub.status === 'evaluated';
+                return test.isAssigned === true && sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned';
+                return test.isAssigned === true && isTestExpired(test) && isUnfinished;
             } else if (viewMode === 'student-feedback') {
-                return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
+                return test.isAssigned === true && sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
             }
             return false;
         });
@@ -759,45 +1232,141 @@ const TeacherActivities = () => {
                                         filteredInboxItems.map(item => {
                                             const isActive = selectedInboxId === item.id;
                                             const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                            const isInboxDisabled = item.disabled;
 
                                             return (
                                                 <div
                                                     key={item.id}
                                                     onClick={() => {
+                                                        if (isInboxDisabled) {
+                                                            toast.error("This inbox has no activities assigned for this student yet.");
+                                                            return;
+                                                        }
                                                         setSelectedInboxId(item.id);
                                                         setSelectedCategory(null);
-                                                        if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
+                                                        if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
                                                             setViewMode('pending');
                                                         }
                                                     }}
                                                     className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
                                                         ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                        : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                        : isInboxDisabled
+                                                            ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                                         }`}
                                                 >
                                                     <div className="flex items-center space-x-2.5 min-w-0">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive 
+                                                            ? 'bg-[#3E3ADD] text-white shadow-sm' 
+                                                            : isInboxDisabled 
+                                                                ? 'bg-slate-200 text-slate-400' 
+                                                                : 'bg-slate-100 text-slate-500'
                                                             }`}>
-                                                            <BookOpen size={14} />
+                                                            {isInboxDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
                                                         </div>
-                                                        <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                        <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${(!item.visible || isInboxDisabled) ? 'opacity-60' : ''}`}>
                                                             {getDisplayTitle(item.title)}
+                                                            {!item.visible && (
+                                                                <span className="ml-1 text-[9px] font-black text-red-500 bg-red-50 px-1 py-0.5 rounded shrink-0">
+                                                                    Hidden
+                                                                </span>
+                                                            )}
+                                                            {isInboxDisabled && (
+                                                                <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                                    Locked
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                     </div>
 
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (firstTest) setInfoModalData(firstTest);
-                                                        }}
-                                                        className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                            ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                            : 'border-slate-200 text-slate-400 bg-white'
-                                                            }`}
-                                                        title="Inbox Details"
-                                                    >
-                                                        <Info size={12} />
-                                                    </button>
+                                                    <div className="relative shrink-0 flex items-center space-x-1">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (firstTest) setInfoModalData(firstTest);
+                                                            }}
+                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                : 'border-slate-200 text-slate-400 bg-white'
+                                                                }`}
+                                                            title="Inbox Details"
+                                                        >
+                                                            <Info size={12} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveDropdownInboxId(activeDropdownInboxId === item.id ? null : item.id);
+                                                            }}
+                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                : 'border-slate-200 text-slate-400 bg-white'
+                                                                }`}
+                                                            title="Settings"
+                                                        >
+                                                            <MoreVertical size={12} />
+                                                        </button>
+
+                                                        {activeDropdownInboxId === item.id && (
+                                                            <>
+                                                                <div
+                                                                    className="fixed inset-0 z-40 bg-transparent"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveDropdownInboxId(null);
+                                                                    }}
+                                                                />
+                                                                <div
+                                                                    className="absolute right-0 top-7 bg-white border border-slate-150 rounded-xl shadow-xl py-1 z-50 w-44 animate-fade-in text-slate-705 text-left"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            const isVisible = config ? config.visible : true;
+                                                                            const isInboxDisabled = config ? !!config.disabled : false;
+                                                                            const currentDisplayName = config ? config.displayName : '';
+                                                                            openBulkInboxConfigModal(item.id, !isVisible, isInboxDisabled, currentDisplayName, 'hide');
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
+                                                                    >
+                                                                        <span>Visible to Student</span>
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: item.visible ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: item.visible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        </div>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            const isVisible = config ? config.visible : true;
+                                                                            const isInboxDisabled = config ? !!config.disabled : false;
+                                                                            const currentDisplayName = config ? config.displayName : '';
+                                                                            openBulkInboxConfigModal(item.id, isVisible, !isInboxDisabled, currentDisplayName, 'disable');
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
+                                                                    >
+                                                                        <span>Enable Inbox</span>
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !isInboxDisabled ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isInboxDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        </div>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setRenameInboxId(item.id);
+                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            setRenameValue(config && config.displayName ? config.displayName : item.id);
+                                                                            setActiveDropdownInboxId(null);
+                                                                        }}
+                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 text-[10px] font-extrabold text-left transition-colors border-t border-slate-100 flex items-center gap-1.5"
+                                                                    >
+                                                                        <span>✏️ </span>
+                                                                        <span>Rename Inbox</span>
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })
@@ -964,7 +1533,7 @@ const TeacherActivities = () => {
                                 </div>
                                 <div>
                                     <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                        {selectedInboxId ? getDisplayTitle(selectedInboxId) : 'Select an Inbox'}
+                                        {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
                                     </h1>
                                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                                         Your activities for this inbox
@@ -991,13 +1560,14 @@ const TeacherActivities = () => {
                                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                     >
                                         {[
-                                            { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                            { id: 'assign', label: `Assign (${assignCount})`, icon: Plus, activeClass: 'bg-indigo-600 text-white shadow-md' },
+                                            { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                             { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                            { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                             { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                            { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-600 text-white shadow-md' },
                                             { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
                                             { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                            { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
-                                            { id: 'chat', label: 'Chat with Student', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                             { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                         ].map(tab => {
                                             const isActive = viewMode === tab.id;
@@ -1049,484 +1619,636 @@ const TeacherActivities = () => {
                                 </div>
                             </div>
                         ) : studentTab === 'tests' ? (
-                            !selectedInboxId ? (
-                                <div className="h-full flex items-center justify-center">
-                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
-                                        <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
-                                        <p className="text-slate-400 text-xs leading-relaxed">
-                                            This student does not have any assigned activities matching their course/subjects.
-                                        </p>
+                            <>
+                                {!selectedInboxId ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                            <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
+                                            <p className="text-slate-400 text-xs leading-relaxed">
+                                                This student does not have any assigned activities matching their course/subjects.
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ) : viewMode === 'chat' ? (
-                                /* --- CHAT TAB --- */
-                                <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative shrink-0">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
-                                                    {selectedStudent.avatar ? (
-                                                        <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                ) : viewMode === 'chat' ? (
+                                    /* --- CHAT TAB --- */
+                                    <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative shrink-0">
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                                        {selectedStudent.avatar ? (
+                                                            <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                        )}
+                                                    </div>
+                                                    {onlineUsers.includes(selectedStudent._id) ? (
+                                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
                                                     ) : (
-                                                        selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
                                                     )}
                                                 </div>
-                                                {onlineUsers.includes(selectedStudent._id) ? (
-                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
-                                                ) : (
-                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
-                                                )}
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
+                                                    <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
-                                                <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                            <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
+                                                Inbox Chat View
                                             </div>
                                         </div>
-                                        <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
-                                            Inbox Chat View
-                                        </div>
-                                    </div>
 
-                                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                        {loadingChat ? (
-                                            <div className="h-full flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                            </div>
-                                        ) : chatMessages.length === 0 ? (
-                                            <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
-                                                <MessageSquare size={36} className="text-slate-355 mb-2 opacity-60 animate-pulse" />
-                                                <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
-                                                <p className="text-slate-400 text-[11px] mt-1">
-                                                    Send a message to start conversation with {selectedStudent.name}.
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            chatMessages.map((msg, index) => {
-                                                const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
-                                                const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
-                                                return (
-                                                    <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
-                                                            ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
-                                                            : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
-                                                            }`}>
-                                                            <p className="font-semibold">{msg.text}</p>
-                                                            <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                                            {loadingChat ? (
+                                                <div className="h-full flex items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                                </div>
+                                            ) : chatMessages.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                                    <MessageSquare size={36} className="text-slate-355 mb-2 opacity-60 animate-pulse" />
+                                                    <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                                    <p className="text-slate-400 text-[11px] mt-1">
+                                                        Send a message to start conversation with {selectedStudent.name}.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                chatMessages.map((msg, index) => {
+                                                    const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                                    const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                                    return (
+                                                        <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                                : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
                                                                 }`}>
-                                                                {formattedTime}
-                                                            </span>
+                                                                <p className="font-semibold">{msg.text}</p>
+                                                                <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                                                    }`}>
+                                                                    {formattedTime}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                        <div ref={messagesEndRef} />
-                                    </div>
+                                                    );
+                                                })
+                                            )}
+                                            <div ref={messagesEndRef} />
+                                        </div>
 
-                                    <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
-                                        <input
-                                            type="text"
-                                            value={chatInput}
-                                            onChange={e => setChatInput(e.target.value)}
-                                            placeholder="Type your message to the student..."
-                                            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                        />
-                                        <button
-                                            type="submit"
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
-                                            disabled={!chatInput.trim()}
-                                        >
-                                            Send
-                                        </button>
-                                    </form>
-                                </div>
-                            ) : viewMode === 'study-material' ? (
-                                /* --- STUDY MATERIAL TAB --- */
-                                <div className="animate-fade-in space-y-6 text-left">
-                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                        <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
-                                        <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
-                                                <input
-                                                    type="text"
-                                                    value={matTitle}
-                                                    onChange={(e) => setMatTitle(e.target.value)}
-                                                    placeholder="e.g. React Cheatsheet"
-                                                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
-                                                <input
-                                                    type="file"
-                                                    id="study-material-file"
-                                                    onChange={(e) => setMatFile(e.target.files[0])}
-                                                    className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                                />
-                                            </div>
+                                        <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                            <input
+                                                type="text"
+                                                value={chatInput}
+                                                onChange={e => setChatInput(e.target.value)}
+                                                placeholder="Type your message to the student..."
+                                                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                            />
                                             <button
                                                 type="submit"
-                                                disabled={uploadingMaterial}
-                                                className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                                disabled={!chatInput.trim()}
                                             >
-                                                {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                                Send
                                             </button>
                                         </form>
                                     </div>
-
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
-                                            <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
-                                                Total Files: {studyMaterials.length}
-                                            </span>
+                                ) : viewMode === 'study-material' ? (
+                                    /* --- STUDY MATERIAL TAB --- */
+                                    <div className="animate-fade-in space-y-6 text-left">
+                                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                            <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
+                                            <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={matTitle}
+                                                        onChange={(e) => setMatTitle(e.target.value)}
+                                                        placeholder="e.g. React Cheatsheet"
+                                                        className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
+                                                    <input
+                                                        type="file"
+                                                        id="study-material-file"
+                                                        onChange={(e) => setMatFile(e.target.files[0])}
+                                                        className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    disabled={uploadingMaterial}
+                                                    className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                                >
+                                                    {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                                </button>
+                                            </form>
                                         </div>
 
-                                        {loadingMaterials ? (
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
+                                                <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
+                                                    Total Files: {studyMaterials.length}
+                                                </span>
+                                            </div>
+
+                                            {loadingMaterials ? (
+                                                <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                                    <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                                </div>
+                                            ) : studyMaterials.length === 0 ? (
+                                                <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                    <div className="text-4xl mb-2">📂</div>
+                                                    <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
+                                                    <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                    {studyMaterials.map((mat) => (
+                                                        <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                            <div className="space-y-2">
+                                                                <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                                <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                                <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                            </div>
+                                                            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                                <button
+                                                                    onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                    className="text-red-500 hover:text-red-700 text-[10px] font-bold"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                >
+                                                                    View File
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : viewMode === 'tools' ? (
+                                    /* --- INBOX TOOLS TAB FOR TEACHER --- */
+                                    <div className="animate-fade-in space-y-6 text-left animate-slide-up">
+                                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                            <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
+                                            <p className="text-slate-500 text-xs leading-relaxed">
+                                                Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{selectedGroup ? getDisplayTitle(selectedGroup.title) : getDisplayTitle(selectedInboxId)}</strong>.
+                                            </p>
+                                        </div>
+
+                                        {loadingInboxPractice ? (
                                             <div className="flex flex-col items-center justify-center py-12 bg-white">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                                <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                                <p className="text-xs text-slate-450 font-semibold">Loading tools data...</p>
                                             </div>
-                                        ) : studyMaterials.length === 0 ? (
+                                        ) : (inboxPracticeFiles.length === 0 && inboxSharedNotes.length === 0) ? (
                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                 <div className="text-4xl mb-2">📂</div>
-                                                <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
-                                                <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                                <p className="font-bold text-slate-700 text-sm">No Tools Activity</p>
+                                                <p className="text-slate-450 text-xs mt-1 font-medium">The student has not recorded any work or shared notes for this inbox.</p>
                                             </div>
                                         ) : (
-                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                {studyMaterials.map((mat) => (
-                                                    <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                        <div className="space-y-2">
-                                                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                            <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
-                                                            <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                            <button
-                                                                onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                className="text-red-500 hover:text-red-700 text-[10px] font-bold"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                            >
-                                                                View File
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : viewMode === 'tools' ? (
-                                /* --- INBOX TOOLS TAB FOR TEACHER --- */
-                                <div className="animate-fade-in space-y-6 text-left animate-slide-up">
-                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                        <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">
-                                            Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{getDisplayTitle(selectedInboxId)}</strong>.
-                                        </p>
-                                    </div>
+                                            <div className="space-y-6 max-w-4xl">
+                                                {/* Render Practice Files Grouped by Tool Type */}
+                                                {inboxPracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader'].map(type => {
+                                                    const files = inboxPracticeFiles.filter(f => f.toolType === type);
+                                                    if (files.length === 0) return null;
 
-                                    {loadingInboxPractice ? (
-                                        <div className="flex flex-col items-center justify-center py-12 bg-white">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                            <p className="text-xs text-slate-450 font-semibold">Loading tools data...</p>
-                                        </div>
-                                    ) : (inboxPracticeFiles.length === 0 && inboxSharedNotes.length === 0) ? (
-                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                            <div className="text-4xl mb-2">📂</div>
-                                            <p className="font-bold text-slate-700 text-sm">No Tools Activity</p>
-                                            <p className="text-slate-450 text-xs mt-1 font-medium">The student has not recorded any work or shared notes for this inbox.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-6 max-w-4xl">
-                                            {/* Render Practice Files Grouped by Tool Type */}
-                                            {inboxPracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader'].map(type => {
-                                                const files = inboxPracticeFiles.filter(f => f.toolType === type);
-                                                if (files.length === 0) return null;
+                                                    const typeLabels = {
+                                                        'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                                        'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                                        'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                                        'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                                        'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' },
+                                                        'file-uploader': { label: 'Uploaded Files', icon: Upload, bg: 'bg-amber-50 text-amber-655' }
+                                                    };
+                                                    const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                                    const ToolIcon = labelConfig.icon;
 
-                                                const typeLabels = {
-                                                    'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
-                                                    'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
-                                                    'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
-                                                    'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
-                                                    'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' },
-                                                    'file-uploader': { label: 'Uploaded Files', icon: Upload, bg: 'bg-amber-50 text-amber-655' }
-                                                };
-                                                const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
-                                                const ToolIcon = labelConfig.icon;
-
-                                                return (
-                                                    <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
-                                                                <ToolIcon size={16} />
+                                                    return (
+                                                        <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                                    <ToolIcon size={16} />
+                                                                </div>
+                                                                <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
                                                             </div>
-                                                            <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
-                                                        </div>
 
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            {files.map((file, fileIdx) => (
-                                                                <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
-                                                                    <div className="space-y-1">
-                                                                        <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
-                                                                            {file.filename}
-                                                                        </p>
-                                                                        <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
-                                                                            Date: {new Date(file.createdAt).toLocaleDateString()} • Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                        </p>
-                                                                    </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                {files.map((file, fileIdx) => (
+                                                                    <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                                        <div className="space-y-1">
+                                                                            <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                                {file.filename}
+                                                                            </p>
+                                                                            <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
+                                                                                Date: {new Date(file.createdAt).toLocaleDateString()} • Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                            </p>
+                                                                        </div>
 
-                                                                    <div className="pt-2">
-                                                                        {type === 'screenshot' && (
-                                                                            <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                                <img
-                                                                                    src={file.fileUrl}
-                                                                                    alt="Screenshot Preview"
-                                                                                    className="w-full max-h-48 object-contain bg-slate-900"
-                                                                                />
+                                                                        <div className="pt-2">
+                                                                            {type === 'screenshot' && (
+                                                                                <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                                    <img
+                                                                                        src={file.fileUrl}
+                                                                                        alt="Screenshot Preview"
+                                                                                        className="w-full max-h-48 object-contain bg-slate-900"
+                                                                                    />
+                                                                                    <a
+                                                                                        href={file.fileUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                                                                    >
+                                                                                        View Fullscreen
+                                                                                    </a>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {type === 'screen-recorder' && (
+                                                                                <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                            )}
+
+                                                                            {type === 'video-recorder' && (
+                                                                                <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                            )}
+
+                                                                            {type === 'voice-recorder' && (
+                                                                                <audio src={file.fileUrl} controls className="w-full" />
+                                                                            )}
+
+                                                                            {type === 'file-uploader' && (
                                                                                 <a
                                                                                     href={file.fileUrl}
                                                                                     target="_blank"
                                                                                     rel="noreferrer"
-                                                                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
                                                                                 >
-                                                                                    View Fullscreen
+                                                                                    Download File
                                                                                 </a>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
 
-                                                                        {type === 'screen-recorder' && (
-                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
-                                                                        )}
+                                                                            {type === 'web-calling' && (
+                                                                                <div className="bg-white p-3 rounded-lg border border-slate-200/80 text-[11px] leading-relaxed text-slate-600">
+                                                                                    <p><strong>Duration:</strong> {file.metadata?.duration || 'N/A'}</p>
+                                                                                    <p className="mt-1"><strong>Resolution:</strong> {file.metadata?.resolution || 'N/A'}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
 
-                                                                        {type === 'video-recorder' && (
-                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
-                                                                        )}
+                                                {/* Render Shared Written Notes */}
+                                                {inboxSharedNotes.length > 0 && (
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                                <FileText size={16} />
+                                                            </div>
+                                                            <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({inboxSharedNotes.length})</h3>
+                                                        </div>
 
-                                                                        {type === 'voice-recorder' && (
-                                                                            <audio src={file.fileUrl} controls className="w-full" />
-                                                                        )}
-
-                                                                        {type === 'file-uploader' && (
-                                                                            <a
-                                                                                href={file.fileUrl}
-                                                                                target="_blank"
-                                                                                rel="noreferrer"
-                                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
-                                                                            >
-                                                                                Download File
-                                                                            </a>
-                                                                        )}
-
-                                                                        {type === 'web-calling' && (
-                                                                            <div className="bg-white p-3 rounded-lg border border-slate-200/80 text-[11px] leading-relaxed text-slate-600">
-                                                                                <p><strong>Duration:</strong> {file.metadata?.duration || 'N/A'}</p>
-                                                                                <p className="mt-1"><strong>Resolution:</strong> {file.metadata?.resolution || 'N/A'}</p>
-                                                                            </div>
-                                                                        )}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {inboxSharedNotes.map((note, idx) => (
+                                                                <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                                    <div className="space-y-1.5">
+                                                                        <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                            {note.title}
+                                                                        </h4>
+                                                                        <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                            {note.content}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                                        <span>Date: {new Date(note.createdAt).toLocaleDateString()}</span>
+                                                                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                            Shared
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : viewMode === 'analytics' ? (
+                                    /* --- ANALYTICS TAB --- */
+                                    <div className="animate-fade-in space-y-6">
+                                        {(() => {
+                                            const totalTests = selectedGroup.tests.length;
+                                            const evaluatedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'evaluated';
+                                            }).length;
+                                            const submittedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'submitted';
+                                            }).length;
+                                            const returnedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'returned';
+                                            }).length;
+                                            const unattemptedTests = totalTests - evaluatedTests - submittedTests - returnedTests;
 
-                                            {/* Render Shared Written Notes */}
-                                            {inboxSharedNotes.length > 0 && (
-                                                <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
-                                                            <FileText size={16} />
+                                            const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
+                                            const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
+                                            const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
+
+                                            return (
+                                                <>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
                                                         </div>
-                                                        <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({inboxSharedNotes.length})</h3>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{evaluatedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
+                                                        </div>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Pending Evaluation</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{submittedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
+                                                        </div>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{unattemptedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {inboxSharedNotes.map((note, idx) => (
-                                                            <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
-                                                                <div className="space-y-1.5">
-                                                                    <h4 className="font-extrabold text-slate-800 text-xs truncate">
-                                                                        {note.title}
-                                                                    </h4>
-                                                                    <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
-                                                                        {note.content}
-                                                                    </p>
+                                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                        <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Completion Analytics</h3>
+                                                        <div className="space-y-4">
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Evaluated Completion Rate</span>
+                                                                    <span>{evaluatedPct}%</span>
                                                                 </div>
-                                                                <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                                                                    <span>Date: {new Date(note.createdAt).toLocaleDateString()}</span>
-                                                                    <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
-                                                                        Shared
-                                                                    </span>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${evaluatedPct}%` }} />
                                                                 </div>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : viewMode === 'analytics' ? (
-                                /* --- ANALYTICS TAB --- */
-                                <div className="animate-fade-in space-y-6">
-                                    {(() => {
-                                        const totalTests = selectedGroup.tests.length;
-                                        const evaluatedTests = (selectedGroup.tests || []).filter(t => {
-                                            const sub = submissionMap.get(t._id);
-                                            return sub && sub.status === 'evaluated';
-                                        }).length;
-                                        const submittedTests = (selectedGroup.tests || []).filter(t => {
-                                            const sub = submissionMap.get(t._id);
-                                            return sub && sub.status !== 'evaluated';
-                                        }).length;
-                                        const unattemptedTests = totalTests - evaluatedTests - submittedTests;
-
-                                        const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
-                                        const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
-                                        const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
-
-                                        return (
-                                            <>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{evaluatedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Pending Evaluation</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{submittedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{unattemptedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                                    <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Completion Analytics</h3>
-                                                    <div className="space-y-4">
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Evaluated Completion Rate</span>
-                                                                <span>{evaluatedPct}%</span>
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Pending Evaluation Rate</span>
+                                                                    <span>{submittedPct}%</span>
+                                                                </div>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
+                                                                </div>
                                                             </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${evaluatedPct}%` }} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Pending Evaluation Rate</span>
-                                                                <span>{submittedPct}%</span>
-                                                            </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Unattempted Items Rate</span>
-                                                                <span>{unattemptedPct}%</span>
-                                                            </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Unattempted Items Rate</span>
+                                                                    <span>{unattemptedPct}%</span>
+                                                                </div>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            ) : (
-                                /* --- DIRECT TESTS GRID --- */
-                                <div className="animate-fade-in space-y-4">
-                                    {!activeTests.length ? (
-                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                            <div className="text-4xl mb-2">🎉</div>
-                                            <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                            <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                            {activeTests.map(test => {
-                                                const sub = submissionMap.get(test._id);
-                                                const isEvaluated = sub && sub.status === 'evaluated';
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                ) : (
+                                    /* --- DIRECT TESTS GRID --- */
+                                    <div className="animate-fade-in space-y-4">
+                                        {!activeTests.length ? (
+                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                <div className="text-4xl mb-2">🎉</div>
+                                                <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                                <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                                {activeTests.map(test => {
+                                                    const sub = submissionMap.get(test._id);
+                                                    const isEvaluated = sub && sub.status === 'evaluated';
+                                                    const config = activityConfigs.find(c => c.test === test._id);
+                                                    const isActivityVisible = config ? config.visible : true;
+                                                    const isActivityDisabled = config ? !!config.disabled : false;
 
-                                                return (
-                                                    <div
-                                                        key={test._id}
-                                                        className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group"
-                                                    >
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                                }`} />
-                                                            <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                                {test.title}
-                                                            </h3>
-                                                        </div>
+                                                    return (
+                                                        <div
+                                                            key={test._id}
+                                                            className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2 min-w-0">
+                                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                                                    <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                                        {test.title}
+                                                                    </h3>
+                                                                </div>
+                                                                {/* Options menu or direct Eye button depending on tab */}
+                                                                {viewMode === 'pending' || viewMode === 'assign' || viewMode === 'expired' ? (
+                                                                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
+                                                                            }}
+                                                                            className="p-1 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                            title="Options"
+                                                                        >
+                                                                            <MoreVertical size={14} />
+                                                                        </button>
+                                                                        {activeDropdownTestId === test._id && (
+                                                                            <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in text-left">
+                                                                                {/* View Details */}
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setActiveDropdownTestId(null);
+                                                                                        setInfoModalData(test);
+                                                                                    }}
+                                                                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                                >
+                                                                                    <Eye size={13} className="text-slate-400" />
+                                                                                    View Details
+                                                                                </button>
 
-                                                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setInfoModalData(test);
-                                                                }}
-                                                                className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                                title="RI Details"
-                                                            >
-                                                                <Eye size={14} />
-                                                            </button>
+                                                                                {/* Edit Activity */}
+                                                                                {(viewMode === 'pending' || viewMode === 'assign') && (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownTestId(null);
+                                                                                            const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
+                                                                                            if (isCreator || test.allowTeacherEdit) {
+                                                                                                navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
+                                                                                            } else {
+                                                                                                toast.error("Permission Denied: Editor has not authorized editing for this activity.");
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                                    >
+                                                                                        <Edit3 size={13} className="text-slate-400" />
+                                                                                        Edit Activity
+                                                                                    </button>
+                                                                                )}
 
-                                                            {sub ? (
-                                                                <button
-                                                                    onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                        }`}
-                                                                >
-                                                                    {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-[9px] font-black uppercase text-slate-400 select-none mr-1">
-                                                                    Pending Submit
-                                                                </span>
+                                                                                {/* Edit Expiry */}
+                                                                                {(viewMode === 'pending' || viewMode === 'expired') && (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownTestId(null);
+                                                                                            openExpiryModal(test);
+                                                                                        }}
+                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                                    >
+                                                                                        <Clock size={13} className="text-slate-400" />
+                                                                                        Edit Expiry
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {viewMode === 'pending' && (
+                                                                                    <>
+                                                                                        <div className="border-t border-slate-100 my-1" />
+
+                                                                                        {/* Visibility toggle */}
+                                                                                        <div
+                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
+                                                                                            }}
+                                                                                        >
+                                                                                            <span className="text-xs font-bold text-slate-700">
+                                                                                                Visible to Student
+                                                                                            </span>
+                                                                                            <button
+                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                                style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
+                                                                                                }}
+                                                                                            >
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </button>
+                                                                                        </div>
+
+                                                                                        {/* Disable toggle */}
+                                                                                        <div
+                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
+                                                                                            }}
+                                                                                        >
+                                                                                            <span className="text-xs font-bold text-slate-700">
+                                                                                                Enable Activity
+                                                                                            </span>
+                                                                                            <button
+                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                                style={{ backgroundColor: !isActivityDisabled ? '#3E3ADD' : '#cbd5e1' }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
+                                                                                                }}
+                                                                                            >
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setInfoModalData(test);
+                                                                        }}
+                                                                        className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all shrink-0"
+                                                                        title="View Details"
+                                                                    >
+                                                                        <Eye size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Status badges */}
+                                                            {((!isActivityVisible) || isActivityDisabled) && (
+                                                                <div className="flex items-center gap-1 mt-1.5">
+                                                                    {!isActivityVisible && (
+                                                                        <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">Hidden</span>
+                                                                    )}
+                                                                    {isActivityDisabled && (
+                                                                        <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">Disabled</span>
+                                                                    )}
+                                                                </div>
                                                             )}
+
+                                                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                                {/* Left Side: Expiry display */}
+                                                                {viewMode !== 'assign' && (
+                                                                    <ActivityTimer endTime={test.settings?.endTime} />
+                                                                )}
+
+                                                                {/* Right Side: Action Button */}
+                                                                <div className="flex-1 flex justify-end">
+                                                                    {viewMode === 'assign' ? (
+                                                                        <button
+                                                                            onClick={() => openExpiryModal(test)}
+                                                                            className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border border-transparent"
+                                                                        >
+                                                                            Move to upcoming
+                                                                        </button>
+                                                                    ) : sub ? (
+                                                                        <button
+                                                                            onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
+                                                                                ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                                : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                                }`}
+                                                                        >
+                                                                            {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                            </>
                         ) : studentTab === 'practice' ? (
                             /* --- PRACTICE WORKSPACE REVIEW --- */
                             <div className="animate-fade-in space-y-6">
@@ -1868,6 +2590,19 @@ const TeacherActivities = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Sticky bottom bar — Add More (only on pending tab) */}
+                    {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'pending' && (
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end">
+                            <button
+                                onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
+                            >
+                                <Plus size={14} strokeWidth={3} />
+                                <span>Add More</span>
+                            </button>
+                        </div>
+                    )}
                 </main>
 
                 {/* --- Right Sidebar: Students Selecting --- */}
@@ -1911,6 +2646,63 @@ const TeacherActivities = () => {
                                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
                                     <p className="text-xs text-indigo-950 font-semibold">Loading students...</p>
                                 </div>
+                            ) : showSectionsGrouped ? (
+                                Object.keys(studentsBySection).sort().map(secName => {
+                                    const secStudents = studentsBySection[secName];
+                                    const isExpanded = !!expandedSections[secName];
+                                    return (
+                                        <div key={secName} className="space-y-1.5 mb-3 border border-slate-100 rounded-xl bg-slate-50/20 overflow-hidden">
+                                            <div 
+                                                onClick={() => setExpandedSections(prev => ({ ...prev, [secName]: !prev[secName] }))}
+                                                className="flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/70 border-b border-slate-100 cursor-pointer select-none transition-all"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                                        Section {secName}
+                                                    </span>
+                                                    <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                        {secStudents.length} Students
+                                                    </span>
+                                                </div>
+                                                <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                            {isExpanded && (
+                                                <div className="space-y-1.5 p-2 bg-white animate-fade-in">
+                                                {secStudents.map(student => {
+                                                    const isSelected = selectedStudent?._id === student._id;
+                                                    const avatarBg = getAvatarBgColor(student.name);
+                                                    return (
+                                                        <div
+                                                            key={student._id}
+                                                            onClick={() => {
+                                                                setSelectedStudent(student);
+                                                                setStudentTab('tests');
+                                                                setSelectedPracticeDate('');
+                                                                fetchStudentSubmissions(student._id);
+                                                                fetchStudentPracticeFiles(student._id);
+                                                                fetchInboxConfigs(student._id);
+                                                                setShowStudentList(false);
+                                                            }}
+                                                            className={`flex items-center space-x-2.5 p-2 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-md shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black !text-white shadow-sm transition-transform shrink-0 ${isSelected ? 'bg-[#3E3ADD] scale-105 shadow-sm shadow-indigo-500/10' : avatarBg}`} style={{ color: '#ffffff' }}>
+                                                                {student.name[0].toUpperCase()}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                                    {student.name}
+                                                                </h4>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             ) : filteredStudents.map(student => {
                                 const isSelected = selectedStudent?._id === student._id;
                                 const stats = isSelected ? selectedStudentStats : (student.stats || { completed: 0, pending: 0 });
@@ -1924,6 +2716,7 @@ const TeacherActivities = () => {
                                             setSelectedPracticeDate('');
                                             fetchStudentSubmissions(student._id);
                                             fetchStudentPracticeFiles(student._id);
+                                            fetchInboxConfigs(student._id);
                                             setShowStudentList(false);
                                         }}
                                         className={`flex items-center space-x-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-white border-[#3E3ADD] shadow-md shadow-indigo-500/5 ring-1 ring-[#3E3ADD]/10' : 'bg-white border-slate-100 hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'}`}
@@ -2016,6 +2809,21 @@ const TeacherActivities = () => {
                                         <span className="font-bold text-slate-900">{infoModalData.activity || 'N/A'}</span>
                                     </div>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created By</span>
+                                        <span className="font-bold text-slate-900">
+                                            {infoModalData.createdBy?.name || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Creator Role</span>
+                                        <span className="font-bold text-slate-900 uppercase text-xs">
+                                            {infoModalData.createdBy?.role || 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             <button
@@ -2024,6 +2832,417 @@ const TeacherActivities = () => {
                             >
                                 Close Details
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rename Inbox Modal */}
+            {renameInboxId && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-sm w-full p-8 animate-slide-up relative">
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">Rename Inbox</h3>
+                        <p className="text-xs text-slate-400 mb-6">Enter a new display name for this student's inbox.</p>
+
+                        <input
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            placeholder="Enter new inbox name..."
+                            className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-805 font-bold mb-6"
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setRenameInboxId(null);
+                                    setRenameValue('');
+                                }}
+                                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const config = inboxConfigs.find(c => c.inboxId === renameInboxId);
+                                    const isVisible = config ? config.visible : true;
+                                    await handleUpdateInboxConfig(renameInboxId, renameValue.trim(), isVisible);
+                                    setRenameInboxId(null);
+                                    setRenameValue('');
+                                }}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100"
+                            >
+                                Save Name
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Config Modal */}
+            {bulkConfigModal && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-md w-full p-8 animate-slide-up relative flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="mb-4">
+                            <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
+                                {bulkConfigModal.actionType === 'hide'
+                                    ? (bulkConfigModal.newVisible ? 'Show Activity' : 'Hide Activity')
+                                    : (bulkConfigModal.newDisabled ? 'Disable Activity' : 'Enable Activity')
+                                }
+                            </h3>
+                            <p className="text-xs text-slate-400">
+                                Apply this configuration for "{allTests.find(t => t._id === bulkConfigModal.testId)?.title || 'Activity'}" to selected students.
+                            </p>
+                        </div>
+
+                        {/* Search & Select All Actions */}
+                        <div className="flex items-center justify-between gap-3 mb-4 bg-slate-50 p-2 rounded-xl">
+                            <button
+                                onClick={() => {
+                                    const allIds = students.map(s => s._id);
+                                    const allSelected = allIds.every(id => bulkSelectedStudents.includes(id));
+                                    if (allSelected) {
+                                        setBulkSelectedStudents([]);
+                                    } else {
+                                        setBulkSelectedStudents(allIds);
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-[#3E3ADD] uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                            >
+                                {students.map(s => s._id).every(id => bulkSelectedStudents.includes(id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+
+                            <span className="text-[10px] font-bold text-slate-550">
+                                {bulkSelectedStudents.length} of {students.length} Selected
+                            </span>
+                        </div>
+
+                        {/* Scrollable list of students */}
+                        <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[300px] border border-slate-100 rounded-2xl p-2.5 space-y-1.5 custom-scrollbar mb-6">
+                            {students.map(student => {
+                                const isChecked = bulkSelectedStudents.includes(student._id);
+                                const isCurrent = selectedStudent?._id === student._id;
+                                return (
+                                    <div
+                                        key={student._id}
+                                        onClick={() => {
+                                            if (isChecked) {
+                                                setBulkSelectedStudents(prev => prev.filter(id => id !== student._id));
+                                            } else {
+                                                setBulkSelectedStudents(prev => [...prev, student._id]);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${isChecked
+                                                ? 'bg-indigo-50/50 border-indigo-150'
+                                                : 'bg-white border-slate-100 hover:bg-slate-50/50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                                                {student.name?.[0]?.toUpperCase() || 'S'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-700 truncate">{student.name}</h4>
+                                                <p className="text-[9px] text-slate-400 truncate">{student.email}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isCurrent && (
+                                                <span className="px-1.5 py-0.5 bg-[#3E3ADD]/10 text-[#3E3ADD] border border-[#3E3ADD]/20 text-[8px] font-black uppercase tracking-wider rounded-md">
+                                                    Current
+                                                </span>
+                                            )}
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => { }} // Handled by parent div onClick
+                                                className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setBulkConfigModal(null)}
+                                className="flex-1 py-3.5 bg-slate-105 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors uppercase tracking-wider"
+                                disabled={bulkSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkSave}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                                disabled={bulkSaving || bulkSelectedStudents.length === 0}
+                            >
+                                {bulkSaving ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <span>Save & Apply</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Inbox Config Modal */}
+            {bulkInboxConfigModal && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-md w-full p-8 animate-slide-up relative flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="mb-4">
+                            <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
+                                {bulkInboxConfigModal.actionType === 'hide'
+                                    ? (bulkInboxConfigModal.visible ? 'Show Inbox' : 'Hide Inbox')
+                                    : (bulkInboxConfigModal.disabled ? 'Disable Inbox' : 'Enable Inbox')
+                                }
+                            </h3>
+                            <p className="text-xs text-slate-400">
+                                Apply this configuration for "{getDisplayTitle(bulkInboxConfigModal.inboxId)}" to selected students.
+                            </p>
+                        </div>
+
+                        {/* Search & Select All Actions */}
+                        <div className="flex items-center justify-between gap-3 mb-4 bg-slate-50 p-2 rounded-xl">
+                            <button
+                                onClick={() => {
+                                    const allIds = students.map(s => s._id);
+                                    const allSelected = allIds.every(id => bulkSelectedStudents.includes(id));
+                                    if (allSelected) {
+                                        setBulkSelectedStudents([]);
+                                    } else {
+                                        setBulkSelectedStudents(allIds);
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-[#3E3ADD] uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                            >
+                                {students.map(s => s._id).every(id => bulkSelectedStudents.includes(id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+
+                            <span className="text-[10px] font-bold text-slate-550">
+                                {bulkSelectedStudents.length} of {students.length} Selected
+                            </span>
+                        </div>
+
+                        {/* Scrollable list of students */}
+                        <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[300px] border border-slate-100 rounded-2xl p-2.5 space-y-1.5 custom-scrollbar mb-6">
+                            {students.map(student => {
+                                const isChecked = bulkSelectedStudents.includes(student._id);
+                                const isCurrent = selectedStudent?._id === student._id;
+                                return (
+                                    <div
+                                        key={student._id}
+                                        onClick={() => {
+                                            if (isChecked) {
+                                                setBulkSelectedStudents(prev => prev.filter(id => id !== student._id));
+                                            } else {
+                                                setBulkSelectedStudents(prev => [...prev, student._id]);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${isChecked
+                                                ? 'bg-indigo-50/50 border-indigo-150'
+                                                : 'bg-white border-slate-100 hover:bg-slate-50/50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                                                {student.name?.[0]?.toUpperCase() || 'S'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-700 truncate">{student.name}</h4>
+                                                <p className="text-[9px] text-slate-400 truncate">{student.email}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isCurrent && (
+                                                <span className="px-1.5 py-0.5 bg-[#3E3ADD]/10 text-[#3E3ADD] border border-[#3E3ADD]/20 text-[8px] font-black uppercase tracking-wider rounded-md">
+                                                    Current
+                                                </span>
+                                            )}
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => { }} // Handled by parent div onClick
+                                                className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setBulkInboxConfigModal(null)}
+                                className="flex-1 py-3.5 bg-slate-105 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-xs transition-colors uppercase tracking-wider"
+                                disabled={bulkSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkInboxSave}
+                                className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                                disabled={bulkSaving || bulkSelectedStudents.length === 0}
+                            >
+                                {bulkSaving ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <span>Save & Apply</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Expiry Configuration Modal */}
+            {expiryModalOpen && expiryModalTest && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up animate-fade-in">
+                        <div className="p-8">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-[#3E3ADD] flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                        <Clock size={20} strokeWidth={2.5} />
+                                    </div>
+                                    <h2 className="text-lg font-black text-slate-800 tracking-tight">
+                                        {expiryModalTest.isAssigned ? "Edit Expiry Settings" : "Configure Expiry"}
+                                    </h2>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setExpiryModalOpen(false);
+                                        setExpiryModalTest(null);
+                                    }}
+                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+                                >
+                                    <RotateCcw size={20} className="rotate-45" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Activity</label>
+                                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                                        <span className="font-bold text-indigo-900 text-sm block">{expiryModalTest.title}</span>
+                                        <span className="text-[10px] text-indigo-500 font-semibold block mt-0.5 uppercase tracking-wider">{expiryModalTest.activity || 'Test'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Option 1: Always Available / No Expiry */}
+                                    <div 
+                                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                                            isNoExpiry 
+                                                ? 'bg-purple-50/40 border-purple-200' 
+                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                        }`}
+                                        onClick={() => setIsNoExpiry(true)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="radio" 
+                                                id="expiry-none"
+                                                name="expiry-type"
+                                                checked={isNoExpiry}
+                                                onChange={() => setIsNoExpiry(true)}
+                                                className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                            <div className="text-left">
+                                                <label htmlFor="expiry-none" className="text-xs font-bold text-slate-850 cursor-pointer">No Expiry</label>
+                                                <p className="text-[9px] text-slate-450 mt-0.5">Always available to students in upcoming activities</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Option 2: Set Expiry Date & Time */}
+                                    <div 
+                                        className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
+                                            !isNoExpiry 
+                                                ? 'bg-indigo-50/40 border-indigo-200' 
+                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div 
+                                            className="flex items-center gap-3 cursor-pointer"
+                                            onClick={() => setIsNoExpiry(false)}
+                                        >
+                                            <input 
+                                                type="radio" 
+                                                id="expiry-set"
+                                                name="expiry-type"
+                                                checked={!isNoExpiry}
+                                                onChange={() => setIsNoExpiry(false)}
+                                                className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                            />
+                                            <div className="text-left">
+                                                <label htmlFor="expiry-set" className="text-xs font-bold text-slate-850 cursor-pointer">Set Expiry Date & Time</label>
+                                                <p className="text-[9px] text-slate-450 mt-0.5">Select a specific deadline for submissions</p>
+                                            </div>
+                                        </div>
+
+                                        {!isNoExpiry && (
+                                            <div className="space-y-2 animate-fade-in text-left">
+                                                <input 
+                                                    type="datetime-local" 
+                                                    value={expiryDate}
+                                                    onChange={(e) => setExpiryDate(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                />
+                                                <p className="text-[9px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100 leading-relaxed">
+                                                    ℹ Must be in the future and cannot exceed 30 days from now.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Force Expire Button (Only if test is already assigned) */}
+                                {expiryModalTest.isAssigned && (
+                                    <div className="pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleForceExpire(expiryModalTest)}
+                                            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black rounded-xl text-[10px] uppercase tracking-wider transition-all"
+                                        >
+                                            Force Expire Immediately
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                                <button
+                                    onClick={() => {
+                                        setExpiryModalOpen(false);
+                                        setExpiryModalTest(null);
+                                    }}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-[10px] transition-colors uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveExpiry}
+                                    className="flex-1 py-3 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-[10px] transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider"
+                                >
+                                    {expiryModalTest.isAssigned ? "Save Changes" : "Assign Activity"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

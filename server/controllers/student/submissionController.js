@@ -35,7 +35,7 @@ const submitTest = asyncHandler(async (req, res) => {
 // @access  Private (Student)
 const getSubmissions = asyncHandler(async (req, res) => {
     const submissions = await Submission.find({ student: req.user._id })
-        .populate('test')
+        .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email')
         .sort({ submittedAt: -1 });
 
@@ -47,7 +47,7 @@ const getSubmissions = asyncHandler(async (req, res) => {
 // @access  Private
 const getSubmissionById = asyncHandler(async (req, res) => {
     const submission = await Submission.findById(req.params.id)
-        .populate('test')
+        .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email');
 
     if (!submission) {
@@ -140,7 +140,7 @@ const updateStudentComment = asyncHandler(async (req, res) => {
 // @access  Public
 const getSharedSubmissionById = asyncHandler(async (req, res) => {
     const submission = await Submission.findById(req.params.id)
-        .populate('test')
+        .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email');
 
     if (!submission) {
@@ -220,11 +220,50 @@ const updateSharedComment = asyncHandler(async (req, res) => {
     res.json(updated);
 });
 
+// @desc    Add feedback message to submission conversation
+// @route   POST /api/submissions/:id/feedback
+// @access  Private
+const addSubmissionFeedback = asyncHandler(async (req, res) => {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+        return res.status(400).json({ message: 'Message text is required' });
+    }
+
+    const role = req.user.role === 'Teacher' || req.user.role === 'Admin' ? 'Teacher' : 'Student';
+
+    submission.conversation.push({
+        role,
+        message: message.trim(),
+        timestamp: new Date()
+    });
+
+    await submission.save();
+    res.status(201).json(submission.conversation);
+});
+
+// @desc    Get submission conversation history
+// @route   GET /api/submissions/:id/feedback
+// @access  Private
+const getSubmissionFeedback = asyncHandler(async (req, res) => {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+    res.json(submission.conversation || []);
+});
+
 module.exports = {
     submitTest,
     getSubmissions,
     getSubmissionById,
     updateStudentComment,
     getSharedSubmissionById,
-    updateSharedComment
+    updateSharedComment,
+    addSubmissionFeedback,
+    getSubmissionFeedback
 };

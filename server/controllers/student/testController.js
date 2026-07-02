@@ -58,9 +58,20 @@ const getTests = asyncHandler(async (req, res) => {
         ];
     }
 
+    // 4. MUST either be assigned to all students, or specifically assigned to this student
+    query.$and = [
+        {
+            $or: [
+                { assignedStudents: { $exists: false } },
+                { assignedStudents: { $size: 0 } },
+                { assignedStudents: req.user._id }
+            ]
+        }
+    ];
+
     console.log(`[Student-Tests-Query] Formulated Query:`, JSON.stringify(query));
 
-    const tests = await Test.find(query).sort({ createdAt: -1 });
+    const tests = await Test.find(query).populate('createdBy', 'name email role').sort({ createdAt: -1 });
     console.log(`[Student-Tests] Found ${tests.length} tests for ${user.name}`);
     res.json(tests);
 });
@@ -69,7 +80,7 @@ const getTests = asyncHandler(async (req, res) => {
 // @route   GET /api/student/tests/:id
 // @access  Private/Student
 const getTestById = asyncHandler(async (req, res) => {
-    const test = await Test.findById(req.params.id);
+    const test = await Test.findById(req.params.id).populate('createdBy', 'name email role');
     if (!test) {
         res.status(404);
         throw new Error('Test not found');

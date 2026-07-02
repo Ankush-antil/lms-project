@@ -35,7 +35,7 @@ const TeacherDashboard = () => {
     const userInfo = user;
     const navigate = useNavigate();
     const { callUser, callState, onlineUsers } = useSocket();
-    
+
     const [stats, setStats] = useState({ totalStudents: 0, pending: 0, completed: 0, courses: 0 });
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState([]);
@@ -59,12 +59,12 @@ const TeacherDashboard = () => {
         try {
             const { data } = await axios.put(`/api/calls/teachers/${user._id}/toggle`);
             setCallEnabled(data.callEnabled);
-            
+
             // Sync with local storage
             const cachedUser = JSON.parse(localStorage.getItem('userInfo') || '{}');
             cachedUser.callEnabled = data.callEnabled;
             localStorage.setItem('userInfo', JSON.stringify(cachedUser));
-            
+
             toast.success(`Receiving calls: ${data.callEnabled ? 'ON' : 'OFF'}`);
         } catch (err) {
             console.error("Failed to toggle call receiving status:", err);
@@ -92,7 +92,7 @@ const TeacherDashboard = () => {
         try {
             await axios.delete(`/api/calls/recordings/${callLogId}`);
             toast.success("Recording deleted successfully");
-            setHistoryLogs(prev => prev.map(log => 
+            setHistoryLogs(prev => prev.map(log =>
                 log._id === callLogId ? { ...log, recordingUrl: undefined } : log
             ));
         } catch (err) {
@@ -180,11 +180,10 @@ const TeacherDashboard = () => {
                 <div className="flex flex-wrap gap-2.5">
                     <button
                         onClick={handleToggleCall}
-                        className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${
-                            callEnabled 
-                                ? 'bg-emerald-650 hover:bg-emerald-700 text-white shadow-emerald-100' 
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
-                        }`}
+                        className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${callEnabled
+                            ? 'bg-emerald-650 bg-emerald-700 text-white shadow-emerald-100'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
+                            }`}
                     >
                         <Phone size={18} /> Receiving Calls: {callEnabled ? 'ON' : 'OFF'}
                     </button>
@@ -303,8 +302,8 @@ const TeacherDashboard = () => {
                                     <span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
                                     Missed Calls ({missedCalls.length})
                                 </h3>
-                                <button 
-                                    onClick={handleClearMissedCalls} 
+                                <button
+                                    onClick={handleClearMissedCalls}
                                     className="text-[10px] bg-red-100 text-red-700 hover:bg-red-200 font-black px-2.5 py-1 rounded-lg uppercase tracking-wider transition-all"
                                 >
                                     Clear All
@@ -383,7 +382,7 @@ const TeacherDashboard = () => {
                                 <h3 className="text-xl font-black text-slate-850 tracking-tight">Contact Students</h3>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Call assigned students in real-time</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => { setShowContactModal(false); setSearchQuery(''); }}
                                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
                             >
@@ -470,7 +469,7 @@ const TeacherDashboard = () => {
                                     With student: {selectedStudent.name}
                                 </p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => { setShowHistoryModal(false); setSelectedStudent(null); setHistoryLogs([]); }}
                                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
                             >
@@ -489,35 +488,34 @@ const TeacherDashboard = () => {
                                     {historyLogs.map(log => {
                                         const isTeacherCaller = log.caller && log.caller._id === user._id;
                                         const dateStr = new Date(log.createdAt).toLocaleString();
-                                        const durationStr = log.startTime && log.endTime 
-                                            ? `${Math.round((new Date(log.endTime) - new Date(log.startTime)) / 1000)}s` 
+                                        const durationStr = log.startTime && log.endTime
+                                            ? `${Math.round((new Date(log.endTime) - new Date(log.startTime)) / 1000)}s`
                                             : null;
 
                                         return (
                                             <div key={log._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col text-left">
                                                 <div className="flex justify-between items-start mb-2">
-                                                     <div className="flex flex-col">
-                                                         <span className="text-xs font-bold text-slate-800">
-                                                             {isTeacherCaller ? 'Outgoing Call' : 'Incoming Call'}
-                                                         </span>
-                                                         <span className="text-[10px] text-slate-400 font-semibold mt-0.5">{dateStr}</span>
-                                                     </div>
-                                                     <div className="flex items-center gap-2">
-                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                                             log.status === 'connected' || log.status === 'ended' ? 'bg-emerald-50 text-emerald-600' :
-                                                             log.status === 'missed' ? 'bg-red-50 text-red-600' : 'bg-slate-200 text-slate-600'
-                                                         }`}>
-                                                             {log.status}
-                                                         </span>
-                                                         <button
-                                                             onClick={() => handleDeleteCallLog(log._id)}
-                                                             className="text-slate-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
-                                                             title="Delete Call History Log"
-                                                         >
-                                                             <Trash2 size={14} />
-                                                         </button>
-                                                     </div>
-                                                 </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-slate-800">
+                                                            {isTeacherCaller ? 'Outgoing Call' : 'Incoming Call'}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-semibold mt-0.5">{dateStr}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${log.status === 'connected' || log.status === 'ended' ? 'bg-emerald-50 text-emerald-600' :
+                                                            log.status === 'missed' ? 'bg-red-50 text-red-600' : 'bg-slate-200 text-slate-600'
+                                                            }`}>
+                                                            {log.status}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleDeleteCallLog(log._id)}
+                                                            className="text-slate-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                                            title="Delete Call History Log"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
 
                                                 <div className="text-xs text-slate-655 mt-1 flex flex-wrap gap-x-4">
                                                     {durationStr && <span>Duration: <strong className="text-slate-800">{durationStr}</strong></span>}

@@ -17,14 +17,26 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         const courseIds = assignedCourses.map(c => c._id || c);
         console.log(`[API] Teacher ${teacher.name} fetching students for courses:`, courseIds);
 
-        // Find students whose course ID is in the teacher's assignedCourses list
-        const students = await User.find({
+        const mode = teacher.teacherProfile?.studentAssignmentMode || 'all';
+        const assignedSections = teacher.teacherProfile?.assignedSections || [];
+        const assignedStudents = teacher.teacherProfile?.assignedStudents || [];
+
+        let query = {
             role: 'Student',
             'studentProfile.course': { $in: courseIds }
-        })
+        };
+
+        if (mode === 'section') {
+            query['studentProfile.section'] = { $in: assignedSections };
+        } else if (mode === 'selected') {
+            query['_id'] = { $in: assignedStudents };
+        }
+
+        // Find students matching assignment filters
+        const students = await User.find(query)
             .select('-password')
             .populate('institute', 'name')
-            .populate('studentProfile.course', 'name');
+            .populate('studentProfile.course', 'name subjects duration');
 
         const studentsWithStats = await Promise.all(students.map(async (student) => {
             try {

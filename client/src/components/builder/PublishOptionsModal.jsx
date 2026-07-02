@@ -4,8 +4,46 @@ import { X, Globe, Link2, Info, Lock, Clock, Calendar, ShieldCheck, Mail, CheckC
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
-const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isConnected, onOpenConnect, initialMode }) => {
+const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isConnected, onOpenConnect, initialMode, studentId, connectData, initialAllowTeacherEdit }) => {
     const [publishMode, setPublishMode] = useState('connected'); // 'connected' | 'public'
+    const [targetAssignment, setTargetAssignment] = useState('particular');
+    const [allStudents, setAllStudents] = useState([]);
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+    const [loadingStudents, setLoadingStudents] = useState(false);
+    const [allowTeacherEdit, setAllowTeacherEdit] = useState(initialAllowTeacherEdit || false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setAllowTeacherEdit(initialAllowTeacherEdit || false);
+        }
+    }, [isOpen, initialAllowTeacherEdit]);
+
+    useEffect(() => {
+        if (isOpen && studentId && connectData && connectData.course) {
+            const fetchCourseStudents = async () => {
+                try {
+                    setLoadingStudents(true);
+                    const { data } = await axios.get('/api/users?role=Student');
+                    
+                    const filtered = data.filter(st => {
+                        if (st._id === studentId) return false;
+                        
+                        const studentCourseVal = st.studentProfile?.course?.name || st.studentProfile?.course || '';
+                        const targetCourseVal = connectData.course?.name || connectData.course || '';
+                        
+                        const courseMatch = studentCourseVal.toString().toLowerCase().trim() === targetCourseVal.toString().toLowerCase().trim();
+                        return courseMatch;
+                    });
+                    setAllStudents(filtered);
+                } catch (err) {
+                    console.error("Error fetching students for custom assignment:", err);
+                } finally {
+                    setLoadingStudents(false);
+                }
+            };
+            fetchCourseStudents();
+        }
+    }, [isOpen, studentId, connectData]);
     const [settings, setSettings] = useState({
         allowMultiple: false,
         startDate: '',
@@ -146,7 +184,22 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                 onOpenConnect();
                 return;
             }
-            onPublish('connected', null);
+            if (studentId) {
+                const assignedStudents = targetAssignment === 'particular'
+                    ? [studentId]
+                    : targetAssignment === 'selected'
+                        ? [studentId, ...selectedStudentIds]
+                        : [];
+                onPublish('connected', {
+                    assignmentType: targetAssignment,
+                    assignedStudents,
+                    allowTeacherEdit
+                });
+            } else {
+                onPublish('connected', {
+                    allowTeacherEdit
+                });
+            }
         } else {
             // Verify public options
             onPublish('public', {
@@ -242,13 +295,119 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
 
                     {/* Mode-Specific Detailed Settings */}
                     {publishMode === 'connected' ? (
-                        <div className="bg-slate-100/20 border border-slate-200 rounded-2xl p-5 space-y-3">
+                        <div className="bg-slate-100/20 border border-slate-200 rounded-2xl p-5 space-y-4">
                             <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                                 <Info size={16} className="text-[#0b1329]" /> LMS Assignment Details
                             </h4>
                             <p className="text-slate-500 text-xs leading-relaxed">
                                 In Connected mode, this test will only show up inside student dashboards who are enrolled in the configured course, institute, and subject.
                             </p>
+
+                            {studentId && (
+                                <div className="space-y-4 pt-3 border-t border-slate-200/60">
+                                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider block">
+                                        Who would you like to assign this activity to?
+                                    </span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTargetAssignment('particular')}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                                targetAssignment === 'particular'
+                                                    ? 'border-[#0b1329] bg-[#0b1329]/5 font-extrabold text-slate-850'
+                                                    : 'border-slate-200 bg-white hover:border-slate-350 text-slate-650'
+                                            }`}
+                                        >
+                                            <div className="text-xs font-bold">This Student Only</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-semibold normal-case">Only this student can view this activity</div>
+                                        </button>
+                                        
+                                        <button
+                                            type="button"
+                                            onClick={() => setTargetAssignment('selected')}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                                targetAssignment === 'selected'
+                                                    ? 'border-[#0b1329] bg-[#0b1329]/5 font-extrabold text-slate-850'
+                                                    : 'border-slate-200 bg-white hover:border-slate-350 text-slate-650'
+                                            }`}
+                                        >
+                                            <div className="text-xs font-bold">Selected Students</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-semibold normal-case">Pick custom students for this activity</div>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setTargetAssignment('all')}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                                targetAssignment === 'all'
+                                                    ? 'border-[#0b1329] bg-[#0b1329]/5 font-extrabold text-slate-850'
+                                                    : 'border-slate-200 bg-white hover:border-slate-350 text-slate-650'
+                                            }`}
+                                        >
+                                            <div className="text-xs font-bold">All Course Students</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-semibold normal-case">All students in this course</div>
+                                        </button>
+                                    </div>
+
+                                    {targetAssignment === 'selected' && (
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5 animate-fade-in">
+                                            <span className="text-[10px] font-black text-slate-550 uppercase tracking-widest block">
+                                                Select additional students from {connectData?.course || 'this course'}
+                                            </span>
+                                            {loadingStudents ? (
+                                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                    <div className="w-3 h-3 border-2 border-[#0b1329] border-t-transparent rounded-full animate-spin" />
+                                                    <span>Loading student list...</span>
+                                                </div>
+                                            ) : allStudents.length === 0 ? (
+                                                <span className="text-xs text-slate-400 italic block">No other students found in this course/subject.</span>
+                                            ) : (
+                                                <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+                                                    {allStudents.map(student => {
+                                                        const isChecked = selectedStudentIds.includes(student._id);
+                                                        return (
+                                                            <label key={student._id} className="flex items-center gap-2 bg-white px-3 py-2 border border-slate-200/80 rounded-lg hover:border-slate-350 cursor-pointer transition-all">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setSelectedStudentIds(prev => [...prev, student._id]);
+                                                                        } else {
+                                                                            setSelectedStudentIds(prev => prev.filter(id => id !== student._id));
+                                                                        }
+                                                                    }}
+                                                                    className="w-4 h-4 text-[#0b1329] focus:ring-[#0b1329]/20 rounded border-slate-300"
+                                                                />
+                                                                <div className="text-xs font-bold text-slate-705">{student.name}</div>
+                                                                <div className="text-[9px] text-slate-400 font-semibold truncate ml-auto">({student.email})</div>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <div className="pt-3.5 border-t border-slate-200/60 flex items-center justify-between">
+                                <div>
+                                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider block">
+                                        Allow Teacher Edit Access
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-semibold normal-case block mt-0.5">
+                                        Permit teachers in this course/institute to edit this activity's questions
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setAllowTeacherEdit(prev => !prev)}
+                                    className="w-9 h-5 rounded-full p-0.5 transition-colors duration-200 shrink-0 border border-slate-200 flex items-center justify-between"
+                                    style={{ backgroundColor: allowTeacherEdit ? '#0b1329' : '#cbd5e1' }}
+                                >
+                                    <div className="w-4 h-4 bg-white rounded-full transition-transform duration-200" style={{ transform: allowTeacherEdit ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                </button>
+                            </div>
                             <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                                 <span className="text-xs text-slate-400 font-semibold">
                                     Current Status: {isConnected ? <span className="text-emerald-600 font-bold">● Metadata Connected</span> : <span className="text-amber-500 font-bold">● Connection Required</span>}

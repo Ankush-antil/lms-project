@@ -34,13 +34,14 @@ const userSchema = new mongoose.Schema({
     },
     callEnabled: {
         type: Boolean,
-        default: false
+        default: true
     },
     // Role specific fields
     studentProfile: {
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
         subject: { type: String, default: '' },   // ← new: subject assigned by admin
         batch: { type: String },
+        section: { type: String, default: '' },    // ← auto-assigned section e.g. 'A', 'B', 'C'
         enrollmentDate: { type: Date, default: Date.now },
         feeStatus: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
         physicalAttendance: [{
@@ -51,7 +52,14 @@ const userSchema = new mongoose.Schema({
 
     teacherProfile: {
         assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
-        subjects: [{ type: String }]
+        subjects: [{ type: String }],
+        studentAssignmentMode: {
+            type: String,
+            enum: ['all', 'section', 'selected'],
+            default: 'all'
+        },
+        assignedSections: [{ type: String }],
+        assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
     },
     isActive: { type: Boolean, default: true }
 }, {

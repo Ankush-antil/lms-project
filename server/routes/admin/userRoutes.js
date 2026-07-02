@@ -7,13 +7,27 @@ const {
     updateUser,
     markPhysicalAttendance,
     updateFeeStatus,
-    markBulkPhysicalAttendance
+    markBulkPhysicalAttendance,
+    getInboxConfigs,
+    saveInboxConfig,
+    getActivityConfigs,
+    saveActivityConfig
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 
 // Public view - accessible by ANY logged in user (student, teacher, admin)
 router.get('/view/:id', protect, getUserById);
+
+// Student Inbox Configs
+router.get('/inbox-configs', protect, getInboxConfigs);
+router.get('/inbox-configs/:studentId', protect, getInboxConfigs);
+router.post('/inbox-configs', protect, saveInboxConfig);
+
+// Student Activity Configs
+router.get('/activity-configs', protect, getActivityConfigs);
+router.get('/activity-configs/:studentId', protect, getActivityConfigs);
+router.post('/activity-configs', protect, saveActivityConfig);
 
 // Specific routes
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);

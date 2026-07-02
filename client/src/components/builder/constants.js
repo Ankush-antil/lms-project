@@ -4,7 +4,7 @@ import {
     ChevronDown, Upload, FileText, Zap, Star,
     Volume2, Image as ImageIcon, Sliders, Play, Film, FileCode2,
     Video, MessageSquare, PhoneCall, Monitor, Camera, ShieldCheck,
-    Globe, Share2, Files
+    Globe, Share2, Files, Table
 } from 'lucide-react';
 
 export const addonsList = [
@@ -64,6 +64,7 @@ export const getElementIcon = (lbl) => {
         case 'Fill in the Blanks': return FileText;
         case 'Assignment': return FileText;
         case 'Activity': return Zap;
+        case 'Tabular Data': return Table;
         default: return HelpCircle;
     }
 };

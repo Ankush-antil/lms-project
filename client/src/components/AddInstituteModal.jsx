@@ -93,7 +93,6 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
             setDocUploading(false);
         }
     };
-
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };

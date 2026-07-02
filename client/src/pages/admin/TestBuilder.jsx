@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Home, Settings, Eye, Send, BarChart2, Clock, Users,
     Search, Type, AlignLeft, CheckSquare, List,
@@ -74,6 +74,7 @@ import EmbeddedVideoBuilder from '../../components/builder/elements/EmbeddedVide
 import EmbeddedSMBuilder from '../../components/builder/elements/EmbeddedSMContentDisplaying';
 import MultiFileBuilder from '../../components/builder/elements/MultiFileDisplaying';
 import VideoCallBuilder from '../../components/builder/elements/WebBasedVideoCalling';
+import TabularDataBuilder from '../../components/builder/elements/TabularDataBuilder';
 
 // Helper to strip HTML tags from rich text content
 const stripHtml = (html) => {
@@ -1379,6 +1380,8 @@ const QuestionBuilderCard = ({
                                     return <AssignmentBuilder {...commonProps} />;
                                 case 'Activity':
                                     return <ActivityBuilder {...commonProps} />;
+                                case 'Tabular Data':
+                                    return <TabularDataBuilder {...commonProps} />;
                                 case 'Date & Time':
                                 case 'Date/Time':
                                     return <DateTimeBuilder {...commonProps} />;
@@ -2011,6 +2014,7 @@ const QuestionBuilderCard = ({
 
 const TestBuilder = () => {
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('Edit');
@@ -2035,9 +2039,41 @@ const TestBuilder = () => {
         formElementsRef.current = formElements;
     }, [formElements]);
 
+    useEffect(() => {
+        const studentIdParam = searchParams.get('studentId');
+        const inboxIdParam = searchParams.get('inboxId');
+        if (studentIdParam && inboxIdParam) {
+            const fetchStudentDetails = async () => {
+                try {
+                    const { data } = await axios.get(`/api/users/${studentIdParam}`);
+                    if (data) {
+                        const studentInstitute = data.institute?.name || data.institute || '';
+                        const studentCourse = data.studentProfile?.course?.name || data.studentProfile?.course || '';
+                        const studentSubject = data.studentProfile?.subject || '';
+                        
+                        setConnectData({
+                            name: `Test for ${data.name}`,
+                            institute: studentInstitute,
+                            course: studentCourse,
+                            subject: studentSubject,
+                            date: new Date().toISOString().split('T')[0],
+                            index: inboxIdParam,
+                            activity: 'Quiz'
+                        });
+                        setIsConnected(true);
+                    }
+                } catch (err) {
+                    console.error("Error fetching student details for TestBuilder pre-fill:", err);
+                }
+            };
+            fetchStudentDetails();
+        }
+    }, [searchParams]);
+
     // Connect Metadata
     const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [allowTeacherEdit, setAllowTeacherEdit] = useState(false);
     const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
     const [discussionActivity, setDiscussionActivity] = useState({ activityName: '', activityLink: '' });
     const [connectData, setConnectData] = useState({
@@ -2115,7 +2151,8 @@ const TestBuilder = () => {
         { icon: Sliders, label: 'Matching', category: 'Advanced Fields' },
         { icon: Type, label: 'Fill in the Blanks', category: 'Advanced Fields' },
         { icon: FileText, label: 'Assignment', category: 'Advanced Fields' },
-        { icon: Activity, label: 'Activity', category: 'Advanced Fields' }
+        { icon: Activity, label: 'Activity', category: 'Advanced Fields' },
+        { icon: Table, label: 'Tabular Data', category: 'Advanced Fields' }
     ];
 
     // Fetch existing test details if editing
@@ -2136,6 +2173,7 @@ const TestBuilder = () => {
                         activity: test.activity || 'Quiz'
                     });
                     setIsConnected(true);
+                    setAllowTeacherEdit(!!test.allowTeacherEdit);
                     if (test.discussionActivity) {
                         setDiscussionActivity({
                             activityName: test.discussionActivity.activityName || '',
@@ -2232,6 +2270,7 @@ const TestBuilder = () => {
                             matchingPairs: q.matchingPairs || [],
                             blankAnswers: q.blankAnswers || [],
                             uploadedFiles: q.uploadedFiles || [],
+                            tableData: q.tableData || null,
                             addons: q.addons || [],
                             appliedToAllAddons: q.appliedToAllAddons || [],
                             appliedToAllMoreSettings: q.appliedToAllMoreSettings || [],
@@ -2275,8 +2314,14 @@ const TestBuilder = () => {
                     setLoading(false);
                 } catch (error) {
                     console.error("Error fetching test for edit:", error);
-                    toast.error("Error loading test data");
-                    navigate(user?.role === 'Editor' ? '/editor' : '/admin/tools');
+                    const fallbackPath = user?.role === 'Editor'
+                        ? '/editor'
+                        : user?.role === 'Teacher'
+                            ? '/teacher/activities'
+                            : user?.role === 'Institute'
+                                ? '/institute/activities'
+                                : '/admin/tools';
+                    navigate(fallbackPath);
                 }
             };
             fetchTest();
@@ -2442,6 +2487,10 @@ const TestBuilder = () => {
             ? ['frontend']
             : [];
 
+        const defaultTableData = element.label === 'Tabular Data'
+            ? { headers: ['Column 1', 'Column 2', 'Column 3'], rows: [['', '', ''], ['', '', '']] }
+            : null;
+
         setFormElements(prev => [...prev, {
             id: Math.random().toString(36).substring(2, 9),
             label: element.label,
@@ -2449,6 +2498,7 @@ const TestBuilder = () => {
             options: defaultOptions,
             matchingPairs: defaultMatchingPairs,
             blankAnswers: defaultBlankAnswers,
+            tableData: defaultTableData,
             icon: sidebarElements.find(s => s.label === element.label)?.icon || FileText,
             description: '',
             helperText: '',
@@ -2751,7 +2801,10 @@ const TestBuilder = () => {
                     activity: mode === 'connected' ? (connectData?.activity || 'Quiz') : 'Quiz',
                     publishMode: mode,
                     publicSettings: mode === 'public' ? (settingsObj || publicSettings) : {},
-                    discussionActivity: discussionActivity
+                    discussionActivity: discussionActivity,
+                    assignmentType: (mode === 'connected' && settingsObj) ? settingsObj.assignmentType : 'all',
+                    assignedStudents: (mode === 'connected' && settingsObj) ? settingsObj.assignedStudents : [],
+                    allowTeacherEdit: (mode === 'connected' && settingsObj && settingsObj.allowTeacherEdit !== undefined) ? settingsObj.allowTeacherEdit : allowTeacherEdit
                 },
                 questions: formElements.map((el, index) => ({
                     id: `q${index}`,
@@ -2780,6 +2833,7 @@ const TestBuilder = () => {
                     matchingPairs: el.matchingPairs || [],
                     blankAnswers: el.blankAnswers || [],
                     uploadedFiles: el.uploadedFiles || [],
+                    tableData: el.tableData || null,
                     addons: el.addons || [],
                     appliedToAllAddons: el.appliedToAllAddons || [],
                     appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
@@ -2846,7 +2900,10 @@ const TestBuilder = () => {
                     publishMode: mode
                 });
             } else {
-                navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
+                const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
+                    ? '/teacher/activities'
+                    : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
+                navigate(redirectPath);
             }
         } catch (error) {
             console.error("Error publishing form:", error);
@@ -2888,7 +2945,7 @@ const TestBuilder = () => {
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute' : '/admin')}
+                        onClick={() => navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute' : user?.role === 'Teacher' ? '/teacher/activities' : '/admin')}
                         className="flex items-center gap-2 px-3.5 py-2 border border-slate-800 rounded-xl hover:bg-white/10 text-white font-semibold text-sm transition-all"
                     >
                         <Home size={16} className="text-white" />
@@ -4140,13 +4197,19 @@ const TestBuilder = () => {
                         setIsPublishOptionsModalOpen(false);
                         setIsConnectModalOpen(true);
                     }}
+                    studentId={searchParams.get('studentId')}
+                    connectData={connectData}
+                    initialAllowTeacherEdit={allowTeacherEdit}
                 />
 
                 <PublishSuccessModal
                     isOpen={!!publishSuccessInfo}
                     onClose={() => {
                         setPublishSuccessInfo(null);
-                        navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
+                        const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
+                            ? '/teacher/activities'
+                            : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
+                        navigate(redirectPath);
                     }}
                     testId={publishSuccessInfo?.testId}
                     testTitle={publishSuccessInfo?.testTitle}

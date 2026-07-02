@@ -67,11 +67,6 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
 const getStudyMaterials = asyncHandler(async (req, res) => {
     const { inboxId } = req.query;
 
-    if (!inboxId) {
-        res.status(400);
-        throw new Error('Please provide inboxId');
-    }
-
     const user = await User.findById(req.user._id).populate('institute');
     const instituteName = user.institute?.name || '';
 
@@ -80,9 +75,12 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
     }
 
     const query = {
-        inboxId,
         institute: { $regex: new RegExp(`^\\s*${escapeRegex(instituteName)}\\s*$`, 'i') }
     };
+
+    if (inboxId) {
+        query.inboxId = inboxId;
+    }
 
     const materials = await StudyMaterial.find(query)
         .populate('uploadedBy', 'name email role')

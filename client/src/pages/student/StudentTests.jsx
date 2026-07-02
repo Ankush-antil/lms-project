@@ -11,8 +11,102 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock
 } from 'lucide-react';
+
+const isTestExpired = (test) => {
+    if (!test) return false;
+    const now = new Date();
+    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
+    return false;
+};
+
+const getRemainingTimeText = (endTime) => {
+    if (!endTime) return "No Expiry";
+    const diff = new Date(endTime) - new Date();
+    if (diff <= 0) return "Expired";
+
+    const mins = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+        return `${days}d ${hours % 24}h left`;
+    }
+    if (hours > 0) {
+        return `${hours}h ${mins % 60}m left`;
+    }
+    return `${mins}m left`;
+};
+
+const ActivityTimer = ({ endTime }) => {
+    const [timeLeftMs, setTimeLeftMs] = useState(() => {
+        if (!endTime) return null;
+        return new Date(endTime) - new Date();
+    });
+
+    useEffect(() => {
+        if (!endTime) return;
+
+        const interval = setInterval(() => {
+            const diff = new Date(endTime) - new Date();
+            setTimeLeftMs(diff);
+            if (diff <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endTime]);
+
+    if (!endTime) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-slate-50 border-slate-200/50 text-slate-500 shrink-0">
+                <Clock size={9} />
+                No Expiry
+            </span>
+        );
+    }
+
+    if (timeLeftMs <= 0) {
+        return (
+            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border bg-rose-50 border-rose-100 text-rose-600 shrink-0 animate-pulse">
+                <Clock size={9} />
+                Expired
+            </span>
+        );
+    }
+
+    const totalSecs = Math.floor(timeLeftMs / 1000);
+    const mins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+
+    let displayStr = "";
+    if (days > 0) {
+        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
+    } else if (hours > 0) {
+        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    } else {
+        displayStr = `${mins}m ${totalSecs % 60}s left`;
+    }
+
+    const isCritical = totalSecs < 600;
+
+    return (
+        <span 
+            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${
+                isCritical 
+                    ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse' 
+                    : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
+            }`}
+        >
+            <Clock size={9} className={isCritical ? 'text-red-500' : 'text-[#3E3ADD]'} />
+            {displayStr}
+        </span>
+    );
+};
 
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
@@ -52,6 +146,8 @@ const StudentTests = () => {
     const navigate = useNavigate();
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
+    const [inboxConfigs, setInboxConfigs] = useState([]);
+    const [activityConfigs, setActivityConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
@@ -67,6 +163,7 @@ const StudentTests = () => {
     const messagesEndRef = useRef(null);
     const studentTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
+    const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
 
     const handleStudentTabsScroll = (direction) => {
         if (studentTabsRef.current) {
@@ -114,7 +211,7 @@ const StudentTests = () => {
                 axios.get(`/api/practice-files?inbox=${encodeURIComponent(selectedItem)}`),
                 axios.get(`/api/notes?inboxId=${encodeURIComponent(selectedItem)}`).catch(() => ({ data: [] }))
             ]);
-            
+
             setCloudFiles(cloudRes.data.files || []);
             setNotesList(notesRes.data || []);
 
@@ -133,7 +230,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Screen Recordings
@@ -149,7 +246,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Videos
@@ -165,7 +262,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Audios
@@ -181,7 +278,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Call Logs
@@ -197,7 +294,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // File Uploads
@@ -213,7 +310,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             setLocalFiles(allLocal);
@@ -251,16 +348,24 @@ const StudentTests = () => {
         return localCount + cloudCount;
     };
 
+    const [allStudyMaterials, setAllStudyMaterials] = useState([]);
+
     useEffect(() => {
         const fetch = async () => {
             try {
                 if (!userInfo) return;
-                const [testsRes, subsRes] = await Promise.all([
+                const [testsRes, subsRes, configsRes, actConfigsRes, materialsRes] = await Promise.all([
                     axios.get('/api/tests'),
-                    axios.get('/api/submissions')
+                    axios.get('/api/submissions'),
+                    axios.get('/api/users/inbox-configs').catch(() => ({ data: [] })),
+                    axios.get('/api/users/activity-configs').catch(() => ({ data: [] })),
+                    axios.get('/api/study-materials').catch(() => ({ data: [] }))
                 ]);
                 setTests(testsRes.data);
                 setSubmissions(subsRes.data);
+                setInboxConfigs(configsRes.data || []);
+                setActivityConfigs(actConfigsRes.data || []);
+                setAllStudyMaterials(materialsRes.data || []);
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
@@ -275,26 +380,90 @@ const StudentTests = () => {
         [submissions]
     );
 
+    const courseDuration = useMemo(() => {
+        const profileDuration = userInfo?.studentProfile?.course?.duration;
+        if (profileDuration && profileDuration > 0) return profileDuration;
+
+        // Fallback: find highest index in tests
+        let maxIndex = 0;
+        tests.forEach(test => {
+            if (test.index) {
+                const match = test.index.match(/\d+/);
+                if (match) {
+                    const num = parseInt(match[0]);
+                    if (num > maxIndex) maxIndex = num;
+                }
+            }
+        });
+        return Math.max(maxIndex, 5); // Default to at least 5 inboxes
+    }, [userInfo, tests]);
+
     const dynamicInboxItems = useMemo(() => {
-        const grouped = tests.reduce((acc, test) => {
+        // Group tests by normalized index
+        const testsGrouped = tests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
-            if (!acc[indexStr]) acc[indexStr] = [];
-            acc[indexStr].push(test);
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(test);
             return acc;
         }, {});
 
-        const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
+        // Group study materials by normalized index
+        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
 
-        return Object.keys(grouped)
-            .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => ({
-                id: indexStr,
-                title: indexStr,
-                completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
-                pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
-                tests: grouped[indexStr]
-            }));
-    }, [tests, submittedTestIds]);
+        // Generate standard keys from 1 to courseDuration
+        const standardKeys = [];
+        for (let i = 1; i <= courseDuration; i++) {
+            standardKeys.push(`Index ${i}`);
+        }
+
+        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
+        const allKeys = [...standardKeys];
+        const addKeyIfNew = (key) => {
+            const norm = key.trim().toLowerCase();
+            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
+            if (!exists) {
+                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                allKeys.push(pretty);
+            }
+        };
+
+        Object.keys(testsGrouped).forEach(addKeyIfNew);
+        Object.keys(materialsGrouped).forEach(addKeyIfNew);
+
+        return allKeys.map(keyName => {
+            const normalized = keyName.trim().toLowerCase();
+            const testsInInbox = testsGrouped[normalized] || [];
+            const materialsInInbox = materialsGrouped[normalized] || [];
+
+            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const isVisible = config ? config.visible : true;
+            
+            // Check if inbox has any content
+            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
+            // Empty inbox is disabled/locked, or explicitly disabled in config
+            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            
+            const customTitle = config && config.displayName ? config.displayName : keyName;
+
+            return {
+                id: keyName,
+                title: customTitle,
+                completed: testsInInbox.filter(t => submittedTestIds.has(t._id)).length,
+                pending: testsInInbox.filter(t => !submittedTestIds.has(t._id)).length,
+                tests: testsInInbox,
+                visible: isVisible,
+                disabled: isInboxDisabled,
+                hasContent: hasContent
+            };
+        }).filter(item => item.visible);
+    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration]);
 
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {
@@ -316,14 +485,22 @@ const StudentTests = () => {
 
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned !== false && !isTestExpired(t) && !submissionMap.get(t._id)).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status !== 'evaluated';
+            return t.isAssigned !== false && sub && sub.status === 'submitted';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const returnedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && !isTestExpired(t) && sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -331,7 +508,16 @@ const StudentTests = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated';
+            return t.isAssigned !== false && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned';
+            return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -339,16 +525,25 @@ const StudentTests = () => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
+            const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
+            if (isConfiguredHidden) return false;
+            if (test.isAssigned === false) return false;
+
             if (viewMode === 'pending') {
-                return !sub;
+                return !sub && !isTestExpired(test);
             } else if (viewMode === 'submitted') {
-                return sub && sub.status !== 'evaluated';
+                return sub && sub.status === 'submitted';
+            } else if (viewMode === 'returned') {
+                return !isTestExpired(test) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned';
+                return isTestExpired(test) && isUnfinished;
             }
             return false;
         });
-    }, [selectedGroup, viewMode, submissionMap]);
+    }, [selectedGroup, viewMode, submissionMap, activityConfigs]);
 
     const categoriesMap = useMemo(() => {
         const map = {};
@@ -533,29 +728,53 @@ const StudentTests = () => {
                             filteredInboxItems.map(item => {
                                 const isActive = selectedItem === item.id;
                                 const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                const isDisabled = item.disabled;
 
                                 return (
                                     <div
                                         key={item.id}
                                         onClick={() => {
+                                            if (isDisabled) {
+                                                toast.error("This inbox has no activities or study materials assigned yet.");
+                                                return;
+                                            }
                                             setSelectedItem(item.id);
                                             setSelectedCategory(null);
-                                            if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
+                                            if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
                                                 setViewMode('pending');
                                             }
                                         }}
-                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                            }`}
+                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                                            isActive
+                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                : isDisabled
+                                                    ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                        }`}
                                     >
                                         <div className="flex items-center space-x-2.5 min-w-0">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
-                                                }`}>
-                                                <BookOpen size={14} />
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                                isActive 
+                                                    ? 'bg-[#3E3ADD] text-white shadow-sm' 
+                                                    : isDisabled 
+                                                        ? 'bg-slate-200 text-slate-400' 
+                                                        : 'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {isDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
                                             </div>
-                                            <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                            <h3 className={`font-bold text-xs truncate flex items-center ${
+                                                isActive 
+                                                    ? 'text-indigo-900' 
+                                                    : isDisabled 
+                                                        ? 'text-slate-400' 
+                                                        : 'text-slate-700'
+                                            }`}>
                                                 {getDisplayTitle(item.title)}
+                                                {isDisabled && (
+                                                    <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                        Locked
+                                                    </span>
+                                                )}
                                             </h3>
                                         </div>
 
@@ -610,18 +829,19 @@ const StudentTests = () => {
                                 </button>
 
                                 {/* Scrollable Container */}
-                                <div 
+                                <div
                                     ref={studentTabsRef}
                                     className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
                                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {[
-                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                        { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-700 text-white shadow-md' },
                                         { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
                                         { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                        { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
                                     ].map(tab => {
                                         const isActive = viewMode === tab.id;
@@ -663,9 +883,23 @@ const StudentTests = () => {
                             <div className="h-full flex items-center justify-center">
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
                                     <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Selected</h2>
-                                    <p className="text-slate-450 text-xs leading-relaxed">
+                                    <p className="text-slate-455 text-xs leading-relaxed">
                                         Select an Inbox item from the sidebar to view categories and assignments.
                                     </p>
+                                </div>
+                            </div>
+                        ) : selectedGroup.disabled ? (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-200 max-w-md w-full text-center space-y-4">
+                                    <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto border border-amber-100">
+                                        <Lock size={28} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Inbox Locked</h2>
+                                        <p className="text-slate-450 text-xs leading-relaxed">
+                                            This Inbox has been disabled by your teacher. You cannot view or submit assignments here at the moment.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         ) : viewMode === 'study-material' ? (
@@ -777,9 +1011,8 @@ const StudentTests = () => {
                                                 </div>
                                                 {/* Right Side: Files Count and Tool Title */}
                                                 <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
-                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
-                                                        fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
-                                                    }`}>
+                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                                        }`}>
                                                         {fileCount} {fileCount === 1 ? 'file' : 'files'}
                                                     </span>
                                                     <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
@@ -930,55 +1163,146 @@ const StudentTests = () => {
                                         {activeTests.map(test => {
                                             const sub = submissionMap.get(test._id);
                                             const isEvaluated = sub && sub.status === 'evaluated';
+                                            const isReturned = sub && sub.status === 'returned';
+                                            const config = activityConfigs.find(c => c.test === test._id);
+                                            const isDisabled = config ? !!config.disabled : false;
+
+                                            const isExpired = isTestExpired(test);
+                                            const cannotTake = isExpired && (!sub || isReturned);
+                                            const isBtnDisabled = isDisabled || cannotTake;
 
                                             return (
                                                 <div
                                                     key={test._id}
                                                     onClick={() => {
-                                                        if (!sub) {
+                                                        if (isDisabled) {
+                                                            toast.error("This test has been disabled by your teacher.");
+                                                            return;
+                                                        }
+                                                        if (cannotTake) {
+                                                            toast.error("This activity has expired and cannot be taken.");
+                                                            return;
+                                                        }
+                                                        if (!sub || isReturned) {
                                                             navigate(`/student/take-test/${test._id}`);
                                                         } else {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className="bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group"
+                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${
+                                                        isBtnDisabled
+                                                            ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
+                                                            : isReturned
+                                                                ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
+                                                                : 'hover:border-[#3E3ADD] cursor-pointer'
+                                                    }`}
                                                 >
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
+                                                    {/* Returned warning banner */}
+                                                    {isReturned && !isExpired && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            ⚠ Returned — Redo Required
+                                                        </div>
+                                                    )}
+                                                    {/* Disabled warning banner */}
+                                                    {isDisabled && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-slate-400 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            🔒 Disabled by Teacher
+                                                        </div>
+                                                    )}
+                                                    {/* Expired warning banner */}
+                                                    {cannotTake && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            ⏰ Expired
+                                                        </div>
+                                                    )}
+                                                    <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                                isBtnDisabled 
+                                                                    ? 'bg-slate-400' 
+                                                                    : !sub 
+                                                                        ? 'bg-orange-500' 
+                                                                        : isEvaluated 
+                                                                            ? 'bg-emerald-500' 
+                                                                            : isReturned 
+                                                                                ? 'bg-orange-500 animate-pulse' 
+                                                                                : 'bg-blue-500'
                                                             }`} />
-                                                        <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                            {test.title}
-                                                        </h3>
+                                                            <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
+                                                                isBtnDisabled
+                                                                    ? 'text-slate-400'
+                                                                    : isReturned 
+                                                                        ? 'group-hover:text-orange-500' 
+                                                                        : 'group-hover:text-[#3E3ADD]'
+                                                            }`}>
+                                                                {test.title}
+                                                            </h3>
+                                                        </div>
+
+                                                        <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
+                                                                }}
+                                                                className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                title="Options"
+                                                            >
+                                                                <MoreVertical size={14} />
+                                                            </button>
+                                                            {activeDropdownTestId === test._id && (
+                                                                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-36 animate-fade-in text-left">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveDropdownTestId(null);
+                                                                            setInfoModalData(test);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                    >
+                                                                        <Eye size={13} className="text-slate-400" />
+                                                                        View Details
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setInfoModalData(test);
-                                                            }}
-                                                            className="p-1.5 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
-                                                            title="RI Details"
-                                                        >
-                                                            <Eye size={14} />
-                                                        </button>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <ActivityTimer endTime={test.settings?.endTime} />
+                                                        </div>
 
                                                         <button
                                                             onClick={() => {
-                                                                if (!sub) {
+                                                                if (isDisabled) {
+                                                                    toast.error("This test has been disabled by your teacher.");
+                                                                    return;
+                                                                }
+                                                                if (cannotTake) {
+                                                                    toast.error("This activity has expired and cannot be taken.");
+                                                                    return;
+                                                                }
+                                                                if (!sub || isReturned) {
                                                                     navigate(`/student/take-test/${test._id}`);
                                                                 } else {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${!sub
-                                                                ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                : isEvaluated
-                                                                    ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                    : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                                }`}
+                                                            disabled={isBtnDisabled}
+                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
+                                                                isBtnDisabled
+                                                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                    : isReturned
+                                                                        ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
+                                                                        : !sub
+                                                                            ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                            : isEvaluated
+                                                                                ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                                : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                            }`}
                                                         >
-                                                            {!sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1054,6 +1378,21 @@ const StudentTests = () => {
                                     <div>
                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Activity Type</span>
                                         <span className="font-bold text-slate-900">{infoModalData.activity || 'N/A'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Created By</span>
+                                        <span className="font-bold text-slate-900">
+                                            {infoModalData.createdBy?.name || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Creator Role</span>
+                                        <span className="font-bold text-slate-900 uppercase text-xs">
+                                            {infoModalData.createdBy?.role || 'N/A'}
+                                        </span>
                                     </div>
                                 </div>
                             </div>

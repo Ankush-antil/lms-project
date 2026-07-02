@@ -373,6 +373,11 @@ const StudentPerformance = () => {
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
+                        {profile?.studentProfile?.section && (
+                            <span className="px-4 py-2 bg-violet-50 border border-violet-200 text-violet-750 rounded-2xl text-xs font-black shadow-sm flex items-center gap-1">
+                                Section: {profile.studentProfile.section}
+                            </span>
+                        )}
                         <span className="px-4 py-2 bg-indigo-50 border border-indigo-150 text-indigo-700 rounded-2xl text-xs font-black shadow-sm">
                             Subject: {profile?.studentProfile?.subject || 'N/A'}
                         </span>

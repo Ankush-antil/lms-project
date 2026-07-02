@@ -2,26 +2,48 @@ const asyncHandler = require('express-async-handler');
 const User = require('../../models/User');
 const Activity = require('../../models/Activity');
 const Course = require('../../models/Course');
+const StudentInboxConfig = require('../../models/StudentInboxConfig');
+const StudentActivityConfig = require('../../models/StudentActivityConfig');
+
+// Helper: compute section letter for a student
+const computeSection = async (courseId) => {
+    if (!courseId) return 'A';
+    const course = await Course.findById(courseId);
+    if (!course) return 'A';
+    const capacity = course.maxStudentsPerSection || 30;
+    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
+    const sectionIndex = Math.floor(count / capacity);
+    return String.fromCharCode(65 + sectionIndex); // 0=A,1=B,2=C...
+};
 
 // @desc    Get all users (filtered by role)
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-    const role = req.query.role;
-    const query = role ? { role } : {};
-    
+    const { role, course } = req.query;
+    const query = {};
+    if (role) query.role = role;
+    if (course) {
+        if (role === 'Student') {
+            query['studentProfile.course'] = course;
+        } else if (role === 'Teacher') {
+            query['teacherProfile.assignedCourses'] = course;
+        }
+    }
+
     // Isolate by institute for Institute and Editor roles
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         query.institute = req.user.institute;
     }
-    
+
     console.log(`[API] Fetching users with query:`, query);
 
     const users = await User.find(query)
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects')
-        .populate('teacherProfile.assignedCourses', 'name');
+        .populate('teacherProfile.assignedCourses', 'name')
+        .populate('teacherProfile.assignedStudents', 'name email studentProfile');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
     res.json(users);
@@ -31,7 +53,7 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/users
 // @access  Private/Admin or Institute
 const createUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled } = req.body;
+    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled, studentAssignmentMode, assignedSections, assignedStudents } = req.body;
     let institute = req.body.institute;
 
     // Enforce creator's institute for Institute and Editor users
@@ -52,20 +74,26 @@ const createUser = asyncHandler(async (req, res) => {
         role,
         institute,
         mobileNumber: mobileNumber || '',
-        callEnabled: callEnabled !== undefined ? callEnabled : false
+        callEnabled: callEnabled !== undefined ? callEnabled : true
     };
 
     if (role === 'Student') {
+        // Auto-assign section based on course capacity
+        const assignedSection = await computeSection(course);
         userFields.studentProfile = {
             course,
             subject: subject || '',
             batch: batch || '',
+            section: assignedSection,
             enrollmentDate: new Date()
         };
     } else if (role === 'Teacher') {
         userFields.teacherProfile = {
             assignedCourses: course ? [course] : [],
-            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : []
+            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
+            studentAssignmentMode: studentAssignmentMode || 'all',
+            assignedSections: assignedSections || [],
+            assignedStudents: assignedStudents || []
         };
     }
 
@@ -136,12 +164,12 @@ const updateUser = asyncHandler(async (req, res) => {
         user.name = req.body.name !== undefined ? req.body.name : user.name;
         user.email = req.body.email !== undefined ? req.body.email : user.email;
         user.avatar = req.body.avatar !== undefined ? req.body.avatar : user.avatar;
-        
+
         // Prevent Institute/Editor users from changing user's institute
         if (req.user.role !== 'Institute' && req.user.role !== 'Editor') {
             user.institute = req.body.institute !== undefined ? req.body.institute : user.institute;
         }
-        
+
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
         user.callEnabled = req.body.callEnabled !== undefined ? req.body.callEnabled : user.callEnabled;
         user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
@@ -155,18 +183,22 @@ const updateUser = asyncHandler(async (req, res) => {
                 ...user.studentProfile,
                 course: req.body.course || user.studentProfile?.course,
                 subject: req.body.subject !== undefined ? req.body.subject : user.studentProfile?.subject,
-                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch
+                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch,
+                section: req.body.section !== undefined ? req.body.section : user.studentProfile?.section
             };
         } else if (user.role === 'Teacher') {
             user.teacherProfile = {
                 ...user.teacherProfile,
                 assignedCourses: req.body.course ? [req.body.course] : user.teacherProfile?.assignedCourses,
-                subjects: req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile?.subjects
+                subjects: req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile?.subjects,
+                studentAssignmentMode: req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile?.studentAssignmentMode,
+                assignedSections: req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile?.assignedSections,
+                assignedStudents: req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile?.assignedStudents
             };
         }
 
         const updatedUser = await user.save();
- 
+
         res.json({
             _id: updatedUser._id,
             name: updatedUser.name,
@@ -276,7 +308,7 @@ const updateFeeStatus = asyncHandler(async (req, res) => {
 // @route   POST /api/users/bulk-physical-attendance
 // @access  Private/Admin, Editor, Institute, Teacher
 const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
-    const { date, attendanceRecords } = req.body; 
+    const { date, attendanceRecords } = req.body;
     // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent" }]
     if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
         res.status(400);
@@ -325,6 +357,90 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
     }
 });
 
+const getInboxConfigs = asyncHandler(async (req, res) => {
+    let targetStudentId = req.params.studentId;
+    if (!targetStudentId) {
+        if (req.user && req.user.role === 'Student') {
+            targetStudentId = req.user._id;
+        } else {
+            res.status(400);
+            throw new Error('Student ID is required');
+        }
+    }
+
+    const configs = await StudentInboxConfig.find({ student: targetStudentId });
+    res.json(configs);
+});
+
+const saveInboxConfig = asyncHandler(async (req, res) => {
+    const { studentId, inboxId, displayName, visible, disabled } = req.body;
+
+    if (!studentId || !inboxId) {
+        res.status(400);
+        throw new Error('studentId and inboxId are required');
+    }
+
+    let config = await StudentInboxConfig.findOne({ student: studentId, inboxId });
+
+    if (config) {
+        if (displayName !== undefined) config.displayName = displayName;
+        if (visible !== undefined) config.visible = visible;
+        if (disabled !== undefined) config.disabled = disabled;
+        await config.save();
+    } else {
+        config = await StudentInboxConfig.create({
+            student: studentId,
+            inboxId,
+            displayName: displayName || '',
+            visible: visible !== undefined ? visible : true,
+            disabled: disabled !== undefined ? disabled : false
+        });
+    }
+
+    res.json(config);
+});
+
+const getActivityConfigs = asyncHandler(async (req, res) => {
+    let targetStudentId = req.params.studentId;
+    if (!targetStudentId) {
+        if (req.user && req.user.role === 'Student') {
+            targetStudentId = req.user._id;
+        } else {
+            res.status(400);
+            throw new Error('Student ID is required');
+        }
+    }
+
+    const configs = await StudentActivityConfig.find({ student: targetStudentId });
+    res.json(configs);
+});
+
+const saveActivityConfig = asyncHandler(async (req, res) => {
+    const { studentId, testId, visible, disabled } = req.body;
+
+    if (!studentId || !testId) {
+        res.status(400);
+        throw new Error('studentId and testId are required');
+    }
+
+    let config = await StudentActivityConfig.findOne({ student: studentId, test: testId });
+
+    if (config) {
+        if (visible !== undefined) config.visible = visible;
+        if (disabled !== undefined) config.disabled = disabled;
+        await config.save();
+    } else {
+        config = await StudentActivityConfig.create({
+            student: studentId,
+            test: testId,
+            visible: visible !== undefined ? visible : true,
+            disabled: disabled !== undefined ? disabled : false
+        });
+    }
+
+    res.json(config);
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -332,5 +448,9 @@ module.exports = {
     updateUser,
     markPhysicalAttendance,
     updateFeeStatus,
-    markBulkPhysicalAttendance
+    markBulkPhysicalAttendance,
+    getInboxConfigs,
+    saveInboxConfig,
+    getActivityConfigs,
+    saveActivityConfig
 };

@@ -10,7 +10,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [institutes, setInstitutes] = useState([]);
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
-        syllabusUrl: '', syllabusType: 'link'
+        syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
+        duration: 5
     });
     const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
     const [syllabusFile, setSyllabusFile] = useState(null);
@@ -34,7 +35,9 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     instituteId: course.institute?._id || course.institute || '',
                     subjects: Array.isArray(course.subjects) ? course.subjects.join(', ') : (course.subjects || ''),
                     syllabusUrl: course.syllabusUrl || '',
-                    syllabusType: course.syllabusType || 'link'
+                    syllabusType: course.syllabusType || 'link',
+                    maxStudentsPerSection: course.maxStudentsPerSection || 30,
+                    duration: course.duration || 5
                 });
                 setSyllabusMode(course.syllabusType || 'link');
             } else {
@@ -47,7 +50,9 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                         : '',
                     subjects: '',
                     syllabusUrl: '',
-                    syllabusType: 'link'
+                    syllabusType: 'link',
+                    maxStudentsPerSection: 30,
+                    duration: 5
                 });
                 setSyllabusMode('link');
             }
@@ -78,13 +83,29 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // Validate maxStudentsPerSection
+        const sectionVal = parseInt(formData.maxStudentsPerSection);
+        if (!sectionVal || sectionVal < 1) {
+            toast.error('Max Students Per Section must be at least 1');
+            return;
+        }
+        const durationVal = parseInt(formData.duration);
+        if (isNaN(durationVal) || durationVal < 1) {
+            toast.error('Course Duration must be at least 1 day');
+            return;
+        }
         setLoading(true);
         try {
+            const payload = {
+                ...formData,
+                maxStudentsPerSection: sectionVal,
+                duration: durationVal
+            };
             if (course) {
-                await axios.put(`/api/setup/courses/${course._id}`, formData);
+                await axios.put(`/api/setup/courses/${course._id}`, payload);
                 toast.success('Course Updated!');
             } else {
-                await axios.post('/api/setup/courses', formData);
+                await axios.post('/api/setup/courses', payload);
                 if (user?.role === 'Editor') {
                     toast.success('Course submitted for Admin approval!');
                 } else {
@@ -164,7 +185,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                             />
                         </div>
 
-                        {/* Code + Subjects */}
+                        {/* Code + Subjects + Section Capacity */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Code</label>
@@ -188,6 +209,51 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                     placeholder="Physics, Maths, C++"
                                 />
                             </div>
+                        </div>
+
+                        {/* Max Students Per Section */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
+                                👥 Max Students Per Section
+                                <span className="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded-full font-semibold uppercase ml-1">Auto-Sections</span>
+                            </label>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                    value={formData.maxStudentsPerSection}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setFormData({ ...formData, maxStudentsPerSection: val });
+                                    }}
+                                    placeholder="30"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Course Duration */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
+                                📅 Course Duration (In Days)
+                            </label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                required
+                                value={formData.duration}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setFormData({ ...formData, duration: val });
+                                }}
+                                placeholder="e.g. 5"
+                            />
+                            <p className="text-[10px] text-slate-400 font-medium mt-1.5 leading-snug">
+                                This will generate the corresponding number of day inboxes (1 to {formData.duration || 5}) for students and teachers.
+                            </p>
                         </div>
 
                         {/* Description */}
@@ -244,8 +310,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                         onChange={handleSyllabusFileUpload}
                                     />
                                     <div
-                                        onClick={() => syllabusFileRef.current?.click()}
-                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3.5 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
+                                        onClick={() => syllabusFileRef.current?.click()}                                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3.5 px-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all"
                                     >
                                         {syllabusUploading ? (
                                             <div className="flex flex-col items-center gap-1.5">

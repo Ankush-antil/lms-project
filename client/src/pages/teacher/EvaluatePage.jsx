@@ -63,6 +63,12 @@ const EvaluatePage = () => {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState('');
     const [shareTitle, setShareTitle] = useState('');
+    const [chatModalOpen, setChatModalOpen] = useState(false);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [loadingChat, setLoadingChat] = useState(false);
+    const [sendingChat, setSendingChat] = useState(false);
+    const [activeChatSub, setActiveChatSub] = useState(null);
 
     const handleShare = (subId, index, testTitle) => {
         const url = `${window.location.origin}/shared/test-result/${subId}?question=${index + 1}`;
@@ -76,6 +82,34 @@ const EvaluatePage = () => {
         setShareUrl(url);
         setShareTitle(`Activity Result: ${testTitle || 'Test Result'}`);
         setShareModalOpen(true);
+    };
+
+    const loadChatHistory = async (submissionId) => {
+        setLoadingChat(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/feedback`);
+            setChatMessages(res.data);
+        } catch (err) {
+            console.error("Failed to load chat history:", err);
+            toast.error("Failed to load feedback chat.");
+        } finally {
+            setLoadingChat(false);
+        }
+    };
+
+    const handleSendFeedbackMessage = async (submissionId) => {
+        if (!chatInput.trim()) return;
+        setSendingChat(true);
+        try {
+            const res = await axios.post(`/api/submissions/${submissionId}/feedback`, { message: chatInput.trim() });
+            setChatMessages(res.data);
+            setChatInput('');
+        } catch (err) {
+            console.error("Failed to send message:", err);
+            toast.error("Failed to send message.");
+        } finally {
+            setSendingChat(false);
+        }
     };
 
     const handleVideoReviewChange = (subId, qIdx, newMarks, newFeedback, newVideoData) => {
@@ -333,6 +367,90 @@ const EvaluatePage = () => {
                 </div>
             </div>
         );
+    const chatModalComponent = chatModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
+                {/* Modal Header */}
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#3E3ADD] text-white font-extrabold flex items-center justify-center shadow-md">
+                            {activeChatSub?.studentName?.[0]?.toUpperCase() || 'S'}
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-sm">{activeChatSub?.studentName || 'Student'}</h3>
+                            <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Student Feedback Chat</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setChatModalOpen(false)}
+                        className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                    {loadingChat ? (
+                        <div className="h-full flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                        </div>
+                    ) : chatMessages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                            <p className="text-slate-400 text-[11px] mt-1">
+                                Send a message to start conversation with the student.
+                            </p>
+                        </div>
+                    ) : (
+                        chatMessages.map((msg, index) => {
+                            const isSelf = msg.role === 'Teacher' || msg.role === 'Admin';
+                            const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                            return (
+                                <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                        ? 'bg-indigo-600 text-white rounded-tr-none'
+                                        : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
+                                        }`}>
+                                        <p className="font-semibold">{msg.message}</p>
+                                        <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                            {formattedTime}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Message Input Box */}
+                <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !sendingChat && chatInput.trim()) {
+                                handleSendFeedbackMessage(activeChatSub?._id);
+                            }
+                        }}
+                        placeholder="Type your reply..."
+                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        disabled={sendingChat}
+                    />
+                    <button
+                        onClick={() => handleSendFeedbackMessage(activeChatSub?._id)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
+                        disabled={sendingChat || !chatInput.trim()}
+                    >
+                        {sendingChat ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
 
         const infoModalComponent = showInfo && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
@@ -679,13 +797,17 @@ const EvaluatePage = () => {
                                                               <div className="flex items-center justify-between bg-white px-4 py-2.5 border-t border-slate-100 flex-wrap gap-4">
                                                                   <div className="flex items-center gap-3">
                                                                       {/* Comment Toggle */}
-                                                                      <button
-                                                                          onClick={() => setCollapsedFeedback(prev => ({ ...prev, [`${submission._id}-${idx}`]: !prev[`${submission._id}-${idx}`] }))}
-                                                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${collapsedFeedback[`${submission._id}-${idx}`] ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                                                                      >
-                                                                          <MessageSquare size={14} />
-                                                                          <span>Checking</span>
-                                                                      </button>
+                                                                                              <button
+                            onClick={() => {
+                                setActiveChatSub(submission);
+                                loadChatHistory(submission._id);
+                                setChatModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                        >
+                            <MessageSquare size={16} />
+                            <span>Student Feedback</span>
+                        </button>
                                                                   </div>
 
                                                                   <div className="flex items-center gap-3">
@@ -921,7 +1043,9 @@ const EvaluatePage = () => {
                     `}</style>
                 </div>
             </DashboardLayout>
+
             {shareModalComponent}
+            {chatModalComponent}
             {infoModalComponent}
             </>
         );
@@ -1272,6 +1396,7 @@ const EvaluatePage = () => {
                     to { opacity: 1; transform: translateY(0); }
                 }
             `}</style>
+            {chatModalComponent}
         </DashboardLayout>
     );
 };

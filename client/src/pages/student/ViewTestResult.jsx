@@ -44,6 +44,11 @@ const ViewTestResult = ({ isSharedView = false }) => {
     const [collapsedQuestions, setCollapsedQuestions] = useState({}); // idx -> boolean
     const [pageContentHidden, setPageContentHidden] = useState(false);
     const [reactions, setReactions] = useState({});
+    const [chatModalOpen, setChatModalOpen] = useState(false);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [loadingChat, setLoadingChat] = useState(false);
+    const [sendingChat, setSendingChat] = useState(false);
 
     // Share Modal States
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -157,6 +162,34 @@ const ViewTestResult = ({ isSharedView = false }) => {
         setShareUrl(url);
         setShareTitle(`Activity Result: ${submission?.test?.title || 'Test Result'}`);
         setShareModalOpen(true);
+    };
+
+    const loadChatHistory = async (submissionId) => {
+        setLoadingChat(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/feedback`);
+            setChatMessages(res.data);
+        } catch (err) {
+            console.error("Failed to load chat history:", err);
+            toast.error("Failed to load feedback chat.");
+        } finally {
+            setLoadingChat(false);
+        }
+    };
+
+    const handleSendFeedbackMessage = async (submissionId) => {
+        if (!chatInput.trim()) return;
+        setSendingChat(true);
+        try {
+            const res = await axios.post(`/api/submissions/${submissionId}/feedback`, { message: chatInput.trim() });
+            setChatMessages(res.data);
+            setChatInput('');
+        } catch (err) {
+            console.error("Failed to send message:", err);
+            toast.error("Failed to send message.");
+        } finally {
+            setSendingChat(false);
+        }
     };
 
     const handleToggleAllComments = () => {
@@ -660,12 +693,15 @@ const ViewTestResult = ({ isSharedView = false }) => {
             {/* Footer Bar */}
             {isEvaluated && !isTeacher && sharedQuestionIndex === null && (
                 <div className="bg-[#111A24] border-t border-[#1C2836] py-4 flex items-center justify-center gap-8 text-white w-full">
-                    <button
-                        onClick={handleToggleAllComments}
+                                        <button
+                        onClick={() => {
+                            loadChatHistory(id);
+                            setChatModalOpen(true);
+                        }}
                         className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
                     >
                         <MessageSquare size={16} />
-                        <span>Comment</span>
+                        <span>Student Feedback</span>
                     </button>
                     <div className="w-[1px] h-4 bg-slate-700"></div>
                     <button
@@ -750,6 +786,91 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         className="px-6 py-2.5 bg-[#EEF2F6] hover:bg-[#E2E8F0] text-[#4A5568] rounded-full text-xs font-black transition-all active:scale-95"
                     >
                         Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+
+    const chatModalComponent = chatModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
+                {/* Modal Header */}
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#3E3ADD] text-white font-extrabold flex items-center justify-center shadow-md">
+                            T
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-sm">Teacher User</h3>
+                            <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Teacher Feedback Chat</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setChatModalOpen(false)}
+                        className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                    {loadingChat ? (
+                        <div className="h-full flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                        </div>
+                    ) : chatMessages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                            <p className="text-slate-400 text-[11px] mt-1">
+                                Send a message to start conversation with the teacher.
+                            </p>
+                        </div>
+                    ) : (
+                        chatMessages.map((msg, index) => {
+                            const isSelf = msg.role === 'Student';
+                            const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                            return (
+                                <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                        ? 'bg-indigo-600 text-white rounded-tr-none'
+                                        : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
+                                        }`}>
+                                        <p className="font-semibold">{msg.message}</p>
+                                        <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                            {formattedTime}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Message Input Box */}
+                <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !sendingChat && chatInput.trim()) {
+                                handleSendFeedbackMessage(id);
+                            }
+                        }}
+                        placeholder="Type your message..."
+                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        disabled={sendingChat}
+                    />
+                    <button
+                        onClick={() => handleSendFeedbackMessage(id)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
+                        disabled={sendingChat || !chatInput.trim()}
+                    >
+                        {sendingChat ? <RefreshCw size={12} className="animate-spin" /> : 'Send'}
                     </button>
                 </div>
             </div>
@@ -846,6 +967,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 </div>
                 {shareModalComponent}
                 {infoModalComponent}
+                {chatModalComponent}
             </>
         );
     }
@@ -866,6 +988,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
             </DashboardLayout>
             {shareModalComponent}
             {infoModalComponent}
+            {chatModalComponent}
         </>
     );
 };

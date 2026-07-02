@@ -5,6 +5,17 @@ const Course = require('../../models/Course');
 const StudentInboxConfig = require('../../models/StudentInboxConfig');
 const StudentActivityConfig = require('../../models/StudentActivityConfig');
 
+// Helper: compute section letter for a student
+const computeSection = async (courseId) => {
+    if (!courseId) return 'A';
+    const course = await Course.findById(courseId);
+    if (!course) return 'A';
+    const capacity = course.maxStudentsPerSection || 30;
+    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
+    const sectionIndex = Math.floor(count / capacity);
+    return String.fromCharCode(65 + sectionIndex); // 0=A,1=B,2=C...
+};
+
 // @desc    Get all users (filtered by role)
 // @route   GET /api/users
 // @access  Private/Admin
@@ -58,10 +69,13 @@ const createUser = asyncHandler(async (req, res) => {
     };
 
     if (role === 'Student') {
+        // Auto-assign section based on course capacity
+        const assignedSection = await computeSection(course);
         userFields.studentProfile = {
             course,
             subject: subject || '',
             batch: batch || '',
+            section: assignedSection,
             enrollmentDate: new Date()
         };
     } else if (role === 'Teacher') {
@@ -157,7 +171,8 @@ const updateUser = asyncHandler(async (req, res) => {
                 ...user.studentProfile,
                 course: req.body.course || user.studentProfile?.course,
                 subject: req.body.subject !== undefined ? req.body.subject : user.studentProfile?.subject,
-                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch
+                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch,
+                section: req.body.section !== undefined ? req.body.section : user.studentProfile?.section
             };
         } else if (user.role === 'Teacher') {
             user.teacherProfile = {

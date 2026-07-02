@@ -30,6 +30,11 @@ const courseSchema = new mongoose.Schema({
         type: String,
         enum: ['link', 'file'],
         default: 'link'
+    },
+    maxStudentsPerSection: {
+        type: Number,
+        default: 30,
+        min: 1
     }
 }, {
     timestamps: true

@@ -21,7 +21,8 @@ const {
     updateApplicationStatus,
     registerStudent,
     getSubjects,
-    deleteApplication
+    deleteApplication,
+    getSectionPreview
 } = require('../../controllers/admin/setupController');
 const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
@@ -62,7 +63,9 @@ router.route('/courses/:id')
     .put(protect, adminOrEditor, updateCourse)
     .delete(protect, adminOrEditor, deleteCourse);
 
-
+// Public: get section preview for a course (no auth needed)
+router.route('/courses/:id/section-preview')
+    .get(getSectionPreview);
 
 // Public landing page application routes
 router.route('/apply')

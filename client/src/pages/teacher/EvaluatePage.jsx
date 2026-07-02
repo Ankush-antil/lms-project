@@ -55,6 +55,7 @@ const EvaluatePage = () => {
     const [pageContentHidden, setPageContentHidden] = useState(false);
     const [collapsedQuestions, setCollapsedQuestions] = useState({});
     const [collapsedToolbars, setCollapsedToolbars] = useState({});
+    const [activeSection, setActiveSection] = useState('All'); // Section filter for teacher view
 
     // Share Modal States
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -941,6 +942,52 @@ const EvaluatePage = () => {
                 </div>
             </div>
 
+            {/* Section Filter Tabs */}
+            {submissions.length > 0 && (() => {
+                const allSections = [...new Set(
+                    submissions
+                        .map(sub => sub.student?.studentProfile?.section || sub.studentSection)
+                        .filter(Boolean)
+                )].sort();
+                if (allSections.length < 2) return null;
+                return (
+                    <div className="flex flex-wrap items-center gap-2 mb-4 bg-white border border-slate-100 rounded-2xl p-2 shadow-sm">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Section:</span>
+                        <button
+                            onClick={() => setActiveSection('All')}
+                            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                activeSection === 'All'
+                                    ? 'bg-[#0b1329] text-white shadow-md'
+                                    : 'text-slate-600 hover:bg-slate-50 border border-slate-200'
+                            }`}
+                        >
+                            All ({submissions.length})
+                        </button>
+                        {allSections.map(sec => {
+                            const count = submissions.filter(s =>
+                                (s.student?.studentProfile?.section || s.studentSection) === sec
+                            ).length;
+                            return (
+                                <button
+                                    key={sec}
+                                    onClick={() => setActiveSection(sec)}
+                                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                        activeSection === sec
+                                            ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
+                                            : 'text-violet-600 hover:bg-violet-50 border border-violet-200'
+                                    }`}
+                                >
+                                    <span>Section {sec}</span>
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                                        activeSection === sec ? 'bg-white/20' : 'bg-violet-100'
+                                    }`}>{count}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                );
+            })()}
+
             <div className="w-full space-y-3.5">
                 {showInfo && submissions.length > 0 && (
                     <div className="bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 p-6 animate-fade-in relative overflow-hidden">
@@ -966,6 +1013,7 @@ const EvaluatePage = () => {
 
                 {submissions
                     .filter(sub => !id || sub._id === id)
+                    .filter(sub => activeSection === 'All' || (sub.student?.studentProfile?.section || sub.studentSection) === activeSection)
                     .map((sub) => (
                         <div key={sub._id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 ${sub.status === 'evaluated' ? 'border-emerald-100 hover:border-emerald-200' : 'border-slate-100 hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5'}`}>
                             {/* Submission Header */}
@@ -988,6 +1036,12 @@ const EvaluatePage = () => {
                                             >
                                                 {sub.studentName || sub.student?.name}
                                             </p>
+                                            {/* Section Badge */}
+                                            {(sub.student?.studentProfile?.section || sub.studentSection) && (
+                                                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[9px] font-black uppercase tracking-tighter border border-violet-200">
+                                                    § {sub.student?.studentProfile?.section || sub.studentSection}
+                                                </span>
+                                            )}
                                             {sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction) && (
                                                 <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[9px] font-black uppercase tracking-tighter animate-pulse">
                                                     <MessageSquare size={10} fill="currentColor" /> Student Feedback

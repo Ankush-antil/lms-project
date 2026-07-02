@@ -41,6 +41,7 @@ const userSchema = new mongoose.Schema({
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
         subject: { type: String, default: '' },   // ← new: subject assigned by admin
         batch: { type: String },
+        section: { type: String, default: '' },    // ← auto-assigned section e.g. 'A', 'B', 'C'
         enrollmentDate: { type: Date, default: Date.now },
         feeStatus: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
         physicalAttendance: [{

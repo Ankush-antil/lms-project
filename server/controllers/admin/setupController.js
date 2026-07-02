@@ -308,7 +308,7 @@ const getCourses = asyncHandler(async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection } = req.body;
 
     // Determine status based on user role (req.user is populated by protect middleware)
     const status = 'active';
@@ -342,7 +342,8 @@ const createCourse = asyncHandler(async (req, res) => {
         status,
         createdBy,
         syllabusUrl: syllabusUrl || '',
-        syllabusType: syllabusType || 'link'
+        syllabusType: syllabusType || 'link',
+        maxStudentsPerSection: maxStudentsPerSection ? parseInt(maxStudentsPerSection) : 30
     });
 
     // Log Activity
@@ -356,11 +357,24 @@ const createCourse = asyncHandler(async (req, res) => {
     res.status(201).json(course);
 });
 
+// Helper: compute section letter for a student based on enrollment count in course
+const computeSection = async (courseId) => {
+    const course = await Course.findById(courseId);
+    if (!course) return 'A';
+    const capacity = course.maxStudentsPerSection || 30;
+    // Count existing students in this course
+    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
+    const sectionIndex = Math.floor(count / capacity);
+    // Convert index to letter: 0=A, 1=B, 2=C...
+    const sectionLetter = String.fromCharCode(65 + sectionIndex); // 65 = 'A'
+    return sectionLetter;
+};
+
 // @desc    Update course
 // @route   PUT /api/setup/courses/:id
 // @access  Private/Admin or Editor or Institute
 const updateCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection } = req.body;
     const course = await Course.findById(req.params.id);
 
     if (course) {
@@ -394,6 +408,7 @@ const updateCourse = asyncHandler(async (req, res) => {
 
         if (syllabusUrl !== undefined) course.syllabusUrl = syllabusUrl;
         if (syllabusType !== undefined) course.syllabusType = syllabusType;
+        if (maxStudentsPerSection !== undefined) course.maxStudentsPerSection = parseInt(maxStudentsPerSection);
 
         const updatedCourse = await course.save();
 
@@ -719,8 +734,11 @@ const registerStudent = asyncHandler(async (req, res) => {
     };
 
     if (role === 'Student') {
+        // Auto-assign section based on course capacity
+        const assignedSection = await computeSection(application.course);
         userFields.studentProfile = {
             course: application.course,
+            section: assignedSection,
             enrollmentDate: new Date()
         };
     } else if (role === 'Teacher') {
@@ -877,6 +895,23 @@ const deleteApplication = asyncHandler(async (req, res) => {
     res.json({ message: 'Application and associated account removed successfully' });
 });
 
+// @desc    Public: get which section the next student will be assigned to
+// @route   GET /api/setup/courses/:id/section-preview
+// @access  Public
+const getSectionPreview = asyncHandler(async (req, res) => {
+    const courseId = req.params.id;
+    const course = await Course.findById(courseId);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+    const capacity = course.maxStudentsPerSection || 30;
+    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
+    const sectionIndex = Math.floor(count / capacity);
+    const section = String.fromCharCode(65 + sectionIndex); // 0=A,1=B,2=C...
+    res.json({ section, currentCount: count, capacity });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -900,5 +935,6 @@ module.exports = {
     registerStudent,
     getSubjects,
     deleteApplication,
-    toggleInstituteFlag
+    toggleInstituteFlag,
+    getSectionPreview
 };

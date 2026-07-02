@@ -16,6 +16,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         subject: '',
         mobileNumber: '',
         batch: '',
+        section: '',
         callEnabled: false
     });
     const [institutes, setInstitutes] = useState([]);
@@ -23,7 +24,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
- 
+
     useEffect(() => {
         if (isOpen && user) {
             setSubjectDropdownOpen(false);
@@ -39,6 +40,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 subject: user.role === 'Student' ? (user.studentProfile?.subject || '') : '',
                 mobileNumber: user.mobileNumber || '',
                 batch: user.role === 'Student' ? (user.studentProfile?.batch || '') : '',
+                section: user.role === 'Student' ? (user.studentProfile?.section || '') : '',
                 callEnabled: user.callEnabled || false
             });
             setError('');
@@ -65,7 +67,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         setError('');
         try {
 
-            
+
 
             const payload = {
                 name: formData.name,
@@ -74,7 +76,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 course: formData.course,
                 subject: formData.subject,
                 subjects: formData.subjects,
-                mobileNumber: formData.mobileNumber
+                mobileNumber: formData.mobileNumber,
+                batch: formData.batch,
+                section: formData.section,
+                callEnabled: formData.callEnabled
             };
 
             if (formData.password.trim()) {
@@ -216,10 +221,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                     const courseId = e.target.value;
                                                     const selectedCourseObj = courses.find(c => c._id === courseId);
                                                     const defaultSubjects = selectedCourseObj ? (selectedCourseObj.subjects || []).join(', ') : '';
-                                                    setFormData({ 
-                                                        ...formData, 
-                                                        course: courseId, 
-                                                        subject: defaultSubjects 
+                                                    setFormData({
+                                                        ...formData,
+                                                        course: courseId,
+                                                        subject: defaultSubjects
                                                     });
                                                 }}
                                                 disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
@@ -243,7 +248,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 mt-4">
+                                    <div className="grid grid-cols-3 gap-4 mt-4">
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
                                             <input
@@ -253,6 +258,28 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 onChange={e => setFormData({ ...formData, batch: e.target.value })}
                                                 placeholder="e.g. 2024-25"
                                             />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Section</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                value={formData.section}
+                                                onChange={e => setFormData({ ...formData, section: e.target.value.toUpperCase() })}
+                                                placeholder="e.g. A"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-6">
+                                            <input
+                                                type="checkbox"
+                                                id="callEnabled"
+                                                checked={formData.callEnabled}
+                                                onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
+                                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                            />
+                                            <label htmlFor="callEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                                Allow Web Calling
+                                            </label>
                                         </div>
                                     </div>
                                 </>
@@ -288,7 +315,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 disabled={availableSubjects.length === 0}
                                             >
                                                 <span className="truncate">
-                                                    {formData.subjects 
+                                                    {formData.subjects
                                                         ? (formData.subjects.split(',').map(s => s.trim()).filter(Boolean).join(', '))
                                                         : "Select Subjects"
                                                     }
@@ -335,7 +362,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             )}
                                         </div>
                                     </div>
-                                    </>
+                                </>
                             )}
 
                             <div>

@@ -17,6 +17,7 @@ const StudentsList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterClass, setFilterClass] = useState('All');
     const [filterSubject, setFilterSubject] = useState('All');
+    const [filterSection, setFilterSection] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -30,7 +31,7 @@ const StudentsList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterClass, filterSubject]);
+    }, [searchTerm, filterClass, filterSubject, filterSection]);
 
     const handleToggleFlag = async (flagName) => {
         try {
@@ -103,9 +104,12 @@ const StudentsList = () => {
     const filteredStudents = students.filter(student =>
         (filterClass === 'All' || (student.studentProfile?.course?.name === filterClass)) &&
         (filterSubject === 'All' || (student.studentProfile?.subject === filterSubject)) &&
+        (filterSection === 'All' || (student.studentProfile?.section === filterSection)) &&
         (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             student._id.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    const uniqueSections = [...new Set(students.map(s => s.studentProfile?.section).filter(Boolean))].sort();
 
     const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -188,6 +192,20 @@ const StudentsList = () => {
                             ))}
                         </select>
                     </div>
+
+                    <div className="relative min-w-[140px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <select
+                            value={filterSection}
+                            onChange={(e) => setFilterSection(e.target.value)}
+                            className="input-field pl-10 appearance-none cursor-pointer"
+                        >
+                            <option value="All">All Sections</option>
+                            {uniqueSections.map(sec => (
+                                <option key={sec} value={sec}>Section {sec}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
             </div>
@@ -202,6 +220,7 @@ const StudentsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Course</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Section</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Subject</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Email</th>
@@ -239,6 +258,15 @@ const StudentsList = () => {
                                             <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
                                                 {student.studentProfile?.course?.name || student.studentProfile?.course || 'N/A'}
                                             </span>
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap">
+                                            {student.studentProfile?.section ? (
+                                                <span className="px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-bold border border-violet-100">
+                                                    Section {student.studentProfile.section}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">—</span>
+                                            )}
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold">

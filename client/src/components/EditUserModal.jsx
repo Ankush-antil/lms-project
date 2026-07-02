@@ -24,7 +24,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
- 
+
     useEffect(() => {
         if (isOpen && user) {
             setSubjectDropdownOpen(false);
@@ -67,7 +67,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         setError('');
         try {
 
-            
+
 
             const payload = {
                 name: formData.name,
@@ -219,10 +219,12 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 value={formData.course}
                                                 onChange={e => {
                                                     const courseId = e.target.value;
-                                                    setFormData({ 
-                                                        ...formData, 
-                                                        course: courseId, 
-                                                        subject: '' 
+                                                    const selectedCourseObj = courses.find(c => c._id === courseId);
+                                                    const defaultSubjects = selectedCourseObj ? (selectedCourseObj.subjects || []).join(', ') : '';
+                                                    setFormData({
+                                                        ...formData,
+                                                        course: courseId,
+                                                        subject: defaultSubjects
                                                     });
                                                 }}
                                                 disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
@@ -234,19 +236,16 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Subject</label>
-                                            <select
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s)</label>
+                                            <input
                                                 required
+                                                type="text"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all disabled:opacity-50"
                                                 value={formData.subject}
                                                 onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                                placeholder="e.g. Maths, Science, English"
                                                 disabled={!formData.course}
-                                            >
-                                                <option value="">Select Subject</option>
-                                                {availableSubjects.map(sub => (
-                                                    <option key={sub} value={sub}>{sub}</option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-3 gap-4 mt-4">
@@ -316,7 +315,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 disabled={availableSubjects.length === 0}
                                             >
                                                 <span className="truncate">
-                                                    {formData.subjects 
+                                                    {formData.subjects
                                                         ? (formData.subjects.split(',').map(s => s.trim()).filter(Boolean).join(', '))
                                                         : "Select Subjects"
                                                     }
@@ -362,18 +361,6 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 <p className="mt-1.5 text-[10px] text-slate-400 italic">Select a course to view available subjects.</p>
                                             )}
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 mt-4">
-                                        <input
-                                            type="checkbox"
-                                            id="teacherCallEnabled"
-                                            checked={formData.callEnabled}
-                                            onChange={e => setFormData({ ...formData, callEnabled: e.target.checked })}
-                                            className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                                        />
-                                        <label htmlFor="teacherCallEnabled" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
-                                            Allow Web Calling
-                                        </label>
                                     </div>
                                 </>
                             )}

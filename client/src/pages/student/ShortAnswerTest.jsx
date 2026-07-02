@@ -179,6 +179,16 @@ const ShortAnswerTest = () => {
         const fetchTest = async () => {
             try {
                 if (!user) return;
+                // Check if activity is disabled
+                const configRes = await axios.get('/api/users/activity-configs').catch(() => ({ data: [] }));
+                const actConfigs = configRes.data || [];
+                const isActivityDisabled = actConfigs.some(c => c.test === id && c.disabled === true);
+                if (isActivityDisabled) {
+                    toast.error("This test has been disabled by your teacher.");
+                    navigate('/student/dashboard');
+                    return;
+                }
+
                 const res = await axios.get(`/api/tests/${id}`);
                 setTest(res.data);
                 const initialAnswers = {};
@@ -309,14 +319,26 @@ const ShortAnswerTest = () => {
 
     const validateQuestionInput = (idx, q) => {
         const qValSettings = q.validationSettings || {};
-        const textAnswer = (answers[idx] || '').replace(/<[^>]*>/g, '').trim();
+        const rawAns = answers[idx];
 
-        if (qValSettings.answerNotEmpty && !textAnswer) {
-            toast.error(`Question ${idx + 1} cannot be left empty.`);
-            return false;
+        if (qValSettings.answerNotEmpty) {
+            let isEmpty = false;
+            if (rawAns === undefined || rawAns === null) {
+                isEmpty = true;
+            } else if (typeof rawAns === 'string') {
+                isEmpty = !rawAns.replace(/<[^>]*>/g, '').trim();
+            } else if (Array.isArray(rawAns)) {
+                isEmpty = rawAns.length === 0;
+            }
+            if (isEmpty) {
+                toast.error(`Question ${idx + 1} cannot be left empty.`);
+                return false;
+            }
         }
 
-        if (textAnswer) {
+        if (typeof rawAns === 'string' && rawAns.trim()) {
+            const textAnswer = rawAns.replace(/<[^>]*>/g, '').trim();
+
             if (qValSettings.minWords && Number(qValSettings.minWords) > 0) {
                 const wordCount = textAnswer.split(/\s+/).filter(Boolean).length;
                 if (wordCount < Number(qValSettings.minWords)) {
@@ -358,7 +380,6 @@ const ShortAnswerTest = () => {
                 }
             }
         }
-
         return true;
     };
 

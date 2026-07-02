@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema({
     },
     callEnabled: {
         type: Boolean,
-        default: false
+        default: true
     },
     // Role specific fields
     studentProfile: {

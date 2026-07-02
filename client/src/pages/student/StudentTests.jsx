@@ -11,8 +11,16 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock
 } from 'lucide-react';
+
+const isTestExpired = (test) => {
+    if (!test) return false;
+    const now = new Date();
+    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
+    return false;
+};
 
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
@@ -116,7 +124,7 @@ const StudentTests = () => {
                 axios.get(`/api/practice-files?inbox=${encodeURIComponent(selectedItem)}`),
                 axios.get(`/api/notes?inboxId=${encodeURIComponent(selectedItem)}`).catch(() => ({ data: [] }))
             ]);
-            
+
             setCloudFiles(cloudRes.data.files || []);
             setNotesList(notesRes.data || []);
 
@@ -135,7 +143,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Screen Recordings
@@ -151,7 +159,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Videos
@@ -167,7 +175,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Audios
@@ -183,7 +191,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // Call Logs
@@ -199,7 +207,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // File Uploads
@@ -215,7 +223,7 @@ const StudentTests = () => {
                             });
                         }
                     });
-                } catch(e) {}
+                } catch (e) { }
             }
 
             setLocalFiles(allLocal);
@@ -296,6 +304,7 @@ const StudentTests = () => {
             .map(indexStr => {
                 const config = inboxConfigs.find(c => c.inboxId === indexStr);
                 const isVisible = config ? config.visible : true;
+                const isDisabled = config ? !!config.disabled : false;
                 const customTitle = config && config.displayName ? config.displayName : indexStr;
 
                 return {
@@ -304,7 +313,8 @@ const StudentTests = () => {
                     completed: grouped[indexStr].filter(t => submittedTestIds.has(t._id)).length,
                     pending: grouped[indexStr].filter(t => !submittedTestIds.has(t._id)).length,
                     tests: grouped[indexStr],
-                    visible: isVisible
+                    visible: isVisible,
+                    disabled: isDisabled
                 };
             });
 
@@ -331,14 +341,22 @@ const StudentTests = () => {
 
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned !== false && !isTestExpired(t) && !submissionMap.get(t._id)).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status !== 'evaluated';
+            return t.isAssigned !== false && sub && sub.status === 'submitted';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const returnedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && !isTestExpired(t) && sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -346,7 +364,16 @@ const StudentTests = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated';
+            return t.isAssigned !== false && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned';
+            return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -354,13 +381,21 @@ const StudentTests = () => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
+            const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
+            if (isConfiguredHidden) return false;
+            if (test.isAssigned === false) return false;
+
             if (viewMode === 'pending') {
-                const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
-                return !sub && !isConfiguredHidden;
+                return !sub && !isTestExpired(test);
             } else if (viewMode === 'submitted') {
-                return sub && sub.status !== 'evaluated';
+                return sub && sub.status === 'submitted';
+            } else if (viewMode === 'returned') {
+                return !isTestExpired(test) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned';
+                return isTestExpired(test) && isUnfinished;
             }
             return false;
         });
@@ -549,6 +584,7 @@ const StudentTests = () => {
                             filteredInboxItems.map(item => {
                                 const isActive = selectedItem === item.id;
                                 const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                const isDisabled = item.disabled;
 
                                 return (
                                     <div
@@ -556,22 +592,41 @@ const StudentTests = () => {
                                         onClick={() => {
                                             setSelectedItem(item.id);
                                             setSelectedCategory(null);
-                                            if (!viewMode || !['pending', 'submitted', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
+                                            if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
                                                 setViewMode('pending');
                                             }
                                         }}
-                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                            }`}
+                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                                            isActive
+                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                : isDisabled
+                                                    ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                        }`}
                                     >
                                         <div className="flex items-center space-x-2.5 min-w-0">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#3E3ADD] text-white shadow-sm' : 'bg-slate-100 text-slate-500'
-                                                }`}>
-                                                <BookOpen size={14} />
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                                isActive 
+                                                    ? 'bg-[#3E3ADD] text-white shadow-sm' 
+                                                    : isDisabled 
+                                                        ? 'bg-slate-200 text-slate-400' 
+                                                        : 'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {isDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
                                             </div>
-                                            <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                            <h3 className={`font-bold text-xs truncate flex items-center ${
+                                                isActive 
+                                                    ? 'text-indigo-900' 
+                                                    : isDisabled 
+                                                        ? 'text-slate-400' 
+                                                        : 'text-slate-700'
+                                            }`}>
                                                 {getDisplayTitle(item.title)}
+                                                {isDisabled && (
+                                                    <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                        Locked
+                                                    </span>
+                                                )}
                                             </h3>
                                         </div>
 
@@ -626,15 +681,17 @@ const StudentTests = () => {
                                 </button>
 
                                 {/* Scrollable Container */}
-                                <div 
+                                <div
                                     ref={studentTabsRef}
                                     className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
                                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {[
-                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                        { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-700 text-white shadow-md' },
                                         { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
                                         { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },
@@ -679,9 +736,23 @@ const StudentTests = () => {
                             <div className="h-full flex items-center justify-center">
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
                                     <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Selected</h2>
-                                    <p className="text-slate-450 text-xs leading-relaxed">
+                                    <p className="text-slate-455 text-xs leading-relaxed">
                                         Select an Inbox item from the sidebar to view categories and assignments.
                                     </p>
+                                </div>
+                            </div>
+                        ) : selectedGroup.disabled ? (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-200 max-w-md w-full text-center space-y-4">
+                                    <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto border border-amber-100">
+                                        <Lock size={28} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Inbox Locked</h2>
+                                        <p className="text-slate-450 text-xs leading-relaxed">
+                                            This Inbox has been disabled by your teacher. You cannot view or submit assignments here at the moment.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         ) : viewMode === 'study-material' ? (
@@ -793,9 +864,8 @@ const StudentTests = () => {
                                                 </div>
                                                 {/* Right Side: Files Count and Tool Title */}
                                                 <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
-                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
-                                                        fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
-                                                    }`}>
+                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                                        }`}>
                                                         {fileCount} {fileCount === 1 ? 'file' : 'files'}
                                                     </span>
                                                     <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
@@ -946,31 +1016,63 @@ const StudentTests = () => {
                                         {activeTests.map(test => {
                                             const sub = submissionMap.get(test._id);
                                             const isEvaluated = sub && sub.status === 'evaluated';
+                                            const isReturned = sub && sub.status === 'returned';
                                             const config = activityConfigs.find(c => c.test === test._id);
-                                            const isActivityDisabled = config ? !!config.disabled : false;
+                                            const isDisabled = config ? !!config.disabled : false;
 
                                             return (
                                                 <div
                                                     key={test._id}
                                                     onClick={() => {
-                                                        if (isActivityDisabled) {
-                                                            toast.error("This activity has been disabled by the teacher.");
+                                                        if (isDisabled) {
+                                                            toast.error("This test has been disabled by your teacher.");
                                                             return;
                                                         }
-                                                        if (!sub) {
+                                                        if (!sub || isReturned) {
                                                             navigate(`/student/take-test/${test._id}`);
                                                         } else {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all cursor-pointer flex flex-col justify-between h-auto relative group ${
-                                                        isActivityDisabled ? 'opacity-65 bg-slate-50 border-slate-200 cursor-not-allowed' : ''
+                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all cursor-pointer flex flex-col justify-between h-auto relative group ${
+                                                        isDisabled
+                                                            ? 'border-slate-205 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
+                                                            : isReturned
+                                                                ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100'
+                                                                : 'hover:border-[#3E3ADD]'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'
-                                                            }`} />
-                                                        <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                    {/* Returned warning banner */}
+                                                    {isReturned && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            ⚠ Returned — Redo Required
+                                                        </div>
+                                                    )}
+                                                    {/* Disabled warning banner */}
+                                                    {isDisabled && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-slate-400 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            🔒 Disabled by Teacher
+                                                        </div>
+                                                    )}
+                                                    <div className={`flex items-center gap-2 min-w-0 ${(isReturned || isDisabled) ? 'mt-3' : ''}`}>
+                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                            isDisabled 
+                                                                ? 'bg-slate-400' 
+                                                                : !sub 
+                                                                    ? 'bg-orange-500' 
+                                                                    : isEvaluated 
+                                                                        ? 'bg-emerald-500' 
+                                                                        : isReturned 
+                                                                            ? 'bg-orange-500 animate-pulse' 
+                                                                            : 'bg-blue-500'
+                                                        }`} />
+                                                        <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
+                                                            isDisabled
+                                                                ? 'text-slate-400'
+                                                                : isReturned 
+                                                                    ? 'group-hover:text-orange-500' 
+                                                                    : 'group-hover:text-[#3E3ADD]'
+                                                        }`}>
                                                             {test.title}
                                                         </h3>
                                                     </div>
@@ -988,30 +1090,31 @@ const StudentTests = () => {
                                                         </button>
 
                                                         <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (isActivityDisabled) {
-                                                                    toast.error("This activity has been disabled by the teacher.");
+                                                            onClick={() => {
+                                                                if (isDisabled) {
+                                                                    toast.error("This test has been disabled by your teacher.");
                                                                     return;
                                                                 }
-                                                                if (!sub) {
+                                                                if (!sub || isReturned) {
                                                                     navigate(`/student/take-test/${test._id}`);
                                                                 } else {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            disabled={isActivityDisabled}
+                                                            disabled={isDisabled}
                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                isActivityDisabled
-                                                                    ? 'bg-slate-250 text-slate-450 border-slate-300 cursor-not-allowed'
-                                                                    : !sub
-                                                                        ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                        : isEvaluated
-                                                                            ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                            : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                isDisabled
+                                                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                    : isReturned
+                                                                        ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
+                                                                        : !sub
+                                                                            ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                            : isEvaluated
+                                                                                ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                                : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
                                                             }`}
                                                         >
-                                                            {isActivityDisabled ? 'Disabled by Teacher' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isDisabled ? 'Disabled' : isReturned ? 'Redo Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>

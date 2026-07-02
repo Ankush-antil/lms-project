@@ -54,7 +54,7 @@ const createUser = asyncHandler(async (req, res) => {
         role,
         institute,
         mobileNumber: mobileNumber || '',
-        callEnabled: callEnabled !== undefined ? callEnabled : false
+        callEnabled: callEnabled !== undefined ? callEnabled : true
     };
 
     if (role === 'Student') {

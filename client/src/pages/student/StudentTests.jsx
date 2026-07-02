@@ -11,8 +11,16 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock
 } from 'lucide-react';
+
+const isTestExpired = (test) => {
+    if (!test) return false;
+    const now = new Date();
+    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
+    return false;
+};
 
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
@@ -333,14 +341,14 @@ const StudentTests = () => {
 
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned !== false && !isTestExpired(t) && !submissionMap.get(t._id)).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'submitted';
+            return t.isAssigned !== false && sub && sub.status === 'submitted';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -348,7 +356,7 @@ const StudentTests = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'returned';
+            return t.isAssigned !== false && !isTestExpired(t) && sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -356,7 +364,16 @@ const StudentTests = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated';
+            return t.isAssigned !== false && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned';
+            return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -364,15 +381,21 @@ const StudentTests = () => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
+            const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
+            if (isConfiguredHidden) return false;
+            if (test.isAssigned === false) return false;
+
             if (viewMode === 'pending') {
-                const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
-                return !sub && !isConfiguredHidden;
+                return !sub && !isTestExpired(test);
             } else if (viewMode === 'submitted') {
                 return sub && sub.status === 'submitted';
             } else if (viewMode === 'returned') {
-                return sub && sub.status === 'returned';
+                return !isTestExpired(test) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned';
+                return isTestExpired(test) && isUnfinished;
             }
             return false;
         });
@@ -664,10 +687,11 @@ const StudentTests = () => {
                                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {[
-                                        { id: 'pending', label: `Pending (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                        { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                         { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                         { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                         { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                        { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-700 text-white shadow-md' },
                                         { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
                                         { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'chat', label: 'Chat with Teacher', icon: MessageSquare, activeClass: 'bg-teal-600 text-white shadow-md' },

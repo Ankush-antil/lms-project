@@ -203,6 +203,10 @@ const testSchema = new mongoose.Schema({
     allowTeacherEdit: {
         type: Boolean,
         default: false
+    },
+    isAssigned: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

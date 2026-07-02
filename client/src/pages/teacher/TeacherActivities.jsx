@@ -15,6 +15,14 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
+const isTestExpired = (test) => {
+    if (!test) return false;
+    const now = new Date();
+    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
+    return false;
+};
+
 const getDisplayTitle = (title) => {
     if (!title) return 'Inbox No';
     const cleanTitle = title.trim();
@@ -464,7 +472,7 @@ const TeacherActivities = () => {
 
             // 4. Match student-specific assignment
             if (test.assignedStudents && test.assignedStudents.length > 0) {
-                const isAssignedToThisStudent = test.assignedStudents.some(id => 
+                const isAssignedToThisStudent = test.assignedStudents.some(id =>
                     id.toString() === selectedStudent._id.toString()
                 );
                 if (!isAssignedToThisStudent) return false;
@@ -534,7 +542,7 @@ const TeacherActivities = () => {
     useEffect(() => {
         if (dynamicInboxItems.length > 0) {
             setSelectedInboxId(dynamicInboxItems[0].id);
-            setViewMode('pending');
+            setViewMode('assign');
             setSelectedCategory(null);
         } else {
             setSelectedInboxId(null);
@@ -544,16 +552,21 @@ const TeacherActivities = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
 
+    const assignCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned === false).length;
+    }, [selectedGroup]);
+
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => t.isAssigned === true && !isTestExpired(t) && !submissionMap.get(t._id)).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'submitted';
+            return t.isAssigned === true && sub && sub.status === 'submitted';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -561,7 +574,7 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'returned';
+            return t.isAssigned === true && !isTestExpired(t) && sub && sub.status === 'returned';
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -569,7 +582,16 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated';
+            return t.isAssigned === true && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned';
+            return t.isAssigned === true && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -577,7 +599,7 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
+            return t.isAssigned === true && sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
         }).length;
     }, [selectedGroup, submissionMap]);
 
@@ -585,16 +607,21 @@ const TeacherActivities = () => {
         if (!selectedGroup) return [];
         return (selectedGroup.tests || []).filter(test => {
             const sub = submissionMap.get(test._id);
-            if (viewMode === 'pending') {
-                return !sub;
+            if (viewMode === 'assign') {
+                return test.isAssigned === false;
+            } else if (viewMode === 'pending') {
+                return test.isAssigned === true && !isTestExpired(test) && !sub;
             } else if (viewMode === 'submitted') {
-                return sub && sub.status === 'submitted';
+                return test.isAssigned === true && sub && sub.status === 'submitted';
             } else if (viewMode === 'returned') {
-                return sub && sub.status === 'returned';
+                return test.isAssigned === true && !isTestExpired(test) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
-                return sub && sub.status === 'evaluated';
+                return test.isAssigned === true && sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned';
+                return test.isAssigned === true && isTestExpired(test) && isUnfinished;
             } else if (viewMode === 'student-feedback') {
-                return sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
+                return test.isAssigned === true && sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
             }
             return false;
         });
@@ -1052,9 +1079,9 @@ const TeacherActivities = () => {
                                                                         }}
                                                                         className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
                                                                     >
-                                                                        <span>Disable Inbox</span>
-                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: isInboxDisabled ? '#ef4444' : '#cbd5e1' }}>
-                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isInboxDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        <span>Enable Inbox</span>
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !isInboxDisabled ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isInboxDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
                                                                         </div>
                                                                     </button>
                                                                     <button
@@ -1266,10 +1293,12 @@ const TeacherActivities = () => {
                                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                     >
                                         {[
-                                            { id: 'pending', label: `Pending (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                            { id: 'assign', label: `Assign (${assignCount})`, icon: Plus, activeClass: 'bg-indigo-600 text-white shadow-md' },
+                                            { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
                                             { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
                                             { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
                                             { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                            { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-600 text-white shadow-md' },
                                             { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
                                             { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                             { id: 'student-feedback', label: `Student Feedback (${feedbackCount})`, icon: ThumbsUp, activeClass: 'bg-pink-600 text-white shadow-md' },
@@ -1326,590 +1355,616 @@ const TeacherActivities = () => {
                             </div>
                         ) : studentTab === 'tests' ? (
                             <>
-                            {!selectedInboxId ? (
-                                <div className="h-full flex items-center justify-center">
-                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
-                                        <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
-                                        <p className="text-slate-400 text-xs leading-relaxed">
-                                            This student does not have any assigned activities matching their course/subjects.
-                                        </p>
+                                {!selectedInboxId ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                            <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
+                                            <p className="text-slate-400 text-xs leading-relaxed">
+                                                This student does not have any assigned activities matching their course/subjects.
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ) : viewMode === 'chat' ? (
-                                /* --- CHAT TAB --- */
-                                <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative shrink-0">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
-                                                    {selectedStudent.avatar ? (
-                                                        <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                ) : viewMode === 'chat' ? (
+                                    /* --- CHAT TAB --- */
+                                    <div className="animate-fade-in flex flex-col h-[calc(100vh-310px)] min-h-[350px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative shrink-0">
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                                        {selectedStudent.avatar ? (
+                                                            <img src={selectedStudent.avatar} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                        )}
+                                                    </div>
+                                                    {onlineUsers.includes(selectedStudent._id) ? (
+                                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
                                                     ) : (
-                                                        selectedStudent.name?.[0]?.toUpperCase() || 'S'
+                                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
                                                     )}
                                                 </div>
-                                                {onlineUsers.includes(selectedStudent._id) ? (
-                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
-                                                ) : (
-                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
-                                                )}
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
+                                                    <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-sm">{selectedStudent.name}</h3>
-                                                <p className="text-[10px] text-slate-450 font-semibold">{selectedStudent.email}</p>
+                                            <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
+                                                Inbox Chat View
                                             </div>
                                         </div>
-                                        <div className="flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-black uppercase text-indigo-650 tracking-wider">
-                                            Inbox Chat View
-                                        </div>
-                                    </div>
 
-                                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                        {loadingChat ? (
-                                            <div className="h-full flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                            </div>
-                                        ) : chatMessages.length === 0 ? (
-                                            <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
-                                                <MessageSquare size={36} className="text-slate-355 mb-2 opacity-60 animate-pulse" />
-                                                <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
-                                                <p className="text-slate-400 text-[11px] mt-1">
-                                                    Send a message to start conversation with {selectedStudent.name}.
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            chatMessages.map((msg, index) => {
-                                                const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
-                                                const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
-                                                return (
-                                                    <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
-                                                            ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
-                                                            : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
-                                                            }`}>
-                                                            <p className="font-semibold">{msg.text}</p>
-                                                            <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                                            {loadingChat ? (
+                                                <div className="h-full flex items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                                </div>
+                                            ) : chatMessages.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                                    <MessageSquare size={36} className="text-slate-355 mb-2 opacity-60 animate-pulse" />
+                                                    <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                                    <p className="text-slate-400 text-[11px] mt-1">
+                                                        Send a message to start conversation with {selectedStudent.name}.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                chatMessages.map((msg, index) => {
+                                                    const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                                    const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                                    return (
+                                                        <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                                : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
                                                                 }`}>
-                                                                {formattedTime}
-                                                            </span>
+                                                                <p className="font-semibold">{msg.text}</p>
+                                                                <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-455'
+                                                                    }`}>
+                                                                    {formattedTime}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                        <div ref={messagesEndRef} />
-                                    </div>
+                                                    );
+                                                })
+                                            )}
+                                            <div ref={messagesEndRef} />
+                                        </div>
 
-                                    <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
-                                        <input
-                                            type="text"
-                                            value={chatInput}
-                                            onChange={e => setChatInput(e.target.value)}
-                                            placeholder="Type your message to the student..."
-                                            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                        />
-                                        <button
-                                            type="submit"
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
-                                            disabled={!chatInput.trim()}
-                                        >
-                                            Send
-                                        </button>
-                                    </form>
-                                </div>
-                            ) : viewMode === 'study-material' ? (
-                                /* --- STUDY MATERIAL TAB --- */
-                                <div className="animate-fade-in space-y-6 text-left">
-                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                        <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
-                                        <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
-                                                <input
-                                                    type="text"
-                                                    value={matTitle}
-                                                    onChange={(e) => setMatTitle(e.target.value)}
-                                                    placeholder="e.g. React Cheatsheet"
-                                                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
-                                                <input
-                                                    type="file"
-                                                    id="study-material-file"
-                                                    onChange={(e) => setMatFile(e.target.files[0])}
-                                                    className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                                />
-                                            </div>
+                                        <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                            <input
+                                                type="text"
+                                                value={chatInput}
+                                                onChange={e => setChatInput(e.target.value)}
+                                                placeholder="Type your message to the student..."
+                                                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                            />
                                             <button
                                                 type="submit"
-                                                disabled={uploadingMaterial}
-                                                className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs"
+                                                disabled={!chatInput.trim()}
                                             >
-                                                {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                                Send
                                             </button>
                                         </form>
                                     </div>
-
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
-                                            <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
-                                                Total Files: {studyMaterials.length}
-                                            </span>
+                                ) : viewMode === 'study-material' ? (
+                                    /* --- STUDY MATERIAL TAB --- */
+                                    <div className="animate-fade-in space-y-6 text-left">
+                                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                            <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
+                                            <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={matTitle}
+                                                        onChange={(e) => setMatTitle(e.target.value)}
+                                                        placeholder="e.g. React Cheatsheet"
+                                                        className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
+                                                    <input
+                                                        type="file"
+                                                        id="study-material-file"
+                                                        onChange={(e) => setMatFile(e.target.files[0])}
+                                                        className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    disabled={uploadingMaterial}
+                                                    className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                                >
+                                                    {uploadingMaterial ? 'Uploading...' : 'Upload File'}
+                                                </button>
+                                            </form>
                                         </div>
 
-                                        {loadingMaterials ? (
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
+                                                <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
+                                                    Total Files: {studyMaterials.length}
+                                                </span>
+                                            </div>
+
+                                            {loadingMaterials ? (
+                                                <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                                    <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                                </div>
+                                            ) : studyMaterials.length === 0 ? (
+                                                <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                    <div className="text-4xl mb-2">📂</div>
+                                                    <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
+                                                    <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                    {studyMaterials.map((mat) => (
+                                                        <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                            <div className="space-y-2">
+                                                                <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                                <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                                <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                            </div>
+                                                            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                                <button
+                                                                    onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                    className="text-red-500 hover:text-red-700 text-[10px] font-bold"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                >
+                                                                    View File
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : viewMode === 'tools' ? (
+                                    /* --- INBOX TOOLS TAB FOR TEACHER --- */
+                                    <div className="animate-fade-in space-y-6 text-left animate-slide-up">
+                                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                            <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
+                                            <p className="text-slate-500 text-xs leading-relaxed">
+                                                Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{selectedGroup ? getDisplayTitle(selectedGroup.title) : getDisplayTitle(selectedInboxId)}</strong>.
+                                            </p>
+                                        </div>
+
+                                        {loadingInboxPractice ? (
                                             <div className="flex flex-col items-center justify-center py-12 bg-white">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                                <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                                <p className="text-xs text-slate-450 font-semibold">Loading tools data...</p>
                                             </div>
-                                        ) : studyMaterials.length === 0 ? (
+                                        ) : (inboxPracticeFiles.length === 0 && inboxSharedNotes.length === 0) ? (
                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                 <div className="text-4xl mb-2">📂</div>
-                                                <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
-                                                <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                                <p className="font-bold text-slate-700 text-sm">No Tools Activity</p>
+                                                <p className="text-slate-450 text-xs mt-1 font-medium">The student has not recorded any work or shared notes for this inbox.</p>
                                             </div>
                                         ) : (
-                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                {studyMaterials.map((mat) => (
-                                                    <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                        <div className="space-y-2">
-                                                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                            <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
-                                                            <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                            <button
-                                                                onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                className="text-red-500 hover:text-red-700 text-[10px] font-bold"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                            >
-                                                                View File
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : viewMode === 'tools' ? (
-                                /* --- INBOX TOOLS TAB FOR TEACHER --- */
-                                <div className="animate-fade-in space-y-6 text-left animate-slide-up">
-                                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                        <h3 className="font-extrabold text-slate-800 text-sm mb-2">Inbox Tools Activity</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">
-                                            Here you can inspect the files and notes created by {selectedStudent.name} specifically for <strong>{selectedGroup ? getDisplayTitle(selectedGroup.title) : getDisplayTitle(selectedInboxId)}</strong>.
-                                        </p>
-                                    </div>
+                                            <div className="space-y-6 max-w-4xl">
+                                                {/* Render Practice Files Grouped by Tool Type */}
+                                                {inboxPracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader'].map(type => {
+                                                    const files = inboxPracticeFiles.filter(f => f.toolType === type);
+                                                    if (files.length === 0) return null;
 
-                                    {loadingInboxPractice ? (
-                                        <div className="flex flex-col items-center justify-center py-12 bg-white">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                            <p className="text-xs text-slate-450 font-semibold">Loading tools data...</p>
-                                        </div>
-                                    ) : (inboxPracticeFiles.length === 0 && inboxSharedNotes.length === 0) ? (
-                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                            <div className="text-4xl mb-2">📂</div>
-                                            <p className="font-bold text-slate-700 text-sm">No Tools Activity</p>
-                                            <p className="text-slate-450 text-xs mt-1 font-medium">The student has not recorded any work or shared notes for this inbox.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-6 max-w-4xl">
-                                            {/* Render Practice Files Grouped by Tool Type */}
-                                            {inboxPracticeFiles.length > 0 && ['screenshot', 'screen-recorder', 'voice-recorder', 'video-recorder', 'web-calling', 'file-uploader'].map(type => {
-                                                const files = inboxPracticeFiles.filter(f => f.toolType === type);
-                                                if (files.length === 0) return null;
+                                                    const typeLabels = {
+                                                        'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
+                                                        'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
+                                                        'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
+                                                        'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
+                                                        'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' },
+                                                        'file-uploader': { label: 'Uploaded Files', icon: Upload, bg: 'bg-amber-50 text-amber-655' }
+                                                    };
+                                                    const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
+                                                    const ToolIcon = labelConfig.icon;
 
-                                                const typeLabels = {
-                                                    'screenshot': { label: 'Screenshots Captured', icon: Camera, bg: 'bg-indigo-50 text-indigo-655' },
-                                                    'screen-recorder': { label: 'Screen Recordings', icon: Video, bg: 'bg-emerald-50 text-emerald-655' },
-                                                    'voice-recorder': { label: 'Voice Recordings', icon: Mic, bg: 'bg-blue-50 text-blue-655' },
-                                                    'video-recorder': { label: 'Video Recordings', icon: MonitorPlay, bg: 'bg-purple-50 text-purple-655' },
-                                                    'web-calling': { label: 'Web Calling History', icon: Phone, bg: 'bg-pink-50 text-pink-655' },
-                                                    'file-uploader': { label: 'Uploaded Files', icon: Upload, bg: 'bg-amber-50 text-amber-655' }
-                                                };
-                                                const labelConfig = typeLabels[type] || { label: type, icon: Settings, bg: 'bg-slate-100 text-slate-655' };
-                                                const ToolIcon = labelConfig.icon;
-
-                                                return (
-                                                    <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
-                                                                <ToolIcon size={16} />
+                                                    return (
+                                                        <div key={type} className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${labelConfig.bg}`}>
+                                                                    <ToolIcon size={16} />
+                                                                </div>
+                                                                <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
                                                             </div>
-                                                            <h3 className="font-extrabold text-sm text-slate-800">{labelConfig.label} ({files.length})</h3>
-                                                        </div>
 
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            {files.map((file, fileIdx) => (
-                                                                <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
-                                                                    <div className="space-y-1">
-                                                                        <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
-                                                                            {file.filename}
-                                                                        </p>
-                                                                        <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
-                                                                            Date: {new Date(file.createdAt).toLocaleDateString()} • Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                        </p>
-                                                                    </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                {files.map((file, fileIdx) => (
+                                                                    <div key={file._id || fileIdx} className="bg-slate-50 p-3.5 border border-slate-105 rounded-xl space-y-3 flex flex-col justify-between">
+                                                                        <div className="space-y-1">
+                                                                            <p className="font-bold text-slate-700 text-xs truncate" title={file.filename}>
+                                                                                {file.filename}
+                                                                            </p>
+                                                                            <p className="text-[10px] text-slate-455 font-semibold uppercase tracking-wider">
+                                                                                Date: {new Date(file.createdAt).toLocaleDateString()} • Time: {new Date(file.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                            </p>
+                                                                        </div>
 
-                                                                    <div className="pt-2">
-                                                                        {type === 'screenshot' && (
-                                                                            <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                                <img
-                                                                                    src={file.fileUrl}
-                                                                                    alt="Screenshot Preview"
-                                                                                    className="w-full max-h-48 object-contain bg-slate-900"
-                                                                                />
+                                                                        <div className="pt-2">
+                                                                            {type === 'screenshot' && (
+                                                                                <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                                    <img
+                                                                                        src={file.fileUrl}
+                                                                                        alt="Screenshot Preview"
+                                                                                        className="w-full max-h-48 object-contain bg-slate-900"
+                                                                                    />
+                                                                                    <a
+                                                                                        href={file.fileUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                                                                    >
+                                                                                        View Fullscreen
+                                                                                    </a>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {type === 'screen-recorder' && (
+                                                                                <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                            )}
+
+                                                                            {type === 'video-recorder' && (
+                                                                                <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
+                                                                            )}
+
+                                                                            {type === 'voice-recorder' && (
+                                                                                <audio src={file.fileUrl} controls className="w-full" />
+                                                                            )}
+
+                                                                            {type === 'file-uploader' && (
                                                                                 <a
                                                                                     href={file.fileUrl}
                                                                                     target="_blank"
                                                                                     rel="noreferrer"
-                                                                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
                                                                                 >
-                                                                                    View Fullscreen
+                                                                                    Download File
                                                                                 </a>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
 
-                                                                        {type === 'screen-recorder' && (
-                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
-                                                                        )}
+                                                                            {type === 'web-calling' && (
+                                                                                <div className="bg-white p-3 rounded-lg border border-slate-200/80 text-[11px] leading-relaxed text-slate-600">
+                                                                                    <p><strong>Duration:</strong> {file.metadata?.duration || 'N/A'}</p>
+                                                                                    <p className="mt-1"><strong>Resolution:</strong> {file.metadata?.resolution || 'N/A'}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
 
-                                                                        {type === 'video-recorder' && (
-                                                                            <video src={file.fileUrl} controls className="w-full rounded-xl border border-slate-200 bg-slate-900 max-h-48" />
-                                                                        )}
+                                                {/* Render Shared Written Notes */}
+                                                {inboxSharedNotes.length > 0 && (
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
+                                                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                                                                <FileText size={16} />
+                                                            </div>
+                                                            <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({inboxSharedNotes.length})</h3>
+                                                        </div>
 
-                                                                        {type === 'voice-recorder' && (
-                                                                            <audio src={file.fileUrl} controls className="w-full" />
-                                                                        )}
-
-                                                                        {type === 'file-uploader' && (
-                                                                            <a
-                                                                                href={file.fileUrl}
-                                                                                target="_blank"
-                                                                                rel="noreferrer"
-                                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
-                                                                            >
-                                                                                Download File
-                                                                            </a>
-                                                                        )}
-
-                                                                        {type === 'web-calling' && (
-                                                                            <div className="bg-white p-3 rounded-lg border border-slate-200/80 text-[11px] leading-relaxed text-slate-600">
-                                                                                <p><strong>Duration:</strong> {file.metadata?.duration || 'N/A'}</p>
-                                                                                <p className="mt-1"><strong>Resolution:</strong> {file.metadata?.resolution || 'N/A'}</p>
-                                                                            </div>
-                                                                        )}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {inboxSharedNotes.map((note, idx) => (
+                                                                <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
+                                                                    <div className="space-y-1.5">
+                                                                        <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                            {note.title}
+                                                                        </h4>
+                                                                        <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
+                                                                            {note.content}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                                                        <span>Date: {new Date(note.createdAt).toLocaleDateString()}</span>
+                                                                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
+                                                                            Shared
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : viewMode === 'analytics' ? (
+                                    /* --- ANALYTICS TAB --- */
+                                    <div className="animate-fade-in space-y-6">
+                                        {(() => {
+                                            const totalTests = selectedGroup.tests.length;
+                                            const evaluatedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'evaluated';
+                                            }).length;
+                                            const submittedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'submitted';
+                                            }).length;
+                                            const returnedTests = (selectedGroup.tests || []).filter(t => {
+                                                const sub = submissionMap.get(t._id);
+                                                return sub && sub.status === 'returned';
+                                            }).length;
+                                            const unattemptedTests = totalTests - evaluatedTests - submittedTests - returnedTests;
 
-                                            {/* Render Shared Written Notes */}
-                                            {inboxSharedNotes.length > 0 && (
-                                                <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                                                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
-                                                            <FileText size={16} />
+                                            const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
+                                            const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
+                                            const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
+
+                                            return (
+                                                <>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
                                                         </div>
-                                                        <h3 className="font-extrabold text-sm text-slate-800">Shared Written Notes ({inboxSharedNotes.length})</h3>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{evaluatedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
+                                                        </div>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Pending Evaluation</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{submittedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
+                                                        </div>
+                                                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted Items</span>
+                                                                <span className="text-2xl font-black text-slate-800 mt-1 block">{unattemptedTests}</span>
+                                                            </div>
+                                                            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {inboxSharedNotes.map((note, idx) => (
-                                                            <div key={note._id || idx} className="bg-amber-50/20 p-4 border border-amber-100 rounded-xl space-y-3 flex flex-col justify-between text-left">
-                                                                <div className="space-y-1.5">
-                                                                    <h4 className="font-extrabold text-slate-800 text-xs truncate">
-                                                                        {note.title}
-                                                                    </h4>
-                                                                    <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed line-clamp-4">
-                                                                        {note.content}
-                                                                    </p>
+                                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                        <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Completion Analytics</h3>
+                                                        <div className="space-y-4">
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Evaluated Completion Rate</span>
+                                                                    <span>{evaluatedPct}%</span>
                                                                 </div>
-                                                                <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                                                                    <span>Date: {new Date(note.createdAt).toLocaleDateString()}</span>
-                                                                    <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider text-[8px] font-black">
-                                                                        Shared
-                                                                    </span>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${evaluatedPct}%` }} />
                                                                 </div>
                                                             </div>
-                                                        ))}
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Pending Evaluation Rate</span>
+                                                                    <span>{submittedPct}%</span>
+                                                                </div>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                                                                    <span>Unattempted Items Rate</span>
+                                                                    <span>{unattemptedPct}%</span>
+                                                                </div>
+                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : viewMode === 'analytics' ? (
-                                /* --- ANALYTICS TAB --- */
-                                <div className="animate-fade-in space-y-6">
-                                    {(() => {
-                                        const totalTests = selectedGroup.tests.length;
-                                        const evaluatedTests = (selectedGroup.tests || []).filter(t => {
-                                            const sub = submissionMap.get(t._id);
-                                            return sub && sub.status === 'evaluated';
-                                        }).length;
-                                        const submittedTests = (selectedGroup.tests || []).filter(t => {
-                                            const sub = submissionMap.get(t._id);
-                                            return sub && sub.status === 'submitted';
-                                        }).length;
-                                        const returnedTests = (selectedGroup.tests || []).filter(t => {
-                                            const sub = submissionMap.get(t._id);
-                                            return sub && sub.status === 'returned';
-                                        }).length;
-                                        const unattemptedTests = totalTests - evaluatedTests - submittedTests - returnedTests;
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                ) : (
+                                    /* --- DIRECT TESTS GRID --- */
+                                    <div className="animate-fade-in space-y-4">
+                                        {!activeTests.length ? (
+                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                <div className="text-4xl mb-2">🎉</div>
+                                                <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                                <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                                {activeTests.map(test => {
+                                                    const sub = submissionMap.get(test._id);
+                                                    const isEvaluated = sub && sub.status === 'evaluated';
+                                                    const config = activityConfigs.find(c => c.test === test._id);
+                                                    const isActivityVisible = config ? config.visible : true;
+                                                    const isActivityDisabled = config ? !!config.disabled : false;
 
-                                        const evaluatedPct = totalTests > 0 ? Math.round((evaluatedTests / totalTests) * 100) : 0;
-                                        const submittedPct = totalTests > 0 ? Math.round((submittedTests / totalTests) * 100) : 0;
-                                        const unattemptedPct = totalTests > 0 ? (100 - evaluatedPct - submittedPct) : 0;
-
-                                        return (
-                                            <>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{totalTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-indigo-50 text-[#3E3ADD] rounded-lg"><BookOpen size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Evaluated Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{evaluatedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Pending Evaluation</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{submittedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><FileText size={16} /></div>
-                                                    </div>
-                                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Unattempted Items</span>
-                                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{unattemptedTests}</span>
-                                                        </div>
-                                                        <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                                    <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Completion Analytics</h3>
-                                                    <div className="space-y-4">
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Evaluated Completion Rate</span>
-                                                                <span>{evaluatedPct}%</span>
-                                                            </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${evaluatedPct}%` }} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Pending Evaluation Rate</span>
-                                                                <span>{submittedPct}%</span>
-                                                            </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                <span>Unattempted Items Rate</span>
-                                                                <span>{unattemptedPct}%</span>
-                                                            </div>
-                                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            ) : (
-                                /* --- DIRECT TESTS GRID --- */
-                                <div className="animate-fade-in space-y-4">
-                                    {!activeTests.length ? (
-                                        <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                            <div className="text-4xl mb-2">🎉</div>
-                                            <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                            <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                            {activeTests.map(test => {
-                                                const sub = submissionMap.get(test._id);
-                                                const isEvaluated = sub && sub.status === 'evaluated';
-                                                const config = activityConfigs.find(c => c.test === test._id);
-                                                const isActivityVisible = config ? config.visible : true;
-                                                const isActivityDisabled = config ? !!config.disabled : false;
- 
-                                                return (
-                                                    <div
-                                                        key={test._id}
-                                                        className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
-                                                    >
-                                                        <div className="flex items-start justify-between gap-2 min-w-0">
-                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                                                <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                                    {test.title}
-                                                                </h3>
-                                                            </div>
-
-                                                            {/* Three-dot menu */}
-                                                            <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
-                                                                    }}
-                                                                    className="p-1 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
-                                                                    title="Options"
-                                                                >
-                                                                    <MoreVertical size={14} />
-                                                                </button>
-
-                                                                {activeDropdownTestId === test._id && (
-                                                                    <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in">
-                                                                        {/* View Details */}
+                                                    return (
+                                                        <div
+                                                            key={test._id}
+                                                            className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2 min-w-0">
+                                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                                                    <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
+                                                                        {test.title}
+                                                                    </h3>
+                                                                </div>
+                                                                {/* Options menu or direct Eye button depending on tab */}
+                                                                {viewMode === 'pending' || viewMode === 'assign' ? (
+                                                                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                                                                         <button
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
-                                                                                setActiveDropdownTestId(null);
-                                                                                setInfoModalData(test);
+                                                                                setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
                                                                             }}
-                                                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                            className="p-1 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                            title="Options"
                                                                         >
-                                                                            <Eye size={13} className="text-slate-400" />
-                                                                            View Details
+                                                                            <MoreVertical size={14} />
                                                                         </button>
-
-                                                                        {/* Edit Activity */}
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setActiveDropdownTestId(null);
-                                                                                const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
-                                                                                if (isCreator || test.allowTeacherEdit) {
-                                                                                    navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
-                                                                                } else {
-                                                                                    toast.error("Permission Denied: Editor has not authorized editing for this activity.");
-                                                                                }
-                                                                            }}
-                                                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                        >
-                                                                            <Edit3 size={13} className="text-slate-400" />
-                                                                            Edit Activity
-                                                                        </button>
-
-                                                                        {viewMode === 'pending' && (
-                                                                            <>
-                                                                                <div className="border-t border-slate-100 my-1" />
-
-                                                                                {/* Visibility toggle */}
-                                                                                <div
-                                                                                    className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                        {activeDropdownTestId === test._id && (
+                                                                            <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in">
+                                                                                {/* View Details */}
+                                                                                <button
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
+                                                                                        setActiveDropdownTestId(null);
+                                                                                        setInfoModalData(test);
                                                                                     }}
+                                                                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
                                                                                 >
-                                                                                    <span className="text-xs font-bold text-slate-700">
-                                                                                        {isActivityVisible ? 'Hide from Student' : 'Show to Student'}
-                                                                                    </span>
-                                                                                    <button
-                                                                                        className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
-                                                                                        style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
-                                                                                        }}
-                                                                                    >
-                                                                                        <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
-                                                                                    </button>
-                                                                                </div>
+                                                                                    <Eye size={13} className="text-slate-400" />
+                                                                                    View Details
+                                                                                </button>
 
-                                                                                {/* Disable toggle */}
-                                                                                <div
-                                                                                    className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                {/* Edit Activity */}
+                                                                                <button
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
+                                                                                        setActiveDropdownTestId(null);
+                                                                                        const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
+                                                                                        if (isCreator || test.allowTeacherEdit) {
+                                                                                            navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
+                                                                                        } else {
+                                                                                            toast.error("Permission Denied: Editor has not authorized editing for this activity.");
+                                                                                        }
                                                                                     }}
+                                                                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
                                                                                 >
-                                                                                    <span className="text-xs font-bold text-slate-700">
-                                                                                        {isActivityDisabled ? 'Enable Activity' : 'Disable Activity'}
-                                                                                    </span>
-                                                                                    <button
-                                                                                        className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
-                                                                                        style={{ backgroundColor: isActivityDisabled ? '#ef4444' : '#cbd5e1' }}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
-                                                                                        }}
-                                                                                    >
-                                                                                        <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </>
+                                                                                    <Edit3 size={13} className="text-slate-400" />
+                                                                                    Edit Activity
+                                                                                </button>
+
+                                                                                {viewMode === 'pending' && (
+                                                                                    <>
+                                                                                        <div className="border-t border-slate-100 my-1" />
+
+                                                                                        {/* Visibility toggle */}
+                                                                                        <div
+                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
+                                                                                            }}
+                                                                                        >
+                                                                                            <span className="text-xs font-bold text-slate-700">
+                                                                                                Visible to Student
+                                                                                            </span>
+                                                                                            <button
+                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                                style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
+                                                                                                }}
+                                                                                            >
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </button>
+                                                                                        </div>
+
+                                                                                        {/* Disable toggle */}
+                                                                                        <div
+                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
+                                                                                            }}
+                                                                                        >
+                                                                                            <span className="text-xs font-bold text-slate-700">
+                                                                                                Enable Activity
+                                                                                            </span>
+                                                                                            <button
+                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
+                                                                                                style={{ backgroundColor: !isActivityDisabled ? '#3E3ADD' : '#cbd5e1' }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
+                                                                                                }}
+                                                                                            >
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
                                                                         )}
                                                                     </div>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setInfoModalData(test);
+                                                                        }}
+                                                                        className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all shrink-0"
+                                                                        title="View Details"
+                                                                    >
+                                                                        <Eye size={14} />
+                                                                    </button>
                                                                 )}
                                                             </div>
-                                                        </div>
 
-                                                        {/* Status badges */}
-                                                        {((!isActivityVisible) || isActivityDisabled) && (
-                                                            <div className="flex items-center gap-1 mt-1.5">
-                                                                {!isActivityVisible && (
-                                                                    <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">Hidden</span>
-                                                                )}
-                                                                {isActivityDisabled && (
-                                                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">Disabled</span>
-                                                                )}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center justify-end mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                            {sub && (
-                                                                <button
-                                                                    onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                        : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                        }`}
-                                                                >
-                                                                    {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
-                                                                </button>
+                                                            {/* Status badges */}
+                                                            {((!isActivityVisible) || isActivityDisabled) && (
+                                                                <div className="flex items-center gap-1 mt-1.5">
+                                                                    {!isActivityVisible && (
+                                                                        <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">Hidden</span>
+                                                                    )}
+                                                                    {isActivityDisabled && (
+                                                                        <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">Disabled</span>
+                                                                    )}
+                                                                </div>
                                                             )}
+
+                                                            <div className="flex items-center justify-end mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                                {viewMode === 'assign' ? (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await axios.put(`/api/tests/${test._id}`, { testDetails: { isAssigned: true } });
+                                                                                toast.success("Activity assigned successfully!");
+                                                                                fetchTests();
+                                                                            } catch (err) {
+                                                                                toast.error("Failed to assign activity");
+                                                                            }
+                                                                        }}
+                                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border border-transparent"
+                                                                    >
+                                                                        Move to upcomming
+                                                                    </button>
+                                                                ) : sub && (
+                                                                    <button
+                                                                        onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
+                                                                            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                                                                            : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                            }`}
+                                                                    >
+                                                                        {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                             </>
                         ) : studentTab === 'practice' ? (
@@ -2477,7 +2532,7 @@ const TeacherActivities = () => {
                         {/* Header */}
                         <div className="mb-4">
                             <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
-                                {bulkConfigModal.actionType === 'hide' 
+                                {bulkConfigModal.actionType === 'hide'
                                     ? (bulkConfigModal.newVisible ? 'Show Activity' : 'Hide Activity')
                                     : (bulkConfigModal.newDisabled ? 'Disable Activity' : 'Enable Activity')
                                 }
@@ -2524,11 +2579,10 @@ const TeacherActivities = () => {
                                                 setBulkSelectedStudents(prev => [...prev, student._id]);
                                             }
                                         }}
-                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
-                                            isChecked 
-                                                ? 'bg-indigo-50/50 border-indigo-150' 
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${isChecked
+                                                ? 'bg-indigo-50/50 border-indigo-150'
                                                 : 'bg-white border-slate-100 hover:bg-slate-50/50'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-2.5 min-w-0">
                                             <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
@@ -2549,7 +2603,7 @@ const TeacherActivities = () => {
                                             <input
                                                 type="checkbox"
                                                 checked={isChecked}
-                                                onChange={() => {}} // Handled by parent div onClick
+                                                onChange={() => { }} // Handled by parent div onClick
                                                 className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
                                             />
                                         </div>
@@ -2593,7 +2647,7 @@ const TeacherActivities = () => {
                         {/* Header */}
                         <div className="mb-4">
                             <h3 className="font-extrabold text-slate-800 text-lg mb-1 tracking-tight">
-                                {bulkInboxConfigModal.actionType === 'hide' 
+                                {bulkInboxConfigModal.actionType === 'hide'
                                     ? (bulkInboxConfigModal.visible ? 'Show Inbox' : 'Hide Inbox')
                                     : (bulkInboxConfigModal.disabled ? 'Disable Inbox' : 'Enable Inbox')
                                 }
@@ -2640,11 +2694,10 @@ const TeacherActivities = () => {
                                                 setBulkSelectedStudents(prev => [...prev, student._id]);
                                             }
                                         }}
-                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
-                                            isChecked 
-                                                ? 'bg-indigo-50/50 border-indigo-150' 
+                                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${isChecked
+                                                ? 'bg-indigo-50/50 border-indigo-150'
                                                 : 'bg-white border-slate-100 hover:bg-slate-50/50'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-2.5 min-w-0">
                                             <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
@@ -2665,7 +2718,7 @@ const TeacherActivities = () => {
                                             <input
                                                 type="checkbox"
                                                 checked={isChecked}
-                                                onChange={() => {}} // Handled by parent div onClick
+                                                onChange={() => { }} // Handled by parent div onClick
                                                 className="w-4 h-4 rounded border-slate-300 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
                                             />
                                         </div>

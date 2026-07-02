@@ -154,6 +154,7 @@ const updateTest = asyncHandler(async (req, res) => {
         if (testDetails.status !== undefined) test.status = testDetails.status;
         if (testDetails.discussionActivity !== undefined) test.discussionActivity = testDetails.discussionActivity;
         if (testDetails.allowTeacherEdit !== undefined) test.allowTeacherEdit = testDetails.allowTeacherEdit;
+        if (testDetails.isAssigned !== undefined) test.isAssigned = testDetails.isAssigned;
 
         if (settings !== undefined) test.settings = settings;
         if (questions !== undefined) test.questions = questions;

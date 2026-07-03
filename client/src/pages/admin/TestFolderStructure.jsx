@@ -364,7 +364,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(`${user?.role === 'Institute' ? '/institute' : '/admin'}/tests/edit/${test._id}`);
+                                                            navigate(`${user?.role === 'Institute' ? '/institute/activities/edit' : (user?.role === 'Editor' ? '/editor/activities-edit' : '/admin/activities-edit')}/${test._id}`);
                                                         }}
                                                         className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"
@@ -600,7 +600,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(`${user?.role === 'Institute' ? '/institute' : '/admin'}/tests/edit/${test._id}`);
+                                                            navigate(`${user?.role === 'Institute' ? '/institute/activities/edit' : (user?.role === 'Editor' ? '/editor/activities-edit' : '/admin/activities-edit')}/${test._id}`);
                                                         }}
                                                         className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
                                                         title="Edit Test"

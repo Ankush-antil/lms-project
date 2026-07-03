@@ -117,7 +117,7 @@ const StudentDetails = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/admin/students')}
+                        onClick={() => navigate(-1)}
                         className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group"
                     >
                         <ArrowLeft size={20} className="text-slate-600 group-hover:-translate-x-1 transition-transform" />

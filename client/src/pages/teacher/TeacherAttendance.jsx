@@ -33,6 +33,7 @@ const TeacherAttendance = () => {
     const [wifiSSID, setWifiSSID] = useState('');
     const [customWifiSSID, setCustomWifiSSID] = useState('');
     const [wifiNetworks, setWifiNetworks] = useState([]);
+    const [attendanceType, setAttendanceType] = useState('in');
 
     const pollingIntervalRef = useRef(null);
 
@@ -52,9 +53,9 @@ const TeacherAttendance = () => {
             const { data: coursesRes } = await axios.get('/api/setup/courses');
             setCourses(coursesRes);
 
-            // Populate Wi-Fi list (always default to custom on web)
+            // Populate Wi-Fi list
             setWifiNetworks([]);
-            setWifiSSID('custom');
+            setWifiSSID('');
             
             setLoading(false);
         } catch (error) {
@@ -151,23 +152,40 @@ const TeacherAttendance = () => {
 
     const handleCreateSession = async (e) => {
         e.preventDefault();
-        if (!selectedSubject || !section || !duration || !wifiSSID) {
-            toast.error("Please fill out all fields");
-            return;
-        }
         if (wifiSSID === 'custom' && !customWifiSSID.trim()) {
             toast.error("Please specify a custom Wi-Fi network name");
             return;
         }
 
+        // Ask for teacher's geolocation first
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser. Location verification will be skipped.");
+            createSessionWithLocation(null, null);
+        } else {
+            toast.loading("Acquiring classroom location...", { id: "location" });
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    toast.dismiss("location");
+                    createSessionWithLocation(position.coords.latitude, position.coords.longitude);
+                },
+                (error) => {
+                    toast.dismiss("location");
+                    console.error("Geolocation error:", error);
+                    toast.error("Location permission is required to create attendance QR. Please enable location.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+    };
+
+    const createSessionWithLocation = async (lat, lon) => {
         try {
             setSubmitting(true);
             const { data } = await axios.post('/api/attendance/session', {
-                courseId: selectedCourse || null,
-                subject: selectedSubject,
-                section,
-                duration,
-                wifiSSID: wifiSSID === 'custom' ? customWifiSSID.trim() : wifiSSID
+                wifiSSID: wifiSSID === 'custom' ? customWifiSSID.trim() : (wifiSSID || null),
+                latitude: lat,
+                longitude: lon,
+                type: attendanceType
             });
             setActiveSession(data);
             fetchSessionRecords(data._id);
@@ -246,103 +264,45 @@ const TeacherAttendance = () => {
                     <form onSubmit={handleCreateSession} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Course</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Attendance Type</label>
                                 <select
-                                    value={selectedCourse}
-                                    onChange={(e) => setSelectedCourse(e.target.value)}
+                                    value={attendanceType}
+                                    onChange={(e) => setAttendanceType(e.target.value)}
                                     className="input-field select-field"
                                 >
-                                    <option value="">-- General / Non-Course --</option>
-                                    {teacherCourses.map(course => (
-                                        <option key={course._id} value={course._id}>{course.name} {course.code ? `(${course.code})` : ''}</option>
-                                    ))}
+                                    <option value="in">Mark In (Check-in)</option>
+                                    <option value="out">Mark Out (Check-out)</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
-                                {availableSubjects.length > 0 ? (
-                                    <select
-                                        value={selectedSubject}
-                                        onChange={(e) => setSelectedSubject(e.target.value)}
-                                        className="input-field select-field"
-                                        required
-                                    >
-                                        {availableSubjects.map((sub, idx) => (
-                                            <option key={idx} value={sub}>{sub}</option>
-                                        ))}
-                                    </select>
-                                ) : (
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Classroom Wi-Fi Network</label>
+                                <select
+                                    value={wifiSSID}
+                                    onChange={(e) => setWifiSSID(e.target.value)}
+                                    className="input-field select-field"
+                                >
+                                    <option value="">-- None (Optional) --</option>
+                                    {wifiNetworks.map((net, idx) => (
+                                        <option key={idx} value={net}>{net}</option>
+                                    ))}
+                                    <option value="custom">-- Enter Custom Wi-Fi --</option>
+                                </select>
+                            </div>
+
+                            {wifiSSID === 'custom' && (
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Wi-Fi SSID Name</label>
                                     <input
                                         type="text"
-                                        placeholder="e.g. REACT, MATH, ENGLISH"
-                                        value={selectedSubject}
-                                        onChange={(e) => setSelectedSubject(e.target.value.toUpperCase())}
+                                        placeholder="Enter exact Wi-Fi network name"
+                                        value={customWifiSSID}
+                                        onChange={(e) => setCustomWifiSSID(e.target.value)}
                                         className="input-field"
                                         required
                                     />
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Section</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. A, B, C"
-                                    value={section}
-                                    onChange={(e) => setSection(e.target.value.toUpperCase())}
-                                    className="input-field"
-                                    maxLength="5"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Class Duration</label>
-                                <select
-                                    value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
-                                    className="input-field select-field"
-                                >
-                                    <option value="15">15 Minutes (Short test/meeting)</option>
-                                    <option value="30">30 Minutes</option>
-                                    <option value="45">45 Minutes</option>
-                                    <option value="60">60 Minutes (Standard)</option>
-                                    <option value="90">90 Minutes</option>
-                                    <option value="120">120 Minutes (Extended)</option>
-                                </select>
-                            </div>
-
-                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Classroom Wi-Fi Network</label>
-                                    <select
-                                        value={wifiSSID}
-                                        onChange={(e) => setWifiSSID(e.target.value)}
-                                        className="input-field select-field"
-                                        required
-                                    >
-                                        {wifiNetworks.map((net, idx) => (
-                                            <option key={idx} value={net}>{net}</option>
-                                        ))}
-                                        <option value="custom">-- Enter Custom Wi-Fi --</option>
-                                    </select>
                                 </div>
-
-                                {wifiSSID === 'custom' && (
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Wi-Fi SSID Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter exact Wi-Fi network name"
-                                            value={customWifiSSID}
-                                            onChange={(e) => setCustomWifiSSID(e.target.value)}
-                                            className="input-field"
-                                            required
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
 
                         <button

@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -17,10 +17,17 @@ const TestsList = () => {
     const userInfo = user;
     const navigate = useNavigate();
     const basePath = userInfo?.role === 'Institute' ? '/institute' : (userInfo?.role === 'Editor' ? '/editor' : '/admin');
+    const getEditPath = (testId) => {
+        return userInfo?.role === 'Institute'
+            ? `${basePath}/activities/edit/${testId}`
+            : `${basePath}/activities-edit/${testId}`;
+    };
 
     // Search and tab filters
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSubject, setFilterSubject] = useState('All');
+    const [filterCourse, setFilterCourse] = useState('All');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
 
     // Folder Explorer state
@@ -623,7 +630,9 @@ const TestsList = () => {
     const filteredTests = tests.filter(test => {
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
-        return titleMatch && subjectMatch;
+        const courseMatch = filterCourse === 'All' || test.course === filterCourse;
+        const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch;
     }).sort((a, b) => {
         const getNum = (s) => parseInt(s?.match(/\d+/)?.[0] || 0);
         const numA = getNum(a.index);
@@ -632,11 +641,33 @@ const TestsList = () => {
         return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+    const currentTestsList = activeTab === 'lms' ? tests : publicTests;
+
     const filteredPublicTests = publicTests.filter(test => {
-        return (test.title || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const titleMatch = (test.title || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
+        const courseMatch = filterCourse === 'All' || test.course === filterCourse;
+        const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch;
     });
 
-    const uniqueSubjects = ['All', ...new Set(tests.map(t => t.subject).filter(s => s && s.trim() !== ''))];
+    // Dynamic Filter lists:
+    const uniqueInstitutes = useMemo(() => {
+        return ['All', ...new Set(currentTestsList.map(t => t.institute).filter(i => i && i.trim() !== ''))];
+    }, [currentTestsList]);
+
+    const uniqueCourses = useMemo(() => {
+        const testsFilteredByInst = currentTestsList.filter(t => filterInstitute === 'All' || t.institute === filterInstitute);
+        return ['All', ...new Set(testsFilteredByInst.map(t => t.course).filter(c => c && c.trim() !== ''))];
+    }, [currentTestsList, filterInstitute]);
+
+    const uniqueSubjects = useMemo(() => {
+        const testsFilteredByInstAndCrs = currentTestsList.filter(t => 
+            (filterInstitute === 'All' || t.institute === filterInstitute) &&
+            (filterCourse === 'All' || t.course === filterCourse)
+        );
+        return ['All', ...new Set(testsFilteredByInstAndCrs.map(t => t.subject).filter(s => s && s.trim() !== ''))];
+    }, [currentTestsList, filterInstitute, filterCourse]);
 
     // Aggregated tree: Institute -> Course -> Subject -> [Tests]
     const folderTree = (() => {
@@ -1888,14 +1919,52 @@ const TestsList = () => {
                     />
                 </div>
 
-                {activeTab === 'lms' && (
-                    <div className="flex gap-4 w-full md:w-auto">
-                        <div className="relative min-w-[200px]">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                {(activeTab === 'lms' || activeTab === 'public') && (
+                    <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                        {/* Institute Filter */}
+                        {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
+                            <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <select
+                                    value={filterInstitute}
+                                    onChange={(e) => {
+                                        setFilterInstitute(e.target.value);
+                                        setFilterCourse('All');
+                                        setFilterSubject('All');
+                                    }}
+                                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                                >
+                                    {uniqueInstitutes.map(inst => (
+                                        <option key={inst} value={inst}>{inst === 'All' ? 'All Institutes' : inst}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Course Filter */}
+                        <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterCourse}
+                                onChange={(e) => {
+                                    setFilterCourse(e.target.value);
+                                    setFilterSubject('All');
+                                }}
+                                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                            >
+                                {uniqueCourses.map(course => (
+                                    <option key={course} value={course}>{course === 'All' ? 'All Courses' : course}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Subject Filter */}
+                        <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <select
                                 value={filterSubject}
                                 onChange={(e) => setFilterSubject(e.target.value)}
-                                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none appearance-none cursor-pointer font-semibold"
+                                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
                             >
                                 {uniqueSubjects.map(subject => (
                                     <option key={subject} value={subject}>{subject === 'All' ? 'All Subjects' : subject}</option>
@@ -1989,7 +2058,7 @@ const TestsList = () => {
                                                     {copiedId === test._id ? <Check size={15} /> : <Link2 size={15} />}
                                                 </button>
                                                 <button
-                                                    onClick={() => navigate(`${basePath}/tests/edit/${test._id}`)}
+                                                    onClick={() => navigate(getEditPath(test._id))}
                                                     className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
                                                     title="Edit Test"
                                                 >
@@ -2102,7 +2171,7 @@ const TestsList = () => {
                                                 </td>
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                     <button
-                                                        onClick={() => navigate(`${basePath}/tests/edit/${test._id}`)}
+                                                        onClick={() => navigate(getEditPath(test._id))}
                                                         className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
                                                         title="Edit Test"
                                                     >

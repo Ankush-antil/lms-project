@@ -30,41 +30,56 @@ const saveBase64Image = (base64Str, folderPath, fileName) => {
     return `/uploads/attendance/${path.basename(folderPath)}/${fileName}`;
 };
 
+// Helper to calculate Haversine distance in meters
+const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000; // Radius of the Earth in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in meters
+};
+
 // 1. Create a new Attendance QR Session (Teacher only)
 exports.createSession = async (req, res) => {
     try {
-        const { courseId, subject, section, duration } = req.body;
-        
-        if (!subject || !section || !duration) {
-            return res.status(400).json({ message: "Please provide subject, section, and duration" });
-        }
-        
+        const { courseId, subject, section, duration, type } = req.body;
         const teacherId = req.user._id;
         const date = new Date().toISOString().split('T')[0];
         
-        // Deactivate previous active sessions for same section & subject by this teacher
+        const finalSubject = subject || 'General';
+        const finalSection = section || 'ALL';
+        const finalDuration = duration ? parseInt(duration) : 1440; // 24 hours
+        
+        // Deactivate previous active sessions by this teacher
         await AttendanceSession.updateMany(
-            { teacher: teacherId, subject, section, isActive: true },
+            { teacher: teacherId, isActive: true },
             { isActive: false }
         );
         
         const qrToken = crypto.randomUUID();
         const startTime = new Date();
-        const endTime = new Date(Date.now() + parseInt(duration) * 60000);
+        const endTime = new Date(Date.now() + finalDuration * 60000);
         
         const session = await AttendanceSession.create({
             teacher: teacherId,
             course: courseId || null,
-            subject,
-            section,
+            subject: finalSubject,
+            section: finalSection,
             date,
             startTime,
             endTime,
-            duration: parseInt(duration),
+            duration: finalDuration,
             qrToken,
             isActive: true,
             wifiSSID: req.body.wifiSSID || null,
-            wifiIP: req.ip || null
+            wifiIP: req.ip || null,
+            latitude: req.body.latitude || null,
+            longitude: req.body.longitude || null,
+            type: type || 'in'
         });
         
         res.status(201).json(session);
@@ -149,7 +164,7 @@ exports.getSessionByToken = async (req, res) => {
         
         // Validate section immediately when student scans QR code
         const student = await User.findById(req.user._id);
-        if (student && student.studentProfile?.section && student.studentProfile.section !== session.section) {
+        if (session.section !== 'ALL' && student && student.studentProfile?.section && student.studentProfile.section !== session.section) {
             return res.status(400).json({ 
                 message: `This QR code is only for Section ${session.section}. You belong to Section ${student.studentProfile.section || 'N/A'}.` 
             });
@@ -181,6 +196,23 @@ exports.getSessionByToken = async (req, res) => {
             }
         }
         
+        // Validate location proximity (if teacher recorded their location)
+        if (session.latitude && session.longitude) {
+            const studentLat = parseFloat(req.query.latitude);
+            const studentLon = parseFloat(req.query.longitude);
+            if (!studentLat || !studentLon) {
+                return res.status(400).json({
+                    message: "Location access is required to verify if you are in the classroom."
+                });
+            }
+            const distance = getDistanceInMeters(session.latitude, session.longitude, studentLat, studentLon);
+            if (distance > 150) { // 150 meters
+                return res.status(400).json({
+                    message: `You are too far from the classroom (${Math.round(distance)} meters away). Proximity verification failed.`
+                });
+            }
+        }
+        
         // Also check if student is checked in
         const record = await Attendance.findOne({ session: session._id, student: req.user._id });
         const checkStatus = record ? (record.checkOutTime ? 'completed' : 'checked-in') : 'not-started';
@@ -190,27 +222,22 @@ exports.getSessionByToken = async (req, res) => {
             checkStatus
         });
     } catch (error) {
-        console.error("Error fetching session by token:", error);
-        res.status(500).json({ message: "Failed to retrieve session details" });
+        console.error("Error verifying QR code:", error);
+        res.status(500).json({ message: "Failed to verify QR code" });
     }
 };
 
-// 5. Mark Attendance (Student Check-in / Check-out with selfie)
+// 3. Mark Attendance (Check-in/Check-out)
 exports.markAttendance = async (req, res) => {
     try {
         const { qrToken, photo, type } = req.body;
+        const studentId = req.user._id;
         
         if (!qrToken || !photo || !type) {
-            return res.status(400).json({ message: "Please provide QR token, photo, and type (in/out)" });
+            return res.status(400).json({ message: "Missing required fields" });
         }
         
-        if (type !== 'in' && type !== 'out') {
-            return res.status(400).json({ message: "Type must be either 'in' or 'out'" });
-        }
-        
-        const studentId = req.user._id;
         const student = await User.findById(studentId);
-        
         if (!student) {
             return res.status(404).json({ message: "Student not found" });
         }
@@ -226,7 +253,7 @@ exports.markAttendance = async (req, res) => {
         }
         
         // Validate section
-        if (student.studentProfile?.section && student.studentProfile.section !== session.section) {
+        if (student.studentProfile?.section && session.section !== 'ALL' && student.studentProfile.section !== session.section) {
             return res.status(400).json({ 
                 message: `You belong to section ${student.studentProfile.section}, but this attendance is for section ${session.section}` 
             });
@@ -254,6 +281,23 @@ exports.markAttendance = async (req, res) => {
             if (studentIP !== session.wifiIP) {
                 return res.status(400).json({
                     message: "You must be connected to the same Wi-Fi router network as the teacher."
+                });
+            }
+        }
+
+        // Validate location proximity (if teacher recorded their location)
+        if (session.latitude && session.longitude) {
+            const studentLat = parseFloat(req.body.latitude);
+            const studentLon = parseFloat(req.body.longitude);
+            if (!studentLat || !studentLon) {
+                return res.status(400).json({
+                    message: "Location access is required to submit attendance."
+                });
+            }
+            const distance = getDistanceInMeters(session.latitude, session.longitude, studentLat, studentLon);
+            if (distance > 150) { // 150 meters
+                return res.status(400).json({
+                    message: `Proximity check failed. You must be in the same classroom as the teacher (${Math.round(distance)} meters away).`
                 });
             }
         }
@@ -399,11 +443,33 @@ exports.getSessionRecords = async (req, res) => {
             return res.status(404).json({ message: "Session not found" });
         }
         
-        // Find all students in this section
-        const students = await User.find({
-            role: 'Student',
-            'studentProfile.section': session.section
-        }).select('name email avatar studentProfile');
+        const teacher = await User.findById(session.teacher);
+        let studentQuery = { role: 'Student' };
+
+        if (teacher && teacher.teacherProfile) {
+            const courseIds = teacher.teacherProfile.assignedCourses || [];
+            const mode = teacher.teacherProfile.studentAssignmentMode || 'all';
+            const assignedSections = teacher.teacherProfile.assignedSections || [];
+            const assignedStudents = teacher.teacherProfile.assignedStudents || [];
+
+            studentQuery['studentProfile.course'] = { $in: courseIds };
+
+            if (session.section !== 'ALL') {
+                studentQuery['studentProfile.section'] = session.section;
+            } else {
+                if (mode === 'section') {
+                    studentQuery['studentProfile.section'] = { $in: assignedSections };
+                } else if (mode === 'selected') {
+                    studentQuery['_id'] = { $in: assignedStudents };
+                }
+            }
+        } else {
+            if (session.section !== 'ALL') {
+                studentQuery['studentProfile.section'] = session.section;
+            }
+        }
+
+        const students = await User.find(studentQuery).select('name email avatar studentProfile');
         
         // Find all attendance records for this session
         const records = await Attendance.find({ session: sessionId });

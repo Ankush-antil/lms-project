@@ -238,7 +238,7 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
         }
     }
 
-    const { date, status } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent"
+    const { date, status, note } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent" / "Leave"
     if (!date || !status) {
         res.status(400);
         throw new Error('Please provide both date and status');
@@ -255,12 +255,55 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
     const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
     if (existingIndex !== -1) {
         student.studentProfile.physicalAttendance[existingIndex].status = status;
+        student.studentProfile.physicalAttendance[existingIndex].note = note || '';
     } else {
-        student.studentProfile.physicalAttendance.push({ date, status });
+        student.studentProfile.physicalAttendance.push({ date, status, note: note || '' });
     }
 
     await student.save();
     res.json({ success: true, physicalAttendance: student.studentProfile.physicalAttendance });
+});
+
+// @desc    Delete student physical attendance record
+// @route   DELETE /api/users/:id/physical-attendance/:date
+// @access  Private
+const deletePhysicalAttendance = asyncHandler(async (req, res) => {
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'Student') {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Verify authorized access
+    if (req.user.role === 'Teacher') {
+        const teacher = await User.findById(req.user._id);
+        const courseId = student.studentProfile?.course;
+        const teachesCourse = teacher.teacherProfile?.assignedCourses?.some(c => c.toString() === courseId?.toString());
+        if (!teachesCourse) {
+            res.status(403);
+            throw new Error('Not authorized to delete attendance for this student');
+        }
+    } else if (req.user.role === 'Institute' || req.user.role === 'Editor') {
+        if (student.institute?.toString() !== req.user.institute?.toString()) {
+            res.status(403);
+            throw new Error('Not authorized to delete attendance for this student');
+        }
+    }
+
+    const { date } = req.params;
+    if (!date) {
+        res.status(400);
+        throw new Error('Please specify a date to delete');
+    }
+
+    if (student.studentProfile && student.studentProfile.physicalAttendance) {
+        student.studentProfile.physicalAttendance = student.studentProfile.physicalAttendance.filter(
+            a => a.date !== date
+        );
+        await student.save();
+    }
+
+    res.json({ success: true, physicalAttendance: student.studentProfile?.physicalAttendance || [] });
 });
 
 // @desc    Update student fee status
@@ -309,10 +352,19 @@ const updateFeeStatus = asyncHandler(async (req, res) => {
 // @access  Private/Admin, Editor, Institute, Teacher
 const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
     const { date, attendanceRecords } = req.body;
-    // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent" }]
+    // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent"|"Leave", note: "" }]
     if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
         res.status(400);
         throw new Error('Please provide date and attendanceRecords array');
+    }
+
+    // Block future dates
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const attendDate = new Date(date);
+    if (attendDate > today) {
+        res.status(400);
+        throw new Error('Cannot mark attendance for a future date');
     }
 
     try {
@@ -341,11 +393,13 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
                 student.studentProfile.physicalAttendance = [];
             }
 
+            const { note } = record;
             const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
             if (existingIndex !== -1) {
                 student.studentProfile.physicalAttendance[existingIndex].status = status;
+                if (note !== undefined) student.studentProfile.physicalAttendance[existingIndex].note = note;
             } else {
-                student.studentProfile.physicalAttendance.push({ date, status });
+                student.studentProfile.physicalAttendance.push({ date, status, note: note || '' });
             }
 
             await student.save();
@@ -447,6 +501,7 @@ module.exports = {
     deleteUser,
     updateUser,
     markPhysicalAttendance,
+    deletePhysicalAttendance,
     updateFeeStatus,
     markBulkPhysicalAttendance,
     getInboxConfigs,

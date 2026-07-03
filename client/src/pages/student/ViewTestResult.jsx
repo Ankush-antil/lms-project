@@ -326,12 +326,6 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         Relevant Information
                     </button>
                     
-                    {!isSharedView && (
-                        <button className="text-slate-400 hover:text-white transition-colors">
-                            <MoreVertical size={16} />
-                        </button>
-                    )}
-                    
                     {isTeacher && !isSharedView && (
                         <button
                             onClick={() => navigate(`/teacher/evaluate/${id}`)}
@@ -340,14 +334,6 @@ const ViewTestResult = ({ isSharedView = false }) => {
                             <RefreshCw size={12} /> {isEvaluated ? 'Re-evaluate Test' : 'Evaluate Test'}
                         </button>
                     )}
-                    
-                    <button
-                        onClick={() => setPageContentHidden(!pageContentHidden)}
-                        className="flex items-center gap-2 px-3 py-1 bg-[#25282A] text-slate-300 border border-[#3E4246] rounded-md text-xs font-semibold hover:text-white hover:bg-[#34373a] transition-all"
-                    >
-                        {pageContentHidden ? <Eye size={14} /> : <EyeOff size={14} />}
-                        <span>{pageContentHidden ? 'Show' : 'Hide'}</span>
-                    </button>
                 </div>
             </div>
 

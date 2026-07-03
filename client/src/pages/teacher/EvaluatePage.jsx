@@ -603,18 +603,6 @@ const EvaluatePage = () => {
                                 >
                                     Relevant Information
                                 </button>
-
-                                <button className="text-slate-400 hover:text-white transition-colors">
-                                    <MoreVertical size={16} />
-                                </button>
-
-                                <button
-                                    onClick={() => setPageContentHidden(!pageContentHidden)}
-                                    className="flex items-center gap-2 px-3 py-1 bg-[#25282A] text-slate-300 border border-[#3E4246] rounded-md text-xs font-semibold hover:text-white hover:bg-[#34373a] transition-all"
-                                >
-                                    {pageContentHidden ? <Eye size={14} /> : <EyeOff size={14} />}
-                                    <span>{pageContentHidden ? 'Show' : 'Hide'}</span>
-                                </button>
                             </div>
                         </div>
 
@@ -667,7 +655,7 @@ const EvaluatePage = () => {
                                     <p className="text-xs text-slate-400">Click the 'Show' button in the header to view details.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-4">
                                     {answers.length === 0 ? (
                                         <div className="p-10 text-center text-slate-400 font-medium border border-dashed border-slate-200 rounded-2xl">
                                             No answers found for this submission.
@@ -854,7 +842,7 @@ const EvaluatePage = () => {
 
                                                                 {/* Actions Toolbar at bottom */}
                                                                 <div className="flex items-center justify-between bg-white px-4 py-2.5 border-t border-slate-100 flex-wrap gap-4">
-                                                                    <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-4 flex-1">
                                                                         {/* Comment Toggle */}
                                                                         <button
                                                                             onClick={() => {
@@ -862,24 +850,46 @@ const EvaluatePage = () => {
                                                                                 loadChatHistory(submission._id);
                                                                                 setChatModalOpen(true);
                                                                             }}
-                                                                            className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                                                                            className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold shrink-0"
                                                                         >
                                                                             <MessageSquare size={16} />
                                                                             <span>Student Feedback</span>
                                                                         </button>
+
+                                                                        {/* Score & Improvement Feedback on the same line! */}
+                                                                        {!(submission.status === 'evaluated' || ans.reaction || marks[submission._id]?.[idx] || feedback[submission._id]?.[idx] || (ans.conversation && ans.conversation.length > 0)) && !isFeedbackMode && (
+                                                                            <div className="flex items-center gap-3 flex-1 justify-end">
+                                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Score:</span>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        value={marks[submission._id]?.[idx] ?? ans.marks ?? ''}
+                                                                                        onChange={e => setMark(submission._id, idx, e.target.value)}
+                                                                                        className="w-16 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        placeholder="0.0"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 flex-1 max-w-xs">
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Feedback:</span>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={feedback[submission._id]?.[idx] ?? ans.feedback ?? ''}
+                                                                                        onChange={e => setFeedbackText(submission._id, idx, e.target.value)}
+                                                                                        className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        placeholder="Notes for student..."
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
 
-                                                                    <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-3 shrink-0">
                                                                         {/* Badges */}
                                                                         <div className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold border border-blue-100">
                                                                             <Cpu size={11} />
                                                                             <span>AI Auto check</span>
                                                                         </div>
-
-                                                                        {/* Vertical Options Menu */}
-                                                                        <button className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg">
-                                                                            <MoreVertical size={14} />
-                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -984,36 +994,7 @@ const EvaluatePage = () => {
                                                                     </div>
                                                                 )
                                                             ) : (
-                                                                /* Initial Evaluation Input if nothing exists yet */
-                                                                !isFeedbackMode && (
-                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-50">
-                                                                        <div className="space-y-2">
-                                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                                                                <Star size={12} className="text-amber-400" /> Score (Weightage)
-                                                                            </label>
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                value={marks[submission._id]?.[idx] ?? ans.marks ?? ''}
-                                                                                onChange={e => setMark(submission._id, idx, e.target.value)}
-                                                                                className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
-                                                                                placeholder="0.0"
-                                                                            />
-                                                                        </div>
-                                                                        <div className="space-y-2">
-                                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                                                                <MessageSquare size={12} className="text-indigo-400" /> Improvement Feedback
-                                                                            </label>
-                                                                            <input
-                                                                                type="text"
-                                                                                value={feedback[submission._id]?.[idx] ?? ans.feedback ?? ''}
-                                                                                onChange={e => setFeedbackText(submission._id, idx, e.target.value)}
-                                                                                className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
-                                                                                placeholder="Type notes for student..."
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                )
+                                                                null
                                                             )}
                                                             {isFeedbackMode && !(submission.status === 'evaluated' || ans.reaction || marks[submission._id]?.[idx] || feedback[submission._id]?.[idx] || (ans.conversation && ans.conversation.length > 0)) && (
                                                                 <div className="py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -1029,7 +1010,7 @@ const EvaluatePage = () => {
 
                                     {/* Save Evaluation Button */}
                                     {!isFeedbackMode && (
-                                        <div className="flex justify-end pt-4">
+                                        <div className="flex justify-end pt-2">
                                             <button
                                                 onClick={() => submitEvaluation(submission)}
                                                 disabled={saving === submission._id}

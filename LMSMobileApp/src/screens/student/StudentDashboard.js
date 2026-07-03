@@ -154,6 +154,24 @@ const StudentDashboard = ({ navigation }) => {
                     <Ionicons name="chevron-forward" size={20} color={colors.success} />
                 </TouchableOpacity>
 
+                {/* Attendance Quick Banner */}
+                <TouchableOpacity
+                    style={[styles.chatBanner, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}
+                    onPress={() => navigation.navigate('ScanAttendance')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.chatBannerLeft}>
+                        <View style={[styles.chatIconCircle, { backgroundColor: '#ef4444' }]}>
+                            <Ionicons name="qr-code" size={22} color={colors.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.chatBannerTitle}>Mark Attendance</Text>
+                            <Text style={styles.chatBannerSub}>Scan QR code and take selfie to verify</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#ef4444" />
+                </TouchableOpacity>
+
                 {/* Missed Calls */}
                 {missedCalls.length > 0 && (
                     <SectionCard style={styles.missedCallsCard}>

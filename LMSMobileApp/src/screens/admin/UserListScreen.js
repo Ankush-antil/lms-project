@@ -71,10 +71,10 @@ const UserListScreen = ({ navigation, route, endpoint, title, role, color, bg, b
                                 <Text style={styles.avatarText}>{item.name?.[0]}</Text>
                             </View>
                             <View style={styles.userInfo}>
-                                <Text style={styles.userName}>{item.name}</Text>
-                                <Text style={styles.userEmail}>{item.email}</Text>
+                                <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                                <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">{item.email}</Text>
                                 {item.institute?.name && (
-                                    <Text style={styles.userInstitute}>{item.institute.name}</Text>
+                                    <Text style={styles.userInstitute} numberOfLines={1} ellipsizeMode="tail">{item.institute.name}</Text>
                                 )}
                             </View>
                             <View style={styles.userRight}>
@@ -182,5 +182,10 @@ const styles = StyleSheet.create({
     userName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
     userEmail: { fontSize: fontSizes.xs, color: colors.textMuted },
     userInstitute: { fontSize: fontSizes.xs, color: colors.accent, fontWeight: '600', marginTop: 2 },
-    userRight: { alignItems: 'flex-end', gap: 4 },
+    userRight: {
+        alignItems: 'flex-end',
+        gap: 4,
+        flexShrink: 1,
+        maxWidth: '35%',
+    },
 });

@@ -7,6 +7,10 @@ import { CoursesList, InstitutesList } from '../screens/admin/CoursesInstitutesL
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
+// Attendance screens
+import ScanAttendanceScreen from '../screens/student/ScanAttendanceScreen';
+import TeacherAttendanceScreen from '../screens/teacher/TeacherAttendanceScreen';
+
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -63,6 +67,7 @@ const StudentStack = () => (
         <Stack.Screen name="ScreenshotToolPage" component={ScreenshotToolPage} />
         <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="ScanAttendance" component={ScanAttendanceScreen} />
     </Stack.Navigator>
 );
 
@@ -74,6 +79,7 @@ const TeacherStack = () => (
         <Stack.Screen name="EvaluatePage" component={EvaluatePage} />
         <Stack.Screen name="ContactStudents" component={ContactStudents} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="TeacherAttendance" component={TeacherAttendanceScreen} />
     </Stack.Navigator>
 );
 

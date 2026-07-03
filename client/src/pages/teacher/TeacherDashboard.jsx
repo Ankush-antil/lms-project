@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
-import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle, Phone, Video, Search, X, Trash2, Calendar } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, BookOpen, ChevronRight, AlertCircle, Phone, Video, Search, X, Trash2, Calendar, QrCode } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import toast from 'react-hot-toast';
 
@@ -172,32 +172,42 @@ const TeacherDashboard = () => {
 
     return (
         <DashboardLayout role="Teacher" fullWidth={true}>
-            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+            <div className="mb-8 space-y-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teacher Console</h1>
-                    <p className="text-slate-500 mt-1">Manage your courses, students, and evaluate tests in real-time.</p>
+                    <p className="text-slate-500 mt-1 text-sm md:text-base">Manage your courses, students, and evaluate tests in real-time.</p>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap sm:flex-row items-center gap-3">
                     <button
                         onClick={handleToggleCall}
-                        className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${callEnabled
-                            ? 'bg-emerald-650 hover:bg-emerald-700 text-white shadow-emerald-100'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
+                        className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${callEnabled
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100/50'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 shadow-sm border border-slate-200'
                             }`}
                     >
-                        <Phone size={18} /> Receiving Calls: {callEnabled ? 'ON' : 'OFF'}
+                        <Phone size={16} />
+                        <span>Receiving Calls: {callEnabled ? 'ON' : 'OFF'}</span>
                     </button>
                     <button
                         onClick={() => navigate('/teacher/activities')}
-                        className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-100/50 transition-all flex items-center gap-2"
                     >
-                        <FileText size={18} /> Take Action
+                        <FileText size={16} />
+                        <span>Take Action</span>
+                    </button>
+                    <button
+                        onClick={() => navigate('/teacher/attendance')}
+                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-md shadow-rose-100/50 transition-all flex items-center gap-2"
+                    >
+                        <QrCode size={16} />
+                        <span>QR Attendance</span>
                     </button>
                     <button
                         onClick={() => setShowContactModal(true)}
-                        className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-lg shadow-slate-250 hover:bg-slate-800 transition-all flex items-center gap-2"
+                        className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md shadow-slate-200/50 transition-all flex items-center gap-2"
                     >
-                        <Phone size={18} /> Contact Students
+                        <Phone size={16} />
+                        <span>Contact Students</span>
                     </button>
                 </div>
             </div>

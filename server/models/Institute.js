@@ -23,6 +23,7 @@ const instituteSchema = new mongoose.Schema({
     admissionOpen: { type: Boolean, default: false },   // Show Student apply button
     teacherHiring: { type: Boolean, default: false },   // Show Teacher apply button
     editorHiring: { type: Boolean, default: false },   // Show Editor apply button
+    wifiNetworks: { type: [String], default: [] }
 }, {
     timestamps: true
 });

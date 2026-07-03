@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, ChevronLeft, ChevronDown, ChevronUp, User, BookOpen,
     CheckCircle2, Clock, Mic, Video, FileText, Star, MessageSquare, Info, RefreshCw, Send,
-    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2, RotateCcw, Filter, Search, Loader2
+    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2, RotateCcw, Filter, Search, Loader2, X
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -70,6 +70,76 @@ const EvaluatePage = () => {
     const [loadingChat, setLoadingChat] = useState(false);
     const [sendingChat, setSendingChat] = useState(false);
     const [activeChatSub, setActiveChatSub] = useState(null);
+    const [overallReaction, setOverallReaction] = useState('');
+    const [overallLikesCount, setOverallLikesCount] = useState(0);
+    const [overallDislikesCount, setOverallDislikesCount] = useState(0);
+    const [showOverallComments, setShowOverallComments] = useState(false);
+    const [selectedEvalSub, setSelectedEvalSub] = useState(null);
+    // Separate state for public YouTube-style discussion comments
+    const [overallComments, setOverallComments] = useState([]);
+    const [overallCommentInput, setOverallCommentInput] = useState('');
+    const [postingOverallComment, setPostingOverallComment] = useState(false);
+    const [loadingOverallComments, setLoadingOverallComments] = useState(false);
+
+    useEffect(() => {
+        if (expandedId && submissions.length > 0) {
+            const submission = submissions.find(s => s._id === expandedId);
+            if (submission) {
+                const voterId = userInfo ? String(userInfo._id) : 'teacher';
+                let overallReact = '';
+                if (Array.isArray(submission.likes) && submission.likes.includes(voterId)) {
+                    overallReact = 'like';
+                } else if (Array.isArray(submission.dislikes) && submission.dislikes.includes(voterId)) {
+                    overallReact = 'dislike';
+                } else if (submission.reaction) {
+                    overallReact = submission.reaction;
+                }
+                setOverallReaction(overallReact);
+                setOverallLikesCount(Array.isArray(submission.likes) ? submission.likes.length : 0);
+                setOverallDislikesCount(Array.isArray(submission.dislikes) ? submission.dislikes.length : 0);
+            }
+        }
+    }, [expandedId, submissions, userInfo]);
+
+    const handleToggleOverallReaction = async (submissionId, type) => {
+        const voterId = userInfo ? String(userInfo._id) : 'teacher';
+        const currentReaction = overallReaction;
+        const newReaction = currentReaction === type ? '' : type;
+
+        // Update UI state optimistically
+        setOverallReaction(newReaction);
+        if (newReaction === 'like') {
+            setOverallLikesCount(prev => prev + 1);
+            if (currentReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+        } else if (newReaction === 'dislike') {
+            setOverallDislikesCount(prev => prev + 1);
+            if (currentReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+        } else {
+            if (currentReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+            if (currentReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+        }
+
+        try {
+            await axios.put(`/api/submissions/${submissionId}/reaction`, { reaction: newReaction, guestId: voterId });
+            // Sync with submissions list
+            setSubmissions(prev => prev.map(s => {
+                if (s._id === submissionId) {
+                    let likes = Array.isArray(s.likes) ? [...s.likes] : [];
+                    let dislikes = Array.isArray(s.dislikes) ? [...s.dislikes] : [];
+                    likes = likes.filter(id => id !== voterId);
+                    dislikes = dislikes.filter(id => id !== voterId);
+                    if (newReaction === 'like') likes.push(voterId);
+                    else if (newReaction === 'dislike') dislikes.push(voterId);
+                    return { ...s, reaction: newReaction, likes, dislikes };
+                }
+                return s;
+            }));
+        } catch (error) {
+            console.error("Error toggling overall reaction:", error);
+            // Revert state back on error
+            setOverallReaction(currentReaction);
+        }
+    };
 
     const handleShare = (subId, index, testTitle) => {
         const url = `${window.location.origin}/shared/test-result/${subId}?question=${index + 1}`;
@@ -110,6 +180,46 @@ const EvaluatePage = () => {
             toast.error("Failed to send message.");
         } finally {
             setSendingChat(false);
+        }
+    };
+
+    const loadOverallComments = async (submissionId) => {
+        setLoadingOverallComments(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/comments`);
+            setOverallComments(res.data || []);
+        } catch (err) {
+            setOverallComments([]);
+        } finally {
+            setLoadingOverallComments(false);
+        }
+    };
+
+    const handlePostOverallComment = async (submissionId) => {
+        if (!overallCommentInput.trim()) return;
+        setPostingOverallComment(true);
+        const authorName = userInfo?.name || userInfo?.username || 'Anonymous';
+        const authorRole = userInfo?.role || 'Teacher';
+        const newComment = {
+            _id: Date.now().toString(),
+            message: overallCommentInput.trim(),
+            author: authorName,
+            role: authorRole,
+            timestamp: new Date().toISOString(),
+        };
+        setOverallComments(prev => [...prev, newComment]);
+        setOverallCommentInput('');
+        try {
+            const res = await axios.post(`/api/submissions/${submissionId}/comments`, {
+                message: newComment.message,
+                author: authorName,
+                role: authorRole,
+            });
+            setOverallComments(res.data || []);
+        } catch (err) {
+            console.error('Failed to post overall comment:', err);
+        } finally {
+            setPostingOverallComment(false);
         }
     };
 
@@ -327,6 +437,84 @@ const EvaluatePage = () => {
         });
         return groups;
     }, [filteredStudents, showSectionsGrouped]);
+
+    const totalEvalModalComponent = selectedEvalSub !== null && (() => {
+        const sub = selectedEvalSub;
+        const testObj = sub.test;
+        const maxMarks = testObj?.questions?.reduce((sum, q) => sum + (parseFloat(q.marks) || 0), 0) || 0;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in text-slate-800">
+                <div className="bg-white w-full max-w-xl rounded-[32px] border border-slate-100/80 shadow-2xl p-8 relative overflow-hidden transform scale-100 transition-all text-left flex flex-col gap-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+                                <Star size={20} fill="currentColor" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-[#0B1520] tracking-tight">Total Assessment Report</h3>
+                                <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">{testObj?.title || 'Test Summary'}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedEvalSub(null)}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-650 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                        {/* Overall Results */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/50">
+                                <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest block mb-1">Final Score</span>
+                                <span className="text-lg font-black text-emerald-800">{sub.totalMarks ?? 0} / {maxMarks} Marks</span>
+                            </div>
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest block mb-1">Status</span>
+                                <span className="text-lg font-black text-blue-800 uppercase text-xs tracking-wide">{sub.status}</span>
+                            </div>
+                        </div>
+
+                        {/* Overall Return Note */}
+                        {sub.returnNote && (
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Teacher General Remarks</span>
+                                <p className="text-xs font-semibold text-slate-700 leading-relaxed">{sub.returnNote}</p>
+                            </div>
+                        )}
+
+                        {/* Question-wise Summary */}
+                        <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Question Summary</span>
+                            <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                                {sub.answers.map((ans, index) => (
+                                    <div key={index} className="p-3 bg-white hover:bg-slate-50/50 transition-colors flex items-center justify-between gap-4 text-xs font-semibold">
+                                        <div className="min-w-0">
+                                            <p className="text-slate-800 font-bold truncate">Q{index + 1}: {ans.questionText || 'Question'}</p>
+                                            {ans.feedback && <p className="text-[10px] text-slate-450 italic mt-0.5 truncate">{ans.feedback}</p>}
+                                        </div>
+                                        <span className="shrink-0 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-[10px] font-black">{ans.marks ?? 0} Marks</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Close button */}
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <button
+                            onClick={() => setSelectedEvalSub(null)}
+                            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-black transition-all active:scale-95 shadow-sm shadow-emerald-600/10"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    })();
 
     const chatModalComponent = chatModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
@@ -617,7 +805,7 @@ const EvaluatePage = () => {
                                 {submission?.student && (
                                     <button
                                         onClick={() => openProfile(submission.student._id || submission.student)}
-                                        className="w-8 h-8 rounded-full bg-indigo-650 hover:bg-indigo-700 text-white flex items-center justify-center font-bold text-xs shadow-sm hover:scale-105 active:scale-95 transition-all overflow-hidden shrink-0 border border-slate-700/50 cursor-pointer"
+                                        className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 hover:from-violet-300 hover:to-indigo-400 text-white flex items-center justify-center font-black text-sm shadow-lg ring-2 ring-white/30 hover:ring-white/60 hover:scale-105 active:scale-95 transition-all overflow-hidden shrink-0 cursor-pointer"
                                         title={`View profile of ${submission.student.name || 'Student'}`}
                                     >
                                         {submission.student.avatar ? (
@@ -881,7 +1069,7 @@ const EvaluatePage = () => {
                                                                                     />
                                                                                 </div>
                                                                                 <div className="flex items-center gap-1.5 flex-1 max-w-md">
-                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Feedback:</span>
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Notes:</span>
                                                                                     <input
                                                                                         type="text"
                                                                                         value={feedback[submission._id]?.[idx] ?? ans.feedback ?? ''}
@@ -1022,47 +1210,156 @@ const EvaluatePage = () => {
                             )}
                         </div>
 
-                        {/* Footer Bar */}
-                        <div className="bg-[#111A24] border-t border-[#1C2836] py-4 flex items-center justify-center gap-8 text-white w-full">
+                        {/* Overall Public Discussion (YouTube-style) */}
+                        {showOverallComments && (
+                            <div className="border-t border-slate-100 bg-white text-left animate-fade-in shrink-0">
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <MessageSquare size={16} className="text-[#E84393]" />
+                                        <span className="text-sm font-black text-slate-800">
+                                            {overallComments.length} Comment{overallComments.length !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowOverallComments(false)}
+                                        className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+
+                                {/* Comment Input - YouTube style */}
+                                <div className="flex items-start gap-3 px-6 pb-4 border-b border-slate-100">
+                                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm bg-indigo-600">
+                                        {userInfo?.name?.[0]?.toUpperCase() || 'T'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            placeholder="Add a public comment..."
+                                            value={overallCommentInput}
+                                            onChange={(e) => setOverallCommentInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && overallCommentInput.trim()) {
+                                                    handlePostOverallComment(submission._id);
+                                                }
+                                            }}
+                                            className="w-full bg-transparent border-0 border-b-2 border-slate-200 focus:border-[#E84393] px-0 py-1.5 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400"
+                                        />
+                                        {overallCommentInput.trim() && (
+                                            <div className="flex justify-end gap-2 mt-2">
+                                                <button
+                                                    onClick={() => setOverallCommentInput('')}
+                                                    className="px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePostOverallComment(submission._id)}
+                                                    disabled={postingOverallComment || !overallCommentInput.trim()}
+                                                    className="px-4 py-1 bg-[#E84393] hover:bg-[#d4357e] text-white text-xs font-bold rounded-full transition-all active:scale-95 disabled:opacity-50"
+                                                >
+                                                    {postingOverallComment ? 'Posting...' : 'Comment'}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Comments List */}
+                                <div className="max-h-[300px] overflow-y-auto px-6 py-4 space-y-5">
+                                    {loadingOverallComments ? (
+                                        <p className="text-xs text-slate-400 font-semibold animate-pulse">Loading comments...</p>
+                                    ) : overallComments.length === 0 ? (
+                                        <div className="text-center py-6">
+                                            <MessageSquare size={28} className="text-slate-300 mx-auto mb-2" />
+                                            <p className="text-xs text-slate-400 font-semibold">No comments yet.</p>
+                                        </div>
+                                    ) : (
+                                        overallComments.map((comment, ci) => {
+                                            const isTeacherComment = comment.role === 'Teacher' || comment.role === 'Admin';
+                                            const isSelf = userInfo && (comment.author === userInfo.name || comment.author === userInfo.username);
+                                            const avatarColor = isTeacherComment ? '#4f46e5' : '#a855f7';
+                                            const timeAgo = (() => {
+                                                const diff = Date.now() - new Date(comment.timestamp).getTime();
+                                                const mins = Math.floor(diff / 60000);
+                                                const hrs = Math.floor(mins / 60);
+                                                const days = Math.floor(hrs / 24);
+                                                if (days > 0) return `${days}d ago`;
+                                                if (hrs > 0) return `${hrs}h ago`;
+                                                if (mins > 0) return `${mins}m ago`;
+                                                return 'just now';
+                                            })();
+                                            return (
+                                                <div key={comment._id || ci} className="flex items-start gap-3">
+                                                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0" style={{ background: avatarColor }}>
+                                                        {comment.author?.[0]?.toUpperCase() || 'G'}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="text-xs font-black text-slate-800">{comment.author || 'Anonymous'}</span>
+                                                            {isTeacherComment && <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-full uppercase">Teacher</span>}
+                                                            {isSelf && <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-full uppercase">You</span>}
+                                                            <span className="text-[10px] text-slate-400 font-medium">{timeAgo}</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-700 leading-relaxed break-words">{comment.message}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Footer Bar — Teacher: Return It | Feedback | Total Evaluation | Update Assessment */}
+                        <div className="bg-[#111A24] border-t border-[#1C2836] py-3.5 px-4 flex items-center justify-end flex-wrap gap-2 text-white w-full shrink-0">
+                            {/* Return It */}
+                            <button
+                                onClick={() => returnToStudent(submission)}
+                                disabled={returning}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-orange-400 transition-colors disabled:opacity-50 active:scale-95 cursor-pointer"
+                                title="Return this test to student for redo"
+                            >
+                                <RotateCcw size={14} className={returning ? 'animate-spin' : ''} />
+                                <span>{returning ? 'Returning...' : 'Return It'}</span>
+                            </button>
 
                             <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                            {/* Feedback Chat */}
                             <button
                                 onClick={() => {
                                     setActiveChatSub(submission);
                                     loadChatHistory(submission._id);
                                     setChatModalOpen(true);
                                 }}
-                                className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-300 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
                             >
-                                <MessageSquare size={16} />
+                                <MessageSquare size={14} />
                                 <span>Feedback</span>
                             </button>
+
                             <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                            {/* Total Evaluation */}
                             <button
-                                onClick={() => returnToStudent(submission)}
-                                disabled={returning}
-                                className="flex items-center gap-2 text-sm font-semibold hover:text-orange-400 transition-colors font-bold disabled:opacity-50"
-                                title="Return this test to student for redo"
+                                onClick={() => setSelectedEvalSub(submission)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F8A5C2]/15 hover:bg-[#F8A5C2]/25 text-[#E84393] rounded-lg text-xs font-bold border border-[#F8A5C2]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
                             >
-                                <RotateCcw size={16} className={returning ? 'animate-spin' : ''} />
-                                <span>{returning ? 'Returning...' : 'Return It'}</span>
-                            </button>
-                            <div className="w-[1px] h-4 bg-slate-700"></div>
-                            <button
-                                onClick={() => handleShareOverall(submission._id, test?.title)}
-                                className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
-                            >
-                                <Share2 size={16} />
-                                <span>Share</span>
+                                <Star size={12} fill="currentColor" />
+                                <span>Total Evaluation</span>
                             </button>
 
-                            {/* Save Evaluation Button */}
+                            {/* Update Assessment / Finalize Evaluation */}
                             {!isFeedbackMode && (
-                                <div className="flex justify-end pt-2">
+                                <>
+                                    <div className="w-[1px] h-4 bg-slate-700"></div>
                                     <button
                                         onClick={() => submitEvaluation(submission)}
                                         disabled={saving === submission._id}
-                                        className={`px-6 py-2.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 flex items-center gap-2 text-xs uppercase ${submission.status === 'evaluated'
+                                        className={`flex items-center gap-1.5 px-4 py-1.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 text-xs uppercase ${submission.status === 'evaluated'
                                             ? 'bg-red-500 hover:bg-red-600 text-white'
                                             : 'bg-red-500 hover:bg-red-600 text-white'
                                             }`}
@@ -1076,26 +1373,26 @@ const EvaluatePage = () => {
                                             </>
                                         )}
                                     </button>
-                                </div>
+                                </>
                             )}
                         </div>
 
                         <style>{`
-                        .animate-fade-in {
-                            animation: fadeIn 0.3s ease-out;
-                        }
-                        @keyframes fadeIn {
-                            from { opacity: 0; transform: translateY(-10px); }
-                            to { opacity: 1; transform: translateY(0); }
-                        }
-                    `}</style>
+                            .animate-fade-in {
+                                animation: fadeIn 0.3s ease-out;
+                            }
+                            @keyframes fadeIn {
+                                from { opacity: 0; transform: translateY(-10px); }
+                                to { opacity: 1; transform: translateY(0); }
+                            }
+                        `}</style>
                     </div>
                 </DashboardLayout>
-
 
                 {shareModalComponent}
                 {chatModalComponent}
                 {infoModalComponent}
+                {totalEvalModalComponent}
             </>
         );
     }
@@ -1480,6 +1777,7 @@ const EvaluatePage = () => {
                 }
             `}</style>
             {chatModalComponent}
+            {totalEvalModalComponent}
         </DashboardLayout>
     );
 };

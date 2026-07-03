@@ -130,6 +130,9 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
         answers.forEach((a, i) => {
             if (submission.answers[i]) {
                 submission.answers[i].marks = a.marks ?? submission.answers[i].marks;
+                if (a.feedback !== undefined) {
+                    submission.answers[i].feedback = a.feedback;
+                }
                 if (a.videoData !== undefined) {
                     submission.answers[i].videoData = a.videoData;
                 }

@@ -257,6 +257,79 @@ const getSubmissionFeedback = asyncHandler(async (req, res) => {
     res.json(submission.conversation || []);
 });
 
+// @desc    Toggle reaction (like/dislike) on entire submission
+// @route   PUT /api/submissions/:id/reaction
+// @access  Private
+const toggleSubmissionReaction = asyncHandler(async (req, res) => {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    const { reaction } = req.body; // 'like', 'dislike', or ''
+    const voterId = req.user ? String(req.user._id) : (req.body.guestId || req.ip || 'guest');
+
+    if (!submission.likes) submission.likes = [];
+    if (!submission.dislikes) submission.dislikes = [];
+
+    // Remove first
+    submission.likes = submission.likes.filter(id => id !== voterId);
+    submission.dislikes = submission.dislikes.filter(id => id !== voterId);
+
+    if (reaction === 'like') {
+        submission.likes.push(voterId);
+        submission.reaction = 'like';
+    } else if (reaction === 'dislike') {
+        submission.dislikes.push(voterId);
+        submission.reaction = 'dislike';
+    } else {
+        submission.reaction = '';
+    }
+
+    await submission.save();
+    res.json(submission);
+});
+
+// @desc    Get public discussion comments on a submission
+// @route   GET /api/submissions/:id/comments
+// @access  Private
+const getSubmissionComments = asyncHandler(async (req, res) => {
+    const submission = await Submission.findById(req.params.id).select('comments');
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+    res.json(submission.comments || []);
+});
+
+// @desc    Add a public discussion comment on a submission
+// @route   POST /api/submissions/:id/comments
+// @access  Private
+const addSubmissionComment = asyncHandler(async (req, res) => {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    const { message, author, role } = req.body;
+    if (!message || !message.trim()) {
+        return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const authorName = author || req.user?.name || req.user?.username || 'Anonymous';
+    const authorRole = role || req.user?.role || 'Student';
+
+    if (!submission.comments) submission.comments = [];
+    submission.comments.push({
+        author: authorName,
+        role: authorRole,
+        message: message.trim(),
+        timestamp: new Date()
+    });
+
+    await submission.save();
+    res.json(submission.comments);
+});
+
 module.exports = {
     submitTest,
     getSubmissions,
@@ -265,5 +338,8 @@ module.exports = {
     getSharedSubmissionById,
     updateSharedComment,
     addSubmissionFeedback,
-    getSubmissionFeedback
+    getSubmissionFeedback,
+    toggleSubmissionReaction,
+    getSubmissionComments,
+    addSubmissionComment
 };

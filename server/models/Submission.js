@@ -9,6 +9,7 @@ const answerSchema = new mongoose.Schema({
     audioData: { type: String, default: '' },  // base64 audio/webm
     videoData: { type: String, default: '' },  // base64 video/webm
     marks: { type: mongoose.Schema.Types.Mixed, default: '0' },       // filled by teacher
+    feedback: { type: String, default: '' },
     reaction: { type: String, default: '' },   // student feedback reaction (like/dislike)
     likes: { type: [String], default: [] },
     dislikes: { type: [String], default: [] },
@@ -29,8 +30,18 @@ const submissionSchema = new mongoose.Schema({
     returnNote: { type: String, default: '' }, // optional note from teacher
     totalMarks: { type: Number, default: 0 },  // sum after teacher evaluation
     submittedAt: { type: Date, default: Date.now },
+    likes: { type: [String], default: [] },
+    dislikes: { type: [String], default: [] },
+    reaction: { type: String, default: '' },
     conversation: [{
         role: { type: String, enum: ['Teacher', 'Student', 'Guest'] },
+        message: { type: String },
+        timestamp: { type: Date, default: Date.now }
+    }],
+    // Public YouTube-style discussion comments (separate from private feedback)
+    comments: [{
+        author: { type: String, default: 'Anonymous' },
+        role: { type: String, default: 'Student' },
         message: { type: String },
         timestamp: { type: Date, default: Date.now }
     }]

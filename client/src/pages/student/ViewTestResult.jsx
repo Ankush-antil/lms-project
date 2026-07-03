@@ -5,7 +5,7 @@ import axios from 'axios';
 import {
     Info, FileText, CheckCircle, Clock, ChevronLeft,
     Mic, Video, Star, MessageSquare, RefreshCw, User, Send, ChevronDown, ChevronUp, Volume2,
-    MoreVertical, ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, Calendar, Cpu
+    MoreVertical, ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, Calendar, Cpu, X
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import toast from 'react-hot-toast';
@@ -49,6 +49,17 @@ const ViewTestResult = ({ isSharedView = false }) => {
     const [chatInput, setChatInput] = useState('');
     const [loadingChat, setLoadingChat] = useState(false);
     const [sendingChat, setSendingChat] = useState(false);
+    const [selectedEvalQuestion, setSelectedEvalQuestion] = useState(null);
+    const [overallReaction, setOverallReaction] = useState('');
+    const [overallLikesCount, setOverallLikesCount] = useState(0);
+    const [overallDislikesCount, setOverallDislikesCount] = useState(0);
+    const [showOverallComments, setShowOverallComments] = useState(false);
+    const [totalEvalModalOpen, setTotalEvalModalOpen] = useState(false);
+    // Separate state for overall public discussion comments (YouTube-style)
+    const [overallComments, setOverallComments] = useState([]);
+    const [overallCommentInput, setOverallCommentInput] = useState('');
+    const [postingOverallComment, setPostingOverallComment] = useState(false);
+    const [loadingOverallComments, setLoadingOverallComments] = useState(false);
 
     // Share Modal States
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -86,6 +97,19 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 }
             });
             setReactions(initialReactions);
+
+            // Initialize overall reaction
+            let overallReact = '';
+            if (Array.isArray(submission.likes) && submission.likes.includes(voterId)) {
+                overallReact = 'like';
+            } else if (Array.isArray(submission.dislikes) && submission.dislikes.includes(voterId)) {
+                overallReact = 'dislike';
+            } else if (submission.reaction) {
+                overallReact = submission.reaction;
+            }
+            setOverallReaction(overallReact);
+            setOverallLikesCount(Array.isArray(submission.likes) ? submission.likes.length : 0);
+            setOverallDislikesCount(Array.isArray(submission.dislikes) ? submission.dislikes.length : 0);
         }
     }, [submission, userInfo]);
 
@@ -150,6 +174,46 @@ const ViewTestResult = ({ isSharedView = false }) => {
         }
     };
 
+    const handleToggleOverallReaction = async (type) => {
+        const voterId = userInfo ? String(userInfo._id) : (localStorage.getItem('lms_guest_id') || 'guest');
+        const currentReaction = overallReaction;
+        const newReaction = currentReaction === type ? '' : type;
+
+        // Update UI state optimistically
+        setOverallReaction(newReaction);
+        if (newReaction === 'like') {
+            setOverallLikesCount(prev => prev + 1);
+            if (currentReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+        } else if (newReaction === 'dislike') {
+            setOverallDislikesCount(prev => prev + 1);
+            if (currentReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+        } else {
+            if (currentReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+            if (currentReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+        }
+
+        try {
+            const endpoint = isSharedView
+                ? `/api/submissions/${id}/reaction` // For simplicity, overall reaction uses reaction endpoint
+                : `/api/submissions/${id}/reaction`;
+            await axios.put(endpoint, { reaction: newReaction, guestId: voterId });
+        } catch (error) {
+            console.error("Error toggling overall reaction:", error);
+            // Revert state back on error
+            setOverallReaction(currentReaction);
+            if (currentReaction === 'like') {
+                setOverallLikesCount(prev => prev + 1);
+                if (newReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+            } else if (currentReaction === 'dislike') {
+                setOverallDislikesCount(prev => prev + 1);
+                if (newReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+            } else {
+                if (newReaction === 'like') setOverallLikesCount(prev => Math.max(0, prev - 1));
+                if (newReaction === 'dislike') setOverallDislikesCount(prev => Math.max(0, prev - 1));
+            }
+        }
+    };
+
     const handleShare = (index) => {
         const url = `${window.location.origin}/shared/test-result/${id}?question=${index + 1}`;
         setShareUrl(url);
@@ -189,6 +253,51 @@ const ViewTestResult = ({ isSharedView = false }) => {
             toast.error("Failed to send message.");
         } finally {
             setSendingChat(false);
+        }
+    };
+
+    // Load overall public discussion comments (separate from private feedback)
+    const loadOverallComments = async (submissionId) => {
+        setLoadingOverallComments(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/comments`);
+            setOverallComments(res.data || []);
+        } catch (err) {
+            // If endpoint doesn't exist yet, use chatMessages as fallback
+            setOverallComments([]);
+        } finally {
+            setLoadingOverallComments(false);
+        }
+    };
+
+    // Post an overall public comment
+    const handlePostOverallComment = async () => {
+        if (!overallCommentInput.trim()) return;
+        setPostingOverallComment(true);
+        const authorName = userInfo?.name || userInfo?.username || 'Guest';
+        const authorRole = userInfo?.role || 'Guest';
+        const newComment = {
+            _id: Date.now().toString(),
+            message: overallCommentInput.trim(),
+            author: authorName,
+            role: authorRole,
+            timestamp: new Date().toISOString(),
+        };
+        // Optimistically add
+        setOverallComments(prev => [...prev, newComment]);
+        setOverallCommentInput('');
+        try {
+            const res = await axios.post(`/api/submissions/${id}/comments`, {
+                message: overallCommentInput.trim(),
+                author: authorName,
+                role: authorRole,
+            });
+            setOverallComments(res.data || []);
+        } catch (err) {
+            // On failure keep optimistic comment shown
+            console.error('Failed to post overall comment:', err);
+        } finally {
+            setPostingOverallComment(false);
         }
     };
 
@@ -298,7 +407,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
     const { dateStr: formattedDate, timeStr: formattedTime } = getFormattedDateTime();
 
     const pageContent = (
-        <div className="max-w-5xl mx-auto w-full bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             {/* Header */}
             <div className="bg-[#151719] px-4 md:px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-[#24282B]">
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -590,79 +699,135 @@ const ViewTestResult = ({ isSharedView = false }) => {
 
                                                         <div className="flex items-center gap-3">
                                                             {/* Badges */}
-                                                            <div className="flex items-center gap-1 px-2.5 py-1 bg-[#F8A5C2]/15 text-[#E84393] rounded-md text-[10px] font-bold border border-[#F8A5C2]/20">
-                                                                <Calendar size={11} />
-                                                                <span>Teacher Evaluation</span>
-                                                            </div>
+                                                            {isEvaluated && (
+                                                                <button
+                                                                    onClick={() => setSelectedEvalQuestion(idx)}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 bg-[#F8A5C2]/15 hover:bg-[#F8A5C2]/25 text-[#E84393] rounded-md text-[10px] font-bold border border-[#F8A5C2]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                                                >
+                                                                    <Calendar size={11} />
+                                                                    <span>Teacher Evaluation</span>
+                                                                </button>
+                                                            )}
                                                             <div className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold border border-blue-100">
                                                                 <Cpu size={11} />
                                                                 <span>AI Auto check</span>
                                                             </div>
-
-                                                            {/* Vertical Options Menu */}
-                                                            <button className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg">
-                                                                <MoreVertical size={14} />
-                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Conversation Thread */}
-                                                {isEvaluated && collapsedFeedback[idx] && (
-                                                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-4 animate-fade-in text-left">
-                                                        {/* Conversation History */}
-                                                        {(ans.conversation || []).map((msg, mi) => (
-                                                            <div
-                                                                key={mi}
-                                                                className={`flex items-start gap-3 max-w-[85%] ${msg.role === 'Student' ? 'flex-row-reverse ml-auto' : ''}`}
+                                                {/* Per-question YouTube-style Comment Thread */}
+                                                {collapsedFeedback[idx] && (
+                                                    <div className="border-t border-slate-100 bg-white animate-fade-in text-left">
+                                                        {/* Header */}
+                                                        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <MessageSquare size={14} className="text-indigo-500" />
+                                                                <span className="text-xs font-black text-slate-700">
+                                                                    {(ans.conversation || []).length} Comment{(ans.conversation || []).length !== 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setCollapsedFeedback(prev => ({ ...prev, [idx]: false }))}
+                                                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
                                                             >
-                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm ${msg.role === 'Teacher' ? 'bg-indigo-600' : msg.role === 'Guest' ? 'bg-slate-500' : 'bg-purple-600'}`}>
-                                                                    {msg.role === 'Teacher' ? 'T' : msg.role === 'Guest' ? 'G' : (submission.studentName?.[0]?.toUpperCase() || 'S')}
-                                                                </div>
-                                                                <div className={`rounded-2xl p-3 shadow-sm ${msg.role === 'Teacher'
-                                                                    ? 'bg-blue-50 border border-blue-100 rounded-tl-none'
-                                                                    : msg.role === 'Guest'
-                                                                        ? 'bg-slate-50 border border-slate-200 rounded-tr-none'
-                                                                        : 'bg-purple-50 border border-purple-100 rounded-tr-none'
-                                                                    }`}>
-                                                                    <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
-                                                                        <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : msg.role === 'Guest' ? 'text-slate-500' : 'text-emerald-600'}`}>
-                                                                            {msg.role === 'Teacher' ? 'Teacher' : msg.role === 'Guest' ? 'Guest' : (submission.studentName || 'Student')}
-                                                                        </p>
-                                                                        <span className="text-[8px] text-slate-400 font-bold italic">
-                                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                        </span>
-                                                                    </div>
-                                                                    <p className={`text-sm text-slate-700 leading-relaxed font-medium ${msg.role === 'Student' ? 'text-right' : ''}`}>
-                                                                        {msg.message}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                                <X size={12} />
+                                                            </button>
+                                                        </div>
 
-                                                        {/* Dynamic Chat Input Box */}
-                                                        <div className={`flex items-start gap-3 max-w-[85%] ${(!isTeacher && userInfo) ? 'flex-row-reverse ml-auto' : ''}`}>
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${isTeacher ? 'bg-indigo-600 text-white' : userInfo ? 'bg-purple-600 text-white' : 'bg-slate-500 text-white'}`}>
-                                                                {isTeacher ? 'T' : userInfo ? (submission.studentName?.[0]?.toUpperCase() || 'S') : 'G'}
+                                                        {/* Comment Input — YouTube style */}
+                                                        <div className="flex items-start gap-3 px-4 pb-3 border-b border-slate-100">
+                                                            <div
+                                                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm"
+                                                                style={{ background: isTeacher ? '#4f46e5' : '#a855f7' }}
+                                                            >
+                                                                {userInfo?.name?.[0]?.toUpperCase() || userInfo?.username?.[0]?.toUpperCase() || 'G'}
                                                             </div>
-                                                            <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm w-full relative">
-                                                                <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${isTeacher ? 'text-blue-500' : (userInfo ? 'text-slate-400 text-right' : 'text-slate-500')}`}>
-                                                                    {isTeacher ? 'Add further feedback' : 'Send response'}
-                                                                </p>
-                                                                <textarea
-                                                                    className={`w-full bg-slate-50 border border-slate-100 rounded-xl p-3 pr-12 text-xs focus:ring-2 transition-all outline-none resize-none min-h-[60px] ${isTeacher ? 'focus:ring-blue-400' : 'focus:ring-indigo-400'}`}
-                                                                    placeholder={isTeacher ? "Type further notes..." : "Type response here..."}
+                                                            <div className="flex-1">
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Add a comment..."
                                                                     value={studentComments[idx] || ''}
                                                                     onChange={(e) => setStudentComments(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' && studentComments[idx]?.trim()) {
+                                                                            saveStudentComments(idx);
+                                                                        }
+                                                                    }}
+                                                                    className="w-full bg-transparent border-0 border-b-2 border-slate-200 focus:border-indigo-400 px-0 py-1.5 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400"
                                                                 />
-                                                                <button
-                                                                    onClick={() => saveStudentComments(idx)}
-                                                                    disabled={savingComments || !studentComments[idx]?.trim()}
-                                                                    className={`absolute bottom-5 right-5 p-1.5 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${isTeacher ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                                                                >
-                                                                    {savingComments ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
-                                                                </button>
+                                                                {studentComments[idx]?.trim() && (
+                                                                    <div className="flex justify-end gap-2 mt-2">
+                                                                        <button
+                                                                            onClick={() => setStudentComments(prev => ({ ...prev, [idx]: '' }))}
+                                                                            className="px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => saveStudentComments(idx)}
+                                                                            disabled={savingComments}
+                                                                            className="px-4 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-full transition-all active:scale-95 disabled:opacity-50"
+                                                                        >
+                                                                            {savingComments ? 'Posting...' : 'Comment'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
+                                                        </div>
+
+                                                        {/* Comments List — YouTube style */}
+                                                        <div className="px-4 py-3 space-y-4 max-h-[280px] overflow-y-auto">
+                                                            {(ans.conversation || []).length === 0 ? (
+                                                                <div className="text-center py-4">
+                                                                    <MessageSquare size={22} className="text-slate-300 mx-auto mb-1.5" />
+                                                                    <p className="text-xs text-slate-400 font-semibold">No comments yet.</p>
+                                                                </div>
+                                                            ) : (
+                                                                (ans.conversation || []).map((msg, mi) => {
+                                                                    const isTeacherMsg = msg.role === 'Teacher';
+                                                                    const isStudentMsg = msg.role === 'Student';
+                                                                    const isSelf = userInfo && (
+                                                                        (isTeacherMsg && isTeacher) ||
+                                                                        (isStudentMsg && !isTeacher)
+                                                                    );
+                                                                    const avatarColor = isTeacherMsg ? '#4f46e5' : msg.role === 'Guest' ? '#64748b' : '#a855f7';
+                                                                    const displayName = isTeacherMsg ? 'Teacher' : msg.role === 'Guest' ? 'Guest' : (submission.studentName || 'Student');
+                                                                    const timeAgo = (() => {
+                                                                        const diff = Date.now() - new Date(msg.timestamp).getTime();
+                                                                        const mins = Math.floor(diff / 60000);
+                                                                        const hrs = Math.floor(mins / 60);
+                                                                        const days = Math.floor(hrs / 24);
+                                                                        if (days > 0) return `${days}d ago`;
+                                                                        if (hrs > 0) return `${hrs}h ago`;
+                                                                        if (mins > 0) return `${mins}m ago`;
+                                                                        return 'just now';
+                                                                    })();
+                                                                    return (
+                                                                        <div key={mi} className="flex items-start gap-3">
+                                                                            <div
+                                                                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm"
+                                                                                style={{ background: avatarColor }}
+                                                                            >
+                                                                                {displayName[0]?.toUpperCase() || 'G'}
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                                    <span className="text-xs font-black text-slate-800">{displayName}</span>
+                                                                                    {isTeacherMsg && (
+                                                                                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-full uppercase tracking-wide">Teacher</span>
+                                                                                    )}
+                                                                                    {isSelf && (
+                                                                                        <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-full uppercase tracking-wide">You</span>
+                                                                                    )}
+                                                                                    <span className="text-[10px] text-slate-400 font-medium">{timeAgo}</span>
+                                                                                </div>
+                                                                                <p className="text-sm text-slate-700 leading-relaxed break-words">{msg.message}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
@@ -676,44 +841,205 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 )}
             </div>
 
-            {/* Footer Bar */}
-            {isEvaluated && !isTeacher && sharedQuestionIndex === null && (
-                <div className="bg-[#111A24] border-t border-[#1C2836] py-4 flex items-center justify-center gap-8 text-white w-full">
+            {/* Overall Public Discussion (YouTube-style) — separate from private Feedback */}
+            {showOverallComments && (
+                <div className="border-t border-slate-100 bg-white text-left animate-fade-in shrink-0">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                        <div className="flex items-center gap-2">
+                            <MessageSquare size={16} className="text-[#E84393]" />
+                            <span className="text-sm font-black text-slate-800">
+                                {overallComments.length} Comment{overallComments.length !== 1 ? 's' : ''}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setShowOverallComments(false)}
+                            className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+
+                    {/* Comment Input (YouTube-style — own avatar left, input right) */}
+                    <div className="flex items-start gap-3 px-6 pb-4 border-b border-slate-100">
+                        {/* Current user avatar */}
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm"
+                            style={{ background: userInfo?.role === 'Teacher' ? '#4f46e5' : '#a855f7' }}>
+                            {userInfo?.name?.[0]?.toUpperCase() || userInfo?.username?.[0]?.toUpperCase() || 'G'}
+                        </div>
+                        <div className="flex-1">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Add a public comment..."
+                                    value={overallCommentInput}
+                                    onChange={(e) => setOverallCommentInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && overallCommentInput.trim()) handlePostOverallComment(); }}
+                                    className="w-full bg-slate-50 border-0 border-b-2 border-slate-200 focus:border-[#E84393] px-0 py-1.5 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 bg-transparent"
+                                />
+                            </div>
+                            {overallCommentInput.trim() && (
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <button
+                                        onClick={() => setOverallCommentInput('')}
+                                        className="px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handlePostOverallComment}
+                                        disabled={postingOverallComment || !overallCommentInput.trim()}
+                                        className="px-4 py-1 bg-[#E84393] hover:bg-[#d4357e] text-white text-xs font-bold rounded-full transition-all active:scale-95 disabled:opacity-50"
+                                    >
+                                        {postingOverallComment ? 'Posting...' : 'Comment'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Comments List — YouTube style */}
+                    <div className="max-h-[360px] overflow-y-auto px-6 py-4 space-y-5">
+                        {loadingOverallComments ? (
+                            <p className="text-xs text-slate-400 font-semibold animate-pulse">Loading comments...</p>
+                        ) : overallComments.length === 0 ? (
+                            <div className="text-center py-6">
+                                <MessageSquare size={28} className="text-slate-300 mx-auto mb-2" />
+                                <p className="text-xs text-slate-400 font-semibold">No comments yet.</p>
+                                <p className="text-[10px] text-slate-350">Be the first to share your thoughts!</p>
+                            </div>
+                        ) : (
+                            overallComments.map((comment, ci) => {
+                                const isSelf = userInfo && (comment.author === userInfo.name || comment.author === userInfo.username);
+                                const isTeacherComment = comment.role === 'Teacher' || comment.role === 'Admin';
+                                const avatarColor = isTeacherComment ? '#4f46e5' : '#a855f7';
+                                const avatarLetter = comment.author?.[0]?.toUpperCase() || 'G';
+                                const timeAgo = (() => {
+                                    const diff = Date.now() - new Date(comment.timestamp).getTime();
+                                    const mins = Math.floor(diff / 60000);
+                                    const hrs = Math.floor(mins / 60);
+                                    const days = Math.floor(hrs / 24);
+                                    if (days > 0) return `${days}d ago`;
+                                    if (hrs > 0) return `${hrs}h ago`;
+                                    if (mins > 0) return `${mins}m ago`;
+                                    return 'just now';
+                                })();
+                                return (
+                                    <div key={comment._id || ci} className="flex items-start gap-3">
+                                        {/* Avatar */}
+                                        <div
+                                            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm"
+                                            style={{ background: avatarColor }}
+                                        >
+                                            {avatarLetter}
+                                        </div>
+                                        {/* Comment body */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-xs font-black text-slate-800">
+                                                    {comment.author || 'Anonymous'}
+                                                </span>
+                                                {isTeacherComment && (
+                                                    <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-full uppercase tracking-wide">Teacher</span>
+                                                )}
+                                                {isSelf && (
+                                                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-full uppercase tracking-wide">You</span>
+                                                )}
+                                                <span className="text-[10px] text-slate-400 font-medium">{timeAgo}</span>
+                                            </div>
+                                            <p className="text-sm text-slate-700 leading-relaxed break-words">{comment.message}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+
+        {/* Footer Bar */}
+        {!isTeacher && sharedQuestionIndex === null && (
+            <div className="bg-[#111A24] border-t border-[#1C2836] py-3.5 px-4 flex items-center justify-between flex-wrap gap-4 text-white w-full shrink-0">
+                {/* Left: Overall Likes & Dislikes */}
+                <div className="flex items-center gap-3">
+                    {/* Overall Thumbs Up (Like) */}
+                    <button
+                        onClick={() => handleToggleOverallReaction('like')}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'like' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
+                        title="Like Test"
+                    >
+                        <ThumbsUp size={15} fill={overallReaction === 'like' ? 'currentColor' : 'none'} />
+                        <span className="text-xs font-semibold">{overallLikesCount}</span>
+                    </button>
+
+                    {/* Overall Thumbs Down (Dislike) */}
+                    <button
+                        onClick={() => handleToggleOverallReaction('dislike')}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'dislike' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
+                        title="Dislike Test"
+                    >
+                        <ThumbsDown size={15} fill={overallReaction === 'dislike' ? 'currentColor' : 'none'} />
+                        <span className="text-xs font-semibold">{overallDislikesCount}</span>
+                    </button>
+                </div>
+
+                {/* Right: Actions — sequence: Comment | Share | Feedback | Total Evaluation */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Comment */}
                     <button
                         onClick={() => {
-                            const anyOpen = (answers || []).some((_, i) => collapsedFeedback[i]);
-                            const newState = {};
-                            (answers || []).forEach((_, i) => {
-                                newState[i] = !anyOpen;
-                            });
-                            setCollapsedFeedback(newState);
+                            if (!showOverallComments) {
+                                loadOverallComments(id);
+                            }
+                            setShowOverallComments(!showOverallComments);
                         }}
-                        className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 cursor-pointer ${showOverallComments ? 'text-[#E84393] bg-[#E84393]/10 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
                     >
-                        <Calendar size={16} />
-                        <span>Teacher Evaluation</span>
+                        <MessageSquare size={14} />
+                        <span>Comment ({overallComments.length > 0 ? overallComments.length : ''})</span>
                     </button>
+
                     <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                    {/* Share */}
+                    <button
+                        onClick={handleShareOverall}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
+                    >
+                        <Share2 size={14} />
+                        <span>Share</span>
+                    </button>
+
+                    <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                    {/* Feedback Chat */}
                     <button
                         onClick={() => {
                             loadChatHistory(id);
                             setChatModalOpen(true);
                         }}
-                        className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
                     >
-                        <MessageSquare size={16} />
-                        <span>Comment / Feedback</span>
+                        <MessageSquare size={14} />
+                        <span>Feedback</span>
                     </button>
-                    <div className="w-[1px] h-4 bg-slate-700"></div>
-                    <button
-                        onClick={handleShareOverall}
-                        className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
-                    >
-                        <Share2 size={16} />
-                        <span>Share</span>
-                    </button>
+
+                    {isEvaluated && (
+                        <>
+                            <div className="w-[1px] h-4 bg-slate-700"></div>
+                            {/* Total Evaluation */}
+                            <button
+                                onClick={() => setTotalEvalModalOpen(true)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F8A5C2]/15 hover:bg-[#F8A5C2]/25 text-[#E84393] rounded-lg text-xs font-bold border border-[#F8A5C2]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                            >
+                                <Star size={12} fill="currentColor" />
+                                <span>Total Evaluation</span>
+                            </button>
+                        </>
+                    )}
                 </div>
-            )}
+            </div>
+        )}
         </div>
     );
 
@@ -792,6 +1118,155 @@ const ViewTestResult = ({ isSharedView = false }) => {
             </div>
         </div>
     );
+
+    const totalEvalModalComponent = totalEvalModalOpen && (() => {
+        if (!submission) return null;
+
+        // Sum total max marks of the test
+        const maxMarks = test?.questions?.reduce((sum, q) => sum + (parseFloat(q.marks) || 0), 0) || 0;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-white w-full max-w-xl rounded-[32px] border border-slate-100/80 shadow-2xl p-8 relative overflow-hidden transform scale-100 transition-all text-left flex flex-col gap-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+                                <Star size={20} fill="currentColor" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-[#0B1520] tracking-tight">Total Assessment Report</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{test?.title || 'Test Summary'}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setTotalEvalModalOpen(false)}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-650 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                        {/* Overall Results */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/50">
+                                <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest block mb-1">Final Score</span>
+                                <span className="text-lg font-black text-emerald-800">{submission.totalMarks ?? 0} / {maxMarks} Marks</span>
+                            </div>
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest block mb-1">Status</span>
+                                <span className="text-lg font-black text-blue-800 uppercase text-xs tracking-wide">{submission.status}</span>
+                            </div>
+                        </div>
+
+                        {/* Overall Return Note */}
+                        {submission.returnNote && (
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Teacher General Remarks</span>
+                                <p className="text-xs font-semibold text-slate-700 leading-relaxed">{submission.returnNote}</p>
+                            </div>
+                        )}
+
+                        {/* Question-wise Summary */}
+                        <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Question Summary</span>
+                            <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                                {submission.answers.map((ans, index) => (
+                                    <div key={index} className="p-3 bg-white hover:bg-slate-50/50 transition-colors flex items-center justify-between gap-4 text-xs font-semibold">
+                                        <div className="min-w-0">
+                                            <p className="text-slate-800 font-bold truncate">Q{index + 1}: {ans.questionText || 'Question'}</p>
+                                            {ans.feedback && <p className="text-[10px] text-slate-450 italic mt-0.5 truncate">{ans.feedback}</p>}
+                                        </div>
+                                        <span className="shrink-0 bg-slate-105 text-slate-700 px-2.5 py-1 rounded-md text-[10px] font-black">{ans.marks ?? 0} Marks</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Close button */}
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <button
+                            onClick={() => setTotalEvalModalOpen(false)}
+                            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-black transition-all active:scale-95 shadow-sm shadow-emerald-600/10"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    })();
+
+    const evalModalComponent = selectedEvalQuestion !== null && (() => {
+        const qIdx = selectedEvalQuestion;
+        const ans = submission?.answers?.[qIdx];
+        if (!ans) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-white w-full max-w-lg rounded-[32px] border border-slate-100/80 shadow-2xl p-8 relative overflow-hidden transform scale-100 transition-all text-left flex flex-col gap-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl bg-[#F8A5C2]/10 flex items-center justify-center text-[#E84393]">
+                                <Calendar size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-[#0B1520] tracking-tight">Teacher Evaluation</h3>
+                                <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Question {qIdx + 1}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedEvalQuestion(null)}
+                            className="p-1.5 hover:bg-slate-150 rounded-lg text-slate-400 hover:text-slate-650 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                        {/* Question Text */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Question Text</span>
+                            <p className="text-xs font-bold text-slate-800 leading-relaxed">{ans.questionText || "Question Details"}</p>
+                        </div>
+
+                        {/* Marks */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Scored Marks</span>
+                            <span className="text-xs font-black text-indigo-700">{ans.marks ?? 0} Marks</span>
+                        </div>
+
+                        {/* Notes */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Teacher Notes / Remarks</span>
+                            <p className="text-xs font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                {ans.feedback || ans.conversation?.find(c => c.role === 'Teacher')?.message || 'No notes provided'}
+                            </p>
+                        </div>
+
+                        {/* Video feedback if any */}
+                        {ans.videoData && (
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Teacher Video Feedback</span>
+                                <video controls src={ans.videoData} className="w-full rounded-xl max-h-48 bg-black shadow-sm" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer Close button */}
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <button
+                            onClick={() => setSelectedEvalQuestion(null)}
+                            className="px-6 py-2.5 bg-[#E84393] hover:bg-[#D63031] text-white rounded-full text-xs font-black transition-all active:scale-95 shadow-sm shadow-[#E84393]/20"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    })();
 
 
     const chatModalComponent = chatModalOpen && (
@@ -969,6 +1444,8 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 {shareModalComponent}
                 {infoModalComponent}
                 {chatModalComponent}
+                {evalModalComponent}
+                {totalEvalModalComponent}
             </>
         );
     }
@@ -990,6 +1467,8 @@ const ViewTestResult = ({ isSharedView = false }) => {
             {shareModalComponent}
             {infoModalComponent}
             {chatModalComponent}
+            {evalModalComponent}
+            {totalEvalModalComponent}
         </>
     );
 };

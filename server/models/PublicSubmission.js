@@ -7,7 +7,8 @@ const publicAnswerSchema = new mongoose.Schema({
     textAnswer: { type: String, default: '' },
     audioData: { type: String, default: '' },
     videoData: { type: String, default: '' },
-    marks: { type: mongoose.Schema.Types.Mixed, default: '0' }
+    marks: { type: mongoose.Schema.Types.Mixed, default: '0' },
+    feedback: { type: String, default: '' }
 });
 
 const publicSubmissionSchema = new mongoose.Schema({
@@ -49,7 +50,10 @@ const publicSubmissionSchema = new mongoose.Schema({
     submittedAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    likes: { type: [String], default: [] },
+    dislikes: { type: [String], default: [] },
+    reaction: { type: String, default: '' }
 }, {
     timestamps: true
 });

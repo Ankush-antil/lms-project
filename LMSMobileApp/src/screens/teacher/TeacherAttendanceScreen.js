@@ -4,6 +4,7 @@ import {
     FlatList, ActivityIndicator, Image, TextInput, Alert, ScrollView, Platform, StatusBar, Linking, Modal
 } from 'react-native';
 import axios from 'axios';
+import { BASE_URL } from '../../config/api';
 import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';

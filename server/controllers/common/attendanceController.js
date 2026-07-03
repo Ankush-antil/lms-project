@@ -433,3 +433,21 @@ exports.getSessionRecords = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch session records" });
     }
 };
+
+// 8. Get student's own attendance records
+exports.getMyAttendanceRecords = async (req, res) => {
+    try {
+        const studentId = req.user._id;
+        const records = await Attendance.find({ student: studentId })
+            .populate({
+                path: 'session',
+                populate: { path: 'teacher', select: 'name' }
+            })
+            .sort({ createdAt: -1 });
+        
+        res.json(records);
+    } catch (error) {
+        console.error("Error fetching student attendance:", error);
+        res.status(500).json({ message: "Failed to fetch attendance history" });
+    }
+};

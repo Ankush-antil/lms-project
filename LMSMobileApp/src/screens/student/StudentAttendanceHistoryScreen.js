@@ -1,0 +1,403 @@
+import React, { useState, useEffect } from 'react';
+import {
+    View, Text, StyleSheet, FlatList, TouchableOpacity,
+    ActivityIndicator, Image, Modal, ScrollView, Platform, StatusBar
+} from 'react-native';
+import axios from 'axios';
+import { BASE_URL } from '../../config/api';
+import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+
+const StudentAttendanceHistoryScreen = ({ navigation }) => {
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+    const fetchAttendanceHistory = async () => {
+        try {
+            const { data } = await axios.get('/attendance/my-records');
+            setRecords(data || []);
+        } catch (error) {
+            console.error("Error fetching student attendance history:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAttendanceHistory();
+    }, []);
+
+    const handleRefresh = () => {
+        setRefreshing(true);
+        fetchAttendanceHistory();
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    const formatTime = (timeStr) => {
+        if (!timeStr) return '--:--';
+        const date = new Date(timeStr);
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color={colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>My Attendance History</Text>
+                <View style={{ width: 40 }} />
+            </View>
+
+            <FlatList
+                data={records}
+                keyExtractor={item => item._id}
+                onRefresh={handleRefresh}
+                refreshing={refreshing}
+                contentContainerStyle={styles.list}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="calendar-outline" size={64} color={colors.textMuted} />
+                        <Text style={styles.emptyText}>No attendance records found.</Text>
+                        <Text style={styles.emptySubtext}>Your check-in and check-out logs will appear here once you mark attendance.</Text>
+                    </View>
+                }
+                renderItem={({ item }) => {
+                    const status = item.status || 'Absent';
+                    let badgeStyle = styles.badgeAbsent;
+                    let badgeText = 'Absent';
+                    if (status === 'Present') { badgeStyle = styles.badgePresent; badgeText = 'Present'; }
+                    else if (status === 'In') { badgeStyle = styles.badgeIn; badgeText = 'Checked-In'; }
+
+                    const subjectName = item.session?.subject || 'Class';
+                    const teacherName = item.session?.teacher?.name || 'Instructor';
+
+                    return (
+                        <View style={styles.card}>
+                            <View style={styles.cardHeader}>
+                                <View>
+                                    <Text style={styles.subjectText}>{subjectName}</Text>
+                                    <Text style={styles.teacherText}>Taught by {teacherName}</Text>
+                                </View>
+                                <View style={[styles.statusBadge, badgeStyle]}>
+                                    <Text style={styles.badgeLabel}>{badgeText}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.divider} />
+
+                            <View style={styles.detailsRow}>
+                                <View style={styles.detailItem}>
+                                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                                    <Text style={styles.detailText}>{formatDate(item.date)}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.timeRow}>
+                                <View style={styles.timeItem}>
+                                    <Text style={styles.timeLabel}>In Time</Text>
+                                    <Text style={styles.timeVal}>{formatTime(item.checkInTime)}</Text>
+                                </View>
+                                <View style={styles.timeItem}>
+                                    <Text style={styles.timeLabel}>Out Time</Text>
+                                    <Text style={styles.timeVal}>{formatTime(item.checkOutTime)}</Text>
+                                </View>
+                            </View>
+
+                            {/* Selfies Previews if present */}
+                            {(item.checkInPhoto || item.checkOutPhoto) && (
+                                <View style={styles.photoPrevsRow}>
+                                    <Text style={styles.photosLabel}>Selfies:</Text>
+                                    <View style={styles.photosList}>
+                                        {item.checkInPhoto && (
+                                            <TouchableOpacity 
+                                                style={styles.photoPill}
+                                                onPress={() => setSelectedPhoto({
+                                                    title: 'Check-In Selfie',
+                                                    uri: `${BASE_URL}${item.checkInPhoto}`
+                                                })}
+                                            >
+                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
+                                                <Text style={styles.photoPillText}>Check-In</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {item.checkOutPhoto && (
+                                            <TouchableOpacity 
+                                                style={styles.photoPill}
+                                                onPress={() => setSelectedPhoto({
+                                                    title: 'Check-Out Selfie',
+                                                    uri: `${BASE_URL}${item.checkOutPhoto}`
+                                                })}
+                                            >
+                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
+                                                <Text style={styles.photoPillText}>Check-Out</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    );
+                }}
+            />
+
+            {/* Selfie Preview Modal */}
+            <Modal
+                visible={!!selectedPhoto}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedPhoto(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.photoModalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{selectedPhoto?.title}</Text>
+                            <TouchableOpacity onPress={() => setSelectedPhoto(null)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close-circle" size={28} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalBody}>
+                            {selectedPhoto?.uri && (
+                                <Image
+                                    source={{ uri: selectedPhoto.uri }}
+                                    style={styles.selfiePreviewImage}
+                                    resizeMode="cover"
+                                />
+                            )}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    header: {
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
+        height: Platform.OS === 'android' ? 60 + StatusBar.currentHeight : 88,
+        backgroundColor: colors.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.md,
+    },
+    backButton: { padding: 4 },
+    headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.white },
+    
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+    
+    list: { padding: spacing.md, paddingBottom: 40 },
+    
+    card: {
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    subjectText: {
+        fontSize: fontSizes.md,
+        fontWeight: '800',
+        color: colors.text,
+    },
+    teacherText: {
+        fontSize: fontSizes.xs,
+        color: colors.textMuted,
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
+    },
+    badgePresent: { backgroundColor: '#d1fae5' },
+    badgeIn: { backgroundColor: '#fef3c7' },
+    badgeAbsent: { backgroundColor: '#fee2e2' },
+    badgeLabel: { fontSize: 10, fontWeight: '750', textTransform: 'uppercase', color: colors.textSecondary },
+    
+    divider: {
+        height: 1,
+        backgroundColor: colors.borderLight,
+        marginVertical: spacing.sm,
+    },
+    
+    detailsRow: {
+        flexDirection: 'row',
+        marginBottom: spacing.sm,
+    },
+    detailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    detailText: {
+        fontSize: fontSizes.xs,
+        color: colors.textSecondary,
+        fontWeight: '600',
+    },
+    
+    timeRow: {
+        flexDirection: 'row',
+        backgroundColor: colors.bg,
+        borderRadius: borderRadius.sm,
+        padding: spacing.sm,
+        justifyContent: 'space-around',
+        marginBottom: spacing.sm,
+    },
+    timeItem: {
+        alignItems: 'center',
+    },
+    timeLabel: {
+        fontSize: 10,
+        color: colors.textMuted,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    timeVal: {
+        fontSize: fontSizes.sm,
+        fontWeight: '750',
+        color: colors.text,
+    },
+    
+    photoPrevsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: spacing.xs,
+    },
+    photosLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+    },
+    photosList: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    photoPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#eef2ff',
+        borderWidth: 1,
+        borderColor: '#c7d2fe',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: borderRadius.full,
+    },
+    photoPillText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.primary,
+    },
+    
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+        paddingHorizontal: spacing.xl,
+    },
+    emptyText: {
+        fontSize: fontSizes.md,
+        fontWeight: '750',
+        color: colors.textSecondary,
+        marginTop: spacing.md,
+        marginBottom: spacing.xs,
+    },
+    emptySubtext: {
+        fontSize: fontSizes.xs,
+        color: colors.textMuted,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    photoModalContent: {
+        width: '85%',
+        backgroundColor: colors.white,
+        borderRadius: borderRadius.md,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 8,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    modalTitle: {
+        fontSize: fontSizes.sm,
+        fontWeight: '800',
+        color: colors.text,
+    },
+    modalCloseBtn: { padding: 4 },
+    modalBody: {
+        padding: spacing.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    selfiePreviewImage: {
+        width: 240,
+        height: 240,
+        borderRadius: borderRadius.md,
+        backgroundColor: '#e2e8f0',
+    },
+});
+
+export default StudentAttendanceHistoryScreen;

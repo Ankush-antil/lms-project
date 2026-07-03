@@ -21,6 +21,7 @@ import StudentTests from '../screens/student/StudentTests';
 import TakeTestScreen from '../screens/student/TakeTestScreen';
 import ViewTestResult from '../screens/student/ViewTestResult';
 import ContactTeacher from '../screens/student/ContactTeacher';
+import StudentAttendanceHistoryScreen from '../screens/student/StudentAttendanceHistoryScreen';
 import StudentPracticeTools from '../screens/student/StudentPracticeTools';
 import VoiceRecorderPage from '../screens/student/tools/VoiceRecorderPage';
 import VideoRecorderPage from '../screens/student/tools/VideoRecorderPage';
@@ -68,6 +69,7 @@ const StudentStack = () => (
         <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="ScanAttendance" component={ScanAttendanceScreen} />
+        <Stack.Screen name="StudentAttendanceHistory" component={StudentAttendanceHistoryScreen} />
     </Stack.Navigator>
 );
 

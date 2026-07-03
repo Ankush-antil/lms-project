@@ -9,7 +9,8 @@ const {
     getSessionByToken,
     markAttendance,
     manualMark,
-    getSessionRecords
+    getSessionRecords,
+    getMyAttendanceRecords
 } = require('../../controllers/common/attendanceController');
 
 // Teacher routes
@@ -21,6 +22,7 @@ router.get('/session/:sessionId/records', protect, getSessionRecords);
 router.post('/session/:sessionId/manual', protect, manualMark);
 
 // Student routes
+router.get('/my-records', protect, getMyAttendanceRecords);
 router.get('/session/qr/:qrToken', protect, getSessionByToken);
 router.post('/mark', protect, markAttendance);
 

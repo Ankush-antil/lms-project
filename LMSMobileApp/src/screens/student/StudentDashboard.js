@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     FlatList,
     RefreshControl,
+    Alert,
 } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -157,7 +158,26 @@ const StudentDashboard = ({ navigation }) => {
                 {/* Attendance Quick Banner */}
                 <TouchableOpacity
                     style={[styles.chatBanner, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}
-                    onPress={() => navigation.navigate('ScanAttendance')}
+                    onPress={() => {
+                        Alert.alert(
+                            "Attendance Options",
+                            "Please choose an action:",
+                            [
+                                { 
+                                    text: "View My Attendance", 
+                                    onPress: () => navigation.navigate('StudentAttendanceHistory') 
+                                },
+                                { 
+                                    text: "Scan & Mark Attendance", 
+                                    onPress: () => navigation.navigate('ScanAttendance') 
+                                },
+                                { 
+                                    text: "Cancel", 
+                                    style: "cancel" 
+                                }
+                            ]
+                        );
+                    }}
                     activeOpacity={0.85}
                 >
                     <View style={styles.chatBannerLeft}>
@@ -166,7 +186,7 @@ const StudentDashboard = ({ navigation }) => {
                         </View>
                         <View>
                             <Text style={styles.chatBannerTitle}>Mark Attendance</Text>
-                            <Text style={styles.chatBannerSub}>Scan QR code and take selfie to verify</Text>
+                            <Text style={styles.chatBannerSub}>Scan QR code, check history and logs</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#ef4444" />

@@ -843,22 +843,9 @@ const EvaluatePage = () => {
                                                                 {/* Actions Toolbar at bottom */}
                                                                 <div className="flex items-center justify-between bg-white px-4 py-2.5 border-t border-slate-100 flex-wrap gap-4">
                                                                     <div className="flex items-center gap-4 flex-1">
-                                                                        {/* Comment Toggle */}
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setActiveChatSub(submission);
-                                                                                loadChatHistory(submission._id);
-                                                                                setChatModalOpen(true);
-                                                                            }}
-                                                                            className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold shrink-0"
-                                                                        >
-                                                                            <MessageSquare size={16} />
-                                                                            <span>Student Feedback</span>
-                                                                        </button>
-
                                                                         {/* Score & Improvement Feedback on the same line! */}
-                                                                        {!(submission.status === 'evaluated' || ans.reaction || marks[submission._id]?.[idx] || feedback[submission._id]?.[idx] || (ans.conversation && ans.conversation.length > 0)) && !isFeedbackMode && (
-                                                                            <div className="flex items-center gap-3 flex-1 justify-end">
+                                                                        {submission.status !== 'evaluated' && !isFeedbackMode && (
+                                                                            <div className="flex items-center gap-3 flex-1 justify-start">
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Score:</span>
                                                                                     <input
@@ -870,7 +857,7 @@ const EvaluatePage = () => {
                                                                                         placeholder="0.0"
                                                                                     />
                                                                                 </div>
-                                                                                <div className="flex items-center gap-1.5 flex-1 max-w-xs">
+                                                                                <div className="flex items-center gap-1.5 flex-1 max-w-md">
                                                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Feedback:</span>
                                                                                     <input
                                                                                         type="text"
@@ -1036,21 +1023,18 @@ const EvaluatePage = () => {
 
                         {/* Footer Bar */}
                         <div className="bg-[#111A24] border-t border-[#1C2836] py-4 flex items-center justify-center gap-8 text-white w-full">
+
+                            <div className="w-[1px] h-4 bg-slate-700"></div>
                             <button
                                 onClick={() => {
-                                    setCollapsedFeedback(prev => {
-                                        const anyOpen = answers.some((_, i) => prev[`${submission._id}-${i}`]);
-                                        const newState = {};
-                                        answers.forEach((_, i) => {
-                                            newState[`${submission._id}-${i}`] = !anyOpen;
-                                        });
-                                        return newState;
-                                    });
+                                    setActiveChatSub(submission);
+                                    loadChatHistory(submission._id);
+                                    setChatModalOpen(true);
                                 }}
                                 className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
                             >
                                 <MessageSquare size={16} />
-                                <span>Checking</span>
+                                <span>Student Feedback</span>
                             </button>
                             <div className="w-[1px] h-4 bg-slate-700"></div>
                             <button

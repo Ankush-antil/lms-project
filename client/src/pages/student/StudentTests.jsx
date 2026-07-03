@@ -93,12 +93,11 @@ const ActivityTimer = ({ endTime }) => {
     const isCritical = totalSecs < 600;
 
     return (
-        <span 
-            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${
-                isCritical 
-                    ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse' 
-                    : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
-            }`}
+        <span
+            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 border shrink-0 transition-all duration-300 ${isCritical
+                ? 'bg-red-50 border-red-200 text-red-600 font-extrabold animate-pulse'
+                : 'bg-indigo-50 border-indigo-100 text-[#3E3ADD]'
+                }`}
         >
             <Clock size={9} className={isCritical ? 'text-red-500' : 'text-[#3E3ADD]'} />
             {displayStr}
@@ -480,7 +479,7 @@ const StudentTests = () => {
 
             const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
             const isVisible = config ? config.visible : true;
-            
+
             const match = keyName.match(/\d+/);
             const idxNum = match ? parseInt(match[0], 10) : 1;
             const week = Math.ceil(idxNum / 7);
@@ -489,7 +488,7 @@ const StudentTests = () => {
             const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
 
             const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
-            
+
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
             return {
@@ -525,7 +524,10 @@ const StudentTests = () => {
 
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => t.isAssigned !== false && !isTestExpired(t) && !submissionMap.get(t._id)).length;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && !isTestExpired(t) && (!sub || sub.status === 'reported');
+        }).length;
     }, [selectedGroup, submissionMap]);
 
     const submittedCount = useMemo(() => {
@@ -556,7 +558,7 @@ const StudentTests = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            const isUnfinished = !sub || sub.status === 'returned';
+            const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
             return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
         }).length;
     }, [selectedGroup, submissionMap]);
@@ -570,7 +572,7 @@ const StudentTests = () => {
             if (test.isAssigned === false) return false;
 
             if (viewMode === 'pending') {
-                return !sub && !isTestExpired(test);
+                return (!sub || sub.status === 'reported') && !isTestExpired(test);
             } else if (viewMode === 'submitted') {
                 return sub && sub.status === 'submitted';
             } else if (viewMode === 'returned') {
@@ -578,7 +580,7 @@ const StudentTests = () => {
             } else if (viewMode === 'evaluated') {
                 return sub && sub.status === 'evaluated';
             } else if (viewMode === 'expired') {
-                const isUnfinished = !sub || sub.status === 'returned';
+                const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
                 return isTestExpired(test) && isUnfinished;
             }
             return false;
@@ -784,31 +786,28 @@ const StudentTests = () => {
                                                 setViewMode('pending');
                                             }
                                         }}
-                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                                            isActive
-                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                : isDisabled
-                                                    ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
-                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                        }`}
+                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                            : isDisabled
+                                                ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                            }`}
                                     >
                                         <div className="flex items-center space-x-2.5 min-w-0">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                                                isActive 
-                                                    ? 'bg-[#3E3ADD] text-white shadow-sm' 
-                                                    : isDisabled 
-                                                        ? 'bg-slate-200 text-slate-400' 
-                                                        : 'bg-slate-100 text-slate-500'
-                                            }`}>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive
+                                                ? 'bg-[#3E3ADD] text-white shadow-sm'
+                                                : isDisabled
+                                                    ? 'bg-slate-200 text-slate-400'
+                                                    : 'bg-slate-100 text-slate-500'
+                                                }`}>
                                                 {isDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
                                             </div>
-                                            <h3 className={`font-bold text-xs truncate flex items-center ${
-                                                isActive 
-                                                    ? 'text-indigo-900' 
-                                                    : isDisabled 
-                                                        ? 'text-slate-400' 
-                                                        : 'text-slate-700'
-                                            }`}>
+                                            <h3 className={`font-bold text-xs truncate flex items-center ${isActive
+                                                ? 'text-indigo-900'
+                                                : isDisabled
+                                                    ? 'text-slate-400'
+                                                    : 'text-slate-700'
+                                                }`}>
                                                 {getDisplayTitle(item.title)}
                                                 {isDisabled && (
                                                     <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
@@ -1230,15 +1229,14 @@ const StudentTests = () => {
                                                             navigate(`/student/test-result/${sub._id}`);
                                                         }
                                                     }}
-                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${
-                                                        isBtnDisabled
-                                                            ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
-                                                            : isReturned
-                                                                ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
-                                                                : isReported
-                                                                    ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-100 cursor-pointer'
-                                                                    : 'hover:border-[#3E3ADD] cursor-pointer'
-                                                    }`}
+                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${isBtnDisabled
+                                                        ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
+                                                        : isReturned
+                                                            ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
+                                                            : isReported
+                                                                ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-100 cursor-pointer'
+                                                                : 'hover:border-[#3E3ADD] cursor-pointer'
+                                                        }`}
                                                 >
                                                     {/* Returned warning banner */}
                                                     {isReturned && !isExpired && (
@@ -1266,28 +1264,26 @@ const StudentTests = () => {
                                                     )}
                                                     <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isReported || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
                                                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                                isBtnDisabled 
-                                                                    ? 'bg-slate-400' 
-                                                                    : !sub 
-                                                                        ? 'bg-orange-500' 
-                                                                        : isEvaluated 
-                                                                            ? 'bg-emerald-500' 
-                                                                            : isReturned 
-                                                                                ? 'bg-orange-500 animate-pulse' 
-                                                                                : isReported
-                                                                                    ? 'bg-amber-500 animate-pulse'
-                                                                                    : 'bg-blue-500'
-                                                            }`} />
-                                                            <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
-                                                                isBtnDisabled
-                                                                    ? 'text-slate-400'
-                                                                    : isReturned 
-                                                                        ? 'group-hover:text-orange-500' 
-                                                                        : isReported
-                                                                            ? 'group-hover:text-amber-500'
-                                                                            : 'group-hover:text-[#3E3ADD]'
-                                                            }`}>
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBtnDisabled
+                                                                ? 'bg-slate-400'
+                                                                : !sub
+                                                                    ? 'bg-orange-500'
+                                                                    : isEvaluated
+                                                                        ? 'bg-emerald-500'
+                                                                        : isReturned
+                                                                            ? 'bg-orange-500 animate-pulse'
+                                                                            : isReported
+                                                                                ? 'bg-amber-500 animate-pulse'
+                                                                                : 'bg-blue-500'
+                                                                }`} />
+                                                            <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${isBtnDisabled
+                                                                ? 'text-slate-400'
+                                                                : isReturned
+                                                                    ? 'group-hover:text-orange-500'
+                                                                    : isReported
+                                                                        ? 'group-hover:text-amber-500'
+                                                                        : 'group-hover:text-[#3E3ADD]'
+                                                                }`}>
                                                                 {test.title}
                                                             </h3>
                                                         </div>
@@ -1336,7 +1332,7 @@ const StudentTests = () => {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                    <div className="flex flex-row items-center justify-between gap-3 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                         <div className="flex items-center gap-1.5">
                                                             <ActivityTimer endTime={test.settings?.endTime} />
                                                         </div>
@@ -1358,21 +1354,20 @@ const StudentTests = () => {
                                                                 }
                                                             }}
                                                             disabled={isBtnDisabled}
-                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${
-                                                                isBtnDisabled
-                                                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                                                                    : isReturned
-                                                                        ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
-                                                                        : !sub
-                                                                            ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                            : isReported
-                                                                                ? 'bg-amber-500 text-white hover:bg-amber-600 border-transparent'
-                                                                                : isEvaluated
-                                                                                    ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                                    : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
-                                                            }`}
+                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isBtnDisabled
+                                                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                : isReturned
+                                                                    ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
+                                                                    : !sub
+                                                                        ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                        : isReported
+                                                                            ? 'bg-amber-500 text-white hover:bg-amber-600 border-transparent'
+                                                                            : isEvaluated
+                                                                                ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                                : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                }`}
                                                         >
-                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo Test' : isReported ? 'Continue Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo' : isReported ? 'Continue' : !sub ? 'Take Test' : isEvaluated ? 'Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1493,7 +1488,7 @@ const StudentTests = () => {
                                     <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Teacher Feedback Chat</p>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setFeedbackModalOpen(false)}
                                 className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
                             >

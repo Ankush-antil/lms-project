@@ -2050,7 +2050,7 @@ const TestBuilder = () => {
                         const studentInstitute = data.institute?.name || data.institute || '';
                         const studentCourse = data.studentProfile?.course?.name || data.studentProfile?.course || '';
                         const studentSubject = data.studentProfile?.subject || '';
-                        
+
                         setConnectData({
                             name: `Test for ${data.name}`,
                             institute: studentInstitute,
@@ -3300,10 +3300,10 @@ const TestBuilder = () => {
                 )}
                 <div className="flex-1 flex flex-col">
                     {/* Secondary Toolbar */}
-                    <div className="h-12 bg-white border-b border-slate-200 px-6 flex items-center justify-between">         <div className="flex items-center gap-6">
+                    <div className="h-12 bg-blue-100 border-b text-black border-slate-200 px-6 flex items-center justify-center">         <div className="flex items-center gap-6">
                         <button
                             onClick={() => toast("Purple Accent Theme active. More templates coming soon!", { icon: '🎨' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <Palette size={14} className="text-[#0b1329]" />
                             <span>Theme</span>
@@ -3311,7 +3311,7 @@ const TestBuilder = () => {
 
                         <button
                             onClick={handleAiGenerateForm}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <Bot size={14} className="text-[#0b1329]" />
                             <span>Create with AI</span>
@@ -3319,7 +3319,7 @@ const TestBuilder = () => {
 
                         <button
                             onClick={() => toast("Integration settings opened: copy link or embed iframe script.", { icon: '🔗' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <Link size={14} className="text-[#0b1329]" />
                             <span>Integrate</span>
@@ -3327,7 +3327,7 @@ const TestBuilder = () => {
 
                         <button
                             onClick={() => toast("Drag and drop JSON schema file to import elements.", { icon: '📥' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <FolderUp size={14} className="text-[#0b1329]" />
                             <span>Import</span>
@@ -3335,17 +3335,12 @@ const TestBuilder = () => {
 
                         <button
                             onClick={() => toast("Layout saved as reusable template in your dashboard.", { icon: '💾' })}
-                            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <Save size={14} className="text-[#0b1329]" />
                             <span>Save as Template</span>
                         </button>
                     </div>
-
-                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                            <span>Saved to Cloud</span>
-                        </div>
                     </div>
 
                     {/* Main Content Area */}

@@ -134,7 +134,8 @@ const testSchema = new mongoose.Schema({
         duration: Number,
         passingMarks: Number,
         startTime: Date,
-        endTime: Date
+        endTime: Date,
+        activeDays: Number
     },
     publishMode: {
         type: String,

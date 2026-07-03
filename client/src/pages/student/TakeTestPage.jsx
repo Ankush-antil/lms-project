@@ -71,7 +71,7 @@ const TakeTestPage = () => {
                     const sid = s.test?._id || s.test;
                     return sid === testId;
                 });
-                const alreadySubmitted = existingSubmission && existingSubmission.status !== 'returned';
+                const alreadySubmitted = existingSubmission && (existingSubmission.status === 'submitted' || existingSubmission.status === 'evaluated');
 
                 if (alreadySubmitted) {
                     // Find the actual submission to get its _id for the results page

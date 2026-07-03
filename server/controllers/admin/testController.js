@@ -139,7 +139,7 @@ const updateTest = asyncHandler(async (req, res) => {
                         throw new Error('Not authorized to edit questions (Editor permission required)');
                     }
                     if (testDetails) {
-                        const forbiddenDetails = Object.keys(testDetails).filter(key => key !== 'isAssigned' && key !== 'institute');
+                        const forbiddenDetails = Object.keys(testDetails).filter(key => key !== 'isAssigned' && key !== 'institute' && key !== 'assignedStudents' && key !== 'assignmentType');
                         for (const key of forbiddenDetails) {
                             if (testDetails[key] !== undefined && testDetails[key] !== test[key]) {
                                 res.status(403);
@@ -148,7 +148,7 @@ const updateTest = asyncHandler(async (req, res) => {
                         }
                     }
                     if (settings) {
-                        const forbiddenSettings = Object.keys(settings).filter(key => key !== 'endTime');
+                        const forbiddenSettings = Object.keys(settings).filter(key => key !== 'endTime' && key !== 'activeDays');
                         for (const key of forbiddenSettings) {
                             if (settings[key] !== undefined && test.settings && settings[key] !== test.settings[key]) {
                                 res.status(403);
@@ -159,7 +159,7 @@ const updateTest = asyncHandler(async (req, res) => {
                 }
             }
             // Enforce their own institute name on update
-            if (testDetails.institute !== undefined && userWithInst?.institute) {
+            if (testDetails && testDetails.institute !== undefined && userWithInst?.institute) {
                 testDetails.institute = userWithInst.institute.name;
             }
         }
@@ -177,6 +177,8 @@ const updateTest = asyncHandler(async (req, res) => {
         if (testDetails.discussionActivity !== undefined) test.discussionActivity = testDetails.discussionActivity;
         if (testDetails.allowTeacherEdit !== undefined) test.allowTeacherEdit = testDetails.allowTeacherEdit;
         if (testDetails.isAssigned !== undefined) test.isAssigned = testDetails.isAssigned;
+        if (testDetails.assignedStudents !== undefined) test.assignedStudents = testDetails.assignedStudents;
+        if (testDetails.assignmentType !== undefined) test.assignmentType = testDetails.assignmentType;
 
         if (settings !== undefined) test.settings = settings;
         if (questions !== undefined) test.questions = questions;

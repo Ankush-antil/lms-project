@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    FlatList, ActivityIndicator, Image, TextInput, Alert, ScrollView, Platform, StatusBar, Linking
+    FlatList, ActivityIndicator, Image, TextInput, Alert, ScrollView, Platform, StatusBar, Linking, Modal
 } from 'react-native';
 import axios from 'axios';
 import NetInfo from '@react-native-community/netinfo';
@@ -28,6 +28,7 @@ const TeacherAttendanceScreen = ({ navigation }) => {
     const [customWifiSSID, setCustomWifiSSID] = useState('');
     const [wifiNetworks, setWifiNetworks] = useState([]);
     const [teacherProfile, setTeacherProfile] = useState(null);
+    const [selectedPhoto, setSelectedPhoto] = useState(null);
 
     const pollingIntervalRef = useRef(null);
 
@@ -564,8 +565,24 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                                         </View>
                                         <View>
                                             <Text style={styles.studentName}>{item.student.name}</Text>
-                                            <View style={[styles.statusBadge, badgeStyle]}>
-                                                <Text style={styles.badgeLabel}>{badgeText}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                                <View style={[styles.statusBadge, badgeStyle]}>
+                                                    <Text style={styles.badgeLabel}>{badgeText}</Text>
+                                                </View>
+                                                {/* If they have a selfie photo, show a small eye/camera button */}
+                                                {(item.record?.checkInPhoto || item.record?.checkOutPhoto) && (
+                                                    <TouchableOpacity
+                                                        style={styles.photoViewBtn}
+                                                        onPress={() => setSelectedPhoto({
+                                                            studentName: item.student.name,
+                                                            checkInPhoto: item.record.checkInPhoto ? `${BASE_URL}${item.record.checkInPhoto}` : null,
+                                                            checkOutPhoto: item.record.checkOutPhoto ? `${BASE_URL}${item.record.checkOutPhoto}` : null,
+                                                        })}
+                                                    >
+                                                        <Ionicons name="image-outline" size={11} color={colors.primary} />
+                                                        <Text style={styles.photoViewBtnText}>Selfie</Text>
+                                                    </TouchableOpacity>
+                                                )}
                                             </View>
                                         </View>
                                     </View>
@@ -597,6 +614,49 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                     />
                 </View>
             )}
+
+            {/* Selfie Preview Modal */}
+            <Modal
+                visible={!!selectedPhoto}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedPhoto(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.photoModalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{selectedPhoto?.studentName}'s Selfie</Text>
+                            <TouchableOpacity onPress={() => setSelectedPhoto(null)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close-circle" size={28} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+                            {selectedPhoto?.checkInPhoto && (
+                                <View style={styles.photoContainer}>
+                                    <Text style={styles.photoTimeLabel}>Check-In Selfie</Text>
+                                    <Image
+                                        source={{ uri: selectedPhoto.checkInPhoto }}
+                                        style={styles.selfiePreviewImage}
+                                        resizeMode="cover"
+                                    />
+                                </View>
+                            )}
+                            
+                            {selectedPhoto?.checkOutPhoto && (
+                                <View style={[styles.photoContainer, { marginTop: spacing.md }]}>
+                                    <Text style={styles.photoTimeLabel}>Check-Out Selfie</Text>
+                                    <Image
+                                        source={{ uri: selectedPhoto.checkOutPhoto }}
+                                        style={styles.selfiePreviewImage}
+                                        resizeMode="cover"
+                                    />
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -819,6 +879,83 @@ const styles = StyleSheet.create({
     actionBtnActivePresent: { backgroundColor: '#10b981', borderColor: '#10b981' },
     actionBtnActiveIn: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
     actionBtnActiveAbsent: { backgroundColor: colors.danger, borderColor: colors.danger },
+
+    // Selfie Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: spacing.md,
+    },
+    photoModalContent: {
+        backgroundColor: colors.white,
+        borderRadius: borderRadius.md,
+        width: '90%',
+        maxHeight: '80%',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    modalTitle: {
+        fontSize: fontSizes.sm,
+        fontWeight: '800',
+        color: colors.text,
+    },
+    modalCloseBtn: {
+        padding: 4,
+    },
+    modalScrollContent: {
+        padding: spacing.md,
+        alignItems: 'center',
+    },
+    photoContainer: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    photoTimeLabel: {
+        fontSize: fontSizes.xs,
+        fontWeight: '700',
+        color: colors.textSecondary,
+        marginBottom: 6,
+        textTransform: 'uppercase',
+    },
+    selfiePreviewImage: {
+        width: 240,
+        height: 240,
+        borderRadius: borderRadius.md,
+        backgroundColor: '#e2e8f0',
+    },
+    photoViewBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        backgroundColor: '#eef2ff',
+        borderWidth: 1,
+        borderColor: '#c7d2fe',
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: borderRadius.full,
+    },
+    photoViewBtnText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: colors.primary,
+    },
 });
 
 export default TeacherAttendanceScreen;

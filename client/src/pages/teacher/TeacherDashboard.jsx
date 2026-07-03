@@ -180,15 +180,9 @@ const TeacherDashboard = () => {
                 <div className="flex flex-wrap sm:flex-row items-center gap-3">
                     <button
                         onClick={handleToggleCall}
-<<<<<<< HEAD
-                        className={`px-6 py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center gap-2 ${callEnabled
-                            ? 'bg-emerald-650 bg-emerald-700 text-white shadow-emerald-100'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-50 border border-slate-200/50'
-=======
                         className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${callEnabled
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100/50'
                             : 'bg-white hover:bg-slate-50 text-slate-700 shadow-sm border border-slate-200'
->>>>>>> betach
                             }`}
                     >
                         <Phone size={16} />

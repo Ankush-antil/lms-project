@@ -95,6 +95,7 @@ const ChatPage = () => {
     const [allStudentTestMessages, setAllStudentTestMessages] = useState([]);
     // Map of testId -> { questions: {[qIndex]: count} } for active doubts in inbox grid
     const [testDoubtCounts, setTestDoubtCounts] = useState({});
+    const [inboxConfigs, setInboxConfigs] = useState([]);
 
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -299,11 +300,16 @@ const ChatPage = () => {
         // For teacher: fetch the selected student's tests. For student: fetch their own tests.
         const targetStudentId = user.role === 'Student' ? user._id : selectedContact._id;
 
-        const fetchStudentTests = async () => {
+        const fetchStudentTestsAndConfigs = async () => {
             try {
                 setLoadingStudentTests(true);
-                const { data } = await axios.get(`/api/chat/student-tests/${targetStudentId}`);
+                const [testsRes, configsRes] = await Promise.all([
+                    axios.get(`/api/chat/student-tests/${targetStudentId}`),
+                    axios.get(`/api/users/inbox-configs/${targetStudentId}`).catch(() => ({ data: [] }))
+                ]);
+                const data = testsRes.data || [];
                 setStudentTests(data);
+                setInboxConfigs(configsRes.data || []);
                 setLoadingStudentTests(false);
 
                 // If we came from a doubt notification, auto-select the test+question
@@ -330,7 +336,7 @@ const ChatPage = () => {
             }
         };
 
-        fetchStudentTests();
+        fetchStudentTestsAndConfigs();
     }, [showSidebarTests, selectedContact, user]);
 
     // Load all test messages for active doubt detection in inbox grid
@@ -413,31 +419,22 @@ const ChatPage = () => {
     // We do this separately by querying test-doubt-messages for each test in the inbox
     // The allStudentTestMessages + doubtMessages together power both the grid and the chat view
 
-    // Populate testDoubtCounts when the inbox changes or studentTests loads
+    // Populate testDoubtCounts when studentTests loads
     useEffect(() => {
-        if (!selectedContact || !selectedInboxId || studentTests.length === 0) return;
+        if (!selectedContact || studentTests.length === 0) return;
 
         // For teacher: look up by student (selectedContact._id). For student: use own ID.
         const targetStudentId = user.role === 'Student' ? user._id : selectedContact._id;
 
-        const inbox = studentTests.reduce((acc, test) => {
-            const indexStr = test.index || 'No Index';
-            if (!acc[indexStr]) acc[indexStr] = [];
-            acc[indexStr].push(test);
-            return acc;
-        }, {});
-        const testsInInbox = inbox[selectedInboxId] || [];
-        if (testsInInbox.length === 0) return;
-
         const fetchCounts = async () => {
             const counts = {};
-            await Promise.all(testsInInbox.map(async (test) => {
+            await Promise.all(studentTests.map(async (test) => {
                 try {
                     const { data } = await axios.get(
                         `/api/chat/test-doubt-messages/${targetStudentId}/${test._id}`
                     );
                     if (data.length > 0) {
-                        const qMap = {};
+                        const qMap = { _hasMessages: true };
                         data.forEach(m => {
                             if (m.questionIndex !== undefined) {
                                 qMap[m.questionIndex] = (qMap[m.questionIndex] || 0) + 1;
@@ -455,7 +452,7 @@ const ChatPage = () => {
         };
 
         fetchCounts();
-    }, [selectedContact, selectedInboxId, studentTests, user]);
+    }, [selectedContact, studentTests, user]);
 
     const getDisplayTitle = (title) => {
         if (!title) return 'Inbox No';
@@ -481,14 +478,27 @@ const ChatPage = () => {
 
         const getNum = (s) => parseInt(s.match(/\d+/)?.[0] || 0);
 
-        return Object.keys(grouped)
+        const mapped = Object.keys(grouped)
             .sort((a, b) => getNum(a) - getNum(b))
-            .map(indexStr => ({
-                id: indexStr,
-                title: getDisplayTitle(indexStr),
-                tests: grouped[indexStr]
-            }));
-    }, [studentTests]);
+            .map(indexStr => {
+                const filteredTests = grouped[indexStr].filter(test => {
+                    const testId = String(test._id);
+                    const doubtData = testDoubtCounts[testId];
+                    return doubtData && (Object.keys(doubtData).length > 0 || doubtData._hasMessages);
+                });
+
+                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === indexStr.trim().toLowerCase());
+                const customTitle = config && config.displayName ? config.displayName : getDisplayTitle(indexStr);
+
+                return {
+                    id: indexStr,
+                    title: customTitle,
+                    tests: filteredTests
+                };
+            });
+
+        return mapped.filter(inbox => inbox.tests.length > 0);
+    }, [studentTests, testDoubtCounts, inboxConfigs, user]);
 
     // Handle real-time socket events for chat
     // Uses refs so the handler always has current values without re-registering on every state change
@@ -1657,7 +1667,7 @@ const ChatPage = () => {
                                         if (inboxTests.length === 0) {
                                             return (
                                                 <div className="py-20 text-center text-slate-400 text-xs">
-                                                    No assigned tests found in this inbox.
+                                                     No tests with active doubts found in this inbox.
                                                 </div>
                                             );
                                         }

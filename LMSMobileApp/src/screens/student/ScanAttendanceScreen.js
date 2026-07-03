@@ -131,6 +131,22 @@ const ScanAttendanceScreen = ({ navigation }) => {
                     "You have already checked in and checked out for this class session.",
                     [{ text: "OK", onPress: () => resetScanner() }]
                 );
+            } else if (res.data.checkStatus === 'checked-in') {
+                // Allow check-out only in the last 10 minutes of the class duration
+                const now = new Date();
+                const endTime = new Date(res.data.session.endTime);
+                const minutesLeft = (endTime - now) / 60000;
+
+                if (minutesLeft > 10) {
+                    Alert.alert(
+                        "Already Checked-In",
+                        "Please wait for class end and mark out attendance.",
+                        [{ text: "OK", onPress: () => resetScanner() }]
+                    );
+                } else {
+                    setStep('selfie');
+                    setFacing('front');
+                }
             } else {
                 // Advance to selfie step, switch to front camera
                 setStep('selfie');

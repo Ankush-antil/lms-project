@@ -299,6 +299,16 @@ exports.markAttendance = async (req, res) => {
                 return res.status(400).json({ message: "You have already checked out for this class" });
             }
             
+            // Allow check-out only in the last 10 minutes of the class duration
+            const now = new Date();
+            const endTime = new Date(session.endTime);
+            const minutesLeft = (endTime - now) / 60000;
+            if (minutesLeft > 10) {
+                return res.status(400).json({ 
+                    message: "Please wait for class end and mark out attendance." 
+                });
+            }
+            
             record.checkOutTime = new Date();
             record.checkOutPhoto = relativePhotoPath;
             record.status = 'Present';

@@ -607,13 +607,26 @@ const EvaluatePage = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 flex-wrap md:flex-nowrap justify-end w-full md:w-auto">
+                            <div className="flex items-center gap-3 flex-wrap md:flex-nowrap justify-end w-full md:w-auto">
                                 <button
                                     onClick={() => setShowInfo(!showInfo)}
                                     className={`px-4 py-1 rounded-full text-xs font-semibold tracking-wide transition-all shadow-sm ${showInfo ? 'bg-[#FF80A1] text-white' : 'bg-[#FF80A1]/15 text-[#FF80A1] border border-[#FF80A1]/30 hover:bg-[#FF80A1]/25'}`}
                                 >
                                     Relevant Information
                                 </button>
+                                {submission?.student && (
+                                    <button
+                                        onClick={() => openProfile(submission.student._id || submission.student)}
+                                        className="w-8 h-8 rounded-full bg-indigo-650 hover:bg-indigo-700 text-white flex items-center justify-center font-bold text-xs shadow-sm hover:scale-105 active:scale-95 transition-all overflow-hidden shrink-0 border border-slate-700/50 cursor-pointer"
+                                        title={`View profile of ${submission.student.name || 'Student'}`}
+                                    >
+                                        {submission.student.avatar ? (
+                                            <img src={submission.student.avatar} alt={submission.student.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            submission.student.name?.[0]?.toUpperCase() || 'S'
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
 

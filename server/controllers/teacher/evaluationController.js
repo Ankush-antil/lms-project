@@ -66,7 +66,7 @@ const getSubmissionsByTest = asyncHandler(async (req, res) => {
     }
 
     const submissions = await Submission.find({ test: req.params.testId })
-        .populate('student', 'name email studentProfile')
+        .populate('student', 'name email avatar studentProfile')
         .sort({ submittedAt: -1 });
 
     res.json(submissions);
@@ -78,7 +78,7 @@ const getSubmissionsByTest = asyncHandler(async (req, res) => {
 const getSubmissionById = asyncHandler(async (req, res) => {
     const submission = await Submission.findById(req.params.id)
         .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
-        .populate('student', 'name email');
+        .populate('student', 'name email avatar');
 
     if (!submission) {
         res.status(404);

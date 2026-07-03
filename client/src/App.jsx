@@ -28,6 +28,7 @@ import StudentPerformance from './pages/student/StudentPerformance';
 import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherSnapshots from './pages/teacher/TeacherSnapshots';
+import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -303,6 +304,12 @@ function App() {
                                 <Route path="/teacher/snapshots" element={
                                     <PrivateRoute role="Teacher">
                                         <TeacherSnapshots />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/teacher/attendance" element={
+                                    <PrivateRoute role="Teacher">
+                                        <TeacherAttendance />
                                     </PrivateRoute>
                                 } />
 

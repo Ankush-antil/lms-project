@@ -199,6 +199,16 @@ const TeacherDashboard = ({ navigation }) => {
                             </View>
                             <Text style={styles.actionLabel}>Contact Students</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => navigation.navigate('TeacherAttendance')}
+                            activeOpacity={0.8}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: '#fee2e2' }]}>
+                                <Ionicons name="qr-code-outline" size={22} color="#ef4444" />
+                            </View>
+                            <Text style={styles.actionLabel}>Attendance</Text>
+                        </TouchableOpacity>
                     </View>
                 </SectionCard>
 

@@ -132,3 +132,77 @@
     object-fit: contain;
     border-radius: 10px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   LAPTOP SCREEN OPTIMIZATIONS (MEDIA QUERIES)
+   Ensures the entire portal scales and fits perfectly on all laptop screens.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1. Base Scale: Shrink root font-size on smaller/medium laptop displays.
+   Since Tailwind uses 'rem', this scales down all fonts, paddings, margins,
+   and spacing proportionally to prevent layout breakages. */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  html {
+    font-size: 14px !important;
+  }
+}
+
+@media (min-width: 1367px) and (max-width: 1440px) {
+  html {
+    font-size: 14.5px !important;
+  }
+}
+
+@media (min-width: 1441px) and (max-width: 1600px) {
+  html {
+    font-size: 15.5px !important;
+  }
+}
+
+/* 2. Specific Layout Tweaks for laptop viewports (screens under 1440px wide) */
+@media (max-width: 1440px) {
+  /* Slightly tighten spacing for main layouts */
+  main {
+    padding-top: 4.5rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Make forms and inputs more compact */
+  .input-field {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .btn-primary {
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* Tighter flex and grid alignments */
+  .gap-6 {
+    gap: 1.25rem !important;
+  }
+  
+  .gap-8 {
+    gap: 1.5rem !important;
+  }
+
+  /* Card padding refinements to maximize usable viewport space */
+  .p-8 {
+    padding: 1.5rem !important;
+  }
+
+  .p-6 {
+    padding: 1.25rem !important;
+  }
+
+  /* Tighter tables for smaller screens */
+  th, td {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+}

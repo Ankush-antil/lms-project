@@ -78,9 +78,9 @@ export const EmptyState = ({ icon = 'document-outline', title = 'No data found',
     </View>
 );
 
-export const Badge = ({ label, color = colors.accent, bg }) => (
-    <View style={[styles.badge, { backgroundColor: bg || color + '20' }]}>
-        <Text style={[styles.badgeText, { color }]}>{label}</Text>
+export const Badge = ({ label, color = colors.accent, bg, style }) => (
+    <View style={[styles.badge, { backgroundColor: bg || color + '20' }, style]}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
 );
 
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         paddingVertical: 3,
         borderRadius: borderRadius.full,
+        maxWidth: '100%',
     },
     badgeText: {
         fontSize: fontSizes.xs,

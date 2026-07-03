@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
-    BarChart3
+    BarChart3, UserPlus, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -370,11 +370,20 @@ const NotificationBell = ({ safeRole }) => {
 const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
-    const { logout, user } = useAuth();
-
+    const { logout, user, switchAccount, removeAccount } = useAuth();
     const handleLogout = () => logout();
     const safeRole = role || 'Admin';
     const showBell = safeRole === 'Teacher' || safeRole === 'Student';
+    
+    const savedAccounts = (() => {
+        try {
+            const listStr = localStorage.getItem('lmsSavedAccounts');
+            const list = listStr ? JSON.parse(listStr) : [];
+            return Array.isArray(list) ? list.filter(acc => acc.user?.email !== user?.email) : [];
+        } catch (e) {
+            return [];
+        }
+    })();
 
     return (
         <header className="h-16 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
@@ -419,25 +428,77 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                     {/* Profile dropdown */}
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute top-full right-0 mt-3 w-60 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50"
+                        className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50 flex flex-col gap-1.5"
                     >
-                        <div className="px-4 py-3 border-b border-slate-800 mb-1">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Signed in as</p>
+                        <div className="px-3 py-2.5 border-b border-slate-800">
+                            <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Signed in as</p>
                             <p className="text-sm font-bold text-slate-200 truncate">{user?.email}</p>
+                            <span className="inline-block mt-1.5 text-[8px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-widest">{user?.role}</span>
                         </div>
+                        
                         <button
                             onClick={() => openProfile(user?._id || user?.id)}
-                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-all font-bold"
+                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
                         >
-                            <User size={18} />
+                            <User size={16} />
                             <span>My Profile Settings</span>
                         </button>
-                        <hr className="my-1 border-slate-800" />
+                        
+                        {/* Saved Accounts Switcher */}
+                        {savedAccounts.length > 0 && (
+                            <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
+                                <p className="px-3 text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Switch Account</p>
+                                {savedAccounts.map((acc, index) => (
+                                    <div
+                                        key={index}
+                                        onClick={() => switchAccount(acc.token, acc.user)}
+                                        className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
+                                                {acc.user?.avatar ? (
+                                                    <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
+                                                ) : (
+                                                    acc.user?.name?.[0]?.toUpperCase() || 'U'
+                                                )}
+                                            </div>
+                                            <div className="text-left min-w-0">
+                                                <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
+                                                <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeAccount(acc.user?.email);
+                                            }}
+                                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
+                                            title="Remove Account"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => {
+                                window.location.href = '/login?mode=add-account';
+                            }}
+                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-indigo-400 hover:bg-indigo-950/20 rounded-xl transition-all font-bold border border-indigo-900/30 border-dashed"
+                        >
+                            <UserPlus size={16} />
+                            <span>Add More Account</span>
+                        </button>
+                        
+                        <hr className="my-0.5 border-slate-800" />
+                        
                         <button
                             onClick={handleLogout}
-                            className="flex items-center space-x-3 w-full px-4 py-3 text-sm text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
+                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
                         >
-                            <LogOut size={18} />
+                            <LogOut size={16} />
                             <span>Sign Out Portal</span>
                         </button>
                     </div>

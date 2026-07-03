@@ -1334,7 +1334,7 @@ const StudentTests = () => {
 
                                                     <div className="flex flex-row items-center justify-between gap-3 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                         <div className="flex items-center gap-1.5">
-                                                            <ActivityTimer endTime={test.settings?.endTime} />
+                                                            {viewMode === 'pending' && <ActivityTimer endTime={test.settings?.endTime} />}
                                                         </div>
 
                                                         <button

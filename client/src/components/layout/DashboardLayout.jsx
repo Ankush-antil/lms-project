@@ -482,7 +482,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 {/* Collapse toggle */}
                 <button
                     onClick={onToggle}
-                    className="absolute -right-3.5 top-6 w-7 h-7 bg-[#0b1329] border border-slate-800 rounded-full flex items-center justify-center shadow-md hover:bg-white/10 hover:text-white text-slate-400 transition-all z-10 cursor-pointer"
+                    className="absolute -right-3.5 top-6 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md text-slate-500 hover:text-[#3E3ADD] hover:bg-slate-50 transition-all z-10 cursor-pointer border-none"
                 >
                     {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>

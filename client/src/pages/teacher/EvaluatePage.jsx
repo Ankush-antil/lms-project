@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, ChevronLeft, ChevronDown, ChevronUp, User, BookOpen,
     CheckCircle2, Clock, Mic, Video, FileText, Star, MessageSquare, Info, RefreshCw, Send,
-    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2, RotateCcw, Filter, Search
+    ThumbsUp, ThumbsDown, Eye, EyeOff, Share2, MoreVertical, Calendar, Cpu, Volume2, RotateCcw, Filter, Search, Loader2
 } from 'lucide-react';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -261,6 +261,146 @@ const EvaluatePage = () => {
         }
     };
 
+    // Group all submissions by student for Step 1
+    const studentGroups = {};
+    submissions.forEach(sub => {
+        const student = sub.student;
+        if (!student) return;
+        const sId = student._id || student;
+        const section = student.studentProfile?.section || sub.studentSection || 'A';
+        const name = sub.studentName || student.name || 'Unknown Student';
+        const email = student.email || '';
+        if (!studentGroups[sId]) {
+            studentGroups[sId] = {
+                _id: sId,
+                name: name,
+                avatar: student.avatar || null,
+                section: section,
+                email: email,
+                submissionCount: 0,
+                submissions: []
+            };
+        }
+        studentGroups[sId].submissionCount += 1;
+        studentGroups[sId].submissions.push(sub);
+    });
+
+    const studentsList = Object.values(studentGroups);
+    const filteredStudents = studentsList.filter(student => {
+        const matchesSection = activeSection === 'All' || student.section === activeSection;
+
+        const nameLower = student.name.toLowerCase();
+        const sectionLower = String(student.section).toLowerCase();
+        const queryLower = searchQuery.toLowerCase();
+
+        const matchesSearch = nameLower.includes(queryLower) ||
+            sectionLower.includes(queryLower) ||
+            ('section ' + sectionLower).includes(queryLower);
+
+        return matchesSection && matchesSearch;
+    });
+
+    const showSectionsGrouped = useMemo(() => {
+        const mode = user?.teacherProfile?.studentAssignmentMode;
+        const sections = user?.teacherProfile?.assignedSections || [];
+        return mode === 'section' && sections.length > 1;
+    }, [user]);
+
+    const studentsBySection = useMemo(() => {
+        if (!showSectionsGrouped) return {};
+        const groups = {};
+        filteredStudents.forEach(student => {
+            const sec = student.section || 'No Section';
+            if (!groups[sec]) groups[sec] = [];
+            groups[sec].push(student);
+        });
+        return groups;
+    }, [filteredStudents, showSectionsGrouped]);
+
+    const chatModalComponent = chatModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
+                {/* Modal Header */}
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#3E3ADD] text-white font-extrabold flex items-center justify-center shadow-md">
+                            {activeChatSub?.studentName?.[0]?.toUpperCase() || 'S'}
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-sm">{activeChatSub?.studentName || 'Student'}</h3>
+                            <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Student Feedback Chat</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setChatModalOpen(false)}
+                        className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                    {loadingChat ? (
+                        <div className="h-full flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                        </div>
+                    ) : chatMessages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                            <p className="text-slate-400 text-[11px] mt-1">
+                                Send a message to start conversation with the student.
+                            </p>
+                        </div>
+                    ) : (
+                        chatMessages.map((msg, index) => {
+                            const isSelf = msg.role === 'Teacher' || msg.role === 'Admin';
+                            const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                            return (
+                                <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                        ? 'bg-indigo-600 text-white rounded-tr-none'
+                                        : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
+                                        }`}>
+                                        <p className="font-semibold">{msg.message}</p>
+                                        <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                            {formattedTime}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Message Input Box */}
+                <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !sendingChat && chatInput.trim()) {
+                                handleSendFeedbackMessage(activeChatSub?._id);
+                            }
+                        }}
+                        placeholder="Type your reply..."
+                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        disabled={sendingChat}
+                    />
+                    <button
+                        onClick={() => handleSendFeedbackMessage(activeChatSub?._id)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
+                        disabled={sendingChat || !chatInput.trim()}
+                    >
+                        {sendingChat ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     if (loading) return (
         <DashboardLayout role={role} fullWidth={true}>
             <div className="flex items-center gap-4 mb-6">
@@ -368,89 +508,7 @@ const EvaluatePage = () => {
                 </div>
             </div>
         );
-        const chatModalComponent = chatModalOpen && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
-                    {/* Modal Header */}
-                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#3E3ADD] text-white font-extrabold flex items-center justify-center shadow-md">
-                                {activeChatSub?.studentName?.[0]?.toUpperCase() || 'S'}
-                            </div>
-                            <div>
-                                <h3 className="font-extrabold text-slate-800 text-sm">{activeChatSub?.studentName || 'Student'}</h3>
-                                <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Student Feedback Chat</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setChatModalOpen(false)}
-                            className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
-                        >
-                            Close
-                        </button>
-                    </div>
 
-                    {/* Messages Body */}
-                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                        {loadingChat ? (
-                            <div className="h-full flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                            </div>
-                        ) : chatMessages.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
-                                <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
-                                <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
-                                <p className="text-slate-400 text-[11px] mt-1">
-                                    Send a message to start conversation with the student.
-                                </p>
-                            </div>
-                        ) : (
-                            chatMessages.map((msg, index) => {
-                                const isSelf = msg.role === 'Teacher' || msg.role === 'Admin';
-                                const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                                return (
-                                    <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
-                                            ? 'bg-indigo-600 text-white rounded-tr-none'
-                                            : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
-                                            }`}>
-                                            <p className="font-semibold">{msg.message}</p>
-                                            <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                                {formattedTime}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-
-                    {/* Message Input Box */}
-                    <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
-                        <input
-                            type="text"
-                            value={chatInput}
-                            onChange={e => setChatInput(e.target.value)}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && !sendingChat && chatInput.trim()) {
-                                    handleSendFeedbackMessage(activeChatSub?._id);
-                                }
-                            }}
-                            placeholder="Type your reply..."
-                            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                            disabled={sendingChat}
-                        />
-                        <button
-                            onClick={() => handleSendFeedbackMessage(activeChatSub?._id)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
-                            disabled={sendingChat || !chatInput.trim()}
-                        >
-                            {sendingChat ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
 
 
         const infoModalComponent = showInfo && (
@@ -1052,63 +1110,6 @@ const EvaluatePage = () => {
             </>
         );
     }
-
-
-    // Group all submissions by student for Step 1
-    const studentGroups = {};
-    submissions.forEach(sub => {
-        const student = sub.student;
-        if (!student) return;
-        const sId = student._id || student;
-        const section = student.studentProfile?.section || sub.studentSection || 'A';
-        const name = sub.studentName || student.name || 'Unknown Student';
-        const email = student.email || '';
-        if (!studentGroups[sId]) {
-            studentGroups[sId] = {
-                _id: sId,
-                name: name,
-                avatar: student.avatar || null,
-                section: section,
-                email: email,
-                submissionCount: 0,
-                submissions: []
-            };
-        }
-        studentGroups[sId].submissionCount += 1;
-        studentGroups[sId].submissions.push(sub);
-    });
-
-    const studentsList = Object.values(studentGroups);
-    const filteredStudents = studentsList.filter(student => {
-        const matchesSection = activeSection === 'All' || student.section === activeSection;
-
-        const nameLower = student.name.toLowerCase();
-        const sectionLower = String(student.section).toLowerCase();
-        const queryLower = searchQuery.toLowerCase();
-
-        const matchesSearch = nameLower.includes(queryLower) ||
-            sectionLower.includes(queryLower) ||
-            ('section ' + sectionLower).includes(queryLower);
-
-        return matchesSection && matchesSearch;
-    });
-
-    const showSectionsGrouped = useMemo(() => {
-        const mode = user?.teacherProfile?.studentAssignmentMode;
-        const sections = user?.teacherProfile?.assignedSections || [];
-        return mode === 'section' && sections.length > 1;
-    }, [user]);
-
-    const studentsBySection = useMemo(() => {
-        if (!showSectionsGrouped) return {};
-        const groups = {};
-        filteredStudents.forEach(student => {
-            const sec = student.section || 'No Section';
-            if (!groups[sec]) groups[sec] = [];
-            groups[sec].push(student);
-        });
-        return groups;
-    }, [filteredStudents, showSectionsGrouped]);
 
     const studentIdParam = queryParams.get('studentId');
     const studentSubmissions = studentIdParam ? submissions.filter(sub => {

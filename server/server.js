@@ -1,4 +1,4 @@
-// Final clean server file - Restarting for role-check verification
+// Final clean server file - Server loaded successfully
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const connectDB = require('./config/db');

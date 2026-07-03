@@ -11,7 +11,7 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock, Loader2
 } from 'lucide-react';
 
 const isTestExpired = (test) => {
@@ -81,15 +81,13 @@ const ActivityTimer = ({ endTime }) => {
     const totalSecs = Math.floor(timeLeftMs / 1000);
     const mins = Math.floor(totalSecs / 60);
     const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
+    const days = Math.ceil(hours / 24);
 
     let displayStr = "";
-    if (days > 0) {
-        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
-    } else if (hours > 0) {
-        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    if (days > 1) {
+        displayStr = `${days} Days Left`;
     } else {
-        displayStr = `${mins}m ${totalSecs % 60}s left`;
+        displayStr = `Expires Today`;
     }
 
     const isCritical = totalSecs < 600;
@@ -164,6 +162,42 @@ const StudentTests = () => {
     const studentTabsRef = useRef(null);
     const { socket, onlineUsers } = useSocket();
     const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
+
+    // States for feedback/report chat modal
+    const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+    const [activeFeedbackSub, setActiveFeedbackSub] = useState(null);
+    const [feedbackMessages, setFeedbackMessages] = useState([]);
+    const [feedbackInput, setFeedbackInput] = useState('');
+    const [loadingFeedback, setLoadingFeedback] = useState(false);
+    const [sendingFeedback, setSendingFeedback] = useState(false);
+
+    const loadFeedbackHistory = async (submissionId) => {
+        setLoadingFeedback(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/feedback`);
+            setFeedbackMessages(res.data);
+        } catch (err) {
+            console.error("Failed to load feedback history:", err);
+            toast.error("Failed to load feedback chat.");
+        } finally {
+            setLoadingFeedback(false);
+        }
+    };
+
+    const handleSendFeedbackMessage = async (submissionId) => {
+        if (!feedbackInput.trim()) return;
+        setSendingFeedback(true);
+        try {
+            const res = await axios.post(`/api/submissions/${submissionId}/feedback`, { message: feedbackInput.trim() });
+            setFeedbackMessages(res.data);
+            setFeedbackInput('');
+        } catch (err) {
+            console.error("Failed to send feedback message:", err);
+            toast.error("Failed to send message.");
+        } finally {
+            setSendingFeedback(false);
+        }
+    };
 
     const handleStudentTabsScroll = (direction) => {
         if (studentTabsRef.current) {
@@ -437,6 +471,8 @@ const StudentTests = () => {
         Object.keys(testsGrouped).forEach(addKeyIfNew);
         Object.keys(materialsGrouped).forEach(addKeyIfNew);
 
+        const enrollmentDate = userInfo?.studentProfile?.enrollmentDate || userInfo?.createdAt || new Date();
+
         return allKeys.map(keyName => {
             const normalized = keyName.trim().toLowerCase();
             const testsInInbox = testsGrouped[normalized] || [];
@@ -445,10 +481,14 @@ const StudentTests = () => {
             const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
             const isVisible = config ? config.visible : true;
             
-            // Check if inbox has any content
-            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
-            // Empty inbox is disabled/locked, or explicitly disabled in config
-            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            const match = keyName.match(/\d+/);
+            const idxNum = match ? parseInt(match[0], 10) : 1;
+            const week = Math.ceil(idxNum / 7);
+            const offsetDays = (week - 1) * 7;
+            const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+            const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
+
+            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
             
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
@@ -460,10 +500,10 @@ const StudentTests = () => {
                 tests: testsInInbox,
                 visible: isVisible,
                 disabled: isInboxDisabled,
-                hasContent: hasContent
+                hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
             };
         }).filter(item => item.visible);
-    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration]);
+    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration, userInfo]);
 
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {
@@ -735,7 +775,7 @@ const StudentTests = () => {
                                         key={item.id}
                                         onClick={() => {
                                             if (isDisabled) {
-                                                toast.error("This inbox has no activities or study materials assigned yet.");
+                                                toast.error("This inbox is locked by your teacher or has not unlocked yet.");
                                                 return;
                                             }
                                             setSelectedItem(item.id);
@@ -1164,11 +1204,12 @@ const StudentTests = () => {
                                             const sub = submissionMap.get(test._id);
                                             const isEvaluated = sub && sub.status === 'evaluated';
                                             const isReturned = sub && sub.status === 'returned';
+                                            const isReported = sub && sub.status === 'reported';
                                             const config = activityConfigs.find(c => c.test === test._id);
                                             const isDisabled = config ? !!config.disabled : false;
 
                                             const isExpired = isTestExpired(test);
-                                            const cannotTake = isExpired && (!sub || isReturned);
+                                            const cannotTake = isExpired && (!sub || isReturned || isReported);
                                             const isBtnDisabled = isDisabled || cannotTake;
 
                                             return (
@@ -1183,7 +1224,7 @@ const StudentTests = () => {
                                                             toast.error("This activity has expired and cannot be taken.");
                                                             return;
                                                         }
-                                                        if (!sub || isReturned) {
+                                                        if (!sub || isReturned || isReported) {
                                                             navigate(`/student/take-test/${test._id}`);
                                                         } else {
                                                             navigate(`/student/test-result/${sub._id}`);
@@ -1194,13 +1235,21 @@ const StudentTests = () => {
                                                             ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
                                                             : isReturned
                                                                 ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
-                                                                : 'hover:border-[#3E3ADD] cursor-pointer'
+                                                                : isReported
+                                                                    ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-100 cursor-pointer'
+                                                                    : 'hover:border-[#3E3ADD] cursor-pointer'
                                                     }`}
                                                 >
                                                     {/* Returned warning banner */}
                                                     {isReturned && !isExpired && (
                                                         <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
                                                             ⚠ Returned — Redo Required
+                                                        </div>
+                                                    )}
+                                                    {/* Reported warning banner */}
+                                                    {isReported && !isExpired && (
+                                                        <div className="absolute -top-0.5 left-0 right-0 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                            ⚠ Reported — Resume Required
                                                         </div>
                                                     )}
                                                     {/* Disabled warning banner */}
@@ -1215,7 +1264,7 @@ const StudentTests = () => {
                                                             ⏰ Expired
                                                         </div>
                                                     )}
-                                                    <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
+                                                    <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isReported || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
                                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                                                                 isBtnDisabled 
@@ -1226,14 +1275,18 @@ const StudentTests = () => {
                                                                             ? 'bg-emerald-500' 
                                                                             : isReturned 
                                                                                 ? 'bg-orange-500 animate-pulse' 
-                                                                                : 'bg-blue-500'
+                                                                                : isReported
+                                                                                    ? 'bg-amber-500 animate-pulse'
+                                                                                    : 'bg-blue-500'
                                                             }`} />
                                                             <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${
                                                                 isBtnDisabled
                                                                     ? 'text-slate-400'
                                                                     : isReturned 
                                                                         ? 'group-hover:text-orange-500' 
-                                                                        : 'group-hover:text-[#3E3ADD]'
+                                                                        : isReported
+                                                                            ? 'group-hover:text-amber-500'
+                                                                            : 'group-hover:text-[#3E3ADD]'
                                                             }`}>
                                                                 {test.title}
                                                             </h3>
@@ -1251,7 +1304,7 @@ const StudentTests = () => {
                                                                 <MoreVertical size={14} />
                                                             </button>
                                                             {activeDropdownTestId === test._id && (
-                                                                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-36 animate-fade-in text-left">
+                                                                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-40 animate-fade-in text-left">
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -1263,12 +1316,27 @@ const StudentTests = () => {
                                                                         <Eye size={13} className="text-slate-400" />
                                                                         View Details
                                                                     </button>
+                                                                    {sub && sub.conversation && sub.conversation.length > 0 && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveDropdownTestId(null);
+                                                                                setActiveFeedbackSub(sub);
+                                                                                loadFeedbackHistory(sub._id);
+                                                                                setFeedbackModalOpen(true);
+                                                                            }}
+                                                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-t border-slate-100"
+                                                                        >
+                                                                            <MessageSquare size={13} className="text-slate-400" />
+                                                                            Teacher's Reply
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                    <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                         <div className="flex items-center gap-1.5">
                                                             <ActivityTimer endTime={test.settings?.endTime} />
                                                         </div>
@@ -1283,7 +1351,7 @@ const StudentTests = () => {
                                                                     toast.error("This activity has expired and cannot be taken.");
                                                                     return;
                                                                 }
-                                                                if (!sub || isReturned) {
+                                                                if (!sub || isReturned || isReported) {
                                                                     navigate(`/student/take-test/${test._id}`);
                                                                 } else {
                                                                     navigate(`/student/test-result/${sub._id}`);
@@ -1297,12 +1365,14 @@ const StudentTests = () => {
                                                                         ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
                                                                         : !sub
                                                                             ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                            : isEvaluated
-                                                                                ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                                : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                            : isReported
+                                                                                ? 'bg-amber-500 text-white hover:bg-amber-600 border-transparent'
+                                                                                : isEvaluated
+                                                                                    ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                                    : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
                                                             }`}
                                                         >
-                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
+                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo Test' : isReported ? 'Continue Test' : !sub ? 'Take Test' : isEvaluated ? 'View Feedback' : 'Submitted'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1402,6 +1472,91 @@ const StudentTests = () => {
                                 className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all active:scale-95 uppercase tracking-widest text-xs"
                             >
                                 Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Teacher Feedback Chat Modal */}
+            {feedbackModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
+                        {/* Modal Header */}
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white font-extrabold flex items-center justify-center shadow-md">
+                                    T
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-extrabold text-slate-800 text-sm truncate">Feedback: {activeFeedbackSub?.test?.title || 'Test'}</h3>
+                                    <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Teacher Feedback Chat</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setFeedbackModalOpen(false)}
+                                className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        {/* Messages Body */}
+                        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                            {loadingFeedback ? (
+                                <div className="h-full flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                </div>
+                            ) : feedbackMessages.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                    <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                                    <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                    <p className="text-slate-400 text-[11px] mt-1">
+                                        Send a message to start conversation with the teacher.
+                                    </p>
+                                </div>
+                            ) : (
+                                feedbackMessages.map((msg, index) => {
+                                    const isSelf = msg.role === 'Student';
+                                    const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                    return (
+                                        <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
+                                                }`}>
+                                                <p className="font-semibold">{msg.message}</p>
+                                                <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                                    {formattedTime}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Message Input Box */}
+                        <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                            <input
+                                type="text"
+                                value={feedbackInput}
+                                onChange={e => setFeedbackInput(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && !sendingFeedback && feedbackInput.trim()) {
+                                        handleSendFeedbackMessage(activeFeedbackSub?._id);
+                                    }
+                                }}
+                                placeholder="Type your reply..."
+                                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                disabled={sendingFeedback}
+                            />
+                            <button
+                                onClick={() => handleSendFeedbackMessage(activeFeedbackSub?._id)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
+                                disabled={sendingFeedback || !feedbackInput.trim()}
+                            >
+                                {sendingFeedback ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
                             </button>
                         </div>
                     </div>

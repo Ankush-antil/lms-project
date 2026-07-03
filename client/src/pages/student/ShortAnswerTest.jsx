@@ -931,12 +931,7 @@ const ShortAnswerTest = () => {
         }
     };
 
-    const handleSendReport = async () => {
-        if (!reportMessage.trim()) {
-            toast.error('Please describe the issue you are facing.');
-            return;
-        }
-
+    const handleSendReport = async (shouldSubmitTest) => {
         setSubmittingReport(true);
 
         try {
@@ -969,16 +964,22 @@ const ShortAnswerTest = () => {
                 })
             );
 
-            const subRes = await axios.post('/api/submissions', { testId: id, answers: finalAnswers });
+            const status = shouldSubmitTest ? 'submitted' : 'reported';
+
+            const subRes = await axios.post('/api/submissions', { testId: id, answers: finalAnswers, status });
             const submissionId = subRes.data?._id;
 
             if (submissionId) {
                 await axios.post(`/api/submissions/${submissionId}/feedback`, { message: reportMessage.trim() });
             }
 
-            setSubmitted(true);
             setReportModalOpen(false);
-            toast.success('Issue reported and test submitted successfully!');
+            if (shouldSubmitTest) {
+                setSubmitted(true);
+                toast.success('Issue reported and test submitted successfully!');
+            } else {
+                toast.success('Issue reported successfully. You can continue taking the test.');
+            }
         } catch (err) {
             console.error('Report error:', err);
             toast.error(err.response?.data?.message || 'Failed to submit report. Please try again.');
@@ -3455,7 +3456,7 @@ const ShortAnswerTest = () => {
                         </div>
                         
                         <p className="text-xs text-slate-550 font-bold leading-relaxed">
-                            Reporting an issue will submit your current answers to the teacher for evaluation along with your message. You will not be able to continue taking the test.
+                            You can choose to report the issue and submit your test now, or send the report and continue taking the test.
                         </p>
                         
                         <div className="space-y-1.5">
@@ -3469,26 +3470,31 @@ const ShortAnswerTest = () => {
                             />
                         </div>
 
-                        <div className="flex gap-3 justify-end pt-2 border-t border-slate-150">
+                        <div className="flex flex-col sm:flex-row gap-2.5 justify-end pt-3 border-t border-slate-150 w-full">
                             <button
                                 type="button"
                                 onClick={() => setReportModalOpen(false)}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all sm:order-1"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="button"
-                                onClick={handleSendReport}
+                                onClick={() => handleSendReport(false)}
                                 disabled={submittingReport || !reportMessage.trim()}
-                                className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 sm:order-2"
                             >
-                                {submittingReport ? (
-                                    <>
-                                        <Loader2 size={12} className="animate-spin" />
-                                        Submitting...
-                                    </>
-                                ) : 'Submit Report'}
+                                {submittingReport ? <Loader2 size={12} className="animate-spin" /> : null}
+                                Report & Continue Test
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleSendReport(true)}
+                                disabled={submittingReport || !reportMessage.trim()}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 sm:order-3"
+                            >
+                                {submittingReport ? <Loader2 size={12} className="animate-spin" /> : null}
+                                Report & Submit Test
                             </button>
                         </div>
                     </div>

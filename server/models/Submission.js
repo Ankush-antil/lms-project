@@ -24,7 +24,7 @@ const submissionSchema = new mongoose.Schema({
     student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     studentName: { type: String },
     answers: [answerSchema],
-    status: { type: String, enum: ['submitted', 'evaluated', 'returned'], default: 'submitted' },
+    status: { type: String, enum: ['submitted', 'evaluated', 'returned', 'reported'], default: 'submitted' },
     returnedAt: { type: Date },          // timestamp when teacher returned it
     returnNote: { type: String, default: '' }, // optional note from teacher
     totalMarks: { type: Number, default: 0 },  // sum after teacher evaluation

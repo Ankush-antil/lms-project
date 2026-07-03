@@ -24,7 +24,7 @@ const submitTest = asyncHandler(async (req, res) => {
         student: req.user._id,
         studentName: req.user.name,
         answers,
-        status: 'submitted'
+        status: req.body.status || 'submitted'
     });
 
     res.status(201).json(submission);

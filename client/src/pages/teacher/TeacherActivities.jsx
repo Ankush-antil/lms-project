@@ -9,18 +9,45 @@ import {
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
-    CreditCard, Activity, Edit3, Lock
+    CreditCard, Activity, Edit3, Lock, Loader2
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
-const isTestExpired = (test) => {
+const isTestExpired = (test, student) => {
     if (!test) return false;
     const now = new Date();
-    if (test.settings?.endTime && new Date(test.settings.endTime) < now) return true;
+    let endTime = test.settings?.endTime;
+    if (test.settings?.activeDays && student) {
+        const enrollmentDate = student.studentProfile?.enrollmentDate || student.createdAt || new Date();
+        const match = (test.index || '').match(/\d+/);
+        const idxNum = match ? parseInt(match[0], 10) : 1;
+        const week = Math.ceil(idxNum / 7);
+        const offsetDays = (week - 1) * 7;
+        const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+        const testCreatedMs = new Date(test.createdAt || test.updatedAt || Date.now()).getTime();
+        const countdownStartMs = Math.max(inboxUnlockDateMs, testCreatedMs);
+        endTime = new Date(countdownStartMs + test.settings.activeDays * 24 * 60 * 60 * 1000);
+    }
+    if (endTime && new Date(endTime) < now) return true;
     if (test.publicSettings?.expiryDate && new Date(test.publicSettings.expiryDate) < now) return true;
     return false;
+};
+
+const getStudentSpecificEndTime = (test, student) => {
+    if (!test) return null;
+    if (!test.settings?.activeDays) return test.settings?.endTime;
+    if (!student) return null;
+    const enrollmentDate = student.studentProfile?.enrollmentDate || student.createdAt || new Date();
+    const match = (test.index || '').match(/\d+/);
+    const idxNum = match ? parseInt(match[0], 10) : 1;
+    const week = Math.ceil(idxNum / 7);
+    const offsetDays = (week - 1) * 7;
+    const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+    const testCreatedMs = new Date(test.createdAt || test.updatedAt || Date.now()).getTime();
+    const countdownStartMs = Math.max(inboxUnlockDateMs, testCreatedMs);
+    return new Date(countdownStartMs + test.settings.activeDays * 24 * 60 * 60 * 1000);
 };
 
 const getRemainingTimeText = (endTime) => {
@@ -82,15 +109,13 @@ const ActivityTimer = ({ endTime }) => {
     const totalSecs = Math.floor(timeLeftMs / 1000);
     const mins = Math.floor(totalSecs / 60);
     const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
+    const days = Math.ceil(hours / 24);
 
     let displayStr = "";
-    if (days > 0) {
-        displayStr = `${days}d ${hours % 24}h ${mins % 60}m left`;
-    } else if (hours > 0) {
-        displayStr = `${hours}h ${mins % 60}m ${totalSecs % 60}s left`;
+    if (days > 1) {
+        displayStr = `${days} Days Left`;
     } else {
-        displayStr = `${mins}m ${totalSecs % 60}s left`;
+        displayStr = `Expires Today`;
     }
 
     const isCritical = totalSecs < 600;
@@ -162,6 +187,42 @@ const TeacherActivities = () => {
     const [activeDropdownInboxId, setActiveDropdownInboxId] = useState(null);
     const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
     const [renameInboxId, setRenameInboxId] = useState(null);
+
+    // States for feedback/report chat modal
+    const [feedbackChatModalOpen, setFeedbackChatModalOpen] = useState(false);
+    const [activeFeedbackChatSub, setActiveFeedbackChatSub] = useState(null);
+    const [feedbackChatMessages, setFeedbackChatMessages] = useState([]);
+    const [feedbackChatInput, setFeedbackChatInput] = useState('');
+    const [loadingFeedbackChat, setLoadingFeedbackChat] = useState(false);
+    const [sendingFeedbackChat, setSendingFeedbackChat] = useState(false);
+
+    const loadFeedbackChatHistory = async (submissionId) => {
+        setLoadingFeedbackChat(true);
+        try {
+            const res = await axios.get(`/api/submissions/${submissionId}/feedback`);
+            setFeedbackChatMessages(res.data);
+        } catch (err) {
+            console.error("Failed to load feedback history:", err);
+            toast.error("Failed to load feedback chat.");
+        } finally {
+            setLoadingFeedbackChat(false);
+        }
+    };
+
+    const handleSendFeedbackChatMessage = async (submissionId) => {
+        if (!feedbackChatInput.trim()) return;
+        setSendingFeedbackChat(true);
+        try {
+            const res = await axios.post(`/api/submissions/${submissionId}/feedback`, { message: feedbackChatInput.trim() });
+            setFeedbackChatMessages(res.data);
+            setFeedbackChatInput('');
+        } catch (err) {
+            console.error("Failed to send feedback message:", err);
+            toast.error("Failed to send message.");
+        } finally {
+            setSendingFeedbackChat(false);
+        }
+    };
     const [renameValue, setRenameValue] = useState('');
     const [showStudentList, setShowStudentList] = useState(true);
     const [chatInput, setChatInput] = useState('');
@@ -237,66 +298,83 @@ const TeacherActivities = () => {
     // Expiry Modal States
     const [expiryModalOpen, setExpiryModalOpen] = useState(false);
     const [expiryModalTest, setExpiryModalTest] = useState(null);
-    const [expiryDate, setExpiryDate] = useState('');
     const [isNoExpiry, setIsNoExpiry] = useState(false);
+    const [activeDays, setActiveDays] = useState(3);
+    const [assignmentScope, setAssignmentScope] = useState('particular');
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
 
     const openExpiryModal = (test) => {
         setExpiryModalTest(test);
         if (test.settings?.endTime) {
-            const d = new Date(test.settings.endTime);
-            const pad = (n) => String(n).padStart(2, '0');
-            const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            setExpiryDate(formatted);
+            const diffMs = new Date(test.settings.endTime) - new Date();
+            const days = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+            setActiveDays(days > 0 ? days : 3);
             setIsNoExpiry(false);
         } else {
-            setExpiryDate('');
+            setActiveDays(3);
             setIsNoExpiry(true);
         }
+        setAssignmentScope(test.assignmentType || 'particular');
+        setSelectedStudentIds(test.assignedStudents || []);
         setExpiryModalOpen(true);
     };
 
-    const validateExpiryDate = (dateVal, isNoExpiryOption) => {
+    const validateExpiryDays = (daysVal, isNoExpiryOption) => {
         if (isNoExpiryOption) return { valid: true };
-        if (!dateVal) return { valid: false, error: "Please select an expiry date and time." };
-
-        const selectedDate = new Date(dateVal);
-        const now = new Date();
-
-        const maxTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-        if (selectedDate <= now) {
-            return { valid: false, error: "Expiry time must be in the future." };
+        if (!daysVal || isNaN(daysVal) || daysVal < 1) {
+            return { valid: false, error: "Please enter a valid number of days (at least 1)." };
         }
-        if (selectedDate > maxTime) {
-            return { valid: false, error: "Expiry time cannot exceed 30 days from now." };
+        if (daysVal > 300) {
+            return { valid: false, error: "Active days cannot exceed 300 days." };
         }
         return { valid: true };
     };
 
     const handleSaveExpiry = async () => {
         if (!expiryModalTest) return;
-        const validation = validateExpiryDate(expiryDate, isNoExpiry);
+        const validation = validateExpiryDays(activeDays, isNoExpiry);
         if (!validation.valid) {
             toast.error(validation.error);
             return;
         }
 
         try {
-            const endTimeValue = isNoExpiry ? null : new Date(expiryDate);
+            const endTimeValue = isNoExpiry ? null : new Date(Date.now() + activeDays * 24 * 60 * 60 * 1000);
+            
+            let finalAssignedStudents = [];
+            if (assignmentScope === 'particular') {
+                if (selectedStudent) {
+                    finalAssignedStudents = [selectedStudent._id];
+                }
+            } else if (assignmentScope === 'selected') {
+                if (selectedStudentIds.length === 0) {
+                    toast.error("Please select at least one student.");
+                    return;
+                }
+                finalAssignedStudents = selectedStudentIds;
+            } else if (assignmentScope === 'all') {
+                finalAssignedStudents = [];
+            }
+
             await axios.put(`/api/tests/${expiryModalTest._id}`, {
-                testDetails: { isAssigned: true },
+                testDetails: { 
+                    isAssigned: true,
+                    assignedStudents: finalAssignedStudents,
+                    assignmentType: assignmentScope
+                },
                 settings: {
                     ...expiryModalTest.settings,
-                    endTime: endTimeValue
+                    endTime: endTimeValue,
+                    activeDays: isNoExpiry ? null : activeDays
                 }
             });
-            toast.success(expiryModalTest.isAssigned ? "Expiry settings updated successfully!" : "Activity assigned successfully!");
+            toast.success(expiryModalTest.isAssigned ? "Expiry and assignment settings updated successfully!" : "Activity assigned successfully!");
             setExpiryModalOpen(false);
             setExpiryModalTest(null);
             fetchTests();
         } catch (err) {
             console.error("Error setting test expiry:", err);
-            toast.error("Failed to update expiry settings");
+            toast.error("Failed to update settings");
         }
     };
 
@@ -761,6 +839,8 @@ const TeacherActivities = () => {
         Object.keys(testsGrouped).forEach(addKeyIfNew);
         Object.keys(materialsGrouped).forEach(addKeyIfNew);
 
+        const enrollmentDate = selectedStudent?.studentProfile?.enrollmentDate || selectedStudent?.createdAt || new Date();
+
         return allKeys.map(keyName => {
             const normalized = keyName.trim().toLowerCase();
             const testsInInbox = testsGrouped[normalized] || [];
@@ -769,10 +849,14 @@ const TeacherActivities = () => {
             const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
             const isVisible = config ? config.visible : true;
             
-            // Check if inbox has any content
-            const hasContent = testsInInbox.length > 0 || materialsInInbox.length > 0;
-            // Empty inbox is disabled/locked, or explicitly disabled in config
-            const isInboxDisabled = !hasContent || (config ? !!config.disabled : false);
+            const match = keyName.match(/\d+/);
+            const idxNum = match ? parseInt(match[0], 10) : 1;
+            const week = Math.ceil(idxNum / 7);
+            const offsetDays = (week - 1) * 7;
+            const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+            const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
+
+            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
             
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
@@ -790,7 +874,7 @@ const TeacherActivities = () => {
                 tests: testsInInbox,
                 visible: isVisible,
                 disabled: isInboxDisabled,
-                hasContent: hasContent
+                hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
             };
         });
     }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
@@ -816,8 +900,8 @@ const TeacherActivities = () => {
 
     const pendingCount = useMemo(() => {
         if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => t.isAssigned === true && !isTestExpired(t) && !submissionMap.get(t._id)).length;
-    }, [selectedGroup, submissionMap]);
+        return (selectedGroup.tests || []).filter(t => t.isAssigned === true && !isTestExpired(t, selectedStudent) && (!submissionMap.get(t._id) || submissionMap.get(t._id).status === 'reported')).length;
+    }, [selectedGroup, submissionMap, selectedStudent]);
 
     const submittedCount = useMemo(() => {
         if (!selectedGroup) return 0;
@@ -831,9 +915,9 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            return t.isAssigned === true && !isTestExpired(t) && sub && sub.status === 'returned';
+            return t.isAssigned === true && !isTestExpired(t, selectedStudent) && sub && sub.status === 'returned';
         }).length;
-    }, [selectedGroup, submissionMap]);
+    }, [selectedGroup, submissionMap, selectedStudent]);
 
     const evaluatedCount = useMemo(() => {
         if (!selectedGroup) return 0;
@@ -847,10 +931,10 @@ const TeacherActivities = () => {
         if (!selectedGroup) return 0;
         return (selectedGroup.tests || []).filter(t => {
             const sub = submissionMap.get(t._id);
-            const isUnfinished = !sub || sub.status === 'returned';
-            return t.isAssigned === true && isTestExpired(t) && isUnfinished;
+            const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
+            return t.isAssigned === true && isTestExpired(t, selectedStudent) && isUnfinished;
         }).length;
-    }, [selectedGroup, submissionMap]);
+    }, [selectedGroup, submissionMap, selectedStudent]);
 
     const feedbackCount = useMemo(() => {
         if (!selectedGroup) return 0;
@@ -867,22 +951,22 @@ const TeacherActivities = () => {
             if (viewMode === 'assign') {
                 return test.isAssigned === false;
             } else if (viewMode === 'pending') {
-                return test.isAssigned === true && !isTestExpired(test) && !sub;
+                return test.isAssigned === true && !isTestExpired(test, selectedStudent) && (!sub || sub.status === 'reported');
             } else if (viewMode === 'submitted') {
                 return test.isAssigned === true && sub && sub.status === 'submitted';
             } else if (viewMode === 'returned') {
-                return test.isAssigned === true && !isTestExpired(test) && sub && sub.status === 'returned';
+                return test.isAssigned === true && !isTestExpired(test, selectedStudent) && sub && sub.status === 'returned';
             } else if (viewMode === 'evaluated') {
                 return test.isAssigned === true && sub && sub.status === 'evaluated';
             } else if (viewMode === 'expired') {
-                const isUnfinished = !sub || sub.status === 'returned';
-                return test.isAssigned === true && isTestExpired(test) && isUnfinished;
+                const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
+                return test.isAssigned === true && isTestExpired(test, selectedStudent) && isUnfinished;
             } else if (viewMode === 'student-feedback') {
                 return test.isAssigned === true && sub && sub.status === 'evaluated' && sub.answers.some(a => (a.conversation && a.conversation.some(msg => msg.role === 'Student')) || a.reaction);
             }
             return false;
         });
-    }, [selectedGroup, viewMode, submissionMap]);
+    }, [selectedGroup, viewMode, submissionMap, selectedStudent]);
 
     const categoriesMap = useMemo(() => {
         const map = {};
@@ -1238,10 +1322,6 @@ const TeacherActivities = () => {
                                                 <div
                                                     key={item.id}
                                                     onClick={() => {
-                                                        if (isInboxDisabled) {
-                                                            toast.error("This inbox has no activities assigned for this student yet.");
-                                                            return;
-                                                        }
                                                         setSelectedInboxId(item.id);
                                                         setSelectedCategory(null);
                                                         if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
@@ -1251,7 +1331,7 @@ const TeacherActivities = () => {
                                                     className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
                                                         ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
                                                         : isInboxDisabled
-                                                            ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                            ? 'border-slate-200 bg-slate-50/40 opacity-70 hover:shadow-none hover:border-slate-200'
                                                             : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
                                                         }`}
                                                 >
@@ -1323,11 +1403,9 @@ const TeacherActivities = () => {
                                                                 >
                                                                     <button
                                                                         onClick={() => {
-                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
-                                                                            const isVisible = config ? config.visible : true;
-                                                                            const isInboxDisabled = config ? !!config.disabled : false;
+                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
                                                                             const currentDisplayName = config ? config.displayName : '';
-                                                                            openBulkInboxConfigModal(item.id, !isVisible, isInboxDisabled, currentDisplayName, 'hide');
+                                                                            openBulkInboxConfigModal(item.id, !item.visible, item.disabled, currentDisplayName, 'hide');
                                                                         }}
                                                                         className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
                                                                     >
@@ -1338,23 +1416,21 @@ const TeacherActivities = () => {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
-                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
-                                                                            const isVisible = config ? config.visible : true;
-                                                                            const isInboxDisabled = config ? !!config.disabled : false;
+                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
                                                                             const currentDisplayName = config ? config.displayName : '';
-                                                                            openBulkInboxConfigModal(item.id, isVisible, !isInboxDisabled, currentDisplayName, 'disable');
+                                                                            openBulkInboxConfigModal(item.id, item.visible, !item.disabled, currentDisplayName, 'disable');
                                                                         }}
                                                                         className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
                                                                     >
                                                                         <span>Enable Inbox</span>
-                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !isInboxDisabled ? '#3E3ADD' : '#cbd5e1' }}>
-                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isInboxDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !item.disabled ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !item.disabled ? 'translateX(16px)' : 'translateX(0px)' }} />
                                                                         </div>
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
                                                                             setRenameInboxId(item.id);
-                                                                            const config = inboxConfigs.find(c => c.inboxId === item.id);
+                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
                                                                             setRenameValue(config && config.displayName ? config.displayName : item.id);
                                                                             setActiveDropdownInboxId(null);
                                                                         }}
@@ -2097,6 +2173,23 @@ const TeacherActivities = () => {
                                                                                     View Details
                                                                                 </button>
 
+                                                                                {/* Student's Report */}
+                                                                                {sub && sub.status === 'reported' && (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownTestId(null);
+                                                                                            setActiveFeedbackChatSub(sub);
+                                                                                            loadFeedbackChatHistory(sub._id);
+                                                                                            setFeedbackChatModalOpen(true);
+                                                                                        }}
+                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-b border-slate-100"
+                                                                                    >
+                                                                                        <MessageSquare size={13} className="text-slate-400" />
+                                                                                        Student's Report
+                                                                                    </button>
+                                                                                )}
+
                                                                                 {/* Edit Activity */}
                                                                                 {(viewMode === 'pending' || viewMode === 'assign') && (
                                                                                     <button
@@ -2212,10 +2305,10 @@ const TeacherActivities = () => {
                                                                 </div>
                                                             )}
 
-                                                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                            <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
                                                                 {/* Left Side: Expiry display */}
                                                                 {viewMode !== 'assign' && (
-                                                                    <ActivityTimer endTime={test.settings?.endTime} />
+                                                                    <ActivityTimer endTime={getStudentSpecificEndTime(test, selectedStudent)} />
                                                                 )}
 
                                                                 {/* Right Side: Action Button */}
@@ -3111,138 +3204,337 @@ const TeacherActivities = () => {
 
             {/* Expiry Configuration Modal */}
             {expiryModalOpen && expiryModalTest && (
-                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
-                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up animate-fade-in">
-                        <div className="p-8">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#3E3ADD] flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                                        <Clock size={20} strokeWidth={2.5} />
-                                    </div>
-                                    <h2 className="text-lg font-black text-slate-800 tracking-tight">
-                                        {expiryModalTest.isAssigned ? "Edit Expiry Settings" : "Configure Expiry"}
-                                    </h2>
+                <div className="fixed inset-0 z-[100] bg-white/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border-none flex flex-col max-h-[85vh] overflow-hidden relative animate-slide-up animate-fade-in">
+                        {/* Fixed Header */}
+                        <div className="px-8 py-5 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-[#3E3ADD] flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                                    <Clock size={20} strokeWidth={2.5} />
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        setExpiryModalOpen(false);
-                                        setExpiryModalTest(null);
-                                    }}
-                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition-all"
-                                >
-                                    <RotateCcw size={20} className="rotate-45" />
-                                </button>
+                                <h2 className="text-lg font-black text-slate-800 tracking-tight">
+                                    {expiryModalTest.isAssigned ? "Edit Expiry Settings" : "Configure Expiry"}
+                                </h2>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setExpiryModalOpen(false);
+                                    setExpiryModalTest(null);
+                                }}
+                                className="p-2 hover:bg-slate-50 text-slate-450 hover:text-slate-600 rounded-full transition-all"
+                            >
+                                <RotateCcw size={20} className="rotate-45" />
+                            </button>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="px-8 py-6 overflow-y-auto flex-1 space-y-6 custom-scrollbar text-left">
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Activity</label>
+                                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                                    <span className="font-bold text-indigo-900 text-sm block">{expiryModalTest.title}</span>
+                                    <span className="text-[10px] text-indigo-500 font-semibold block mt-0.5 uppercase tracking-wider">{expiryModalTest.activity || 'Test'}</span>
+                                </div>
                             </div>
 
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Activity</label>
-                                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
-                                        <span className="font-bold text-indigo-900 text-sm block">{expiryModalTest.title}</span>
-                                        <span className="text-[10px] text-indigo-500 font-semibold block mt-0.5 uppercase tracking-wider">{expiryModalTest.activity || 'Test'}</span>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">EXPIRY SETTINGS</label>
+                                {/* Option 1: Always Available / No Expiry */}
+                                <div 
+                                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                                        isNoExpiry 
+                                            ? 'bg-purple-50/40 border-purple-200' 
+                                            : 'bg-white border-slate-200 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => setIsNoExpiry(true)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="radio" 
+                                            id="expiry-none"
+                                            name="expiry-type"
+                                            checked={isNoExpiry}
+                                            onChange={() => setIsNoExpiry(true)}
+                                            className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                        />
+                                        <div className="text-left">
+                                            <label htmlFor="expiry-none" className="text-xs font-bold text-slate-850 cursor-pointer">No Expiry</label>
+                                            <p className="text-[9px] text-slate-450 mt-0.5">Always available to students in upcoming activities</p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    {/* Option 1: Always Available / No Expiry */}
+                                {/* Option 2: Set Expiry Days */}
+                                <div 
+                                    className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
+                                        !isNoExpiry 
+                                            ? 'bg-indigo-50/40 border-indigo-200' 
+                                            : 'bg-white border-slate-200 hover:border-slate-300'
+                                    }`}
+                                >
+                                    <div 
+                                        className="flex items-center gap-3 cursor-pointer"
+                                        onClick={() => setIsNoExpiry(false)}
+                                    >
+                                        <input 
+                                            type="radio" 
+                                            id="expiry-set"
+                                            name="expiry-type"
+                                            checked={!isNoExpiry}
+                                            onChange={() => setIsNoExpiry(false)}
+                                            className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                        />
+                                        <div className="text-left">
+                                            <label htmlFor="expiry-set" className="text-xs font-bold text-slate-850 cursor-pointer">Set Active Duration (Days)</label>
+                                            <p className="text-[9px] text-slate-450 mt-0.5">Specify how many days this activity will remain active</p>
+                                        </div>
+                                    </div>
+
+                                    {!isNoExpiry && (
+                                        <div className="space-y-2 animate-fade-in text-left">
+                                            <input 
+                                                type="number" 
+                                                min="1"
+                                                max="300"
+                                                value={activeDays}
+                                                onChange={(e) => setActiveDays(parseInt(e.target.value) || 1)}
+                                                className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                            />
+                                            <p className="text-[9px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100 leading-relaxed">
+                                                ℹ Activity will expire after {activeDays} day(s). Maximum duration is 300 days.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-4">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">ASSIGN TO</label>
+                                
+                                {/* Particular Student */}
+                                {selectedStudent && (
                                     <div 
                                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                                            isNoExpiry 
-                                                ? 'bg-purple-50/40 border-purple-200' 
+                                            assignmentScope === 'particular'
+                                                ? 'bg-indigo-50/40 border-indigo-200' 
                                                 : 'bg-white border-slate-200 hover:border-slate-300'
                                         }`}
-                                        onClick={() => setIsNoExpiry(true)}
+                                        onClick={() => setAssignmentScope('particular')}
                                     >
                                         <div className="flex items-center gap-3">
                                             <input 
                                                 type="radio" 
-                                                id="expiry-none"
-                                                name="expiry-type"
-                                                checked={isNoExpiry}
-                                                onChange={() => setIsNoExpiry(true)}
+                                                id="assign-particular"
+                                                name="assign-scope"
+                                                checked={assignmentScope === 'particular'}
+                                                onChange={() => setAssignmentScope('particular')}
                                                 className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
-                                            />
-                                            <div className="text-left">
-                                                <label htmlFor="expiry-none" className="text-xs font-bold text-slate-850 cursor-pointer">No Expiry</label>
-                                                <p className="text-[9px] text-slate-450 mt-0.5">Always available to students in upcoming activities</p>
-                                            </div>
+                                        />
+                                        <div className="text-left">
+                                            <label htmlFor="assign-particular" className="text-xs font-bold text-slate-850 cursor-pointer">Particular Student</label>
+                                            <p className="text-[9px] text-slate-450 mt-0.5">Only assign to {selectedStudent.name}</p>
                                         </div>
                                     </div>
+                                </div>
+                            )}
 
-                                    {/* Option 2: Set Expiry Date & Time */}
-                                    <div 
-                                        className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
-                                            !isNoExpiry 
-                                                ? 'bg-indigo-50/40 border-indigo-200' 
-                                                : 'bg-white border-slate-200 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <div 
-                                            className="flex items-center gap-3 cursor-pointer"
-                                            onClick={() => setIsNoExpiry(false)}
-                                        >
-                                            <input 
-                                                type="radio" 
-                                                id="expiry-set"
-                                                name="expiry-type"
-                                                checked={!isNoExpiry}
-                                                onChange={() => setIsNoExpiry(false)}
-                                                className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
-                                            />
-                                            <div className="text-left">
-                                                <label htmlFor="expiry-set" className="text-xs font-bold text-slate-850 cursor-pointer">Set Expiry Date & Time</label>
-                                                <p className="text-[9px] text-slate-450 mt-0.5">Select a specific deadline for submissions</p>
-                                            </div>
-                                        </div>
-
-                                        {!isNoExpiry && (
-                                            <div className="space-y-2 animate-fade-in text-left">
-                                                <input 
-                                                    type="datetime-local" 
-                                                    value={expiryDate}
-                                                    onChange={(e) => setExpiryDate(e.target.value)}
-                                                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                />
-                                                <p className="text-[9px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100 leading-relaxed">
-                                                    ℹ Must be in the future and cannot exceed 30 days from now.
-                                                </p>
-                                            </div>
-                                        )}
+                            {/* Selected Students */}
+                            <div 
+                                className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
+                                    assignmentScope === 'selected'
+                                        ? 'bg-indigo-50/40 border-indigo-200' 
+                                        : 'bg-white border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                <div 
+                                    className="flex items-center gap-3 cursor-pointer"
+                                    onClick={() => setAssignmentScope('selected')}
+                                >
+                                    <input 
+                                        type="radio" 
+                                        id="assign-selected"
+                                        name="assign-scope"
+                                        checked={assignmentScope === 'selected'}
+                                        onChange={() => setAssignmentScope('selected')}
+                                        className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                    />
+                                    <div className="text-left">
+                                        <label htmlFor="assign-selected" className="text-xs font-bold text-slate-850 cursor-pointer">Selected Students</label>
+                                        <p className="text-[9px] text-slate-450 mt-0.5">Choose multiple students to assign this activity</p>
                                     </div>
                                 </div>
 
-                                {/* Force Expire Button (Only if test is already assigned) */}
-                                {expiryModalTest.isAssigned && (
-                                    <div className="pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleForceExpire(expiryModalTest)}
-                                            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black rounded-xl text-[10px] uppercase tracking-wider transition-all"
-                                        >
-                                            Force Expire Immediately
-                                        </button>
+                                {assignmentScope === 'selected' && (
+                                    <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50/50 animate-fade-in custom-scrollbar">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Students ({selectedStudentIds.length} selected)</span>
+                                        <div className="space-y-1.5">
+                                            {students.map(s => {
+                                                const isChecked = selectedStudentIds.includes(s._id);
+                                                return (
+                                                    <label key={s._id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-100/50 rounded-lg cursor-pointer transition-colors text-left">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedStudentIds(prev => [...prev, s._id]);
+                                                                } else {
+                                                                    setSelectedStudentIds(prev => prev.filter(id => id !== s._id));
+                                                                }
+                                                            }}
+                                                            className="w-3.5 h-3.5 text-[#3E3ADD] focus:ring-[#3E3ADD] rounded cursor-pointer"
+                                                        />
+                                                        <span className="text-xs font-semibold text-slate-700">{s.name}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                            {/* All Students */}
+                            <div 
+                                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                                    assignmentScope === 'all'
+                                        ? 'bg-indigo-50/40 border-indigo-200' 
+                                        : 'bg-white border-slate-200 hover:border-slate-300'
+                                }`}
+                                onClick={() => setAssignmentScope('all')}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <input 
+                                        type="radio" 
+                                        id="assign-all"
+                                        name="assign-scope"
+                                        checked={assignmentScope === 'all'}
+                                        onChange={() => setAssignmentScope('all')}
+                                        className="w-4 h-4 text-[#3E3ADD] focus:ring-[#3E3ADD] cursor-pointer"
+                                    />
+                                    <div className="text-left">
+                                        <label htmlFor="assign-all" className="text-xs font-bold text-slate-850 cursor-pointer">All Students</label>
+                                        <p className="text-[9px] text-slate-450 mt-0.5">Assign this activity to all students</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Force Expire Button (Only if test is already assigned) */}
+                        {expiryModalTest.isAssigned && (
+                            <div className="pt-2">
                                 <button
-                                    onClick={() => {
-                                        setExpiryModalOpen(false);
-                                        setExpiryModalTest(null);
-                                    }}
-                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-[10px] transition-colors uppercase tracking-wider"
+                                    type="button"
+                                    onClick={() => handleForceExpire(expiryModalTest)}
+                                    className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black rounded-xl text-[10px] uppercase tracking-wider transition-all"
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveExpiry}
-                                    className="flex-1 py-3 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-[10px] transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider"
-                                >
-                                    {expiryModalTest.isAssigned ? "Save Changes" : "Assign Activity"}
+                                    Force Expire Immediately
                                 </button>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Fixed Footer */}
+                    <div className="px-8 py-5 flex gap-3 shrink-0">
+                        <button
+                            onClick={() => {
+                                setExpiryModalOpen(false);
+                                setExpiryModalTest(null);
+                            }}
+                            className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-[10px] transition-colors uppercase tracking-wider"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSaveExpiry}
+                            className="flex-1 py-3 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-[10px] transition-colors shadow-lg shadow-indigo-100 uppercase tracking-wider"
+                        >
+                            {expiryModalTest.isAssigned ? "Save Changes" : "Assign Activity"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+            {/* Student Feedback Chat Modal */}
+            {feedbackChatModalOpen && (
+                <div className="fixed inset-0 bg-white/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-fade-in font-sans">
+                    <div className="bg-white w-full max-w-lg rounded-[2rem] border-none shadow-2xl overflow-hidden flex flex-col h-[80vh] max-h-[600px] text-left">
+                        {/* Modal Header */}
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3E3ADD] to-purple-500 text-white font-extrabold flex items-center justify-center shadow-md">
+                                    {activeFeedbackChatSub?.studentName?.[0]?.toUpperCase() || 'S'}
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-extrabold text-slate-800 text-sm truncate">Student: {activeFeedbackChatSub?.studentName || 'Student'}</h3>
+                                    <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Feedback: {activeFeedbackChatSub?.test?.title || 'Activity'}</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setFeedbackChatModalOpen(false)}
+                                className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        {/* Messages Body */}
+                        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                            {loadingFeedbackChat ? (
+                                <div className="h-full flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                </div>
+                            ) : feedbackChatMessages.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                    <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                                    <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                    <p className="text-slate-400 text-[11px] mt-1">
+                                        No conversation history found.
+                                    </p>
+                                </div>
+                            ) : (
+                                feedbackChatMessages.map((msg, index) => {
+                                    const isSelf = msg.role === 'Teacher';
+                                    const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                    return (
+                                        <div key={index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[75%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                : 'bg-white text-slate-850 border border-slate-150 rounded-tl-none'
+                                                }`}>
+                                                <p className="font-semibold">{msg.message}</p>
+                                                <span className={`text-[8px] mt-1 block text-right font-bold ${isSelf ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                                    {formattedTime}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Message Input Box */}
+                        <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                            <input
+                                type="text"
+                                value={feedbackChatInput}
+                                onChange={e => setFeedbackChatInput(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && !sendingFeedbackChat && feedbackChatInput.trim()) {
+                                        handleSendFeedbackChatMessage(activeFeedbackChatSub?._id);
+                                    }
+                                }}
+                                placeholder="Type your reply..."
+                                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                disabled={sendingFeedbackChat}
+                            />
+                            <button
+                                onClick={() => handleSendFeedbackChatMessage(activeFeedbackChatSub?._id)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center font-bold text-xs disabled:opacity-50"
+                                disabled={sendingFeedbackChat || !feedbackChatInput.trim()}
+                            >
+                                {sendingFeedbackChat ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
+                            </button>
                         </div>
                     </div>
                 </div>

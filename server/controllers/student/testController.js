@@ -73,7 +73,26 @@ const getTests = asyncHandler(async (req, res) => {
 
     const tests = await Test.find(query).populate('createdBy', 'name email role').sort({ createdAt: -1 });
     console.log(`[Student-Tests] Found ${tests.length} tests for ${user.name}`);
-    res.json(tests);
+    
+    const enrollmentDate = req.user.studentProfile?.enrollmentDate || req.user.createdAt || new Date();
+    const modifiedTests = tests.map(t => {
+        const testObj = t.toObject();
+        if (testObj.settings && testObj.settings.activeDays) {
+            const activeDaysMs = testObj.settings.activeDays * 24 * 60 * 60 * 1000;
+            const match = (testObj.index || '').match(/\d+/);
+            const idxNum = match ? parseInt(match[0], 10) : 1;
+            const week = Math.ceil(idxNum / 7);
+            const offsetDays = (week - 1) * 7;
+            const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+            
+            const testCreatedMs = new Date(testObj.createdAt || testObj.updatedAt || Date.now()).getTime();
+            const countdownStartMs = Math.max(inboxUnlockDateMs, testCreatedMs);
+            testObj.settings.endTime = new Date(countdownStartMs + activeDaysMs);
+        }
+        return testObj;
+    });
+
+    res.json(modifiedTests);
 });
 
 // @desc    Get test details by ID (for Student)
@@ -85,7 +104,23 @@ const getTestById = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Test not found');
     }
-    res.json(test);
+    
+    const testObj = test.toObject();
+    if (testObj.settings && testObj.settings.activeDays) {
+        const enrollmentDate = req.user.studentProfile?.enrollmentDate || req.user.createdAt || new Date();
+        const activeDaysMs = testObj.settings.activeDays * 24 * 60 * 60 * 1000;
+        const match = (testObj.index || '').match(/\d+/);
+        const idxNum = match ? parseInt(match[0], 10) : 1;
+        const week = Math.ceil(idxNum / 7);
+        const offsetDays = (week - 1) * 7;
+        const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
+        
+        const testCreatedMs = new Date(testObj.createdAt || testObj.updatedAt || Date.now()).getTime();
+        const countdownStartMs = Math.max(inboxUnlockDateMs, testCreatedMs);
+        testObj.settings.endTime = new Date(countdownStartMs + activeDaysMs);
+    }
+    
+    res.json(testObj);
 });
 
 module.exports = { getTests, getTestById };

@@ -7,7 +7,7 @@ const publicAnswerSchema = new mongoose.Schema({
     textAnswer: { type: String, default: '' },
     audioData: { type: String, default: '' },
     videoData: { type: String, default: '' },
-    marks: { type: Number, default: 0 }
+    marks: { type: mongoose.Schema.Types.Mixed, default: '0' }
 });
 
 const publicSubmissionSchema = new mongoose.Schema({

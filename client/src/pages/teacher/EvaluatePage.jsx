@@ -172,13 +172,19 @@ const EvaluatePage = () => {
             setSaving(`${submission._id}-${qIdx}`);
 
 
-            const answersPayload = submission.answers.map((a, i) => ({
-                marks: i === qIdx ? parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0) : a.marks,
-                feedback: i === qIdx ? (feedback[submission._id]?.[i] ?? '') : '',
-                videoData: i === qIdx ? (updatedVideoData[submission._id]?.[i] ?? a.videoData) : a.videoData
-            }));
+            const answersPayload = submission.answers.map((a, i) => {
+                const rawMarks = i === qIdx ? (marks[submission._id]?.[i] ?? a.marks ?? '0') : (a.marks ?? '0');
+                return {
+                    marks: String(rawMarks),
+                    feedback: i === qIdx ? (feedback[submission._id]?.[i] ?? '') : '',
+                    videoData: i === qIdx ? (updatedVideoData[submission._id]?.[i] ?? a.videoData) : a.videoData
+                };
+            });
 
-            const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
+            const total = answersPayload.reduce((sum, a) => {
+                const parsed = parseFloat(a.marks);
+                return sum + (isNaN(parsed) ? 0 : parsed);
+            }, 0);
 
             const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
                 answers: answersPayload,
@@ -205,14 +211,19 @@ const EvaluatePage = () => {
         try {
             setSaving(submission._id);
 
+            const answersPayload = submission.answers.map((a, i) => {
+                const rawMarks = marks[submission._id]?.[i] ?? a.marks ?? '0';
+                return {
+                    marks: String(rawMarks),
+                    feedback: feedback[submission._id]?.[i] ?? a.feedback ?? '',
+                    videoData: updatedVideoData[submission._id]?.[i] ?? a.videoData
+                };
+            });
 
-            const answersPayload = submission.answers.map((a, i) => ({
-                marks: parseInt(marks[submission._id]?.[i] ?? a.marks ?? 0),
-                feedback: feedback[submission._id]?.[i] ?? a.feedback ?? '',
-                videoData: updatedVideoData[submission._id]?.[i] ?? a.videoData
-            }));
-
-            const total = answersPayload.reduce((sum, a) => sum + (a.marks || 0), 0);
+            const total = answersPayload.reduce((sum, a) => {
+                const parsed = parseFloat(a.marks);
+                return sum + (isNaN(parsed) ? 0 : parsed);
+            }, 0);
 
             const res = await axios.put(`/api/submissions/${submission._id}/evaluate`, {
                 answers: answersPayload,
@@ -849,11 +860,10 @@ const EvaluatePage = () => {
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Score:</span>
                                                                                     <input
-                                                                                        type="number"
-                                                                                        min="0"
+                                                                                        type="text"
                                                                                         value={marks[submission._id]?.[idx] ?? ans.marks ?? ''}
                                                                                         onChange={e => setMark(submission._id, idx, e.target.value)}
-                                                                                        className="w-16 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
                                                                                         placeholder="0.0"
                                                                                     />
                                                                                 </div>
@@ -995,28 +1005,6 @@ const EvaluatePage = () => {
                                         })
                                     )}
 
-                                    {/* Save Evaluation Button */}
-                                    {!isFeedbackMode && (
-                                        <div className="flex justify-end pt-2">
-                                            <button
-                                                onClick={() => submitEvaluation(submission)}
-                                                disabled={saving === submission._id}
-                                                className={`px-6 py-2.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 flex items-center gap-2 text-xs uppercase ${submission.status === 'evaluated'
-                                                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200/50'
-                                                    : 'bg-[#0B1520] hover:bg-[#1A2530] text-white shadow-slate-900/10'
-                                                    }`}
-                                            >
-                                                {saving === submission._id ? (
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                ) : (
-                                                    <>
-                                                        <CheckCircle2 size={14} />
-                                                        {submission.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -1054,6 +1042,29 @@ const EvaluatePage = () => {
                                 <Share2 size={16} />
                                 <span>Share</span>
                             </button>
+
+                            {/* Save Evaluation Button */}
+                            {!isFeedbackMode && (
+                                <div className="flex justify-end pt-2">
+                                    <button
+                                        onClick={() => submitEvaluation(submission)}
+                                        disabled={saving === submission._id}
+                                        className={`px-6 py-2.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 flex items-center gap-2 text-xs uppercase ${submission.status === 'evaluated'
+                                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                            }`}
+                                    >
+                                        {saving === submission._id ? (
+                                            <RefreshCw size={14} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 size={14} />
+                                                {submission.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <style>{`

@@ -8,7 +8,7 @@ const answerSchema = new mongoose.Schema({
     // Base64-encoded media answers
     audioData: { type: String, default: '' },  // base64 audio/webm
     videoData: { type: String, default: '' },  // base64 video/webm
-    marks: { type: Number, default: 0 },       // filled by teacher
+    marks: { type: mongoose.Schema.Types.Mixed, default: '0' },       // filled by teacher
     reaction: { type: String, default: '' },   // student feedback reaction (like/dislike)
     likes: { type: [String], default: [] },
     dislikes: { type: [String], default: [] },

@@ -104,17 +104,17 @@ const ViewTestResult = ({ isSharedView = false }) => {
             if (newAnswers[index]) {
                 let likes = [...(newAnswers[index].likes || [])];
                 let dislikes = [...(newAnswers[index].dislikes || [])];
-                
+
                 // Remove voter from both arrays
                 likes = likes.filter(id => id !== voterId);
                 dislikes = dislikes.filter(id => id !== voterId);
-                
+
                 if (newReaction === 'like') {
                     likes.push(voterId);
                 } else if (newReaction === 'dislike') {
                     dislikes.push(voterId);
                 }
-                
+
                 newAnswers[index] = {
                     ...newAnswers[index],
                     reaction: newReaction,
@@ -134,7 +134,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 };
             });
 
-            const endpoint = isSharedView 
+            const endpoint = isSharedView
                 ? `/api/submissions/shared/${id}/comment`
                 : `/api/submissions/${id}/student-comment`;
 
@@ -253,7 +253,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                     ? `/api/submissions/shared/${id}/comment`
                     : `/api/submissions/${id}/student-comment`;
                 const res = await axios.put(endpoint, { answers: answersPayload });
-                
+
                 // Sync data
                 setSubmission(res.data);
             }
@@ -325,7 +325,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                     >
                         Relevant Information
                     </button>
-                    
+
                     {isTeacher && !isSharedView && (
                         <button
                             onClick={() => navigate(`/teacher/evaluate/${id}`)}
@@ -482,49 +482,49 @@ const ViewTestResult = ({ isSharedView = false }) => {
                                                 <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                                                     {/* Top container displaying answers */}
                                                     <div className="p-4 bg-slate-50/50 text-slate-700 font-medium text-sm leading-relaxed whitespace-pre-wrap text-left flex flex-col gap-3">
-                                                         {ans.textAnswer && (() => {
-                                                             if (ans.questionType?.toLowerCase() === 'tabular data' || q?.type?.toLowerCase() === 'tabular data') {
-                                                                 try {
-                                                                     const parsedRows = JSON.parse(ans.textAnswer);
-                                                                     const headers = q?.tableData?.headers || [];
-                                                                     const origRows = q?.tableData?.rows || [];
-                                                                     
-                                                                     return (
-                                                                         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white my-1">
-                                                                             <table className="min-w-full divide-y divide-slate-200">
-                                                                                 <thead className="bg-slate-50">
-                                                                                     <tr>
-                                                                                         {headers.map((header, colIdx) => (
-                                                                                             <th key={colIdx} className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
-                                                                                                 {header}
-                                                                                             </th>
-                                                                                         ))}
-                                                                                     </tr>
-                                                                                 </thead>
-                                                                                 <tbody className="divide-y divide-slate-150 bg-white">
-                                                                                     {parsedRows.map((row, rowIdx) => (
-                                                                                         <tr key={rowIdx}>
-                                                                                             {row.map((cell, colIdx) => {
-                                                                                                 const wasEmpty = !origRows[rowIdx]?.[colIdx];
-                                                                                                 return (
-                                                                                                     <td key={colIdx} className={`px-3 py-2 text-xs ${wasEmpty ? 'bg-purple-50/30 text-purple-750 font-bold' : 'text-slate-600 font-medium'}`}>
-                                                                                                         {cell || <span className="text-slate-405 italic">Empty</span>}
-                                                                                                     </td>
-                                                                                                 );
-                                                                                             })}
-                                                                                         </tr>
-                                                                                     ))}
-                                                                                 </tbody>
-                                                                             </table>
-                                                                         </div>
-                                                                     );
-                                                                 } catch (e) {
-                                                                     console.error("Error parsing tabular answer:", e);
-                                                                     return <div>{ans.textAnswer}</div>;
-                                                                 }
-                                                             }
-                                                             return <div>{ans.textAnswer}</div>;
-                                                         })()}
+                                                        {ans.textAnswer && (() => {
+                                                            if (ans.questionType?.toLowerCase() === 'tabular data' || q?.type?.toLowerCase() === 'tabular data') {
+                                                                try {
+                                                                    const parsedRows = JSON.parse(ans.textAnswer);
+                                                                    const headers = q?.tableData?.headers || [];
+                                                                    const origRows = q?.tableData?.rows || [];
+
+                                                                    return (
+                                                                        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white my-1">
+                                                                            <table className="min-w-full divide-y divide-slate-200">
+                                                                                <thead className="bg-slate-50">
+                                                                                    <tr>
+                                                                                        {headers.map((header, colIdx) => (
+                                                                                            <th key={colIdx} className="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
+                                                                                                {header}
+                                                                                            </th>
+                                                                                        ))}
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-slate-150 bg-white">
+                                                                                    {parsedRows.map((row, rowIdx) => (
+                                                                                        <tr key={rowIdx}>
+                                                                                            {row.map((cell, colIdx) => {
+                                                                                                const wasEmpty = !origRows[rowIdx]?.[colIdx];
+                                                                                                return (
+                                                                                                    <td key={colIdx} className={`px-3 py-2 text-xs ${wasEmpty ? 'bg-purple-50/30 text-purple-750 font-bold' : 'text-slate-600 font-medium'}`}>
+                                                                                                        {cell || <span className="text-slate-405 italic">Empty</span>}
+                                                                                                    </td>
+                                                                                                );
+                                                                                            })}
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    );
+                                                                } catch (e) {
+                                                                    console.error("Error parsing tabular answer:", e);
+                                                                    return <div>{ans.textAnswer}</div>;
+                                                                }
+                                                            }
+                                                            return <div>{ans.textAnswer}</div>;
+                                                        })()}
                                                         {ans.audioData && (
                                                             <div>
                                                                 <audio controls src={ans.audioData} className="w-full h-9" />
@@ -622,8 +622,8 @@ const ViewTestResult = ({ isSharedView = false }) => {
                                                                 <div className={`rounded-2xl p-3 shadow-sm ${msg.role === 'Teacher'
                                                                     ? 'bg-blue-50 border border-blue-100 rounded-tl-none'
                                                                     : msg.role === 'Guest'
-                                                                    ? 'bg-slate-50 border border-slate-200 rounded-tr-none'
-                                                                    : 'bg-purple-50 border border-purple-100 rounded-tr-none'
+                                                                        ? 'bg-slate-50 border border-slate-200 rounded-tr-none'
+                                                                        : 'bg-purple-50 border border-purple-100 rounded-tr-none'
                                                                     }`}>
                                                                     <div className={`flex items-center gap-2 mb-1 ${msg.role === 'Student' ? 'justify-end' : ''}`}>
                                                                         <p className={`text-[8px] font-black uppercase tracking-widest ${msg.role === 'Teacher' ? 'text-indigo-600' : msg.role === 'Guest' ? 'text-slate-500' : 'text-emerald-600'}`}>
@@ -679,7 +679,22 @@ const ViewTestResult = ({ isSharedView = false }) => {
             {/* Footer Bar */}
             {isEvaluated && !isTeacher && sharedQuestionIndex === null && (
                 <div className="bg-[#111A24] border-t border-[#1C2836] py-4 flex items-center justify-center gap-8 text-white w-full">
-                                        <button
+                    <button
+                        onClick={() => {
+                            const anyOpen = (answers || []).some((_, i) => collapsedFeedback[i]);
+                            const newState = {};
+                            (answers || []).forEach((_, i) => {
+                                newState[i] = !anyOpen;
+                            });
+                            setCollapsedFeedback(newState);
+                        }}
+                        className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
+                    >
+                        <Calendar size={16} />
+                        <span>Teacher Evaluation</span>
+                    </button>
+                    <div className="w-[1px] h-4 bg-slate-700"></div>
+                    <button
                         onClick={() => {
                             loadChatHistory(id);
                             setChatModalOpen(true);
@@ -687,7 +702,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
                     >
                         <MessageSquare size={16} />
-                        <span>Student Feedback</span>
+                        <span>Comment / Feedback</span>
                     </button>
                     <div className="w-[1px] h-4 bg-slate-700"></div>
                     <button
@@ -707,16 +722,16 @@ const ViewTestResult = ({ isSharedView = false }) => {
             <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-100 shadow-2xl p-8 relative overflow-hidden transform scale-100 transition-all text-left">
                 <h3 className="text-2xl font-black text-[#0B1520] mb-1.5 tracking-tight">Share Activity</h3>
                 <p className="text-xs text-[#8292A1] font-bold mb-6 leading-normal">{shareTitle}</p>
-                
+
                 {/* URL Box */}
                 <div className="flex items-center gap-2 bg-[#F8FAFC] border border-slate-200/60 rounded-2xl p-2.5 mb-6">
-                    <input 
-                        type="text" 
-                        readOnly 
+                    <input
+                        type="text"
+                        readOnly
                         value={shareUrl}
                         className="bg-transparent text-xs font-bold text-slate-600 flex-1 outline-none px-2 select-all"
                     />
-                    <button 
+                    <button
                         onClick={() => {
                             navigator.clipboard.writeText(shareUrl);
                             toast.success('Link copied to clipboard!');
@@ -726,10 +741,10 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         Copy Link
                     </button>
                 </div>
-                
+
                 {/* Platform Buttons */}
                 <div className="grid grid-cols-4 gap-4 mb-6">
-                    <a 
+                    <a
                         href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareTitle + ': ' + shareUrl)}`}
                         target="_blank"
                         rel="noreferrer"
@@ -738,7 +753,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         <span className="w-12 h-12 bg-[#E8F8F0] text-[#10B981] rounded-full flex items-center justify-center font-black text-xs shadow-sm">WA</span>
                         <span className="text-[10px] font-bold text-slate-550">WhatsApp</span>
                     </a>
-                    <a 
+                    <a
                         href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`}
                         target="_blank"
                         rel="noreferrer"
@@ -747,7 +762,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         <span className="w-12 h-12 bg-[#E8F2FC] text-[#3B82F6] rounded-full flex items-center justify-center font-black text-xs shadow-sm">TG</span>
                         <span className="text-[10px] font-bold text-slate-550">Telegram</span>
                     </a>
-                    <a 
+                    <a
                         href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`}
                         target="_blank"
                         rel="noreferrer"
@@ -756,7 +771,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         <span className="w-12 h-12 bg-[#0B1520] text-white rounded-full flex items-center justify-center font-black text-xs shadow-sm">X</span>
                         <span className="text-[10px] font-bold text-slate-550">X (Twitter)</span>
                     </a>
-                    <a 
+                    <a
                         href={`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareUrl)}`}
                         className="flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-slate-50 transition-all active:scale-95"
                     >
@@ -764,10 +779,10 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         <span className="text-[10px] font-bold text-slate-550">Email</span>
                     </a>
                 </div>
-                
+
                 {/* Close button */}
                 <div className="flex justify-end pt-4 border-t border-slate-100">
-                    <button 
+                    <button
                         onClick={() => setShareModalOpen(false)}
                         className="px-6 py-2.5 bg-[#EEF2F6] hover:bg-[#E2E8F0] text-[#4A5568] rounded-full text-xs font-black transition-all active:scale-95"
                     >
@@ -793,7 +808,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
                             <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Teacher Feedback Chat</p>
                         </div>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setChatModalOpen(false)}
                         className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
                     >
@@ -867,7 +882,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white w-full max-w-lg rounded-[32px] border border-slate-100/80 shadow-2xl p-8 relative overflow-hidden transform scale-100 transition-all text-left">
                 <h3 className="text-2xl font-black text-[#0B1520] mb-6 tracking-tight">Relevant Information</h3>
-                
+
                 <div className="grid grid-cols-2 gap-4 mb-8 max-h-[60vh] overflow-y-auto pr-1">
                     <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Institute</span>
@@ -915,10 +930,10 @@ const ViewTestResult = ({ isSharedView = false }) => {
                         </div>
                     )}
                 </div>
-                
+
                 {/* Close button */}
                 <div className="flex justify-end pt-4 border-t border-slate-100">
-                    <button 
+                    <button
                         onClick={() => setShowInfo(false)}
                         className="px-6 py-2.5 bg-[#EEF2F6] hover:bg-[#E2E8F0] text-[#4A5568] rounded-full text-xs font-black transition-all active:scale-95"
                     >

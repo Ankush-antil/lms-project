@@ -1035,7 +1035,7 @@ const EvaluatePage = () => {
                                 className="flex items-center gap-2 text-sm font-semibold hover:text-[#FF80A1] transition-colors font-bold"
                             >
                                 <MessageSquare size={16} />
-                                <span>Student Feedback</span>
+                                <span>Feedback</span>
                             </button>
                             <div className="w-[1px] h-4 bg-slate-700"></div>
                             <button

@@ -13,6 +13,29 @@ const path = require('path');
 // Trust proxy for secure cookies behind reverse proxies (like DigitalOcean)
 app.set('trust proxy', 1);
 
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiter: limit each IP to 300 requests per 15 minutes
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    message: { message: 'Too many requests from this IP, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+// Security & Compression Middlewares
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+}));
+app.use(mongoSanitize());
+app.use(compression());
+app.use('/api', limiter);
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

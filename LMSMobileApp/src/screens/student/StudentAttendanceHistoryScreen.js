@@ -81,6 +81,10 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                 refreshing={refreshing}
                 contentContainerStyle={styles.list}
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={Platform.OS === 'android'}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="calendar-outline" size={64} color={colors.textMuted} />

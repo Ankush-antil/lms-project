@@ -551,6 +551,10 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                         keyExtractor={item => item.student._id}
                         contentContainerStyle={styles.list}
                         showsVerticalScrollIndicator={false}
+                        initialNumToRender={12}
+                        maxToRenderPerBatch={12}
+                        windowSize={5}
+                        removeClippedSubviews={Platform.OS === 'android'}
                         renderItem={({ item }) => {
                             const status = item.record?.status || 'Absent';
                             let badgeStyle = styles.badgeAbsent;

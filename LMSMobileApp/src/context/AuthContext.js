@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
@@ -11,7 +11,7 @@ axios.defaults.baseURL = API_URL;
 // Token interceptor
 axios.interceptors.request.use(
     async (config) => {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await SecureStore.getItemAsync('authToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const fetchUser = async () => {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await SecureStore.getItemAsync('authToken');
         if (!token) {
             setLoading(false);
             return;
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
             setUser(data);
         } catch (error) {
             if (error.response?.status === 401) {
-                await AsyncStorage.removeItem('authToken');
+                await SecureStore.deleteItemAsync('authToken');
                 setUser(null);
             }
         } finally {
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
             (response) => response,
             async (error) => {
                 if (error.response?.status === 401) {
-                    await AsyncStorage.removeItem('authToken');
+                    await SecureStore.deleteItemAsync('authToken');
                     setUser(null);
                 }
                 return Promise.reject(error);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         const { data } = await axios.post('/auth/login', { email, password });
         if (data.token) {
-            await AsyncStorage.setItem('authToken', data.token);
+            await SecureStore.setItemAsync('authToken', data.token);
         }
         setUser(data);
         return data;
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         try {
             await axios.post('/auth/logout');
         } catch (e) {}
-        await AsyncStorage.removeItem('authToken');
+        await SecureStore.deleteItemAsync('authToken');
         setUser(null);
     };
 

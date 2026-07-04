@@ -6,7 +6,7 @@ import {
     FileText, Info, Mic, MonitorPlay, Phone,
     Star, TrendingUp, Trophy, Video, Camera, ArrowRight,
     AlertCircle, Sparkles, Activity, ShieldCheck, ChevronRight,
-    RefreshCw, CreditCard, Upload
+    RefreshCw, CreditCard, Upload, X
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -29,14 +29,22 @@ const StudentPerformance = () => {
     const [profile, setProfile] = useState(null);
     const [activeTab, setActiveTab] = useState('graded'); // 'graded' | 'pending' | 'unattempted'
     const [notesCount, setNotesCount] = useState(0);
+    const [attendanceRecords, setAttendanceRecords] = useState([]);
+    const [selectedPhoto, setSelectedPhoto] = useState(null);
 
     // College ERP Integration Mock States
     const [isSyncing, setIsSyncing] = useState(false);
     const [localErpPresent, setLocalErpPresent] = useState(null);
  
     const physicalAttendanceList = profile?.studentProfile?.physicalAttendance || [];
-    const erpPresent = localErpPresent !== null ? localErpPresent : (physicalAttendanceList.length > 0 ? physicalAttendanceList.filter(a => a.status === 'Present').length : 42);
-    const erpTotal = physicalAttendanceList.length > 0 ? physicalAttendanceList.length : 50;
+    
+    // Dynamic calculations from database attendance records
+    const erpPresent = attendanceRecords.length > 0 
+        ? attendanceRecords.filter(a => a.status === 'Present' || a.status === 'In').length 
+        : (localErpPresent !== null ? localErpPresent : (physicalAttendanceList.length > 0 ? physicalAttendanceList.filter(a => a.status === 'Present').length : 42));
+    const erpTotal = attendanceRecords.length > 0 
+        ? attendanceRecords.length 
+        : (physicalAttendanceList.length > 0 ? physicalAttendanceList.length : 50);
  
     const handleSyncERP = () => {
         setIsSyncing(true);
@@ -62,12 +70,13 @@ const StudentPerformance = () => {
     useEffect(() => {
         const fetchAllData = async () => {
             try {
-                const [testsRes, subsRes, cloudRes, profileRes, notesRes] = await Promise.all([
+                const [testsRes, subsRes, cloudRes, profileRes, notesRes, attendanceRes] = await Promise.all([
                     axios.get('/api/tests'),
                     axios.get('/api/submissions'),
                     axios.get('/api/practice-files').catch(() => ({ data: { files: [] } })),
                     axios.get('/api/users/profile'),
-                    axios.get('/api/notes').catch(() => ({ data: [] }))
+                    axios.get('/api/notes').catch(() => ({ data: [] })),
+                    axios.get('/api/attendance/my-records').catch(() => ({ data: [] }))
                 ]);
 
                 setTests(testsRes.data || []);
@@ -75,6 +84,7 @@ const StudentPerformance = () => {
                 setCloudFiles(cloudRes.data?.files || []);
                 setProfile(profileRes.data || null);
                 setNotesCount(notesRes.data?.length || 0);
+                setAttendanceRecords(attendanceRes.data || []);
 
                 // Load local storage counts
                 const localCounts = {
@@ -479,10 +489,10 @@ const StudentPerformance = () => {
                                          <span className="text-base font-black text-slate-800">84%</span>
                                      </div>
                                  </div>
-                                 <div>
-                                     <h4 className="text-2xl font-black text-slate-800">42 / 50 Days</h4>
-                                     <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Lectures Attended</p>
-                                 </div>
+                                  <div>
+                                      <h4 className="text-2xl font-black text-slate-800">{erpPresent} / {erpTotal} Days</h4>
+                                      <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Lectures Attended</p>
+                                  </div>
                              </div>
                          </div>
  
@@ -493,10 +503,111 @@ const StudentPerformance = () => {
                              </p>
                          </div>
                      </div>
-                 </div>
- 
-                 {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
-                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
+                  </div>
+  
+                  {/* ── PHYSICAL ATTENDANCE LOGS ────────────────── */}
+                  <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
+                      <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-650 flex items-center justify-center border border-indigo-100 shadow-sm">
+                                  <Calendar size={18} />
+                              </div>
+                              <div>
+                                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Physical Attendance Logs</h3>
+                                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">History of physical classroom check-ins, check-outs, and verification selfies</p>
+                              </div>
+                          </div>
+                      </div>
+  
+                      <div className="p-6">
+                          {attendanceRecords.length === 0 ? (
+                              <div className="text-center py-8 text-slate-400">
+                                  <Calendar size={48} className="mx-auto mb-2 opacity-50" />
+                                  <p className="font-bold text-sm">No live attendance logs found.</p>
+                                  <p className="text-xs text-slate-500 mt-1">Scan QR codes on the mobile app to populate these records.</p>
+                              </div>
+                          ) : (
+                              <div className="overflow-x-auto">
+                                  <table className="w-full min-w-[700px] border-collapse text-xs">
+                                      <thead>
+                                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
+                                              <th className="py-2.5 px-3">Subject</th>
+                                              <th className="py-2.5 px-3">Teacher</th>
+                                              <th className="py-2.5 px-3">Date</th>
+                                              <th className="py-2.5 px-3 text-center">Check-In</th>
+                                              <th className="py-2.5 px-3 text-center">Check-Out</th>
+                                              <th className="py-2.5 px-3 text-center">Selfie Verifications</th>
+                                              <th className="py-2.5 px-3 text-center">Status</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                                          {attendanceRecords.map((record, idx) => {
+                                              const status = record.status || 'Absent';
+                                              let badgeClass = 'text-red-700 bg-red-50 border-red-150';
+                                              if (status === 'Present') badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-150';
+                                              else if (status === 'In') badgeClass = 'text-amber-700 bg-amber-50 border-amber-150';
+  
+                                              return (
+                                                  <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                      <td className="py-3 px-3 font-bold text-slate-800">{record.session?.subject || 'Class'}</td>
+                                                      <td className="py-3 px-3 text-slate-550">{record.session?.teacher?.name || 'Instructor'}</td>
+                                                      <td className="py-3 px-3 text-slate-505">
+                                                          {record.date ? new Date(record.date).toLocaleDateString('en-US', {
+                                                              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                                                          }) : ''}
+                                                      </td>
+                                                      <td className="py-3 px-3 text-center text-slate-600">
+                                                          {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                      </td>
+                                                      <td className="py-3 px-3 text-center text-slate-600">
+                                                          {record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                      </td>
+                                                      <td className="py-3 px-3 text-center">
+                                                          <div className="flex justify-center items-center gap-2">
+                                                              {record.checkInPhoto && (
+                                                                  <button
+                                                                      onClick={() => setSelectedPhoto({
+                                                                          title: 'Check-In Verification Selfie',
+                                                                          url: record.checkInPhoto
+                                                                      })}
+                                                                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                                  >
+                                                                    Check-In
+                                                                  </button>
+                                                              )}
+                                                              {record.checkOutPhoto && (
+                                                                  <button
+                                                                      onClick={() => setSelectedPhoto({
+                                                                          title: 'Check-Out Verification Selfie',
+                                                                          url: record.checkOutPhoto
+                                                                      })}
+                                                                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                                  >
+                                                                    Check-Out
+                                                                  </button>
+                                                              )}
+                                                              {!record.checkInPhoto && !record.checkOutPhoto && (
+                                                                  <span className="text-slate-400 text-[10px]">No Photo</span>
+                                                              )}
+                                                          </div>
+                                                      </td>
+                                                      <td className="py-3 px-3 text-center">
+                                                          <span className={`inline-block px-2.5 py-0.5 border rounded-full text-[10px] font-black tracking-wider ${badgeClass}`}>
+                                                              {status === 'In' ? 'Checked-In' : status}
+                                                          </span>
+                                                      </td>
+                                                  </tr>
+                                              );
+                                          })}
+                                      </tbody>
+                                  </table>
+                               </div>
+                          )}
+                      </div>
+                  </div>
+  
+                  {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
+                  <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
                     <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-650 flex items-center justify-center border border-purple-100 shadow-sm">
@@ -625,9 +736,33 @@ const StudentPerformance = () => {
                         </div>
                     </div>
                 </div>
-
-            </div>
-        </DashboardLayout>
+  
+            {/* Selfie Preview Modal */}
+            {selectedPhoto && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedPhoto.title}</h3>
+                            <button
+                                onClick={() => setSelectedPhoto(null)}
+                                className="text-slate-400 hover:text-slate-650 p-1.5 rounded-full hover:bg-slate-100 transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 flex items-center justify-center bg-slate-50/30">
+                            <img
+                                src={selectedPhoto.url}
+                                alt="Verification Selfie"
+                                className="w-64 h-64 rounded-2xl object-cover border border-slate-200 shadow-md bg-slate-100"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+  
+        </div>
+    </DashboardLayout>
     );
 };
 

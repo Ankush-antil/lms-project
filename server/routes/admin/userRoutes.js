@@ -6,6 +6,7 @@ const {
     deleteUser,
     updateUser,
     markPhysicalAttendance,
+    deletePhysicalAttendance,
     updateFeeStatus,
     markBulkPhysicalAttendance,
     getInboxConfigs,
@@ -37,6 +38,7 @@ router.put('/:id', protect, adminOrEditor, updateUser);
 
 // ERP student services
 router.post('/:id/physical-attendance', protect, markPhysicalAttendance);
+router.delete('/:id/physical-attendance/:date', protect, deletePhysicalAttendance);
 router.put('/:id/fee-status', protect, updateFeeStatus);
 
 // Base routes

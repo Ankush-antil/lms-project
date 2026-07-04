@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    FlatList, ActivityIndicator, Image, TextInput, Alert, ScrollView, Platform, StatusBar, Linking, Modal
+    FlatList, ActivityIndicator, Image, TextInput, Alert, ScrollView, Platform, StatusBar, Linking, Modal, Switch
 } from 'react-native';
 import axios from 'axios';
 import { BASE_URL } from '../../config/api';
@@ -30,6 +30,8 @@ const TeacherAttendanceScreen = ({ navigation }) => {
     const [wifiNetworks, setWifiNetworks] = useState([]);
     const [teacherProfile, setTeacherProfile] = useState(null);
     const [selectedPhoto, setSelectedPhoto] = useState(null);
+    const [enforceWifi, setEnforceWifi] = useState(false);
+    const [attendanceType, setAttendanceType] = useState('in');
 
     const pollingIntervalRef = useRef(null);
 
@@ -227,23 +229,43 @@ const TeacherAttendanceScreen = ({ navigation }) => {
     };
 
     const handleCreateSession = async () => {
-        if (!selectedSubject || !section || !duration || !wifiSSID) {
-            Alert.alert("Error", "Please fill in all required fields.");
-            return;
-        }
-        if (wifiSSID === 'custom' && !customWifiSSID.trim()) {
-            Alert.alert("Error", "Please enter a custom Wi-Fi network name.");
-            return;
+        if (enforceWifi) {
+            if (!wifiSSID) {
+                Alert.alert("Error", "Please select a Wi-Fi network or enter custom SSID.");
+                return;
+            }
+            if (wifiSSID === 'custom' && !customWifiSSID.trim()) {
+                Alert.alert("Error", "Please enter a custom Wi-Fi network name.");
+                return;
+            }
         }
 
         setSubmitting(true);
         try {
+            // Get teacher's coordinates
+            let lat = null;
+            let lon = null;
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    let enabled = await Location.hasServicesEnabledAsync();
+                    if (enabled) {
+                        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                        if (pos) {
+                            lat = pos.coords.latitude;
+                            lon = pos.coords.longitude;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error reading geolocation:", e);
+            }
+
             const { data } = await axios.post('/attendance/session', {
-                courseId: selectedCourse || null,
-                subject: selectedSubject.trim().toUpperCase(),
-                section: section.trim().toUpperCase(),
-                duration: parseInt(duration),
-                wifiSSID: wifiSSID === 'custom' ? customWifiSSID.trim() : wifiSSID
+                wifiSSID: enforceWifi ? (wifiSSID === 'custom' ? customWifiSSID.trim() : wifiSSID) : null,
+                latitude: lat,
+                longitude: lon,
+                type: attendanceType
             });
             setActiveSession(data);
             fetchSessionRecords(data._id);
@@ -328,152 +350,100 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                         <Text style={styles.welcomeSubtitle}>Generate a temporary QR Code. Students scan it & snap a selfie to mark present.</Text>
                     </View>
 
-                    {/* Course */}
-                    <Text style={styles.label}>Select Course</Text>
-                    <View style={styles.pickerContainer}>
-                        <FlatList
-                            data={teacherCourses}
-                            keyExtractor={item => item._id}
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity
-                                    style={[styles.coursePill, selectedCourse === item._id && styles.selectedCoursePill]}
-                                    onPress={() => setSelectedCourse(item._id)}
-                                >
-                                    <Text style={[styles.coursePillText, selectedCourse === item._id && styles.selectedCoursePillText]}>
-                                        {item.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                            ListHeaderComponent={
-                                <TouchableOpacity
-                                    style={[styles.coursePill, !selectedCourse && styles.selectedCoursePill, { marginLeft: 0 }]}
-                                    onPress={() => setSelectedCourse('')}
-                                >
-                                    <Text style={[styles.coursePillText, !selectedCourse && styles.selectedCoursePillText]}>
-                                        General
-                                    </Text>
-                                </TouchableOpacity>
-                            }
-                        />
-                    </View>
-
-                    {/* Subject */}
-                    <Text style={styles.label}>Subject Name</Text>
-                    {availableSubjects.length > 0 ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                            {availableSubjects.map((sub, idx) => (
-                                <TouchableOpacity
-                                    key={sub}
-                                    style={[styles.coursePill, selectedSubject === sub && styles.selectedCoursePill, idx === 0 && { marginLeft: 0 }]}
-                                    onPress={() => setSelectedSubject(sub)}
-                                >
-                                    <Text style={[styles.coursePillText, selectedSubject === sub && styles.selectedCoursePillText]}>
-                                        {sub}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    ) : (
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g. REACT, MATH, NODEJS"
-                            placeholderTextColor={colors.textMuted}
-                            value={selectedSubject}
-                            onChangeText={setSelectedSubject}
-                            autoCapitalize="characters"
-                        />
-                    )}
-
-                    {/* Section */}
-                    <Text style={styles.label}>Section</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g. A, B, C"
-                        placeholderTextColor={colors.textMuted}
-                        value={section}
-                        onChangeText={setSection}
-                        maxLength={5}
-                        autoCapitalize="characters"
-                    />
-
-                    {/* Duration */}
-                    <Text style={styles.label}>Class Duration (Minutes)</Text>
+                    {/* Attendance Type Selector */}
+                    <Text style={styles.label}>Attendance Type</Text>
                     <View style={styles.durationRow}>
-                        {['30', '60', '90', '120'].map(d => (
+                        {[
+                            { label: 'Mark In (Check-in)', value: 'in' },
+                            { label: 'Mark Out (Check-out)', value: 'out' }
+                        ].map(t => (
                             <TouchableOpacity
-                                key={d}
-                                style={[styles.durationPill, duration === d && styles.selectedDurationPill]}
-                                onPress={() => setDuration(d)}
+                                key={t.value}
+                                style={[styles.durationPill, attendanceType === t.value && styles.selectedDurationPill]}
+                                onPress={() => setAttendanceType(t.value)}
                             >
-                                <Text style={[styles.durationText, duration === d && styles.selectedDurationText]}>
-                                    {d} min
+                                <Text style={[styles.durationText, attendanceType === t.value && styles.selectedDurationText]}>
+                                    {t.label}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
-                    {/* Wi-Fi Selector */}
-                    <Text style={styles.label}>Classroom Wi-Fi Network</Text>
-                    {wifiNetworks.length > 0 ? (
-                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                            {/* Connected Wi-Fi Pill (Selected by default) */}
-                            <TouchableOpacity
-                                style={[styles.coursePill, wifiSSID === wifiNetworks[0] && styles.selectedCoursePill, { marginLeft: 0 }]}
-                                onPress={() => setWifiSSID(wifiNetworks[0])}
-                            >
-                                <Text style={[styles.coursePillText, wifiSSID === wifiNetworks[0] && styles.selectedCoursePillText]}>
-                                    {wifiNetworks[0]}
-                                </Text>
-                            </TouchableOpacity>
-
-                            {/* Change Wi-Fi Button */}
-                            <TouchableOpacity
-                                style={[styles.coursePill, { borderColor: colors.primary }]}
-                                onPress={openWifiSettings}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <Ionicons name="settings-outline" size={14} color={colors.primary} />
-                                    <Text style={[styles.coursePillText, { color: colors.primary, fontWeight: '700' }]}>
-                                        Change Wi-Fi
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <View style={{ marginBottom: 12 }}>
-                            <TouchableOpacity
-                                style={styles.wifiSetupBtn}
-                                onPress={openWifiSettings}
-                            >
-                                <Ionicons name="wifi-outline" size={18} color={colors.primary} />
-                                <Text style={styles.wifiSetupBtnText}>Enable or Connect to Wi-Fi</Text>
-                            </TouchableOpacity>
-
-                            {/* Fallback TextInput for manual entry if not connected */}
-                            <Text style={[styles.label, { marginTop: spacing.sm }]}>Or Enter Manually</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter exact Wi-Fi network SSID"
-                                placeholderTextColor={colors.textMuted}
-                                value={customWifiSSID}
-                                onChangeText={(val) => {
-                                    setCustomWifiSSID(val);
-                                    setWifiSSID('custom');
-                                }}
-                            />
-                        </View>
-                    )}
-
-                    {wifiSSID === 'custom' && (
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Enter exact Wi-Fi network SSID"
-                            placeholderTextColor={colors.textMuted}
-                            value={customWifiSSID}
-                            onChangeText={setCustomWifiSSID}
+                    {/* Wi-Fi Verification Switch */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 12 }}>
+                        <Text style={[styles.label, { marginBottom: 0 }]}>Restrict to Classroom Wi-Fi</Text>
+                        <Switch
+                            value={enforceWifi}
+                            onValueChange={setEnforceWifi}
+                            trackColor={{ false: '#d1d5db', true: colors.primary }}
+                            thumbColor={Platform.OS === 'android' ? (enforceWifi ? colors.primary : '#f4f3f4') : ''}
                         />
+                    </View>
+
+                    {enforceWifi && (
+                        <>
+                            {/* Wi-Fi Selector */}
+                            <Text style={styles.label}>Classroom Wi-Fi Network</Text>
+                            {wifiNetworks.length > 0 ? (
+                                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                                    {/* Connected Wi-Fi Pill (Selected by default) */}
+                                    <TouchableOpacity
+                                        style={[styles.coursePill, wifiSSID === wifiNetworks[0] && styles.selectedCoursePill, { marginLeft: 0 }]}
+                                        onPress={() => setWifiSSID(wifiNetworks[0])}
+                                    >
+                                        <Text style={[styles.coursePillText, wifiSSID === wifiNetworks[0] && styles.selectedCoursePillText]}>
+                                            {wifiNetworks[0]}
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {/* Change Wi-Fi Button */}
+                                    <TouchableOpacity
+                                        style={[styles.coursePill, { borderColor: colors.primary }]}
+                                        onPress={openWifiSettings}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <Ionicons name="settings-outline" size={14} color={colors.primary} />
+                                            <Text style={[styles.coursePillText, { color: colors.primary, fontWeight: '700' }]}>
+                                                Change Wi-Fi
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View style={{ marginBottom: 12 }}>
+                                    <TouchableOpacity
+                                        style={styles.wifiSetupBtn}
+                                        onPress={openWifiSettings}
+                                    >
+                                        <Ionicons name="wifi-outline" size={18} color={colors.primary} />
+                                        <Text style={styles.wifiSetupBtnText}>Enable or Connect to Wi-Fi</Text>
+                                    </TouchableOpacity>
+
+                                    {/* Fallback TextInput for manual entry if not connected */}
+                                    <Text style={[styles.label, { marginTop: spacing.sm }]}>Or Enter Manually</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter exact Wi-Fi network SSID"
+                                        placeholderTextColor={colors.textMuted}
+                                        value={customWifiSSID}
+                                        onChangeText={(val) => {
+                                            setCustomWifiSSID(val);
+                                            setWifiSSID('custom');
+                                        }}
+                                    />
+                                </View>
+                            )}
+
+                            {wifiSSID === 'custom' && (
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter exact Wi-Fi network SSID"
+                                    placeholderTextColor={colors.textMuted}
+                                    value={customWifiSSID}
+                                    onChangeText={setCustomWifiSSID}
+                                />
+                            )}
+                        </>
                     )}
 
                     <TouchableOpacity 

@@ -1,7 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
 import React, { useEffect, useState } from 'react';
 
-import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin } from 'lucide-react';
+import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin, Layers } from 'lucide-react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
 
@@ -221,6 +221,19 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Subjects</p>
                                                 <p className="text-sm font-bold text-slate-700 truncate">
                                                     {user?.teacherProfile?.subjects?.join(', ') || 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5 col-span-2">
+                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                <Layers size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Assigned Sections</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate">
+                                                    {user?.teacherProfile?.studentAssignmentMode === 'all'
+                                                        ? 'All Sections (General)'
+                                                        : user?.teacherProfile?.assignedSections?.join(', ') || 'N/A'}
                                                 </p>
                                             </div>
                                         </div>

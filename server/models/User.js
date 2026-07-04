@@ -46,7 +46,8 @@ const userSchema = new mongoose.Schema({
         feeStatus: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
         physicalAttendance: [{
             date: { type: String }, // e.g. "2026-06-30"
-            status: { type: String, enum: ['Present', 'Absent'] }
+            status: { type: String, enum: ['Present', 'Absent', 'Leave'] },
+            note: { type: String, default: '' }
         }]
     },
 

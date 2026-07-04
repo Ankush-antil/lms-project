@@ -1589,52 +1589,48 @@ const EvaluatePage = () => {
                                 <p className="text-slate-500 font-medium max-w-xs mx-auto text-sm">No test submissions found matching your filters.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                                 {filteredStudentSubmissions.map(sub => {
                                     const statusDotColor = sub.status === 'evaluated' ? 'bg-emerald-500' : 'bg-blue-600';
                                     return (
                                         <div
                                             key={sub._id}
                                             onClick={() => navigate('/teacher/evaluate/' + sub._id + (isFeedbackMode ? '?mode=feedback' : ''))}
-                                            className="bg-white rounded-3xl border border-slate-200/85 p-6 hover:shadow-lg hover:border-indigo-150 transition-all duration-300 flex flex-col justify-between gap-5 relative group cursor-pointer"
+                                            className="bg-white rounded-xl border border-red-500 p-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-3.5 relative group cursor-pointer"
                                         >
                                             <div>
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="flex items-start justify-between gap-2.5">
+                                                    <div className="flex items-center gap-2 min-w-0">
                                                         {/* Status Dot */}
-                                                        <span className={'w-3.5 h-3.5 rounded-full shrink-0 ' + statusDotColor}></span>
-                                                        <h4 className="font-extrabold text-slate-800 text-base md:text-lg tracking-tight uppercase truncate">
+                                                        <span className={'w-2.5 h-2.5 rounded-full shrink-0 ' + statusDotColor}></span>
+                                                        <h4 className="font-extrabold text-slate-800 text-sm tracking-tight uppercase truncate">
                                                             {sub.test?.title || 'TEST'}
                                                         </h4>
                                                     </div>
                                                     <button className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
-                                                        <MoreVertical size={16} />
+                                                        <MoreVertical size={14} />
                                                     </button>
                                                 </div>
 
-                                                <div className="mt-2.5 flex items-center gap-2">
-                                                    <span className={'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ' + (sub.status === 'evaluated' ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' : 'bg-blue-50 text-blue-700 border border-blue-150')}>
+                                                <div className="mt-2.5 flex items-center gap-1.5">
+                                                    <span className={'px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ' + (sub.status === 'evaluated' ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' : 'bg-blue-50 text-blue-700 border border-blue-150')}>
                                                         {sub.status === 'evaluated' ? 'Evaluated' : 'Pending'}
                                                     </span>
-                                                    {(sub.student?.studentProfile?.section || sub.studentSection) && (
-                                                        <span className="px-2 py-0.5 bg-violet-55 text-violet-750 border border-violet-100 rounded-md text-[9px] font-black uppercase tracking-tighter">
-                                                            Section {sub.student?.studentProfile?.section || sub.studentSection}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-slate-100 pt-4 flex items-center justify-between text-xs font-semibold mt-2">
-                                                <span className="font-mono text-slate-400">
-                                                    Submitted: {new Date(sub.submittedAt).toLocaleDateString()}
-                                                </span>
+                                            <div className="border-t border-slate-100 pt-3 flex flex-col justify-between gap-2">
+                                                <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                                                    <span>Submitted:</span>
+                                                    <span className="font-mono">{new Date(sub.submittedAt).toLocaleDateString()}</span>
+                                                </div>
 
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigate('/teacher/evaluate/' + sub._id + (isFeedbackMode ? '?mode=feedback' : ''));
                                                     }}
-                                                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-150/10 group-hover:-translate-y-0.5 active:scale-95"
+                                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95"
                                                 >
                                                     Evaluate Test
                                                 </button>
@@ -1655,144 +1651,96 @@ const EvaluatePage = () => {
                             <p className="text-slate-500 font-medium max-w-xs mx-auto text-sm">No students have submitted tests in this section.</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden w-full">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-slate-200">
-                                    <thead className="bg-slate-50/50">
-                                        <tr>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Student Name</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">ID</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Institute</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Course</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Section</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Mobile</th>
-                                            <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider text-left">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 bg-white">
-                                        {showSectionsGrouped ? (
-                                            Object.keys(studentsBySection).sort().flatMap(secName => {
-                                                const secStudents = studentsBySection[secName];
-                                                const isExpanded = !!expandedSections[secName];
-                                                return [
-                                                    <tr
-                                                        key={`header-${secName}`}
-                                                        onClick={() => setExpandedSections(prev => ({ ...prev, [secName]: !prev[secName] }))}
-                                                        className="bg-slate-50 hover:bg-slate-100/80 cursor-pointer select-none transition-all"
-                                                    >
-                                                        <td colSpan="7" className="px-6 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                                                            <div className="flex items-center justify-between w-full">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <span>Section {secName}</span>
-                                                                    <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full font-bold">
-                                                                        {secStudents.length} Students
-                                                                    </span>
-                                                                </div>
-                                                                <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                                                                </svg>
-                                                            </div>
-                                                        </td>
-                                                    </tr>,
-                                                    ...(isExpanded ? secStudents.map(student => {
-                                                        const latestSub = student.submissions[0] || {};
-                                                        const courseName = latestSub.test?.course || latestSub.student?.studentProfile?.course?.name || latestSub.student?.studentProfile?.course || 'N/A';
-                                                        const mobile = latestSub.student?.mobileNumber || 'N/A';
-                                                        const instituteName = latestSub.test?.institute || latestSub.student?.institute?.name || latestSub.student?.institute || 'N/A';
+                        <div className="w-full">
+                            {showSectionsGrouped ? (
+                                <div className="space-y-6">
+                                    {Object.keys(studentsBySection).sort().map(secName => {
+                                        const secStudents = studentsBySection[secName];
+                                        const isExpanded = !!expandedSections[secName];
+                                        return (
+                                            <div key={`section-${secName}`} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                                                {/* Section Header */}
+                                                <div
+                                                    onClick={() => setExpandedSections(prev => ({ ...prev, [secName]: !prev[secName] }))}
+                                                    className="bg-slate-50/70 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-all select-none border-b border-slate-100"
+                                                >
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Section {secName}</span>
+                                                        <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                                                            {secStudents.length} Students
+                                                        </span>
+                                                    </div>
+                                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
 
-                                                        return (
-                                                            <tr key={student._id} className="hover:bg-slate-50/60 transition-colors">
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <div className="flex items-center gap-3 pl-2">
-                                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-extrabold text-xs uppercase">
-                                                                            {student.name[0]}
+                                                {/* Section Cards Content */}
+                                                {isExpanded && (
+                                                    <div className="p-6 bg-slate-50/30">
+                                                        {secStudents.length === 0 ? (
+                                                            <p className="text-slate-500 text-xs font-bold text-center">No students in this section.</p>
+                                                        ) : (
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                                                                {secStudents.map(student => {
+                                                                    return (
+                                                                        <div key={student._id} className="bg-white rounded-xl shadow-sm border border-black p-4 hover:shadow-md transition-all flex flex-col justify-between group">
+                                                                            <div className="flex items-center justify-between mb-3.5">
+                                                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                                                    <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-extrabold text-xs uppercase shadow-sm">
+                                                                                        {student.name[0]}
+                                                                                    </div>
+                                                                                    <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-indigo-650 transition-colors truncate" title={student.name}>{student.name}</h4>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <button
+                                                                                onClick={() => navigate('/teacher/evaluate?studentId=' + student._id)}
+                                                                                className="w-full mt-2 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-98"
+                                                                            >
+                                                                                Evaluation Tests ({student.submissionCount})
+                                                                            </button>
                                                                         </div>
-                                                                        <span className="font-bold text-slate-800 text-sm">{student.name}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <span className="text-xs font-mono font-bold text-slate-500">#{student._id.slice(-6).toUpperCase()}</span>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                                                    {instituteName}
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <span className="px-2.5 py-1 bg-indigo-50/70 border border-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold uppercase tracking-wide">
-                                                                        {courseName}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <span className="px-2.5 py-1 bg-violet-50 border border-violet-100 text-violet-750 rounded-xl text-[10px] font-black uppercase tracking-wide">
-                                                                        Section {student.section}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                                                    {mobile}
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <button
-                                                                        onClick={() => navigate('/teacher/evaluate?studentId=' + student._id)}
-                                                                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                                                                    >
-                                                                        View Tests ({student.submissionCount})
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    }) : [])
-                                                ];
-                                            })
-                                        ) : (
-                                            filteredStudents.map(student => {
-                                                const latestSub = student.submissions[0] || {};
-                                                const courseName = latestSub.test?.course || latestSub.student?.studentProfile?.course?.name || latestSub.student?.studentProfile?.course || 'N/A';
-                                                const mobile = latestSub.student?.mobileNumber || 'N/A';
-                                                const instituteName = latestSub.test?.institute || latestSub.student?.institute?.name || latestSub.student?.institute || 'N/A';
-
-                                                return (
-                                                    <tr key={student._id} className="hover:bg-slate-50/60 transition-colors">
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-extrabold text-sm uppercase">
-                                                                    {student.name[0]}
-                                                                </div>
-                                                                <span className="font-bold text-slate-800 text-sm">{student.name}</span>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="text-xs font-mono font-bold text-slate-500">#{student._id.slice(-6).toUpperCase()}</span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                                            {instituteName}
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="px-2.5 py-1 bg-indigo-50/70 border border-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold uppercase tracking-wide">
-                                                                {courseName}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="px-2.5 py-1 bg-violet-50 border border-violet-100 text-violet-750 rounded-xl text-[10px] font-black uppercase tracking-wide">
-                                                                Section {student.section}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                                            {mobile}
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <button
-                                                                onClick={() => navigate('/teacher/evaluate?studentId=' + student._id)}
-                                                                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                                                            >
-                                                                View Tests ({student.submissionCount})
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                                    {filteredStudents.map(student => {
+                                        return (
+                                            <div key={student._id} className="bg-white rounded-xl shadow-sm border border-black p-4 hover:shadow-md transition-all flex flex-col justify-between group">
+                                                <div className="flex items-center justify-between mb-3.5 gap-2">
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-extrabold text-xs uppercase shadow-sm">
+                                                            {student.name[0]}
+                                                        </div>
+                                                        <h4 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-indigo-650 transition-colors truncate" title={student.name}>{student.name}</h4>
+                                                    </div>
+                                                    {student.section && (
+                                                        <span className="px-2 py-0.5 shrink-0 bg-violet-50 border border-violet-100 text-violet-750 rounded-md text-[9px] font-black uppercase tracking-wide">
+                                                            Sec {student.section}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => navigate('/teacher/evaluate?studentId=' + student._id)}
+                                                    className="w-full mt-2 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-98"
+                                                >
+                                                    Evaluation Tests ({student.submissionCount})
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     ))}
             </div>

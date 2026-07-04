@@ -3067,7 +3067,7 @@ const TestBuilder = () => {
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate(user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute' : user?.role === 'Teacher' ? '/teacher/activities' : '/admin')}
+                        onClick={() => navigate(-1)}
                         className="flex items-center gap-2 px-3.5 py-2 border border-slate-800 rounded-xl hover:bg-white/10 text-white font-semibold text-sm transition-all"
                     >
                         <Home size={16} className="text-white" />

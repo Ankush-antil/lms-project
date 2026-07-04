@@ -22,6 +22,7 @@ const ProfilePage = () => {
         mobileNumber: '',
         callEnabled: false
     });
+    const [teacherData, setTeacherData] = useState({ students: [], sections: [] });
 
 
     const role = userInfo?.role || 'User';
@@ -40,6 +41,20 @@ const ProfilePage = () => {
                     mobileNumber: data.mobileNumber || '',
                     callEnabled: data.callEnabled || false
                 });
+
+                if (data.role === 'Teacher') {
+                    try {
+                        const { data: studentsRes } = await axios.get('/api/users/teacher-students');
+                        const uniqueSecs = [...new Set(studentsRes.map(s => s.studentProfile?.section).filter(Boolean))];
+                        setTeacherData({
+                            students: studentsRes,
+                            sections: uniqueSecs
+                        });
+                    } catch (err) {
+                        console.error("Error fetching teacher students:", err);
+                    }
+                }
+
                 setLoading(false);
             } catch (err) {
                 console.error("Error fetching profile:", err);
@@ -124,8 +139,8 @@ const ProfilePage = () => {
             <div className="max-w-4xl mx-auto pb-12">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left Side: Avatar & Basic Info */}
-                    <div className="w-full md:w-1/3">
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center sticky top-20">
+                    <div className="w-full md:w-1/3 space-y-6">
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
                             <div className="relative inline-block mb-6">
                                 <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-5xl font-bold shadow-lg ring-4 ring-indigo-50 mx-auto overflow-hidden">
                                     {user.avatar ? (
@@ -177,6 +192,59 @@ const ProfilePage = () => {
                                 )}
                             </div>
                         </div>
+
+                        {user.role === 'Teacher' && (
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">
+                                    My Assigned Scope
+                                </h3>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Assigned Sections</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {teacherData.sections.length > 0 ? (
+                                                teacherData.sections.map((sec, idx) => (
+                                                    <span key={idx} className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-[10px] font-black uppercase">
+                                                        Section {sec}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-xs text-slate-400 font-semibold italic">No sections found</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                                            Students under me ({teacherData.students.length})
+                                        </p>
+                                        {teacherData.students.length > 0 ? (
+                                            <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                                                {teacherData.students.map((student) => (
+                                                    <div key={student._id} className="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-100 rounded-xl">
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-extrabold text-xs uppercase shadow-sm">
+                                                            {student.name[0]}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs font-bold text-slate-700 truncate" title={student.name}>{student.name}</p>
+                                                            <p className="text-[9px] text-slate-400 font-semibold truncate">{student.studentProfile?.course?.name || 'General'}</p>
+                                                        </div>
+                                                        {student.studentProfile?.section && (
+                                                            <span className="px-1.5 py-0.5 bg-violet-50 text-violet-750 text-[9px] font-black uppercase rounded">
+                                                                Sec {student.studentProfile.section}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-slate-400 font-semibold italic">No students assigned</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Side: Edit Form */}

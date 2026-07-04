@@ -107,6 +107,27 @@ const ScanAttendanceScreen = ({ navigation }) => {
         }
     };
 
+    // Helper to get student's current location coordinates
+    const getStudentLocation = async () => {
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.warn('Location permission denied for verification');
+                return null;
+            }
+            let enabled = await Location.hasServicesEnabledAsync();
+            if (!enabled) {
+                console.warn('Location services disabled');
+                return null;
+            }
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            return pos ? { latitude: pos.coords.latitude, longitude: pos.coords.longitude } : null;
+        } catch (e) {
+            console.error("Error reading geolocation:", e);
+            return null;
+        }
+    };
+
     // QR Code Scanned Handler
     const handleBarcodeScanned = async ({ data }) => {
         if (scanned || loading) return;
@@ -114,33 +135,44 @@ const ScanAttendanceScreen = ({ navigation }) => {
         setLoading(true);
         
         try {
-            // Fetch student's current Wi-Fi SSID
+            // Fetch student's current Wi-Fi SSID and Geolocation
             const studentWifiSSID = await getWifiSSID();
+            const location = await getStudentLocation();
 
             // Fetch session status by QR token
             const res = await axios.get(`/attendance/session/qr/${data}`, {
-                params: { wifiSSID: studentWifiSSID }
+                params: { 
+                    wifiSSID: studentWifiSSID,
+                    latitude: location?.latitude || null,
+                    longitude: location?.longitude || null
+                }
             });
             setSession(res.data.session);
             setCheckStatus(res.data.checkStatus);
             setQrToken(data);
             
-            if (res.data.checkStatus === 'completed') {
-                Alert.alert(
-                    "Attendance Completed",
-                    "You have already checked in and checked out for this class session.",
-                    [{ text: "OK", onPress: () => resetScanner() }]
-                );
-            } else if (res.data.checkStatus === 'checked-in') {
-                // Allow check-out only in the last 10 minutes of the class duration
-                const now = new Date();
-                const endTime = new Date(res.data.session.endTime);
-                const minutesLeft = (endTime - now) / 60000;
-
-                if (minutesLeft > 10) {
+            if (res.data.session?.type === 'in') {
+                if (res.data.checkStatus === 'checked-in' || res.data.checkStatus === 'completed') {
                     Alert.alert(
                         "Already Checked-In",
-                        "Please wait for class end and mark out attendance.",
+                        "You have already recorded your check-in for this session.",
+                        [{ text: "OK", onPress: () => resetScanner() }]
+                    );
+                } else {
+                    setStep('selfie');
+                    setFacing('front');
+                }
+            } else if (res.data.session?.type === 'out') {
+                if (res.data.checkStatus === 'completed') {
+                    Alert.alert(
+                        "Already Checked-Out",
+                        "You have already recorded your check-out for this session.",
+                        [{ text: "OK", onPress: () => resetScanner() }]
+                    );
+                } else if (res.data.checkStatus === 'not-started') {
+                    Alert.alert(
+                        "Check-In Required",
+                        "You must check-in first before checking out.",
                         [{ text: "OK", onPress: () => resetScanner() }]
                     );
                 } else {
@@ -148,9 +180,16 @@ const ScanAttendanceScreen = ({ navigation }) => {
                     setFacing('front');
                 }
             } else {
-                // Advance to selfie step, switch to front camera
-                setStep('selfie');
-                setFacing('front');
+                if (res.data.checkStatus === 'completed') {
+                    Alert.alert(
+                        "Attendance Completed",
+                        "You have already checked in and checked out for this class session.",
+                        [{ text: "OK", onPress: () => resetScanner() }]
+                    );
+                } else {
+                    setStep('selfie');
+                    setFacing('front');
+                }
             }
         } catch (error) {
             console.error("Scan error:", error);
@@ -209,14 +248,17 @@ const ScanAttendanceScreen = ({ navigation }) => {
         setLoading(true);
         try {
             const studentWifiSSID = await getWifiSSID();
-            const attendanceType = checkStatus === 'checked-in' ? 'out' : 'in';
+            const location = await getStudentLocation();
+            const attendanceType = session?.type || (checkStatus === 'checked-in' ? 'out' : 'in');
             const base64Data = `data:image/jpeg;base64,${capturedPhoto.base64}`;
             
             await axios.post('/attendance/mark', {
                 qrToken,
                 photo: base64Data,
                 type: attendanceType,
-                wifiSSID: studentWifiSSID
+                wifiSSID: studentWifiSSID,
+                latitude: location?.latitude || null,
+                longitude: location?.longitude || null
             });
             
             setStep('success');
@@ -279,7 +321,7 @@ const ScanAttendanceScreen = ({ navigation }) => {
                         <View style={styles.sessionBrief}>
                             <Text style={styles.briefSubject}>{session?.subject}</Text>
                             <Text style={styles.briefType}>
-                                {checkStatus === 'checked-in' ? 'CHECK-OUT ATTENDANCE' : 'CHECK-IN ATTENDANCE'}
+                                {(session?.type === 'out' || checkStatus === 'checked-in') ? 'CHECK-OUT ATTENDANCE' : 'CHECK-IN ATTENDANCE'}
                             </Text>
                         </View>
                         
@@ -353,7 +395,7 @@ const ScanAttendanceScreen = ({ navigation }) => {
                         </View>
                         <Text style={styles.successTitle}>Attendance Marked!</Text>
                         <Text style={styles.successMessage}>
-                            Your {checkStatus === 'checked-in' ? 'check-out' : 'check-in'} attendance for {session?.subject} has been successfully recorded.
+                            Your {(session?.type === 'out' || checkStatus === 'checked-in') ? 'check-out' : 'check-in'} attendance for {session?.subject} has been successfully recorded.
                         </Text>
                         <TouchableOpacity 
                             style={styles.successDoneBtn} 

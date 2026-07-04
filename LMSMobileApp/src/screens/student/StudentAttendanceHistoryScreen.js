@@ -55,6 +55,26 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
         });
     };
 
+    const getGroupedRecords = () => {
+        const groups = {};
+        records.forEach(record => {
+            const dateKey = record.date || (record.createdAt ? record.createdAt.split('T')[0] : 'N/A');
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
+            }
+            groups[dateKey].push(record);
+        });
+        
+        return Object.keys(groups)
+            .map(date => ({
+                date,
+                data: groups[date]
+            }))
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+    };
+
+    const groupedRecords = getGroupedRecords();
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -75,16 +95,12 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
             </View>
 
             <FlatList
-                data={records}
-                keyExtractor={item => item._id}
+                data={groupedRecords}
+                keyExtractor={item => item.date}
                 onRefresh={handleRefresh}
                 refreshing={refreshing}
                 contentContainerStyle={styles.list}
                 showsVerticalScrollIndicator={false}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                removeClippedSubviews={Platform.OS === 'android'}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="calendar-outline" size={64} color={colors.textMuted} />
@@ -92,83 +108,90 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                         <Text style={styles.emptySubtext}>Your check-in and check-out logs will appear here once you mark attendance.</Text>
                     </View>
                 }
-                renderItem={({ item }) => {
-                    const status = item.status || 'Absent';
-                    let badgeStyle = styles.badgeAbsent;
-                    let badgeText = 'Absent';
-                    if (status === 'Present') { badgeStyle = styles.badgePresent; badgeText = 'Present'; }
-                    else if (status === 'In') { badgeStyle = styles.badgeIn; badgeText = 'Checked-In'; }
-
-                    const subjectName = item.session?.subject || 'Class';
-                    const teacherName = item.session?.teacher?.name || 'Instructor';
-
-                    return (
-                        <View style={styles.card}>
-                            <View style={styles.cardHeader}>
-                                <View>
-                                    <Text style={styles.subjectText}>{subjectName}</Text>
-                                    <Text style={styles.teacherText}>Taught by {teacherName}</Text>
-                                </View>
-                                <View style={[styles.statusBadge, badgeStyle]}>
-                                    <Text style={styles.badgeLabel}>{badgeText}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.divider} />
-
-                            <View style={styles.detailsRow}>
-                                <View style={styles.detailItem}>
-                                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-                                    <Text style={styles.detailText}>{formatDate(item.date)}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.timeRow}>
-                                <View style={styles.timeItem}>
-                                    <Text style={styles.timeLabel}>In Time</Text>
-                                    <Text style={styles.timeVal}>{formatTime(item.checkInTime)}</Text>
-                                </View>
-                                <View style={styles.timeItem}>
-                                    <Text style={styles.timeLabel}>Out Time</Text>
-                                    <Text style={styles.timeVal}>{formatTime(item.checkOutTime)}</Text>
-                                </View>
-                            </View>
-
-                            {/* Selfies Previews if present */}
-                            {(item.checkInPhoto || item.checkOutPhoto) && (
-                                <View style={styles.photoPrevsRow}>
-                                    <Text style={styles.photosLabel}>Selfies:</Text>
-                                    <View style={styles.photosList}>
-                                        {item.checkInPhoto && (
-                                            <TouchableOpacity 
-                                                style={styles.photoPill}
-                                                onPress={() => setSelectedPhoto({
-                                                    title: 'Check-In Selfie',
-                                                    uri: `${BASE_URL}${item.checkInPhoto}`
-                                                })}
-                                            >
-                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
-                                                <Text style={styles.photoPillText}>Check-In</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                        {item.checkOutPhoto && (
-                                            <TouchableOpacity 
-                                                style={styles.photoPill}
-                                                onPress={() => setSelectedPhoto({
-                                                    title: 'Check-Out Selfie',
-                                                    uri: `${BASE_URL}${item.checkOutPhoto}`
-                                                })}
-                                            >
-                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
-                                                <Text style={styles.photoPillText}>Check-Out</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                </View>
-                            )}
+                renderItem={({ item: group }) => (
+                    <View style={styles.dayGroupContainer}>
+                        {/* Day Header */}
+                        <View style={styles.dayHeader}>
+                            <Ionicons name="calendar-outline" size={15} color={colors.primary} />
+                            <Text style={styles.dayHeaderText}>{formatDate(group.date)}</Text>
                         </View>
-                    );
-                }}
+                        
+                        {/* Day's Card holding all subject entries */}
+                        <View style={styles.dayCard}>
+                            {group.data.map((item, index) => {
+                                const status = item.status || 'Absent';
+                                let badgeStyle = styles.badgeAbsent;
+                                let badgeText = 'Absent';
+                                if (status === 'Present') { badgeStyle = styles.badgePresent; badgeText = 'Present'; }
+                                else if (status === 'In') { badgeStyle = styles.badgeIn; badgeText = 'Checked-In'; }
+
+                                const subjectName = item.session?.subject || 'Class';
+                                const teacherName = item.session?.teacher?.name || 'Instructor';
+
+                                return (
+                                    <View key={item._id}>
+                                        {index > 0 && <View style={styles.dayDivider} />}
+                                        <View style={styles.recordItemRow}>
+                                            <View style={styles.cardHeader}>
+                                                <View style={{ flex: 1, paddingRight: 8 }}>
+                                                    <Text style={styles.subjectText}>{subjectName}</Text>
+                                                    <Text style={styles.teacherText}>Taught by {teacherName}</Text>
+                                                </View>
+                                                <View style={[styles.statusBadge, badgeStyle]}>
+                                                    <Text style={styles.badgeLabel}>{badgeText}</Text>
+                                                </View>
+                                            </View>
+
+                                            <View style={styles.timeRow}>
+                                                <View style={styles.timeItem}>
+                                                    <Text style={styles.timeLabel}>In Time</Text>
+                                                    <Text style={styles.timeVal}>{formatTime(item.checkInTime)}</Text>
+                                                </View>
+                                                <View style={styles.timeItem}>
+                                                    <Text style={styles.timeLabel}>Out Time</Text>
+                                                    <Text style={styles.timeVal}>{formatTime(item.checkOutTime)}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Selfies Previews if present */}
+                                            {(item.checkInPhoto || item.checkOutPhoto) && (
+                                                <View style={styles.photoPrevsRow}>
+                                                    <Text style={styles.photosLabel}>Selfies:</Text>
+                                                    <View style={styles.photosList}>
+                                                        {item.checkInPhoto && (
+                                                            <TouchableOpacity 
+                                                                style={styles.photoPill}
+                                                                onPress={() => setSelectedPhoto({
+                                                                    title: 'Check-In Selfie',
+                                                                    uri: `${BASE_URL}${item.checkInPhoto}`
+                                                                })}
+                                                            >
+                                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
+                                                                <Text style={styles.photoPillText}>Check-In</Text>
+                                                            </TouchableOpacity>
+                                                        )}
+                                                        {item.checkOutPhoto && (
+                                                            <TouchableOpacity 
+                                                                style={styles.photoPill}
+                                                                onPress={() => setSelectedPhoto({
+                                                                    title: 'Check-Out Selfie',
+                                                                    uri: `${BASE_URL}${item.checkOutPhoto}`
+                                                                })}
+                                                            >
+                                                                <Ionicons name="image-outline" size={13} color={colors.primary} />
+                                                                <Text style={styles.photoPillText}>Check-Out</Text>
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
             />
 
             {/* Selfie Preview Modal */}
@@ -401,6 +424,40 @@ const styles = StyleSheet.create({
         height: 240,
         borderRadius: borderRadius.md,
         backgroundColor: '#e2e8f0',
+    },
+    dayGroupContainer: {
+        marginBottom: spacing.md,
+    },
+    dayHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: spacing.xs,
+        paddingLeft: 4,
+    },
+    dayHeaderText: {
+        fontSize: fontSizes.sm,
+        fontWeight: '750',
+        color: colors.textSecondary,
+    },
+    dayCard: {
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        paddingHorizontal: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    dayDivider: {
+        height: 1,
+        backgroundColor: colors.borderLight,
+    },
+    recordItemRow: {
+        paddingVertical: spacing.md,
     },
 });
 

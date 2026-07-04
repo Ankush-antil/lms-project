@@ -117,7 +117,7 @@ const TeacherDetails = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/admin/teachers')}
+                        onClick={() => navigate(-1)}
                         className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group"
                     >
                         <ArrowLeft size={20} className="text-slate-600 group-hover:-translate-x-1 transition-transform" />
@@ -256,6 +256,28 @@ const TeacherDetails = () => {
                                                         {sub}
                                                     </span>
                                                 ))}
+                                            </div>
+                                        </div>
+                                        <div className="md:col-span-2 space-y-1">
+                                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Assigned Sections</p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {user?.teacherProfile?.studentAssignmentMode === 'all' ? (
+                                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">
+                                                        All Sections (General Access)
+                                                    </span>
+                                                ) : user?.teacherProfile?.studentAssignmentMode === 'selected' ? (
+                                                    <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold border border-amber-100">
+                                                        Specific Selected Students
+                                                    </span>
+                                                ) : user?.teacherProfile?.assignedSections && user.teacherProfile.assignedSections.length > 0 ? (
+                                                    user.teacherProfile.assignedSections.map(sec => (
+                                                        <span key={sec} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-100 uppercase">
+                                                            Section {sec}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-slate-400 italic">No assigned sections</span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="md:col-span-2 space-y-1">

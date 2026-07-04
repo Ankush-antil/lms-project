@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye, CheckCircle, X } from 'lucide-react';
+import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye, CheckCircle, X, Pause, Save } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import { useSocket } from '../../../context/SocketContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
 import LocalHistoryModal from '../../../components/common/LocalHistoryModal';
+import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from '../../../utils/indexedDB';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 
 const WebCallingPage = () => {
@@ -56,6 +57,64 @@ const WebCallingPage = () => {
 
     const [callLogs, setCallLogs] = useState([]);
     const [drafts, setDrafts] = useState([]);
+
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const [playingAudioId, setPlayingAudioId] = useState(null);
+    const [audioElement, setAudioElement] = useState(null);
+
+    useEffect(() => {
+        return () => {
+            if (audioElement) {
+                audioElement.pause();
+            }
+        };
+    }, [audioElement]);
+
+    const handleToggleAudio = async (item) => {
+        const targetId = item.id;
+        
+        // If already playing this log, stop it
+        if (playingAudioId === targetId && audioElement) {
+            audioElement.pause();
+            setPlayingAudioId(null);
+            setAudioElement(null);
+            return;
+        }
+
+        // If playing something else, stop it first
+        if (audioElement) {
+            audioElement.pause();
+        }
+
+        try {
+            let url = item.audioUrl;
+            if (!url && item.audioId) {
+                // Fetch from IndexedDB
+                const blob = await getLocalBlob(item.audioId);
+                if (blob) {
+                    url = URL.createObjectURL(blob);
+                }
+            }
+
+            if (!url) {
+                toast.error("No audio recording found for this call.");
+                return;
+            }
+
+            const audio = new Audio(url);
+            audio.onended = () => {
+                setPlayingAudioId(null);
+                setAudioElement(null);
+            };
+            audio.play();
+            setPlayingAudioId(targetId);
+            setAudioElement(audio);
+        } catch (err) {
+            console.error("Error playing call audio:", err);
+            toast.error("Could not play audio recording.");
+        }
+    };
 
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);
@@ -247,6 +306,19 @@ const WebCallingPage = () => {
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
+
+            // Start MediaRecorder if microphone is enabled
+            if (micEnabled && stream.getAudioTracks().length > 0) {
+                const mediaRecorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = mediaRecorder;
+                audioChunksRef.current = [];
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        audioChunksRef.current.push(event.data);
+                    }
+                };
+                mediaRecorder.start();
+            }
         } catch (err) {
             console.error("Could not activate local video preview:", err);
         }
@@ -280,41 +352,72 @@ const WebCallingPage = () => {
     };
 
     const endAiCall = () => {
-        stopLocalStream();
         setSimulatedState('ended');
 
-        // Add to drafts
         const searchParams = new URLSearchParams(window.location.search);
         const inboxVal = searchParams.get('inbox');
-        const newDraft = {
-            id: 'draft_log_' + Date.now(),
-            name: `AI Partner (${aiScenarios[aiRole].title})`,
-            type: 'Simulated Call',
-            duration: formatTime(simTime),
-            status: 'Completed',
-            date: getSessionTimestamp(),
-            synced: false,
-            inbox: inboxVal || ''
+        const draftId = 'draft_log_' + Date.now();
+
+        const finalizeDraft = (audioBlob = null) => {
+            const newDraft = {
+                id: draftId,
+                name: `AI Partner (${aiScenarios[aiRole].title})`,
+                type: 'Simulated Call',
+                duration: formatTime(simTime),
+                status: 'Completed',
+                date: getSessionTimestamp(),
+                synced: false,
+                inbox: inboxVal || '',
+                audioBlob: audioBlob
+            };
+            if (audioBlob) {
+                newDraft.audioUrl = URL.createObjectURL(audioBlob);
+            }
+            setDrafts(prev => [newDraft, ...prev]);
+            toast.success("Call ended. Saved as draft!");
+
+            setTimeout(() => {
+                setSimulatedState('idle');
+                setSimulatedCall(false);
+            }, 1500);
         };
 
-        setDrafts(prev => [newDraft, ...prev]);
-        toast.success("Call ended. Saved as draft!");
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                finalizeDraft(audioBlob);
+            };
+            mediaRecorderRef.current.stop();
+        } else {
+            finalizeDraft();
+        }
 
-        setTimeout(() => {
-            setSimulatedState('idle');
-            setSimulatedCall(false);
-        }, 1500);
+        stopLocalStream();
     };
 
-    const handleSaveDraft = (draft) => {
+    const handleSaveDraft = async (draft) => {
         if (isReadOnly) {
             toast.error("Saving is disabled in Read-Only archive.");
             return;
         }
         
+        const logId = 'log_' + Date.now();
+        let audioId = null;
+
+        if (draft.audioBlob) {
+            try {
+                audioId = 'call_audio_' + Date.now();
+                await saveLocalBlob(audioId, draft.audioBlob);
+            } catch (err) {
+                console.error("Failed to save audio file to IndexedDB:", err);
+            }
+        }
+
         const newLog = {
             ...draft,
-            id: 'log_' + Date.now(),
+            id: logId,
+            audioId: audioId,
+            audioBlob: undefined // Don't serialize blob to localStorage
         };
 
         setCallLogs(prev => {
@@ -322,6 +425,11 @@ const WebCallingPage = () => {
             localStorage.setItem('practice_call_logs', JSON.stringify(list));
             return list;
         });
+
+        // Clean up object URL in drafts
+        if (draft.audioUrl) {
+            URL.revokeObjectURL(draft.audioUrl);
+        }
 
         setDrafts(prev => prev.filter(d => d.id !== draft.id));
         toast.success("Call log saved to workspace!");
@@ -407,14 +515,23 @@ const WebCallingPage = () => {
         callUser(teacher._id, teacher.name, 'Teacher', callType);
     };
 
-    const handleDeleteLog = (id) => {
+    const handleDeleteLog = async (id) => {
         if (isReadOnly) {
             toast.error("Deleting logs is disabled in Read-Only archive.");
             return;
         }
+        const itemToDelete = callLogs.find(log => log.id === id);
+        if (itemToDelete && itemToDelete.audioId) {
+            try {
+                await deleteLocalBlob(itemToDelete.audioId);
+            } catch (err) {
+                console.error("Failed to delete local audio blob:", err);
+            }
+        }
         const updated = callLogs.filter(log => log.id !== id);
         setCallLogs(updated);
         localStorage.setItem('practice_call_logs', JSON.stringify(updated));
+        toast.success("Call log deleted.");
     };
 
     // Save latest log to Google Drive (Open Modal)
@@ -959,6 +1076,20 @@ const WebCallingPage = () => {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {/* Play/Pause Button */}
+                                                {(draft.audioUrl || draft.audioBlob) && (
+                                                    <button
+                                                        onClick={() => handleToggleAudio(draft)}
+                                                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                                                            playingAudioId === draft.id
+                                                                ? 'bg-red-50 text-red-650 border-red-200 animate-pulse'
+                                                                : 'bg-indigo-50 text-indigo-650 border-indigo-200 hover:bg-indigo-105'
+                                                        }`}
+                                                        title={playingAudioId === draft.id ? "Pause Recording" : "Play Recording"}
+                                                    >
+                                                        {playingAudioId === draft.id ? <Square size={14} className="text-red-500" /> : <Play size={14} />}
+                                                    </button>
+                                                )}
                                                 {/* Save Button */}
                                                 <button
                                                     onClick={() => handleSaveDraft(draft)}
@@ -1014,6 +1145,20 @@ const WebCallingPage = () => {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {/* Play/Pause Button */}
+                                                {item.audioId && (
+                                                    <button
+                                                        onClick={() => handleToggleAudio(item)}
+                                                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                                                            playingAudioId === item.id
+                                                                ? 'bg-red-50 text-red-650 border-red-200 animate-pulse'
+                                                                : 'bg-indigo-50 text-indigo-650 border-indigo-200 hover:bg-indigo-105'
+                                                        }`}
+                                                        title={playingAudioId === item.id ? "Pause Recording" : "Play Recording"}
+                                                    >
+                                                        {playingAudioId === item.id ? <Square size={14} className="text-red-500" /> : <Play size={14} />}
+                                                    </button>
+                                                )}
                                                 {/* Sync with Cloud Indicator / Sync Button */}
                                                 {item.synced ? (
                                                     <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold font-sans">

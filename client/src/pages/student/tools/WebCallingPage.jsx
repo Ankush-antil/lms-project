@@ -55,6 +55,7 @@ const WebCallingPage = () => {
     const [localStream, setLocalStream] = useState(null);
 
     const [callLogs, setCallLogs] = useState([]);
+    const [drafts, setDrafts] = useState([]);
 
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);
@@ -282,11 +283,11 @@ const WebCallingPage = () => {
         stopLocalStream();
         setSimulatedState('ended');
 
-        // Add log entry
+        // Add to drafts
         const searchParams = new URLSearchParams(window.location.search);
         const inboxVal = searchParams.get('inbox');
-        const newLog = {
-            id: 'log_' + Date.now(),
+        const newDraft = {
+            id: 'draft_log_' + Date.now(),
             name: `AI Partner (${aiScenarios[aiRole].title})`,
             type: 'Simulated Call',
             duration: formatTime(simTime),
@@ -296,16 +297,39 @@ const WebCallingPage = () => {
             inbox: inboxVal || ''
         };
 
+        setDrafts(prev => [newDraft, ...prev]);
+        toast.success("Call ended. Saved as draft!");
+
+        setTimeout(() => {
+            setSimulatedState('idle');
+            setSimulatedCall(false);
+        }, 1500);
+    };
+
+    const handleSaveDraft = (draft) => {
+        if (isReadOnly) {
+            toast.error("Saving is disabled in Read-Only archive.");
+            return;
+        }
+        
+        const newLog = {
+            ...draft,
+            id: 'log_' + Date.now(),
+        };
+
         setCallLogs(prev => {
             const list = [newLog, ...prev];
             localStorage.setItem('practice_call_logs', JSON.stringify(list));
             return list;
         });
 
-        setTimeout(() => {
-            setSimulatedState('idle');
-            setSimulatedCall(false);
-        }, 1500);
+        setDrafts(prev => prev.filter(d => d.id !== draft.id));
+        toast.success("Call log saved to workspace!");
+    };
+
+    const handleDeleteDraft = (id) => {
+        setDrafts(prev => prev.filter(d => d.id !== id));
+        toast.success("Draft discarded.");
     };
 
     const nextQuestion = () => {
@@ -815,7 +839,12 @@ const WebCallingPage = () => {
                                                                     )}
                                                                 </div>
                                                                 <div className="text-left">
-                                                                    <h4 className="text-xs font-bold text-slate-700">{teacher.name}</h4>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <h4 className="text-xs font-bold text-slate-700">{teacher.name}</h4>
+                                                                        {isOnline && (
+                                                                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black rounded-full uppercase tracking-wider animate-pulse">Online</span>
+                                                                        )}
+                                                                    </div>
                                                                     <p className="text-[10px] text-slate-400 font-medium">{teacher.email}</p>
                                                                 </div>
                                                             </div>
@@ -897,6 +926,61 @@ const WebCallingPage = () => {
                                 </div>
                             )}
 
+                        </div>
+
+                        {/* Draft Content Card */}
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4 mb-6">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
+                                <span>Draft Content</span>
+                                <span className="text-xs px-2 py-0.5 bg-yellow-105 text-yellow-800 font-bold rounded-full">
+                                    {drafts.length} Drafts
+                                </span>
+                            </h3>
+
+                            {drafts.length === 0 ? (
+                                <p className="text-xs text-slate-405 italic text-center py-6">
+                                    No draft call logs. End a practice call to see drafts here.
+                                </p>
+                            ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                                    {drafts.map((draft, index) => (
+                                        <div key={draft.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-150 hover:border-slate-350 transition-colors">
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0 text-left">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider">
+                                                        {draft.name || `Call Draft`}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-bold">
+                                                        {draft.type} • Duration: {draft.duration} • Status: {draft.status}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-450 font-bold">
+                                                    {draft.date}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {/* Save Button */}
+                                                <button
+                                                    onClick={() => handleSaveDraft(draft)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-750 transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                    title="Save Call Log"
+                                                >
+                                                    <Save size={14} />
+                                                    <span>Save</span>
+                                                </button>
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => handleDeleteDraft(draft.id)}
+                                                    className="px-3 py-1.5 bg-white text-slate-805 border-2 border-slate-800 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-all cursor-pointer"
+                                                    title="Delete Draft"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Recent Call Logs Card */}

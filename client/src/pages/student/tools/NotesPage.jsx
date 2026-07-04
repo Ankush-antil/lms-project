@@ -21,6 +21,10 @@ const NotesPage = () => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
 
     // States
+    const [drafts, setDrafts] = useState(() => {
+        const saved = localStorage.getItem('practice_notes_drafts');
+        return saved ? JSON.parse(saved) : [];
+    });
     const [notes, setNotes] = useState([]);
     const [selectedNote, setSelectedNote] = useState(null);
     const [title, setTitle] = useState('');
@@ -119,7 +123,7 @@ const NotesPage = () => {
         setSelectedNote(note);
         setTitle(note.title);
         setContent(note.content);
-        setShareWithTeacher(note.shareWithTeacher);
+        setShareWithTeacher(note.shareWithTeacher || false);
     };
 
     // Initialize clean state for a new note
@@ -132,7 +136,7 @@ const NotesPage = () => {
 
     // Save Note (Create or Update)
     const handleSaveNote = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!title.trim()) {
             toast.error("Please enter a note title");
             return;
@@ -141,7 +145,7 @@ const NotesPage = () => {
         try {
             setSaving(true);
             const payload = {
-                id: selectedNote?._id,
+                id: selectedNote && !selectedNote.isDraft ? selectedNote._id : undefined,
                 title: title.trim(),
                 content: content.trim(),
                 inboxId: inboxParam || '',
@@ -150,7 +154,16 @@ const NotesPage = () => {
 
             const { data } = await axios.post('/api/notes', payload);
 
-            toast.success(selectedNote ? "Note updated successfully!" : "Note saved successfully!");
+            toast.success(selectedNote && !selectedNote.isDraft ? "Note updated successfully!" : "Note saved successfully!");
+
+            // If it was a draft, remove it from drafts
+            if (selectedNote?.isDraft) {
+                setDrafts(prev => {
+                    const updated = prev.filter(d => d.id !== selectedNote.id);
+                    localStorage.setItem('practice_notes_drafts', JSON.stringify(updated));
+                    return updated;
+                });
+            }
 
             // Refresh list
             const url = inboxParam ? `/api/notes?inboxId=${encodeURIComponent(inboxParam)}` : '/api/notes';
@@ -170,10 +183,51 @@ const NotesPage = () => {
         }
     };
 
+    // Save Note as Draft Locally
+    const handleSaveDraft = (e) => {
+        if (e) e.preventDefault();
+        if (!title.trim()) {
+            toast.error("Please enter a note title");
+            return;
+        }
+
+        const draftId = selectedNote?.isDraft ? selectedNote.id : 'draft_note_' + Date.now();
+        const newDraft = {
+            id: draftId,
+            title: title.trim(),
+            content: content.trim(),
+            shareWithTeacher,
+            isDraft: true,
+            createdAt: new Date().toISOString()
+        };
+
+        setDrafts(prev => {
+            const updated = prev.some(d => d.id === draftId)
+                ? prev.map(d => d.id === draftId ? newDraft : d)
+                : [newDraft, ...prev];
+            localStorage.setItem('practice_notes_drafts', JSON.stringify(updated));
+            return updated;
+        });
+
+        setSelectedNote(newDraft);
+        toast.success("Note saved as draft locally!");
+    };
+
     // Delete Note
     const handleDeleteNote = async (id) => {
         if (!id) return;
         if (!window.confirm("Are you sure you want to delete this note?")) return;
+
+        if (selectedNote?.isDraft) {
+            setDrafts(prev => {
+                const updated = prev.filter(d => d.id !== selectedNote.id);
+                localStorage.setItem('practice_notes_drafts', JSON.stringify(updated));
+                return updated;
+            });
+            toast.success("Draft deleted successfully");
+            handleNewNote();
+            return;
+        }
 
         try {
             await axios.delete(`/api/notes/${id}`);
@@ -264,55 +318,91 @@ const NotesPage = () => {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-slate-50/10">
-                            {loading && notes.length === 0 ? (
-                                <div className="space-y-3">
-                                    {[1, 2, 3, 4].map(i => (
-                                        <div key={i} className="h-20 bg-slate-100 animate-pulse rounded-2xl" />
-                                    ))}
-                                </div>
-                            ) : filteredNotes.length === 0 ? (
-                                <div className="text-center py-12 text-slate-400 text-xs font-medium">
-                                    {searchQuery ? "No matching notes found." : "No notes written yet."}
-                                </div>
-                            ) : (
-                                filteredNotes.map(note => {
-                                    const isActive = selectedNote?._id === note._id;
-                                    const snippet = note.content ? (note.content.length > 60 ? `${note.content.substring(0, 60)}...` : note.content) : 'No content...';
-                                    return (
-                                        <div
-                                            key={note._id}
-                                            onClick={() => handleSelectNote(note)}
-                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left space-y-2 relative group ${isActive
-                                                ? 'border-indigo-500 bg-indigo-50/20 shadow-sm ring-1 ring-indigo-500/10'
-                                                : 'border-slate-100 bg-white hover:border-indigo-500/40 hover:bg-slate-50/30'
-                                                }`}
-                                        >
-                                            <div className="flex justify-between items-start gap-2">
-                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                                    {note.title}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-50/10">
+                            {/* --- Draft Content --- */}
+                            <div className="space-y-2">
+                                <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Draft Content</span>
+                                    <span className="px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[9px] font-bold">
+                                        {drafts.length}
+                                    </span>
+                                </h4>
+                                {drafts.length === 0 ? (
+                                    <p className="text-[10px] text-slate-400 italic px-2 py-1 text-left">No drafts</p>
+                                ) : (
+                                    drafts.map(draft => {
+                                        const isActive = selectedNote?.isDraft && selectedNote?.id === draft.id;
+                                        const snippet = draft.content ? (draft.content.length > 35 ? `${draft.content.substring(0, 35)}...` : draft.content) : 'No content...';
+                                        return (
+                                            <div
+                                                key={draft.id}
+                                                onClick={() => handleSelectNote(draft)}
+                                                className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
+                                                    ? 'border-yellow-500 bg-yellow-50/20 shadow-sm ring-1 ring-yellow-500/10'
+                                                    : 'border-slate-100 bg-white hover:border-yellow-500/40 hover:bg-slate-50/30'
+                                                    }`}
+                                            >
+                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-yellow-900' : 'text-slate-700'}`}>
+                                                    {draft.title || 'Untitled Draft'}
                                                 </h3>
-                                                {note.shareWithTeacher ? (
-                                                    <span className="shrink-0 text-emerald-600 bg-emerald-50 p-1 rounded-lg" title="Shared with Teacher">
-                                                        <Eye size={10} />
-                                                    </span>
-                                                ) : (
-                                                    <span className="shrink-0 text-slate-400 bg-slate-50 p-1 rounded-lg" title="Private">
-                                                        <EyeOff size={10} />
-                                                    </span>
-                                                )}
+                                                <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
                                             </div>
-                                            <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                                                {snippet}
-                                            </p>
-                                            <div className="flex items-center gap-1 text-[9px] text-slate-450 font-bold uppercase tracking-wider pt-1.5 border-t border-slate-100/50">
-                                                <Clock size={10} />
-                                                <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            <hr className="border-slate-150" />
+
+                            {/* --- Saved Content --- */}
+                            <div className="space-y-2">
+                                <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Saved Content</span>
+                                    <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-805 text-[9px] font-bold">
+                                        {filteredNotes.length}
+                                    </span>
+                                </h4>
+                                {loading && notes.length === 0 ? (
+                                    <div className="space-y-3">
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />
+                                        ))}
+                                    </div>
+                                ) : filteredNotes.length === 0 ? (
+                                    <p className="text-[10px] text-slate-400 italic px-2 py-1 text-left">No saved notes</p>
+                                ) : (
+                                    filteredNotes.map(note => {
+                                        const isActive = selectedNote && !selectedNote.isDraft && selectedNote._id === note._id;
+                                        const snippet = note.content ? (note.content.length > 35 ? `${note.content.substring(0, 35)}...` : note.content) : 'No content...';
+                                        return (
+                                            <div
+                                                key={note._id}
+                                                onClick={() => handleSelectNote(note)}
+                                                className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
+                                                    ? 'border-indigo-500 bg-indigo-50/20 shadow-sm ring-1 ring-indigo-500/10'
+                                                    : 'border-slate-100 bg-white hover:border-indigo-500/40 hover:bg-slate-50/30'
+                                                    }`}
+                                            >
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <h3 className={`font-bold text-xs truncate flex-1 ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                        {note.title}
+                                                    </h3>
+                                                    {note.shareWithTeacher ? (
+                                                        <span className="shrink-0 text-emerald-600 bg-emerald-50 p-0.5 rounded-lg" title="Shared with Teacher">
+                                                            <Eye size={8} />
+                                                        </span>
+                                                    ) : (
+                                                        <span className="shrink-0 text-slate-400 bg-slate-50 p-0.5 rounded-lg" title="Private">
+                                                            <EyeOff size={8} />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
                                             </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
                     </aside>
 
@@ -364,9 +454,17 @@ const NotesPage = () => {
                                         </button>
                                     )}
                                     <button
+                                        type="button"
+                                        onClick={handleSaveDraft}
+                                        className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 cursor-pointer mr-1"
+                                    >
+                                        <Save size={14} />
+                                        <span>Save Draft</span>
+                                    </button>
+                                    <button
                                         type="submit"
                                         disabled={saving}
-                                        className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                        className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                                     >
                                         <Save size={14} />
                                         <span>{saving ? 'Saving...' : 'Save Note'}</span>

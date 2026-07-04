@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Upload, FileText, Cloud, Database, Download, Trash, ArrowLeft, Loader2, AlertCircle, Info, Folder, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Cloud, Database, Download, Trash, ArrowLeft, Loader2, AlertCircle, Info, Folder, RefreshCw, Save, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -29,6 +29,7 @@ const FileUploadPage = () => {
     };
 
     // States
+    const [drafts, setDrafts] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
@@ -144,40 +145,52 @@ const FileUploadPage = () => {
             return;
         }
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            setSelectedFile(e.dataTransfer.files[0]);
+            addFileToDrafts(e.dataTransfer.files[0]);
         }
     };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
+            addFileToDrafts(e.target.files[0]);
         }
     };
 
-    // Save Selected File to Local DB
-    const handleSaveLocal = async (e) => {
-        e.preventDefault();
+    const addFileToDrafts = (file) => {
         if (isReadOnly) {
             toast.error("Saving files is disabled in Read-Only archive.");
             return;
         }
-        if (!selectedFile) {
-            toast.error("Please select a file.");
-            return;
-        }
-
-        if (selectedFile.size > 100 * 1024 * 1024) {
+        if (file.size > 100 * 1024 * 1024) {
             toast.error("File exceeds the 100MB size limit.");
             return;
         }
+        const draftId = 'draft_' + Date.now();
+        const newDraft = {
+            id: draftId,
+            name: file.name,
+            blob: file,
+            size: formatBytes(file.size),
+            mimeType: file.type || 'application/octet-stream',
+            timestamp: getSessionTimestamp(),
+            inbox: inboxParam || ''
+        };
+        setDrafts(prev => [newDraft, ...prev]);
+        toast.success("File added to drafts!");
+    };
 
-        const fileId = 'file_' + Date.now();
+    // Save Selected Draft File to Local DB
+    const handleSaveDraft = async (draft) => {
+        if (isReadOnly) {
+            toast.error("Saving files is disabled in Read-Only archive.");
+            return;
+        }
         
         try {
             setUploading(true);
+            const fileId = 'file_' + Date.now();
             
             // Save to IndexedDB
-            const success = await saveLocalBlob(fileId, selectedFile);
+            const success = await saveLocalBlob(fileId, draft.blob);
             if (!success) {
                 throw new Error("Failed to write to local storage.");
             }
@@ -185,10 +198,10 @@ const FileUploadPage = () => {
             // Save metadata to localStorage
             const newLocalFile = {
                 id: fileId,
-                name: selectedFile.name,
+                name: draft.name,
                 timestamp: getSessionTimestamp(),
-                size: formatBytes(selectedFile.size),
-                mimeType: selectedFile.type || 'application/octet-stream',
+                size: draft.size,
+                mimeType: draft.mimeType,
                 synced: false,
                 inbox: inboxParam || ''
             };
@@ -197,9 +210,8 @@ const FileUploadPage = () => {
             setLocalFiles(updatedList);
             localStorage.setItem('practice_file_uploads', JSON.stringify(updatedList.map(f => ({ ...f, url: '' }))));
 
+            setDrafts(prev => prev.filter(d => d.id !== draft.id));
             toast.success("File saved locally to workspace!");
-            setSelectedFile(null);
-            if (fileInputRef.current) fileInputRef.current.value = '';
             
             // Reload files
             loadLocalFiles();
@@ -209,6 +221,11 @@ const FileUploadPage = () => {
         } finally {
             setUploading(false);
         }
+    };
+
+    const handleDeleteDraft = (id) => {
+        setDrafts(prev => prev.filter(d => d.id !== id));
+        toast.success("Draft discarded.");
     };
 
     // Sync local unsynced files with cloud
@@ -271,6 +288,68 @@ const FileUploadPage = () => {
         } else {
             toast.error("Failed to sync files.", { id: toastId });
         }
+    };
+
+    const handleSyncSingleWithCloud = async (item) => {
+        if (isReadOnly) {
+            toast.error("Syncing files is disabled in Read-Only archive.");
+            return;
+        }
+        const toastId = toast.loading(`Syncing ${item.name}...`);
+        try {
+            const blob = await getLocalBlob(item.id);
+            if (!blob) {
+                throw new Error("File not found locally.");
+            }
+
+            if (cloudSpace.used + blob.size > cloudSpace.limit) {
+                throw new Error("Cloud space limit exceeded.");
+            }
+
+            const formData = new FormData();
+            formData.append('file', blob, item.name);
+            formData.append('toolType', 'file-uploader');
+            if (item.inbox) {
+                formData.append('inbox', item.inbox);
+            }
+
+            await axios.post('/api/practice-files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Mark as synced
+            setLocalFiles(prev => {
+                const updated = prev.map(f => f.id === item.id ? { ...f, synced: true } : f);
+                localStorage.setItem('practice_file_uploads', JSON.stringify(updated.map(f => ({ ...f, url: '' }))));
+                return updated;
+            });
+
+            toast.success("File synced to cloud successfully!", { id: toastId });
+            await fetchCloudFiles();
+            loadLocalFiles();
+        } catch (err) {
+            console.error(err);
+            const errMsg = err.response?.data?.message || err.message || "Sync failed.";
+            toast.error(`Sync failed: ${errMsg}`, { id: toastId });
+        }
+    };
+
+    const handleSyncSingleWithDrive = async (item) => {
+        if (isReadOnly) {
+            toast.error("Google Drive upload is disabled in Read-Only archive.");
+            return;
+        }
+        const blob = await getLocalBlob(item.id);
+        if (!blob) {
+            toast.error("Local file not found.");
+            return;
+        }
+        setDriveFileMeta({
+            name: item.name,
+            blob: blob,
+            itemId: item.id
+        });
+        setDriveModalOpen(true);
     };
 
     // Save to Google Drive Click
@@ -369,328 +448,302 @@ const FileUploadPage = () => {
 
     return (
         <DashboardLayout role="Student" fullWidth={true}>
-            <div className="flex flex-col h-[calc(100vh-120px)] bg-slate-50/50 rounded-3xl overflow-hidden font-sans border border-slate-200">
-                {/* ── HEADER BANNER ───────────────────────────────────── */}
-                <header className="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4">
+            <div className="max-w-7xl mx-auto px-4 py-2 text-left">
+                {/* Back Link & Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
+                    {/* Left: Title */}
+                    <div>
+                        <h1 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                            <Cloud className="text-indigo-605" size={20} />
+                            File Uploader {isReadOnly && <span className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-md font-bold uppercase tracking-wider">Preview Only</span>}
+                        </h1>
+                    </div>
+
+                    {/* Center: Data Settings Quick Access */}
+                    <div className="flex items-center gap-3 flex-wrap border rounded-xl p-3 bg-gray-100 h-15 w-[800px] justify-center">
+                        {/* Local Data */}
                         <button
-                            onClick={() => navigate(inboxParam ? `/student/tests?tab=practice` : `/student/practice-tools?date=${dateParam || todayDdMmYyyy}`)}
-                            className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-650 transition-all active:scale-95 cursor-pointer"
+                            onClick={() => setLocalHistoryModalOpen(true)}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-700 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            title="Go to Local Data"
                         >
-                            <ArrowLeft size={18} />
+                            <Folder size={13} className="text-indigo-500 shrink-0" />
+                            <span className="hidden sm:inline">Data on Local Cloud</span>
+                            <span className="text-[9px] font-black text-slate-400 hidden sm:inline">• {filteredLocalFiles.length}</span>
                         </button>
-                        <div className="text-left">
-                            <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
-                                File Uploader
-                            </h1>
-                            <p className="text-xs font-semibold text-slate-400 mt-1.5 uppercase tracking-wider">
-                                Practice environment • {dateParam || todayDdMmYyyy}
-                            </p>
-                        </div>
+
+                        {/* Cloud Data */}
+                        <button
+                            onClick={async () => {
+                                setGalleryTab('cloud');
+                                await fetchCloudFiles();
+                                setCloudGalleryModalOpen(true);
+                            }}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:border-indigo-200 bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            title="Go to Cloud Data"
+                        >
+                            <Database size={13} className="text-indigo-500 shrink-0" />
+                            <span className="hidden sm:inline">Data on DS Cloud</span>
+                            <span className="text-[9px] font-black text-slate-400 hidden sm:inline">• {filteredCloudFiles.length}</span>
+                        </button>
+
+                        {/* Drive History */}
+                        <button
+                            onClick={() => {
+                                setDriveFileMeta({ name: '', blob: null });
+                                setDriveModalOpen(true);
+                            }}
+                            className="w-100 h-10 flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-slate-600 hover:text-amber-700 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            title="Go to Drive History"
+                        >
+                            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 48 48">
+                                <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                            </svg>
+                            <span className="hidden sm:inline">Data On Google Drive</span>
+                        </button>
                     </div>
 
-                    {/* Storage Status */}
-                    <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
-                        <div className="flex items-center gap-2">
-                            <Cloud size={16} className="text-indigo-500" />
-                            <div className="text-left leading-none">
-                                <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wide">Storage Used</span>
-                                <span className="text-xs font-extrabold text-slate-750">
-                                    {(cloudSpace.used / (1024 * 1024)).toFixed(1)}MB / 300MB
-                                </span>
-                            </div>
-                        </div>
-                        <div className="w-24 bg-slate-200 h-2 rounded-full overflow-hidden">
-                            <div 
-                                className="bg-indigo-500 h-full rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
-                            />
+                    {/* Right: Back to Practice Tools */}
+                    <button
+                        onClick={() => navigate(inboxParam ? `/student/tests?tab=practice` : `/student/practice-tools?date=${dateParam || todayDdMmYyyy}`)}
+                        className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm cursor-pointer"
+                    >
+                        <ArrowLeft size={14} />
+                        Back to Practice Tools
+                    </button>
+                </div>
+
+                {isReadOnly && (
+                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex items-center gap-2.5 text-xs font-semibold leading-relaxed">
+                        <AlertCircle className="text-amber-600 shrink-0" size={16} />
+                        <div>
+                            <p className="font-bold">Past Workspace Preview (Read-Only)</p>
+                            <p className="text-amber-800/80 text-[11px] font-medium mt-0.5">You are viewing files captured on {dateParam}. Saving new files, deleting, or syncing files is disabled for this day.</p>
                         </div>
                     </div>
-                </header>
+                )}
 
-                {/* ── CONTENT BODY ────────────────────────────────────── */}
-                <div className="flex-1 overflow-hidden flex flex-col md:flex-row p-6 gap-6">
-                    {/* LEFT PANEL: Upload Interface */}
-                    <section className="flex-1 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between overflow-y-auto text-left shadow-sm">
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-sm font-extrabold text-slate-800">Save Files to Workspace</h2>
-                                <p className="text-xs font-medium text-slate-450 mt-1">
-                                    Select or drop any file to save locally. Sync to cloud storage when ready. Max file size: 100MB.
-                                </p>
-                            </div>
-
-                            {/* Warning or read-only banner */}
-                            {isReadOnly && (
-                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-xs leading-relaxed text-amber-900">
-                                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={16} />
-                                    <div>
-                                        <p className="font-bold">Archive Workspace (Read-Only)</p>
-                                        <p className="text-amber-800/80 text-[11px] mt-0.5">
-                                            You are viewing a past workspace date. File saving and deletions are disabled.
-                                        </p>
-                                    </div>
+                {/* 2-Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                    {/* Left Column: Upload Interface & Lists */}
+                    <div className="lg:col-span-9 space-y-6">
+                                              {/* Compact Upload Action Bar */}
+                        <div 
+                            onDragEnter={handleDrag}
+                            onDragOver={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDrop={handleDrop}
+                            className={`bg-white px-5 py-4 rounded-3xl border shadow-sm flex items-center justify-between gap-4 flex-wrap transition-all duration-200 ${
+                                dragActive ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-100'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                                    <Upload className="text-indigo-650" size={18} />
                                 </div>
-                            )}
-
-                            {/* Drag and Drop Zone */}
-                            <form 
-                                onDragEnter={handleDrag}
-                                onDragOver={handleDrag}
-                                onDragLeave={handleDrag}
-                                onDrop={handleDrop}
-                                onSubmit={handleSaveLocal}
-                                className="space-y-4"
-                            >
-                                <div 
-                                    onClick={() => !isReadOnly && fileInputRef.current?.click()}
-                                    className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center gap-3 transition-all ${
-                                        isReadOnly 
-                                            ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60' 
-                                            : dragActive
-                                                ? 'border-indigo-500 bg-indigo-50/20'
-                                                : 'border-slate-300 bg-slate-50/30 hover:bg-slate-50 hover:border-slate-400 cursor-pointer'
-                                    }`}
-                                >
-                                    <input 
-                                        ref={fileInputRef}
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                        disabled={isReadOnly}
-                                    />
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                                        <Upload size={22} />
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xs font-bold text-slate-700">
-                                            {selectedFile ? selectedFile.name : 'Choose a file or drag it here'}
-                                        </p>
-                                        <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                                            {selectedFile ? formatBytes(selectedFile.size) : 'Any format (DOCX, PDF, Zip, Image, Audio, Video, etc)'}
-                                        </p>
-                                    </div>
+                                <div className="text-left font-sans">
+                                    <p className="font-extrabold text-slate-800 text-sm leading-tight">File Uploader</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        Select or drop any file to save locally as draft
+                                    </p>
                                 </div>
-
-                                {/* Save Button */}
-                                {!isReadOnly && (
-                                    <button
-                                        type="submit"
-                                        disabled={uploading || !selectedFile}
-                                        className="w-full py-3.5 bg-[#0b1329] text-white font-extrabold rounded-2xl shadow-xl hover:bg-[#152244] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 text-sm cursor-pointer"
-                                    >
-                                        {uploading ? (
-                                            <>
-                                                <Loader2 size={16} className="animate-spin" />
-                                                <span>Saving File Locally...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Folder size={16} />
-                                                <span>Save to Local Workspace</span>
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </form>
-                        </div>
-
-                        {/* Note about limits */}
-                        <div className="mt-8 bg-slate-50 border border-slate-200/80 p-4 rounded-2xl flex items-start gap-3">
-                            <Info className="text-indigo-500 shrink-0 mt-0.5" size={16} />
-                            <div className="text-xs leading-relaxed text-slate-500">
-                                <p className="font-bold text-slate-755">Important Notice</p>
-                                <p className="text-[11px] mt-0.5">Files uploaded to the cloud count towards your 300MB student account storage limit. You can access these files anytime from this screen or share them with teachers during assignments.</p>
                             </div>
-                        </div>
-                    </section>
-
-                    {/* RIGHT PANEL: Data Settings & Local vs Cloud Gallery */}
-                    <aside className="w-full md:w-96 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col overflow-y-auto text-left shadow-sm space-y-6">
-                        {/* Data Settings Widget */}
-                        <div className="space-y-4">
-                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">
-                                Data Settings
-                            </h3>
-                            <div className="space-y-2.5">
-                                {/* Save in Google Drive */}
-                                <button
-                                    onClick={() => handleSaveToDriveClick()}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors cursor-pointer"
-                                >
-                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
-                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
-                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
-                                    </svg>
-                                    <div className="text-left flex-1">
-                                        <p>Save in Google Drive</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Upload Latest File</span>
-                                    </div>
-                                </button>
-
-                                {/* Go to Drive History */}
-                                <button
-                                    onClick={() => {
-                                        setDriveFileMeta({ name: '', blob: null });
-                                        setDriveModalOpen(true);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors cursor-pointer"
-                                >
-                                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                        <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
-                                        <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
-                                        <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
-                                    </svg>
-                                    <div className="text-left flex-1">
-                                        <p>Go to Drive History</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            View & Manage Drive Folders
-                                        </span>
-                                    </div>
-                                </button>
-                                
-                                {/* Go to Local Data */}
-                                <button
-                                    onClick={() => setLocalHistoryModalOpen(true)}
-                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                                >
-                                    <Folder className="text-[#3E3ADD] shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Local Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredLocalFiles.length} Local Files • View structured folders
-                                        </span>
-                                    </div>
-                                </button>
-                                
-                                {/* Go to Cloud Data */}
-                                <button
-                                    onClick={async () => {
-                                        setGalleryTab('cloud');
-                                        await fetchCloudFiles();
-                                        toast.success("Switched to Cloud Storage Gallery");
-                                    }}
-                                    className={`w-full flex items-center gap-3 p-3 border rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                        galleryTab === 'cloud'
-                                            ? 'bg-[#3e3add]/10 border-indigo-200 text-indigo-850 shadow-sm'
-                                            : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-700'
-                                    }`}
-                                >
-                                    <Database className="text-[#3E3ADD] shrink-0" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Go to Cloud Data</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredCloudFiles.length} Cloud Files • {(cloudSpace.used / (1024 * 1024)).toFixed(1)} MB / 300 MB
-                                        </span>
-                                    </div>
-                                </button>
-                                
-                                {/* Sync with Cloud */}
+                            <div className="flex items-center gap-3">
+                                <input 
+                                    ref={fileInputRef}
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    disabled={isReadOnly}
+                                />
                                 <button
                                     disabled={isReadOnly}
-                                    onClick={handleSyncWithCloud}
-                                    className={`w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-bold text-slate-700 transition-colors cursor-pointer ${
-                                        isReadOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100'
+                                    onClick={() => !isReadOnly && fileInputRef.current?.click()}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-[0.98] transition-all duration-200 cursor-pointer ${
+                                        isReadOnly
+                                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                            : 'bg-indigo-600 hover:bg-indigo-750 text-white shadow-indigo-200'
                                     }`}
                                 >
-                                    <RefreshCw className="text-[#3E3ADD] shrink-0 animate-hover-spin" size={18} />
-                                    <div className="text-left flex-1">
-                                        <p>Sync with Cloud</p>
-                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {filteredLocalFiles.filter(f => !f.synced).length} files not synced
-                                        </span>
-                                    </div>
+                                    <Upload size={14} />
+                                    <span>{isReadOnly ? 'Read-Only' : 'Choose File'}</span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Local vs Cloud Gallery */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
-                                    {galleryTab === 'local' ? 'Local Files' : 'Cloud Files'}
-                                </h3>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-655 font-black text-[9px] uppercase tracking-wider">
-                                    {galleryTab === 'local' ? 'Offline' : 'Server'}
+                        {/* Draft Content Card */}
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
+                                <span>Draft Content</span>
+                                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 font-bold rounded-full">
+                                    {drafts.length} Drafts
                                 </span>
-                            </div>
-
-                            {/* Gallery List */}
-                            {galleryTab === 'local' ? (
-                                filteredLocalFiles.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 text-xs italic font-medium">
-                                        No local files found for this date.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                                        {filteredLocalFiles.map(f => {
-                                            const FileIcon = getFileIcon(f.mimeType);
-                                            return (
-                                                <div key={f.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
-                                                    <div className="flex justify-between items-start">
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-[10px] font-bold text-slate-700 truncate text-left" title={f.name}>{f.name}</p>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5 text-left">Size: {f.size} • {f.mimeType}</p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleDeleteLocalFile(f.id)}
-                                                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600 cursor-pointer"
-                                                            title="Delete Local File"
-                                                        >
-                                                            <Trash size={14} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )
+                            </h3>
+                            {drafts.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic text-center py-6">
+                                    No draft files. Choose or drag a file to see drafts here.
+                                </p>
                             ) : (
-                                /* Cloud Gallery List */
-                                cloudLoading ? (
-                                    <div className="text-center py-6 text-xs text-slate-450 animate-pulse font-bold uppercase tracking-wider">Loading Cloud Data...</div>
-                                ) : filteredCloudFiles.length === 0 ? (
-                                    <p className="text-xs text-slate-450 italic text-center py-4">No cloud files found. Click "Sync with Cloud" to upload.</p>
-                                ) : (
-                                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                                        {filteredCloudFiles.map(c => {
-                                            const FileIcon = getFileIcon(c.mimeType);
-                                            return (
-                                                <div key={c._id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 space-y-2 hover:border-slate-350 transition-colors">
-                                                    <div className="flex justify-between items-start">
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-[10px] font-bold text-slate-700 truncate text-left" title={c.filename}>{c.filename}</p>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5 text-left">{(c.size / (1024 * 1024)).toFixed(2)} MB</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                            <button
-                                                                onClick={() => handleSaveToDriveClick(c)}
-                                                                className="p-1.5 hover:bg-slate-100 rounded text-[#3E3ADD] cursor-pointer"
-                                                                title="Save to Google Drive"
-                                                            >
-                                                                <Database size={13} />
-                                                            </button>
-                                                            {!isReadOnly && (
-                                                                <button
-                                                                    onClick={() => handleDeleteCloudFile(c._id)}
-                                                                    className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-655 cursor-pointer"
-                                                                    title="Delete from Cloud"
-                                                                >
-                                                                    <Trash size={14} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                                    {drafts.map((draft) => (
+                                        <div key={draft.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-150 hover:border-slate-350 transition-colors">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                                                    <FileText className="text-amber-600" size={18} />
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )
+                                                <div className="min-w-0 text-left">
+                                                    <p className="text-xs font-bold text-slate-700 truncate" title={draft.name}>
+                                                        {draft.name}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                                        Size: {draft.size} • {draft.mimeType}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {/* Save Button */}
+                                                <button
+                                                    onClick={() => handleSaveDraft(draft)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-750 transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                    title="Save to Local Storage"
+                                                >
+                                                    <Save size={14} />
+                                                    <span>Save</span>
+                                                </button>
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => handleDeleteDraft(draft.id)}
+                                                    className="px-3 py-1.5 bg-white text-slate-800 border-2 border-slate-800 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-all cursor-pointer"
+                                                    title="Delete Draft"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
-                    </aside>
+
+                        {/* Saved Content Card */}
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider flex items-center justify-between">
+                                <span>Saved Content</span>
+                                <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-805 font-bold rounded-full">
+                                    {filteredLocalFiles.length} Saved
+                                </span>
+                            </h3>
+                            {filteredLocalFiles.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic text-center py-6">
+                                    No saved files found for this date.
+                                </p>
+                            ) : (
+                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                                    {filteredLocalFiles.map((item, index) => {
+                                        const FileIcon = getFileIcon(item.mimeType);
+                                        return (
+                                            <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-150 hover:border-slate-350 transition-colors">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider shrink-0 font-sans">
+                                                        File {filteredLocalFiles.length - index}
+                                                    </span>
+                                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                                                        <FileIcon className="text-indigo-650" size={18} />
+                                                    </div>
+                                                    <div className="min-w-0 text-left">
+                                                        <span className="text-xs font-bold text-slate-700 block truncate" title={item.name}>
+                                                            {item.name}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-medium block truncate mt-0.5">
+                                                            Size: {item.size} • {item.mimeType} • {item.timestamp}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {/* Sync with Cloud Indicator / Sync Button */}
+                                                    {item.synced ? (
+                                                        <div className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold font-sans">
+                                                            <CheckCircle size={14} className="text-emerald-600" />
+                                                            <span>Synced</span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSyncSingleWithCloud(item)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-[10px] font-extrabold hover:bg-indigo-100 transition-all cursor-pointer font-sans"
+                                                            title="Sync with Cloud"
+                                                        >
+                                                            <Cloud size={14} />
+                                                            <span className="text-[9px] leading-none text-left">Not Sync<br />Click to Sync</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Google Drive Sync Indicator / Sync Button */}
+                                                    {item.driveSynced ? (
+                                                        <div className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold font-sans">
+                                                            <CheckCircle size={14} className="text-amber-600" />
+                                                            <span>Drive Synced</span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSyncSingleWithDrive(item)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-[10px] font-extrabold hover:bg-amber-100 transition-all cursor-pointer font-sans"
+                                                            title="Sync with Google Drive"
+                                                        >
+                                                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
+                                                                <path fill="#FFC107" d="M17 6h14l13 22H30L17 6z" />
+                                                                <path fill="#FF3D00" d="m15.5 11.5-8.5 15L17 42h13L15.5 11.5z" />
+                                                                <path fill="#4CAF50" d="M44 28H15.5L30 42h14z" />
+                                                            </svg>
+                                                            <span className="text-[9px] leading-none text-left">Not Sync<br />Click to Sync</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Delete Button */}
+                                                    <button
+                                                        onClick={() => handleDeleteLocalFile(item.id)}
+                                                        className="p-2.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                        title="Delete Local File"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+
+                    {/* Right Column: Settings Panel */}
+                    <div className="lg:col-span-3 space-y-3 text-left">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
+                            <h3 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">Settings</h3>
+
+                            {/* Storage Status */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Storage Used</label>
+                                <div className="flex items-center justify-between text-xs font-extrabold text-slate-700">
+                                    <span>{(cloudSpace.used / (1024 * 1024)).toFixed(1)}MB</span>
+                                    <span>300MB</span>
+                                </div>
+                                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
+                                    <div 
+                                        className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                                        style={{ width: `${Math.min(100, (cloudSpace.used / cloudSpace.limit) * 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Storage Limit Notice */}
+                            <div className="p-3.5 bg-indigo-50/20 rounded-xl border border-indigo-50 text-[10px] text-indigo-700/80 font-bold leading-normal font-sans text-left">
+                                Files uploaded to the cloud count towards your 300MB student account storage limit. You can access these files from this screen anytime.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -703,10 +756,33 @@ const FileUploadPage = () => {
                 }}
                 fileName={driveFileMeta.name}
                 fileBlob={driveFileMeta.blob}
-                onSaveSuccess={() => {
+                onSaveSuccess={(driveData) => {
                     toast.success("Saved to Google Drive!");
+                    if (driveFileMeta.itemId) {
+                        const driveFileViewUrl = driveData?.id
+                            ? `https://drive.google.com/file/d/${driveData.id}/view`
+                            : driveData?.webViewLink || null;
+
+                        setLocalFiles(prev => {
+                            const updated = prev.map(f =>
+                                f.id === driveFileMeta.itemId
+                                    ? { ...f, driveSynced: true, driveUrl: driveFileViewUrl }
+                                    : f
+                            );
+                            localStorage.setItem('practice_file_uploads', JSON.stringify(updated.map(f => ({ ...f, url: '' }))));
+                            return updated;
+                        });
+                    } else if (localFiles.length > 0) {
+                        setLocalFiles(prev => {
+                            const updated = [...prev];
+                            updated[0].driveSynced = true;
+                            localStorage.setItem('practice_file_uploads', JSON.stringify(updated.map(f => ({ ...f, url: '' }))));
+                            return updated;
+                        });
+                    }
                     setDriveModalOpen(false);
                     fetchCloudFiles();
+                    loadLocalFiles();
                 }}
                 toolName="File Uploader"
             />

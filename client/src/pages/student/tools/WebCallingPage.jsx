@@ -30,6 +30,8 @@ const WebCallingPage = () => {
     const {
         callUser,
         callState,
+        callInfo,
+        callDuration,
         onlineUsers = []
     } = useSocket();
 
@@ -115,6 +117,84 @@ const WebCallingPage = () => {
             toast.error("Could not play audio recording.");
         }
     };
+
+    // Watch WebRTC call state changes to create draft logs
+    const prevCallStateRef = useRef(callState);
+    const callStartTimeRef = useRef(null);
+
+    useEffect(() => {
+        // When call connects
+        if (callState === 'connected' && prevCallStateRef.current !== 'connected') {
+            callStartTimeRef.current = Date.now();
+            
+            // Start recording user's microphone if active during WebRTC call
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: micEnabled, video: false })
+                    .then(stream => {
+                        if (stream.getAudioTracks().length > 0) {
+                            const mediaRecorder = new MediaRecorder(stream);
+                            mediaRecorderRef.current = mediaRecorder;
+                            audioChunksRef.current = [];
+                            mediaRecorder.ondataavailable = (event) => {
+                                if (event.data && event.data.size > 0) {
+                                    audioChunksRef.current.push(event.data);
+                                }
+                            };
+                            mediaRecorder.start();
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Could not capture local stream for WebRTC call recording:", err);
+                    });
+            }
+        }
+
+        // When call ends
+        if (callState === 'idle' && prevCallStateRef.current === 'connected') {
+            const durationMs = callStartTimeRef.current ? (Date.now() - callStartTimeRef.current) : 0;
+            const durationSecs = Math.max(1, Math.floor(durationMs / 1000));
+            
+            const searchParams = new URLSearchParams(window.location.search);
+            const inboxVal = searchParams.get('inbox');
+            const draftId = 'draft_log_' + Date.now();
+
+            const finalizeWebRtcDraft = (audioBlob = null) => {
+                const newDraft = {
+                    id: draftId,
+                    name: callInfo?.targetName || 'Teacher User',
+                    type: callInfo?.callType === 'video' ? 'Video Call' : 'Voice Call',
+                    duration: formatTime(durationSecs),
+                    status: 'Completed',
+                    date: getSessionTimestamp(),
+                    synced: false,
+                    inbox: inboxVal || '',
+                    audioBlob: audioBlob
+                };
+                if (audioBlob) {
+                    newDraft.audioUrl = URL.createObjectURL(audioBlob);
+                }
+                setDrafts(prev => [newDraft, ...prev]);
+                toast.success("WebRTC Call ended. Saved as draft!");
+            };
+
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.onstop = () => {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    finalizeWebRtcDraft(audioBlob);
+                };
+                mediaRecorderRef.current.stop();
+                
+                // Stop tracks on recording stream
+                if (mediaRecorderRef.current.stream) {
+                    mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+                }
+            } else {
+                finalizeWebRtcDraft();
+            }
+        }
+
+        prevCallStateRef.current = callState;
+    }, [callState, callInfo, micEnabled]);
 
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);

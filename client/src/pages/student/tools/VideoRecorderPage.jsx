@@ -22,6 +22,13 @@ const VideoRecorderPage = () => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
+    const getSessionTimestamp = () => {
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
+
     // States
     const [videoDevices, setVideoDevices] = useState([]);
     const [audioDevices, setAudioDevices] = useState([]);
@@ -478,7 +485,7 @@ const VideoRecorderPage = () => {
                     const inboxVal = searchParams.get('inbox');
                     const newDraft = {
                         id: draftId,
-                        timestamp: new Date().toLocaleString(),
+                        timestamp: getSessionTimestamp(),
                         blob: blob,
                         url: blobUrl,
                         size: (blob.size / (1024 * 1024)).toFixed(2) + ' MB',

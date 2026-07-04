@@ -19,6 +19,13 @@ const WebCallingPage = () => {
     const inboxParam = searchParams.get('inbox');
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
+
+    const getSessionTimestamp = () => {
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
     const {
         callUser,
         callState,
@@ -287,7 +294,7 @@ const WebCallingPage = () => {
             type: 'Simulated Call',
             duration: formatTime(simTime),
             status: 'Completed',
-            date: new Date().toLocaleString(),
+            date: getSessionTimestamp(),
             synced: false,
             inbox: inboxVal || ''
         };

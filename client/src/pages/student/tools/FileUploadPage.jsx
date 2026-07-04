@@ -21,6 +21,13 @@ const FileUploadPage = () => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
+    const getSessionTimestamp = () => {
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
+
     // States
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -182,7 +189,7 @@ const FileUploadPage = () => {
             const newLocalFile = {
                 id: fileId,
                 name: selectedFile.name,
-                timestamp: new Date().toLocaleString(),
+                timestamp: getSessionTimestamp(),
                 size: formatBytes(selectedFile.size),
                 mimeType: selectedFile.type || 'application/octet-stream',
                 synced: false,

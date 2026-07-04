@@ -22,6 +22,13 @@ const ScreenRecorderPage = () => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
+    const getSessionTimestamp = () => {
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
+
     // States
     const [audioDevices, setAudioDevices] = useState([]);
     const [selectedAudio, setSelectedAudio] = useState('');
@@ -497,7 +504,7 @@ const ScreenRecorderPage = () => {
 
                     const newDraft = {
                         id: draftId,
-                        timestamp: new Date().toLocaleString(),
+                        timestamp: getSessionTimestamp(),
                         blob: blob,
                         url: blobUrl,
                         size: sizeStr,

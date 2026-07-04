@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import html2canvas from 'html2canvas';
+import { getTodayDdMmYyyy } from '../utils/dateUtils';
 
 const ScreenshotContext = createContext();
 
@@ -12,6 +13,16 @@ export const ScreenshotProvider = ({ children }) => {
     const canvasRef = useRef(null);
     const pipWindowRef = useRef(null);
     const globalCanvasRef = useRef(null);
+
+    const getSessionTimestamp = () => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const dateParam = searchParams.get('date');
+        const todayDdMmYyyy = getTodayDdMmYyyy();
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
 
     // States
     const [screenshots, setScreenshots] = useState([]);
@@ -292,7 +303,7 @@ export const ScreenshotProvider = ({ children }) => {
             const inboxVal = searchParams.get('inbox');
             const newScreenshot = {
                 id: 'snap_' + Date.now(),
-                timestamp: new Date().toLocaleString(),
+                timestamp: getSessionTimestamp(),
                 url: dataUrl,
                 size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                 format: format,
@@ -452,7 +463,7 @@ export const ScreenshotProvider = ({ children }) => {
             const inboxVal = searchParams.get('inbox');
             const newScreenshot = {
                 id: 'snap_' + Date.now(),
-                timestamp: new Date().toLocaleString(),
+                timestamp: getSessionTimestamp(),
                 url: dataUrl,
                 size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                 format: format,
@@ -517,7 +528,7 @@ export const ScreenshotProvider = ({ children }) => {
                 const inboxVal = searchParams.get('inbox');
                 const newScreenshot = {
                     id: 'snap_' + Date.now(),
-                    timestamp: new Date().toLocaleString(),
+                    timestamp: getSessionTimestamp(),
                     url: dataUrl,
                     size: Math.round((dataUrl.length * 3) / 4 / 1024) + ' KB',
                     format: format,

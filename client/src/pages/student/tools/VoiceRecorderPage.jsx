@@ -422,6 +422,13 @@ const VoiceRecorderPage = () => {
     const todayDdMmYyyy = getTodayDdMmYyyy();
     const isReadOnly = dateParam && dateParam !== todayDdMmYyyy;
 
+    const getSessionTimestamp = () => {
+        const activeDate = dateParam || todayDdMmYyyy;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        return `${activeDate}, ${timeStr}`;
+    };
+
     // States
     const [audioDevices, setAudioDevices] = useState([]);
     const [selectedAudio, setSelectedAudio] = useState('');
@@ -1405,7 +1412,7 @@ const VoiceRecorderPage = () => {
 
             const newDraft = {
                 id: draftId,
-                timestamp: new Date().toLocaleString(),
+                timestamp: getSessionTimestamp(),
                 blob: file,
                 url: url,
                 size: (file.size / 1024).toFixed(1) + ' KB',
@@ -1427,7 +1434,7 @@ const VoiceRecorderPage = () => {
 
             const newDraft = {
                 id: draftId,
-                timestamp: new Date().toLocaleString(),
+                timestamp: getSessionTimestamp(),
                 blob: file,
                 url: url,
                 size: (file.size / 1024).toFixed(1) + ' KB',
@@ -1493,7 +1500,7 @@ const VoiceRecorderPage = () => {
                 const inboxVal = searchParams.get('inbox');
                 const newDraft = {
                     id: draftId,
-                    timestamp: new Date().toLocaleString(),
+                    timestamp: getSessionTimestamp(),
                     blob: blob,
                     url: blobUrl,
                     size: (blob.size / 1024).toFixed(1) + ' KB',

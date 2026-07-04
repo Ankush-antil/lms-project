@@ -46,7 +46,12 @@ const userSchema = new mongoose.Schema({
         feeStatus: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
         physicalAttendance: [{
             date: { type: String }, // e.g. "2026-06-30"
-            status: { type: String, enum: ['Present', 'Absent'] }
+            status: { type: String, enum: ['Present', 'Absent', 'Leave', 'Holiday'] },
+            teacherNote: { type: String, default: '' },   // teacher ka note — student dekh sakta hai
+            leaveNote: { type: String, default: '' },     // student ka leave application text
+            leaveFile: { type: String, default: '' },     // student ka leave PDF/file URL
+            leaveStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' }, // leave approval status
+            source: { type: String, enum: ['manual', 'qr'], default: 'manual' } // kahan se aayi attendance
         }]
     },
 
@@ -59,7 +64,17 @@ const userSchema = new mongoose.Schema({
             default: 'all'
         },
         assignedSections: [{ type: String }],
-        assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+        assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        autoQRConfig: {
+            enabled: { type: Boolean, default: false },
+            course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+            subject: { type: String, default: '' },
+            section: { type: String, default: '' },
+            duration: { type: Number, default: 60 },
+            wifiSSID: { type: String, default: '' },
+            locationRequired: { type: Boolean, default: false },
+            scheduleTime: { type: String, default: '' }
+        }
     },
     isActive: { type: Boolean, default: true }
 }, {

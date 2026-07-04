@@ -1,9 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
+import StudentAttendanceDetailModal from '../../components/common/StudentAttendanceDetailModal';
 import { 
     Clock, QrCode, Users, CheckCircle, AlertCircle, X, Search, 
     RefreshCw, Check, AlertTriangle, Calendar, BookOpen, Layers, Image as ImageIcon 
@@ -16,12 +18,26 @@ const TeacherAttendance = () => {
 
     // Active session state
     const [activeSession, setActiveSession] = useState(null);
+    const [activeSessions, setActiveSessions] = useState([]);
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [timeLeft, setTimeLeft] = useState('');
     const [selectedPhoto, setSelectedPhoto] = useState(null);
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
+    
+    // Auto QR Config State
+    const [showAutoQRModal, setShowAutoQRModal] = useState(false);
+    const [autoQRConfig, setAutoQRConfig] = useState({
+        enabled: false,
+        scheduleTime: '',
+        course: '',
+        subject: '',
+        section: '',
+        wifiSSID: '',
+        locationRequired: false
+    });
 
     // Form inputs
     const [courses, setCourses] = useState([]);
@@ -33,6 +49,8 @@ const TeacherAttendance = () => {
     const [wifiSSID, setWifiSSID] = useState('');
     const [customWifiSSID, setCustomWifiSSID] = useState('');
     const [wifiNetworks, setWifiNetworks] = useState([]);
+    const [wifiRequired, setWifiRequired] = useState(false);
+    const [locationRequired, setLocationRequired] = useState(true);
 
     const pollingIntervalRef = useRef(null);
 
@@ -44,13 +62,30 @@ const TeacherAttendance = () => {
             // 1. Check for active sessions
             const { data: activeRes } = await axios.get('/api/attendance/session/active');
             if (activeRes && activeRes.length > 0) {
+                setActiveSessions(activeRes);
                 setActiveSession(activeRes[0]);
                 fetchSessionRecords(activeRes[0]._id);
+            } else {
+                setActiveSessions([]);
             }
             
             // 2. Fetch courses
             const { data: coursesRes } = await axios.get('/api/setup/courses');
             setCourses(coursesRes);
+
+            // 3. Fetch auto-config
+            try {
+                const { data: autoConfig } = await axios.get('/api/attendance/auto-config');
+                if (autoConfig) {
+                    setAutoQRConfig(prev => ({
+                        ...prev,
+                        ...autoConfig,
+                        course: autoConfig.course ? (autoConfig.course._id || autoConfig.course) : ''
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to fetch auto config", err);
+            }
 
             // Populate Wi-Fi list (always default to custom on web)
             setWifiNetworks([]);
@@ -66,8 +101,37 @@ const TeacherAttendance = () => {
 
     useEffect(() => {
         fetchInitialData();
+        
+        // Poll for active sessions every 10 seconds in case cron generated one
+        const activeSessionsInterval = setInterval(async () => {
+            try {
+                const { data: activeRes } = await axios.get('/api/attendance/session/active');
+                setActiveSessions(activeRes || []);
+                
+                // If there's an activeSession currently viewed, check if it was ended externally
+                setActiveSession(prevActive => {
+                    if (prevActive) {
+                        const stillExists = activeRes?.find(s => s._id === prevActive._id);
+                        if (!stillExists) {
+                            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                            return null;
+                        }
+                        return stillExists;
+                    } else if (activeRes && activeRes.length > 0) {
+                        // If we were on the form (null) and a session appeared (e.g. cron job), auto-open it!
+                        fetchSessionRecords(activeRes[0]._id);
+                        return activeRes[0];
+                    }
+                    return prevActive;
+                });
+            } catch (err) {
+                console.error("Error polling active sessions", err);
+            }
+        }, 10000);
+
         return () => {
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+            clearInterval(activeSessionsInterval);
         };
     }, []);
 
@@ -94,6 +158,44 @@ const TeacherAttendance = () => {
             setSelectedCourse(teacherCourses[0]._id);
         }
     }, [teacherCourses, selectedCourse]);
+
+    // Auto-select section on load
+    useEffect(() => {
+        if (user?.teacherProfile?.assignedSections && user.teacherProfile.assignedSections.length > 0) {
+            if (user.teacherProfile.assignedSections.length === 1) {
+                setSection(user.teacherProfile.assignedSections[0]);
+            } else {
+                setSection('ALL');
+            }
+        } else {
+            setSection('ALL');
+        }
+    }, [user]);
+
+    const detectedSection = (() => {
+        if (user?.teacherProfile?.assignedSections && user.teacherProfile.assignedSections.length > 0) {
+            return user.teacherProfile.assignedSections.length === 1 
+                ? `Section ${user.teacherProfile.assignedSections[0]}`
+                : `All Assigned Sections (${user.teacherProfile.assignedSections.join(', ')})`;
+        }
+        return 'All Sections';
+    })();
+
+    const detectedCourse = (() => {
+        const courseObj = teacherCourses.find(c => c._id === selectedCourse);
+        if (courseObj) {
+            return `${courseObj.name} ${courseObj.code ? `(${courseObj.code})` : ''}`;
+        }
+        return teacherCourses && teacherCourses.length > 0
+            ? `${teacherCourses[0].name} ${teacherCourses[0].code ? `(${teacherCourses[0].code})` : ''}`
+            : 'General Course';
+    })();
+
+    const detectedSubject = (() => {
+        if (selectedSubject) return selectedSubject;
+        if (availableSubjects && availableSubjects.length > 0) return availableSubjects[0];
+        return 'General Class';
+    })();
 
     // Sync selectedSubject when availableSubjects change
     useEffect(() => {
@@ -151,44 +253,68 @@ const TeacherAttendance = () => {
 
     const handleCreateSession = async (e) => {
         e.preventDefault();
-        if (!selectedSubject || !section || !duration || !wifiSSID) {
-            toast.error("Please fill out all fields");
-            return;
-        }
-        if (wifiSSID === 'custom' && !customWifiSSID.trim()) {
+        if (wifiRequired && wifiSSID === 'custom' && !customWifiSSID.trim()) {
             toast.error("Please specify a custom Wi-Fi network name");
             return;
         }
 
-        try {
-            setSubmitting(true);
-            const { data } = await axios.post('/api/attendance/session', {
-                courseId: selectedCourse || null,
-                subject: selectedSubject,
-                section,
-                duration,
-                wifiSSID: wifiSSID === 'custom' ? customWifiSSID.trim() : wifiSSID
-            });
-            setActiveSession(data);
-            fetchSessionRecords(data._id);
-            toast.success("Attendance session started successfully!");
-            setSubmitting(false);
-        } catch (error) {
-            console.error("Error starting session:", error);
-            toast.error(error.response?.data?.message || "Failed to start session");
-            setSubmitting(false);
+        const startSessionWithLocation = async (lat, lng) => {
+            try {
+                setSubmitting(true);
+                const { data } = await axios.post('/api/attendance/session', {
+                    courseId: selectedCourse || null,
+                    subject: selectedSubject,
+                    section,
+                    duration,
+                    wifiSSID: wifiRequired ? (wifiSSID === 'custom' ? customWifiSSID.trim() : wifiSSID) : null,
+                    type: 'class',
+                    locationRequired,
+                    latitude: lat,
+                    longitude: lng
+                });
+                setActiveSession(data);
+                setActiveSessions(prev => [...prev, data]);
+                fetchSessionRecords(data._id);
+                toast.success("Attendance session started successfully!");
+                setSubmitting(false);
+            } catch (error) {
+                console.error("Error starting session:", error);
+                toast.error(error.response?.data?.message || "Failed to start session");
+                setSubmitting(false);
+            }
+        };
+
+        if (locationRequired && navigator.geolocation) {
+            toast.loading("Fetching teacher's location...", { id: "location-fetch" });
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    toast.dismiss("location-fetch");
+                    startSessionWithLocation(position.coords.latitude, position.coords.longitude);
+                },
+                (error) => {
+                    toast.dismiss("location-fetch");
+                    console.error("Error fetching geolocation:", error);
+                    toast.error("Could not retrieve location. Please check browser GPS permissions.");
+                },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        } else {
+            startSessionWithLocation(null, null);
         }
     };
 
-    const handleEndSession = async () => {
+    const handleEndSession = async (sessionId) => {
         if (!window.confirm("Are you sure you want to end this attendance session? Students will no longer be able to scan.")) return;
         
         try {
-            await axios.post(`/api/attendance/session/${activeSession._id}/end`);
-            toast.success("Session closed.");
-            setActiveSession(null);
-            setRecords([]);
-            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+            await axios.post(`/api/attendance/session/${sessionId}/end`);
+            toast.success("Session ended successfully");
+            setActiveSessions(prev => prev.filter(s => s._id !== sessionId));
+            if (activeSession && activeSession._id === sessionId) {
+                setActiveSession(null);
+                setRecords([]);
+                if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+            }
         } catch (error) {
             console.error("Error ending session:", error);
             toast.error("Failed to close session");
@@ -227,13 +353,43 @@ const TeacherAttendance = () => {
         );
     }
 
+    const handleSaveAutoConfig = async (e) => {
+        e.preventDefault();
+        try {
+            setSubmitting(true);
+            const payload = {
+                ...autoQRConfig,
+                course: teacherCourses.length > 1 ? autoQRConfig.course : (teacherCourses[0]?._id || selectedCourse),
+                subject: selectedSubject || 'General Class',
+                section: section === 'ALL' ? 'ALL' : section,
+            };
+            await axios.post('/api/attendance/auto-config', payload);
+            toast.success("Automatic QR Schedule saved successfully!");
+            setShowAutoQRModal(false);
+        } catch (error) {
+            console.error("Error saving auto config:", error);
+            toast.error("Failed to save schedule");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <DashboardLayout role="Teacher">
-            <div className="mb-6">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                    <QrCode className="text-indigo-650" size={32} /> QR Attendance
-                </h1>
-                <p className="text-slate-500 mt-1">Generate dynamic QR codes for live attendance or mark students manually.</p>
+            <div className="mb-6 flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                    <QrCode className="text-indigo-500" size={32} />
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">QR Attendance</h1>
+                        <p className="text-sm font-bold text-slate-500 mt-1">Generate dynamic QR codes for live attendance or set up daily automatic schedules.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => setShowAutoQRModal(true)}
+                    className="bg-white border-2 border-indigo-100 hover:border-indigo-200 text-indigo-600 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+                >
+                    <Calendar size={18} /> Schedule Daily QRs
+                </button>
             </div>
 
             {!activeSession ? (
@@ -244,82 +400,40 @@ const TeacherAttendance = () => {
                     </h2>
 
                     <form onSubmit={handleCreateSession} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Course</label>
-                                <select
-                                    value={selectedCourse}
-                                    onChange={(e) => setSelectedCourse(e.target.value)}
-                                    className="input-field select-field"
-                                >
-                                    <option value="">-- General / Non-Course --</option>
-                                    {teacherCourses.map(course => (
-                                        <option key={course._id} value={course._id}>{course.name} {course.code ? `(${course.code})` : ''}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* Unified QR Code (No In/Out Tabs) */}
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
-                                {availableSubjects.length > 0 ? (
-                                    <select
-                                        value={selectedSubject}
-                                        onChange={(e) => setSelectedSubject(e.target.value)}
-                                        className="input-field select-field"
-                                        required
-                                    >
-                                        {availableSubjects.map((sub, idx) => (
-                                            <option key={idx} value={sub}>{sub}</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. REACT, MATH, ENGLISH"
-                                        value={selectedSubject}
-                                        onChange={(e) => setSelectedSubject(e.target.value.toUpperCase())}
-                                        className="input-field"
-                                        required
+                        {/* Verification Toggles */}
+                        <div className="space-y-4">
+                            {/* Wi-Fi Verification Switch */}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200/60 rounded-2xl hover:bg-slate-100/50 transition">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xl">📶</span>
+                                    <div>
+                                        <p className="text-xs font-black text-slate-800">Wi-Fi Verification</p>
+                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Enforce classroom Wi-Fi match</p>
+                                    </div>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer select-none">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={wifiRequired} 
+                                        onChange={e => setWifiRequired(e.target.checked)} 
+                                        className="sr-only peer" 
                                     />
-                                )}
+                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-650"></div>
+                                </label>
                             </div>
+                        </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Section</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. A, B, C"
-                                    value={section}
-                                    onChange={(e) => setSection(e.target.value.toUpperCase())}
-                                    className="input-field"
-                                    maxLength="5"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Class Duration</label>
-                                <select
-                                    value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
-                                    className="input-field select-field"
-                                >
-                                    <option value="15">15 Minutes (Short test/meeting)</option>
-                                    <option value="30">30 Minutes</option>
-                                    <option value="45">45 Minutes</option>
-                                    <option value="60">60 Minutes (Standard)</option>
-                                    <option value="90">90 Minutes</option>
-                                    <option value="120">120 Minutes (Extended)</option>
-                                </select>
-                            </div>
-
-                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                        {/* Optional Wi-Fi SSID Inputs */}
+                        {wifiRequired && (
+                            <div className="p-5 border border-slate-200/60 bg-slate-50 rounded-2xl space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Classroom Wi-Fi Network</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Classroom Wi-Fi Network</label>
                                     <select
                                         value={wifiSSID}
                                         onChange={(e) => setWifiSSID(e.target.value)}
-                                        className="input-field select-field"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
                                         required
                                     >
                                         {wifiNetworks.map((net, idx) => (
@@ -331,35 +445,54 @@ const TeacherAttendance = () => {
 
                                 {wifiSSID === 'custom' && (
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Wi-Fi SSID Name</label>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Custom Wi-Fi SSID Name</label>
                                         <input
                                             type="text"
                                             placeholder="Enter exact Wi-Fi network name"
                                             value={customWifiSSID}
                                             onChange={(e) => setCustomWifiSSID(e.target.value)}
-                                            className="input-field"
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
                                             required
                                         />
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        )}
 
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="w-full btn-primary py-4 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all text-base mt-4"
-                        >
-                            {submitting ? (
-                                <>
-                                    <RefreshCw className="animate-spin" size={20} /> Starting...
-                                </>
-                            ) : (
-                                <>
-                                    <QrCode size={20} /> Generate QR Code
-                                </>
-                            )}
-                        </button>
+                        {(() => {
+                            const existingSession = activeSessions.find(s => s.type === type);
+                            if (existingSession) {
+                                return (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveSession(existingSession);
+                                            fetchSessionRecords(existingSession._id);
+                                        }}
+                                        className="w-full bg-emerald-600 text-white py-4 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all text-base mt-4"
+                                    >
+                                        <QrCode size={20} /> Back to QR Code ({type === 'in' ? 'Mark In' : 'Mark Out'})
+                                    </button>
+                                );
+                            }
+                            return (
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-full btn-primary py-4 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all text-base mt-4"
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <RefreshCw className="animate-spin" size={20} /> Starting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <QrCode size={20} /> Generate QR Code
+                                        </>
+                                    )}
+                                </button>
+                            );
+                        })()}
                     </form>
                 </div>
             ) : (
@@ -367,34 +500,48 @@ const TeacherAttendance = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column: QR and Stats */}
                     <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-600 font-extrabold text-[10px] uppercase tracking-wider mb-4 animate-pulse">
-                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Active Session
-                            </div>
+                        <button
+                            onClick={() => setActiveSession(null)}
+                            className="w-full py-3 bg-white text-slate-700 border border-slate-200 rounded-2xl font-bold hover:bg-slate-50 transition-all text-sm mb-2"
+                        >
+                            + Start Another New QR
+                        </button>
 
-                            <h3 className="text-2xl font-black text-slate-900 mb-0.5">{activeSession.subject}</h3>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Section {activeSession.section}</p>
-
-                            {/* QR CODE CONTAINER */}
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner mb-6">
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeSession.qrToken}`}
-                                    alt="Attendance QR Code"
-                                    className="w-[200px] h-[200px] object-contain select-none"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2 bg-rose-50 px-4 py-2 rounded-xl text-rose-600 font-bold text-sm mb-6 border border-rose-100">
-                                <Clock size={16} /> Ends in: <span className="font-extrabold font-mono">{timeLeft}</span>
-                            </div>
-
-                            <button
-                                onClick={handleEndSession}
-                                className="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all text-sm"
+                        {activeSessions.map(session => (
+                            <div key={session._id} className={`bg-white p-5 rounded-3xl border ${activeSession._id === session._id ? 'border-indigo-400 shadow-md ring-4 ring-indigo-50' : 'border-slate-100 shadow-sm opacity-75 hover:opacity-100'} flex flex-col items-center text-center transition-all cursor-pointer`}
+                                onClick={() => {
+                                    if (activeSession._id !== session._id) {
+                                        setActiveSession(session);
+                                        fetchSessionRecords(session._id);
+                                    }
+                                }}
                             >
-                                Close Session Now
-                            </button>
-                        </div>
+                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border font-extrabold text-[10px] uppercase tracking-wider mb-4 ${session.type === 'in' ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${session.type === 'in' ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span> {session.type === 'in' ? 'Mark In Active' : 'Mark Out Active'}
+                                </div>
+
+                                <h3 className="text-xl font-black text-slate-900 mb-0.5">{session.subject}</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Section {session.section}</p>
+                                
+                                {/* QR CODE CONTAINER */}
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-inner mb-4 w-full flex justify-center">
+                                    <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${session.qrToken}`}
+                                        alt="Attendance QR Code"
+                                        className="w-[160px] h-[160px] object-contain select-none"
+                                    />
+                                </div>
+
+                                <div className="flex gap-2 w-full">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleEndSession(session._id); }}
+                                        className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-rose-600 hover:text-white transition-all text-[11px]"
+                                    >
+                                        Close Session
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
 
                         {/* Live Counts Card */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 gap-4 text-center">
@@ -417,7 +564,7 @@ const TeacherAttendance = () => {
                     <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <Users size={22} className="text-indigo-600" /> Student Attendance Sheet
+                                <Users size={22} className="text-indigo-600" /> Live Class Feed - {activeSession.subject}
                             </h2>
                             <div className="relative w-full md:w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -437,7 +584,7 @@ const TeacherAttendance = () => {
                                     <tr className="border-b border-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider">
                                         <th className="pb-3">Student</th>
                                         <th className="pb-3">Status</th>
-                                        <th className="pb-3">Verification Selfies</th>
+                                        <th className="pb-3">Time & Duration</th>
                                         <th className="pb-3 text-right">Manual Action</th>
                                     </tr>
                                 </thead>
@@ -447,15 +594,22 @@ const TeacherAttendance = () => {
                                             <tr key={student._id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-100 to-slate-200 text-slate-700 flex items-center justify-center font-bold overflow-hidden border border-slate-100">
+                                                        <button
+                                                            onClick={() => setSelectedStudentId(student._id)}
+                                                            title="View attendance history"
+                                                            className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-100 to-slate-200 text-slate-700 flex items-center justify-center font-bold overflow-hidden border border-slate-100 cursor-pointer hover:ring-2 hover:ring-indigo-300 transition"
+                                                        >
                                                             {student.avatar ? (
                                                                 <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
                                                             ) : (
                                                                 student.name[0]
                                                             )}
-                                                        </div>
+                                                        </button>
                                                         <div>
-                                                            <div className="font-semibold text-slate-800 text-sm">{student.name}</div>
+                                                            <button
+                                                                onClick={() => setSelectedStudentId(student._id)}
+                                                                className="font-semibold text-slate-800 text-sm hover:text-indigo-600 transition cursor-pointer text-left"
+                                                            >{student.name}</button>
                                                             <div className="text-xs text-slate-400">{student.email}</div>
                                                         </div>
                                                     </div>
@@ -483,28 +637,31 @@ const TeacherAttendance = () => {
                                                     )}
                                                 </td>
                                                 <td className="py-4">
-                                                    <div className="flex gap-2">
-                                                        {record?.checkInPhoto ? (
-                                                            <button 
-                                                                onClick={() => setSelectedPhoto(record.checkInPhoto)}
-                                                                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-1"
-                                                                title="View check-in photo"
-                                                            >
-                                                                <ImageIcon size={12} /> In Selfie
-                                                            </button>
-                                                        ) : null}
-                                                        {record?.checkOutPhoto ? (
-                                                            <button 
-                                                                onClick={() => setSelectedPhoto(record.checkOutPhoto)}
-                                                                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-1"
-                                                                title="View check-out photo"
-                                                            >
-                                                                <ImageIcon size={12} /> Out Selfie
-                                                            </button>
-                                                        ) : null}
-                                                        {!record?.checkInPhoto && !record?.checkOutPhoto && (
-                                                            <span className="text-xs text-slate-400 italic">—</span>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {record?.checkInTime && (
+                                                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                                                <Clock size={12} className="text-amber-500" />
+                                                                <span>In: {new Date(record.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                {record.checkInPhoto && (
+                                                                    <button onClick={() => setSelectedPhoto(record.checkInPhoto)} className="p-0.5 hover:bg-indigo-50 rounded transition" title="View selfie"><ImageIcon size={12} className="text-indigo-500" /></button>
+                                                                )}
+                                                            </div>
                                                         )}
+                                                        {record?.checkOutTime && (
+                                                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                                                <Clock size={12} className="text-emerald-500" />
+                                                                <span>Out: {new Date(record.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                {record.checkOutPhoto && (
+                                                                    <button onClick={() => setSelectedPhoto(record.checkOutPhoto)} className="p-0.5 hover:bg-indigo-50 rounded transition" title="View selfie"><ImageIcon size={12} className="text-indigo-500" /></button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {record?.checkInTime && record?.checkOutTime && (
+                                                            <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-black tracking-widest border border-indigo-100 w-fit">
+                                                                {Math.round((new Date(record.checkOutTime) - new Date(record.checkInTime)) / 60000)} MINS
+                                                            </div>
+                                                        )}
+                                                        {!record?.checkInTime && <span className="text-xs text-slate-400 italic">—</span>}
                                                     </div>
                                                 </td>
                                                 <td className="py-4 text-right">
@@ -582,6 +739,89 @@ const TeacherAttendance = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Student Attendance Detail Modal */}
+            {selectedStudentId && (
+                <StudentAttendanceDetailModal
+                    studentId={selectedStudentId}
+                    onClose={() => setSelectedStudentId(null)}
+                    onDataChange={() => fetchSessionRecords(activeSession?._id)}
+                />
+            )}
+
+            {/* Auto QR Config Modal */}
+            {showAutoQRModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl border border-slate-100 max-w-md w-full overflow-hidden shadow-2xl relative">
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900">Schedule Automatic QRs</h3>
+                                <p className="text-xs font-bold text-slate-500 mt-0.5">QRs will be generated automatically daily</p>
+                            </div>
+                            <button onClick={() => setShowAutoQRModal(false)} className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all flex items-center justify-center cursor-pointer">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveAutoConfig} className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+                            <label className="flex items-center justify-between p-4 border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
+                                <div>
+                                    <h4 className="font-bold text-slate-800">Enable Automatic Scheduling</h4>
+                                    <p className="text-[10px] text-slate-500">Run background cron job daily</p>
+                                </div>
+                                <input 
+                                    type="checkbox" 
+                                    checked={autoQRConfig.enabled}
+                                    onChange={(e) => setAutoQRConfig({...autoQRConfig, enabled: e.target.checked})}
+                                    className="w-5 h-5 accent-indigo-600 cursor-pointer"
+                                />
+                            </label>
+
+                            {autoQRConfig.enabled && (
+                                <>
+                                    <div className="mb-4">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">QR Generation Time</label>
+                                        <input type="time" required value={autoQRConfig.scheduleTime} onChange={e => setAutoQRConfig({...autoQRConfig, scheduleTime: e.target.value})} className="input-field" />
+                                    </div>
+
+                                    {/* Show Course only if multiple courses assigned */}
+                                    {teacherCourses.length > 1 && (
+                                        <div className="mb-4">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Course</label>
+                                            <select value={autoQRConfig.course} onChange={e => setAutoQRConfig({...autoQRConfig, course: e.target.value})} className="input-field mb-3" required>
+                                                <option value="">Select Course</option>
+                                                {teacherCourses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* Wi-Fi Enforce (Subject & Section are auto-detected from teacher profile) */}
+                                    <div className="mb-4">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Wi-Fi Enforce (Optional)</label>
+                                        <input type="text" placeholder="SSID Name" value={autoQRConfig.wifiSSID} onChange={e => setAutoQRConfig({...autoQRConfig, wifiSSID: e.target.value})} className="input-field" />
+                                    </div>
+                                    
+                                    <label className="flex items-center justify-between p-4 border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
+                                        <div>
+                                            <h4 className="font-bold text-slate-800">Enforce GPS Location</h4>
+                                        </div>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={autoQRConfig.locationRequired}
+                                            onChange={(e) => setAutoQRConfig({...autoQRConfig, locationRequired: e.target.checked})}
+                                            className="w-5 h-5 accent-indigo-600 cursor-pointer"
+                                        />
+                                    </label>
+                                </>
+                            )}
+                            
+                            <button type="submit" disabled={submitting} className="w-full btn-primary py-3.5 rounded-xl font-bold shadow-md shadow-indigo-100 flex items-center justify-center gap-2">
+                                {submitting ? <RefreshCw className="animate-spin" size={18} /> : <CheckCircle size={18} />} Save Schedule
+                            </button>
+                        </form>
+                    </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

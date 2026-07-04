@@ -173,6 +173,14 @@ const ProfilePage = () => {
                                                 {user.teacherProfile?.subjects?.join(', ') || 'Not assigned'}
                                             </p>
                                         </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned Sections</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                {user.teacherProfile?.studentAssignmentMode === 'all' 
+                                                    ? 'All Sections' 
+                                                    : (user.teacherProfile?.assignedSections?.join(', ') || 'None')}
+                                            </p>
+                                        </div>
                                     </>
                                 )}
                             </div>

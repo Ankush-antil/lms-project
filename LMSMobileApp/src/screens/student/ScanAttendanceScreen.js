@@ -132,21 +132,9 @@ const ScanAttendanceScreen = ({ navigation }) => {
                     [{ text: "OK", onPress: () => resetScanner() }]
                 );
             } else if (res.data.checkStatus === 'checked-in') {
-                // Allow check-out only in the last 10 minutes of the class duration
-                const now = new Date();
-                const endTime = new Date(res.data.session.endTime);
-                const minutesLeft = (endTime - now) / 60000;
-
-                if (minutesLeft > 10) {
-                    Alert.alert(
-                        "Already Checked-In",
-                        "Please wait for class end and mark out attendance.",
-                        [{ text: "OK", onPress: () => resetScanner() }]
-                    );
-                } else {
-                    setStep('selfie');
-                    setFacing('front');
-                }
+                // Allow check-out immediately
+                setStep('selfie');
+                setFacing('front');
             } else {
                 // Advance to selfie step, switch to front camera
                 setStep('selfie');
@@ -209,14 +197,26 @@ const ScanAttendanceScreen = ({ navigation }) => {
         setLoading(true);
         try {
             const studentWifiSSID = await getWifiSSID();
-            const attendanceType = checkStatus === 'checked-in' ? 'out' : 'in';
             const base64Data = `data:image/jpeg;base64,${capturedPhoto.base64}`;
+            
+            // Get student GPS coordinates
+            let coords = null;
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    coords = loc.coords;
+                }
+            } catch (err) {
+                console.warn("Failed to get student coordinates:", err);
+            }
             
             await axios.post('/attendance/mark', {
                 qrToken,
                 photo: base64Data,
-                type: attendanceType,
-                wifiSSID: studentWifiSSID
+                wifiSSID: studentWifiSSID,
+                latitude: coords ? coords.latitude : undefined,
+                longitude: coords ? coords.longitude : undefined
             });
             
             setStep('success');

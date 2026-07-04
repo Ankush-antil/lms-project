@@ -214,16 +214,29 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                             </div>
                                         </div>
                                         <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
-                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                <Book size={14} />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Subjects</p>
-                                                <p className="text-sm font-bold text-slate-700 truncate">
-                                                    {user?.teacherProfile?.subjects?.join(', ') || 'N/A'}
-                                                </p>
-                                            </div>
-                                        </div>
+                                             <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                 <Book size={14} />
+                                             </div>
+                                             <div>
+                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Subjects</p>
+                                                 <p className="text-sm font-bold text-slate-700 truncate">
+                                                     {user?.teacherProfile?.subjects?.join(', ') || 'N/A'}
+                                                 </p>
+                                             </div>
+                                         </div>
+                                         <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                             <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                 <Book size={14} />
+                                             </div>
+                                             <div>
+                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Sections</p>
+                                                 <p className="text-sm font-bold text-slate-700 truncate">
+                                                     {user?.teacherProfile?.studentAssignmentMode === 'all' 
+                                                         ? 'All Sections' 
+                                                         : (user?.teacherProfile?.assignedSections?.join(', ') || 'None')}
+                                                 </p>
+                                             </div>
+                                         </div>
                                     </>
                                 )}
 

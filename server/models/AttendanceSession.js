@@ -48,6 +48,21 @@ const attendanceSessionSchema = new mongoose.Schema({
     },
     wifiIP: {
         type: String
+    },
+    type: {
+        type: String,
+        enum: ['class', 'in', 'out'],
+        default: 'class'
+    },
+    locationRequired: {
+        type: Boolean,
+        default: false
+    },
+    latitude: {
+        type: Number
+    },
+    longitude: {
+        type: Number
     }
 }, {
     timestamps: true

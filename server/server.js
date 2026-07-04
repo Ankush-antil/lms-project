@@ -128,14 +128,18 @@ const { initSocket } = require('./socket');
 // Initialize Socket.io Connection Handlers
 initSocket(server);
 
+// Initialize Cron Jobs
+const initAttendanceCron = require('./cron/attendanceCron');
+initAttendanceCron();
+
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
         await connectDB();
-        server.listen(PORT, () => {
+        server.listen(PORT, '0.0.0.0', () => {
             console.log(`=========================================`);
-            console.log(`Server running on: http://localhost:${PORT}`);
+            console.log(`Server running on: http://0.0.0.0:${PORT}`);
             console.log(`LMS API v1.0.1 Started with Socket.IO`);
             console.log(`MongoDB Connected successfully.`);
             console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

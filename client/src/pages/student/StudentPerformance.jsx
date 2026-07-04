@@ -59,65 +59,109 @@ const StudentPerformance = () => {
         return Math.round((erpPresent / erpTotal) * 100);
     }, [erpPresent, erpTotal]);
 
-    useEffect(() => {
-        const fetchAllData = async () => {
+    // Student Leave application states
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+    const [leaveDate, setLeaveDate] = useState(new Date().toISOString().split('T')[0]);
+    const [leaveNote, setLeaveNote] = useState('');
+    const [leaveFile, setLeaveFile] = useState(null);
+    const [submittingLeave, setSubmittingLeave] = useState(false);
+
+    const fetchAllData = async () => {
+        try {
+            const [testsRes, subsRes, cloudRes, profileRes, notesRes] = await Promise.all([
+                axios.get('/api/tests'),
+                axios.get('/api/submissions'),
+                axios.get('/api/practice-files').catch(() => ({ data: { files: [] } })),
+                axios.get('/api/users/profile'),
+                axios.get('/api/notes').catch(() => ({ data: [] }))
+            ]);
+
+            setTests(testsRes.data || []);
+            setSubmissions(subsRes.data || []);
+            setCloudFiles(cloudRes.data?.files || []);
+            setProfile(profileRes.data || null);
+            setNotesCount(notesRes.data?.length || 0);
+
+            // Load local storage counts
+            const localCounts = {
+                screenshots: 0,
+                screenRecordings: 0,
+                audios: 0,
+                videos: 0,
+                calls: 0,
+                fileUploads: 0
+            };
+
             try {
-                const [testsRes, subsRes, cloudRes, profileRes, notesRes] = await Promise.all([
-                    axios.get('/api/tests'),
-                    axios.get('/api/submissions'),
-                    axios.get('/api/practice-files').catch(() => ({ data: { files: [] } })),
-                    axios.get('/api/users/profile'),
-                    axios.get('/api/notes').catch(() => ({ data: [] }))
-                ]);
+                const sc = localStorage.getItem('practice_screenshots');
+                if (sc) localCounts.screenshots = JSON.parse(sc).length || 0;
 
-                setTests(testsRes.data || []);
-                setSubmissions(subsRes.data || []);
-                setCloudFiles(cloudRes.data?.files || []);
-                setProfile(profileRes.data || null);
-                setNotesCount(notesRes.data?.length || 0);
+                const sr = localStorage.getItem('practice_screen_recordings');
+                if (sr) localCounts.screenRecordings = JSON.parse(sr).length || 0;
 
-                // Load local storage counts
-                const localCounts = {
-                    screenshots: 0,
-                    screenRecordings: 0,
-                    audios: 0,
-                    videos: 0,
-                    calls: 0
-                };
+                const au = localStorage.getItem('practice_audios');
+                if (au) localCounts.audios = JSON.parse(au).length || 0;
 
-                try {
-                    const sc = localStorage.getItem('practice_screenshots');
-                    if (sc) localCounts.screenshots = JSON.parse(sc).length || 0;
+                const vi = localStorage.getItem('practice_videos');
+                if (vi) localCounts.videos = JSON.parse(vi).length || 0;
 
-                    const sr = localStorage.getItem('practice_screen_recordings');
-                    if (sr) localCounts.screenRecordings = JSON.parse(sr).length || 0;
+                const ca = localStorage.getItem('practice_call_logs');
+                if (ca) localCounts.calls = JSON.parse(ca).length || 0;
 
-                    const au = localStorage.getItem('practice_audios');
-                    if (au) localCounts.audios = JSON.parse(au).length || 0;
-
-                    const vi = localStorage.getItem('practice_videos');
-                    if (vi) localCounts.videos = JSON.parse(vi).length || 0;
-
-                    const ca = localStorage.getItem('practice_call_logs');
-                    if (ca) localCounts.calls = JSON.parse(ca).length || 0;
-
-                    const fu = localStorage.getItem('practice_file_uploads');
-                    if (fu) localCounts.fileUploads = JSON.parse(fu).length || 0;
-                } catch (e) {
-                    console.error("Failed to parse local storage practice logs:", e);
-                }
-
-                setLocalFilesCount(localCounts);
-            } catch (err) {
-                console.error("Failed to load performance data:", err);
-                toast.error("Could not load your performance records.");
-            } finally {
-                setLoading(false);
+                const fu = localStorage.getItem('practice_file_uploads');
+                if (fu) localCounts.fileUploads = JSON.parse(fu).length || 0;
+            } catch (e) {
+                console.error("Failed to parse local storage practice logs:", e);
             }
-        };
 
+            setLocalFilesCount(localCounts);
+        } catch (err) {
+            console.error("Failed to load performance data:", err);
+            toast.error("Could not load your performance records.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchAllData();
     }, []);
+
+    const handleLeaveSubmit = async (e) => {
+        e.preventDefault();
+        if (!leaveDate) {
+            toast.error("Please select a date.");
+            return;
+        }
+        if (!leaveNote.trim()) {
+            toast.error("Please write a leave note explaining the reason.");
+            return;
+        }
+
+        try {
+            setSubmittingLeave(true);
+            const formData = new FormData();
+            formData.append('date', leaveDate);
+            formData.append('leaveNote', leaveNote.trim());
+            if (leaveFile) {
+                formData.append('leaveFile', leaveFile);
+            }
+
+            await axios.post('/api/attendance/leave-application', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            toast.success("Leave application submitted successfully!");
+            setIsLeaveModalOpen(false);
+            setLeaveNote('');
+            setLeaveFile(null);
+            await fetchAllData();
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to submit leave application");
+        } finally {
+            setSubmittingLeave(false);
+        }
+    };
 
     // ── DATA PREPARATION & CALCULATIONS ────────────────────────────────
 
@@ -486,11 +530,13 @@ const StudentPerformance = () => {
                              </div>
                          </div>
  
-                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-                             <Info size={14} className="text-emerald-500 shrink-0" />
-                             <p className="text-[11px] text-slate-500 font-medium">
-                                 Calculated from classroom biometric scans and manual register logs.
-                             </p>
+                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                             <button
+                                 onClick={() => setIsLeaveModalOpen(true)}
+                                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-100 hover:-translate-y-0.5 cursor-pointer text-center"
+                             >
+                                 Apply for Leave
+                             </button>
                          </div>
                      </div>
                  </div>
@@ -625,6 +671,120 @@ const StudentPerformance = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* ── LEAVE APPLICATION MODAL ────────────────── */}
+                {isLeaveModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                                        <Calendar className="text-amber-500" size={22} />
+                                        Apply for Leave
+                                    </h3>
+                                    <p className="text-slate-400 text-xs mt-1">Submit your leave request to your teacher.</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setIsLeaveModalOpen(false);
+                                        setLeaveNote('');
+                                        setLeaveFile(null);
+                                    }}
+                                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-450 hover:bg-slate-100 transition-all font-black text-sm cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Form */}
+                            <form onSubmit={handleLeaveSubmit} className="p-6 space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Leave Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-700 bg-white"
+                                        value={leaveDate}
+                                        onChange={e => setLeaveDate(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Reason / Leave Note</label>
+                                    <textarea
+                                        rows={4}
+                                        placeholder="Explain the reason for your leave..."
+                                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 resize-none outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition bg-white"
+                                        value={leaveNote}
+                                        onChange={e => setLeaveNote(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Attachment (PDF/Image - optional)</label>
+                                    <div className="relative border border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer">
+                                        <input
+                                            type="file"
+                                            accept=".pdf,image/*"
+                                            onChange={e => setLeaveFile(e.target.files[0])}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        <div className="space-y-1.5">
+                                            <Upload className="mx-auto text-slate-400" size={20} />
+                                            <p className="text-[11px] text-slate-500 font-semibold">
+                                                {leaveFile ? leaveFile.name : "Click to upload medical slip/document"}
+                                            </p>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase">Max Size: 5MB</p>
+                                        </div>
+                                    </div>
+                                    {leaveFile && (
+                                        <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">
+                                            <span className="text-[10px] text-amber-800 font-bold truncate max-w-[200px]">
+                                                📎 {leaveFile.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setLeaveFile(null)}
+                                                className="text-[10px] text-red-500 hover:text-red-700 font-black cursor-pointer"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsLeaveModalOpen(false);
+                                            setLeaveNote('');
+                                            setLeaveFile(null);
+                                        }}
+                                        className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingLeave}
+                                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md disabled:opacity-60 flex items-center gap-1.5"
+                                    >
+                                        {submittingLeave ? (
+                                            <>
+                                                <RefreshCw className="animate-spin" size={12} /> Submitting...
+                                            </>
+                                        ) : (
+                                            <>Submit Leave</>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </DashboardLayout>

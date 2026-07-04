@@ -84,4 +84,31 @@ const uploadInstituteDocument = multer({
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
 }).single('document');
 
-module.exports = { uploadInstituteImage, uploadSyllabus, uploadInstituteDocument };
+// ─── Student Leave Application File Upload ────────────────────────────────────
+const leaveFileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../uploads/leave-applications');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const uniqueName = `leave_${Date.now()}_${Math.round(Math.random() * 1e6)}${ext}`;
+        cb(null, uniqueName);
+    }
+});
+
+const leaveFileFilter = (req, file, cb) => {
+    const allowed = /pdf|doc|docx|jpeg|jpg|png/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    if (ext) cb(null, true);
+    else cb(new Error('Only PDF, Word, or image files are allowed for leave applications'));
+};
+
+const uploadLeaveFile = multer({
+    storage: leaveFileStorage,
+    fileFilter: leaveFileFilter,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
+}).single('leaveFile');
+
+module.exports = { uploadInstituteImage, uploadSyllabus, uploadInstituteDocument, uploadLeaveFile };

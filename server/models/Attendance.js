@@ -29,12 +29,16 @@ const attendanceSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['In', 'Present', 'Absent'],
+        enum: ['In', 'Present', 'Absent', 'Holiday'],
         default: 'Absent'
     },
     isManual: {
         type: Boolean,
         default: false
+    },
+    teacherNote: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

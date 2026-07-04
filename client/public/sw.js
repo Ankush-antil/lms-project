@@ -65,8 +65,20 @@ self.addEventListener('fetch', (event) => {
                     }
                     // SPA Routing fallback: serve index.html for page navigation offline
                     if (event.request.headers.get('accept')?.includes('text/html')) {
-                        return caches.match('/index.html');
+                        return caches.match('/index.html').then((fallback) => {
+                            if (fallback) return fallback;
+                            return new Response('Offline: Page not cached.', {
+                                status: 503,
+                                statusText: 'Service Unavailable',
+                                headers: { 'Content-Type': 'text/html' }
+                            });
+                        });
                     }
+                    return new Response('Offline: Network connection lost.', {
+                        status: 503,
+                        statusText: 'Service Unavailable',
+                        headers: { 'Content-Type': 'text/plain' }
+                    });
                 });
             })
     );

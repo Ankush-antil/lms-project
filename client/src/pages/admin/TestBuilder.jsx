@@ -129,7 +129,8 @@ const QuestionBuilderCard = ({
     onDragStartCustom,
     isDragged,
     isDragging,
-    onAddonClick
+    onAddonClick,
+    onOpenAiGenerator
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isFooterExpanded, setIsFooterExpanded] = useState(false);
@@ -688,16 +689,7 @@ const QuestionBuilderCard = ({
                 <div className="flex items-center gap-1.5 relative">
                     {isExpanded && (
                         <>
-                            {/* Make it using AI */}
-                            <button
-                                type="button"
-                                onClick={label === 'Short Answer' ? () => toast("Coming Soon", { icon: 'ℹ️' }) : handleAiGenerate}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                                title="Generate Question content automatically using AI"
-                            >
-                                <Wand2 size={13} />
-                                <span>Make it using AI</span>
-                            </button>
+
 
                             {/* Upload */}
                             {label === 'Short Answer' ? (
@@ -2012,6 +2004,13 @@ const QuestionBuilderCard = ({
     );
 };
 
+const getYoutubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+};
+
 const TestBuilder = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
@@ -2030,10 +2029,28 @@ const TestBuilder = () => {
     const [placeholderIndex, setPlaceholderIndex] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
 
+    // AI Question Generator States
+    const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
+    const [aiGeneratorTargetIndex, setAiGeneratorTargetIndex] = useState(null);
+    const [aiChatMessages, setAiChatMessages] = useState([
+        { sender: 'ai', text: 'Hello! I am your Gemini AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+    ]);
+    const [aiChatInput, setAiChatInput] = useState('');
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [activeVideoId, setActiveVideoId] = useState(null);
+    const [addedVideoUrls, setAddedVideoUrls] = useState([]);
+
     const dragPositionsRef = useRef([]);
     const draggedIndexRef = useRef(null);
     const placeholderIndexRef = useRef(null);
     const formElementsRef = useRef([]);
+    const chatEndRef = useRef(null);
+
+    useEffect(() => {
+        if (isAiGeneratorOpen) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [aiChatMessages, isAiGeneratorOpen]);
 
     useEffect(() => {
         formElementsRef.current = formElements;
@@ -2149,6 +2166,350 @@ const TestBuilder = () => {
             toast.error("Selected template is empty");
         }
         setIsTemplatesBrowseOpen(false);
+    };
+
+    const handleInsertGeneratedQuestions = (questionsList, messageIndex) => {
+        if (!questionsList || questionsList.length === 0) return;
+
+        // Create new form elements based on generated questions
+        const newElements = questionsList.map(q => {
+            let label = 'Short Answer';
+            let defaultOptions = [];
+            
+            if (q.options && q.options.length > 0) {
+                label = 'Multiple Choice';
+                defaultOptions = q.options.map(opt => ({
+                    text: opt,
+                    isCorrect: opt === q.correctAnswer
+                }));
+            } else if (q.correctAnswer && (q.correctAnswer.toLowerCase() === 'true' || q.correctAnswer.toLowerCase() === 'false')) {
+                label = 'True/False';
+                defaultOptions = [
+                    { text: 'True', isCorrect: q.correctAnswer.toLowerCase() === 'true' },
+                    { text: 'False', isCorrect: q.correctAnswer.toLowerCase() === 'false' }
+                ];
+            }
+
+            return {
+                id: Math.random().toString(36).substring(2, 9),
+                label: label,
+                text: q.question,
+                options: defaultOptions,
+                matchingPairs: [],
+                blankAnswers: label === 'Fill in the Blanks' ? [q.correctAnswer || ''] : [],
+                tableData: null,
+                description: q.answer || '',
+                helperText: '',
+                instructions: '',
+                required: false,
+                enabled: true,
+                marks: 1,
+                negativeMarks: 0,
+                partialMarks: false,
+                evaluationMode: 'auto',
+                validation: {
+                    minLength: '',
+                    maxLength: '',
+                    regex: '',
+                    numericOnly: false,
+                    emailOnly: false,
+                    urlOnly: false
+                },
+                assistive: {
+                    aiReader: false,
+                    textToSpeech: false,
+                    speechToText: false,
+                    translation: false,
+                    dyslexiaMode: false,
+                    accessibility: false
+                },
+                particulars: {
+                    shuffleOptions: false,
+                    multipleAttempts: false,
+                    charLimit: '',
+                    wordLimit: '',
+                    fileSizeLimit: 10,
+                    fileTypes: 'All',
+                    required: false,
+                    singleLineMode: false,
+                    minChars: '',
+                    maxChars: '',
+                    minWords: '',
+                    maxWords: '',
+                    placeholderText: 'Your answer',
+                    defaultValue: q.answer || '',
+                    inputWidth: '100%',
+                    validationRules: '',
+                    answerMode: 'Text + Upload + Audio',
+                    enableTextStyle: false,
+                    style: {
+                        fontSize: '14px',
+                        fontWeight: 'normal',
+                        textColor: '#334155',
+                        bgColor: '#F8FAFC',
+                        borderRadius: '16px',
+                        borderStyle: 'solid',
+                        borderColor: '#E2E8F0'
+                    },
+                    supportingResources: []
+                }
+            };
+        });
+
+        // Insert new elements after target index, or append if targetIndex is null
+        setFormElements(prev => {
+            const list = [...prev];
+            const insertIdx = aiGeneratorTargetIndex !== null ? aiGeneratorTargetIndex + 1 : list.length;
+            list.splice(insertIdx, 0, ...newElements);
+            return list;
+        });
+
+        setAiChatMessages(prev => prev.map((msg, i) => i === messageIndex ? { ...msg, added: true } : msg));
+        toast.success(`Successfully added ${newElements.length} questions to the test!`);
+    };
+
+    const handleInsertEmbeddedVideo = (videoInfo, messageIndex) => {
+        if (!videoInfo || !videoInfo.url) return;
+
+        const newElement = {
+            id: Math.random().toString(36).substring(2, 9),
+            label: 'Embedded Video Displaying',
+            text: videoInfo.title || 'YouTube Video Recommended by AI',
+            options: [],
+            matchingPairs: [],
+            blankAnswers: [],
+            tableData: null,
+            icon: sidebarElements.find(s => s.label === 'Embedded Video Displaying')?.icon || Play,
+            description: videoInfo.description || '',
+            helperText: '',
+            instructions: '',
+            required: false,
+            enabled: true,
+            marks: 1,
+            negativeMarks: 0,
+            partialMarks: false,
+            evaluationMode: 'auto',
+            validation: {
+                minLength: '',
+                maxLength: '',
+                regex: '',
+                numericOnly: false,
+                emailOnly: false,
+                urlOnly: false
+            },
+            assistive: {
+                aiReader: false,
+                textToSpeech: false,
+                speechToText: false,
+                translation: false,
+                dyslexiaMode: false,
+                accessibility: false
+            },
+            particulars: {
+                shuffleOptions: false,
+                multipleAttempts: false,
+                charLimit: '',
+                wordLimit: '',
+                fileSizeLimit: 10,
+                fileTypes: 'All',
+                required: false,
+                singleLineMode: false,
+                minChars: '',
+                maxChars: '',
+                minWords: '',
+                maxWords: '',
+                placeholderText: '',
+                defaultValue: '',
+                inputWidth: '100%',
+                validationRules: '',
+                answerMode: 'Text + Upload + Audio',
+                enableTextStyle: false,
+                style: {
+                    fontSize: '14px',
+                    fontWeight: 'normal',
+                    textColor: '#334155',
+                    bgColor: '#F8FAFC',
+                    borderRadius: '16px',
+                    borderStyle: 'solid',
+                    borderColor: '#E2E8F0'
+                },
+                supportingResources: []
+            },
+            advanced: {
+                tags: '',
+                difficulty: 'Medium',
+                bloomTaxonomy: 'Understanding',
+                learningOutcome: '',
+                subjectMapping: '',
+                topicMapping: ''
+            },
+            uploadedFiles: [],
+            uploadedResource: null,
+            addons: [],
+            appliedToAllAddons: [],
+            appliedToAllMoreSettings: [],
+            moreSettings: { allowUpload: false, allowChat: false, allowSubmitFinish: false },
+            mediaUrl: '',
+            writeMode: false,
+            audioUrl: '',
+            imageUrl: '',
+            altText: '',
+            align: 'center',
+            pdfUrl: '',
+            youtubeUrl: videoInfo.url,
+            embeddedVideoUrl: videoInfo.url,
+            videoUrl: '',
+            autoplay: false,
+            loop: false,
+            quality: '1080p',
+            includeMic: false,
+            screenshotScope: 'Entire Screen',
+            agentName: '',
+            greetingMessage: '',
+            agentInstructions: '',
+            agentScenario: '',
+            agentTriggerWord: '',
+            agentTemperature: 0.7,
+            agentVoiceName: '',
+            agentMaxTurns: 10,
+            agentAutoStart: false,
+            agentShowAvatar: true,
+            embeddedSMUrl: '',
+            audioUrlDisplay: '',
+            multipleFilesDisplay: [],
+            pdfUrlDisplay: '',
+            webpageUrl: '',
+            webpageSandbox: true,
+            particularsTab: 'particulars'
+        };
+
+        // Insert new elements after target index, or append if targetIndex is null
+        setFormElements(prev => {
+            const list = [...prev];
+            const insertIdx = aiGeneratorTargetIndex !== null ? aiGeneratorTargetIndex + 1 : list.length;
+            list.splice(insertIdx, 0, newElement);
+            return list;
+        });
+
+        // Mark as added in global addedVideoUrls state
+        setAddedVideoUrls(prev => [...prev, videoInfo.url]);
+        toast.success("Successfully added Video Displaying element to the test!");
+    };
+
+    const handleSendChatMessage = async () => {
+        if (!aiChatInput.trim()) return;
+
+        const userMessage = aiChatInput.trim();
+        setAiChatInput('');
+        setAiGenerating(true);
+
+        // Add user message to chat log
+        setAiChatMessages(prev => [...prev, { sender: 'user', text: userMessage }]);
+
+        // Construct history context for Gemini
+        const chatHistoryText = aiChatMessages.map(msg => `${msg.sender === 'user' ? 'User' : 'AI Assistant'}: ${msg.text}`).join('\n');
+
+        const promptText = `
+You are an AI Question Generator assistant in an online LMS test builder.
+The user is talking to you in a chat interface. They will ask you to generate questions, suggest video courses/tutorials, change difficulty, refine topics, translate, etc.
+
+Current conversation history:
+${chatHistoryText}
+
+User's new request: "${userMessage}"
+
+Your instructions:
+1. If the user asks to generate, update, or refine questions (e.g. "make 5 HTML questions", "translate to Hindi", "make it hard"), you MUST generate the requested questions and place them in the "questions" array.
+2. If the user asks for video tutorials, courses, or video links (e.g. "muja 5 HTML videos chaya"), find or construct a list of valid, real YouTube video links matching the topic, and place them in the "videos" array. If they do not ask for videos, keep the "videos" array empty [].
+3. In the "message" field, provide a friendly and helpful response to the user in Hinglish/English.
+4. If the user is just chatting or asking a general question without requesting test questions, you can leave the "questions" array empty.
+
+JSON Output Schema format (strictly return ONLY valid JSON matching this structure, do NOT wrap in markdown code blocks like \`\`\`json):
+{
+  "message": "Your friendly reply summarizing what you did or asking for clarifications",
+  "questions": [
+    {
+      "question": "The question text here",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // Include 2 or 4 options if MCQ/True-False, or keep empty array [] if short answer/paragraph/etc.
+      "correctAnswer": "Option A", // Match one option exactly if MCQ, otherwise empty string "" or short text
+      "answer": "Model answer or explanation"
+    }
+  ],
+  "videos": [
+    {
+      "title": "Title of the recommended YouTube video",
+      "url": "https://www.youtube.com/watch?v=...", // A valid, real YouTube watch link
+      "description": "Short description of what the video covers"
+    }
+  ]
+}
+`;
+
+        try {
+            const response = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: promptText })
+            });
+
+            if (!response.ok) {
+                let detailMsg = `HTTP Error ${response.status}`;
+                try {
+                    const errJson = await response.json();
+                    if (errJson.message) {
+                        detailMsg = errJson.message;
+                    }
+                } catch (_) {}
+                throw new Error(detailMsg);
+            }
+
+            const data = await response.json();
+            const responseText = data.text;
+            
+            if (!responseText) {
+                throw new Error("No response returned from AI");
+            }
+
+            // Clean markdown wrappers
+            let cleanText = responseText.trim();
+            if (cleanText.startsWith("```")) {
+                cleanText = cleanText.replace(/^```[a-zA-Z]*\n/, "");
+                cleanText = cleanText.replace(/\n```$/, "");
+            }
+            cleanText = cleanText.trim();
+
+            const parsed = JSON.parse(cleanText);
+            const replyMessage = parsed.message || "Here is the response.";
+            const questionsList = parsed.questions || [];
+            
+            let videosList = parsed.videos || [];
+            if (parsed.video && videosList.length === 0) {
+                videosList = [parsed.video];
+            }
+
+            // Add AI response message to chat log
+            setAiChatMessages(prev => [
+                ...prev,
+                {
+                    sender: 'ai',
+                    text: replyMessage,
+                    questions: questionsList.length > 0 ? questionsList : null,
+                    videos: videosList.length > 0 ? videosList : null,
+                    added: false
+                }
+            ]);
+
+        } catch (err) {
+            console.error("Gemini Chat Generation Error:", err);
+            setAiChatMessages(prev => [
+                ...prev,
+                { sender: 'ai', text: `Failed to process request: ${err.message || 'Unknown network error'}` }
+            ]);
+        } finally {
+            setAiGenerating(false);
+        }
     };
 
     const handleExportForm = () => {
@@ -2869,25 +3230,11 @@ const TestBuilder = () => {
 
     // AI Form Generation Mock
     const handleAiGenerateForm = () => {
-        const aiElements = [
-            { label: 'Short Answer', text: 'Full Name', options: [] },
-            { label: 'Short Answer', text: 'Email Address', options: [] },
-            {
-                label: 'Multiple Choice', text: 'How did you hear about us?', options: [
-                    { text: 'Social Media', isCorrect: false },
-                    { text: 'Search Engine', isCorrect: false },
-                    { text: 'Friend/Colleague', isCorrect: false },
-                    { text: 'Other', isCorrect: false }
-                ]
-            },
-            { label: 'Rating', text: 'Rate your overall experience with our portal', options: [] },
-            { label: 'Paragraph', text: 'Any additional comments or feedback?', options: [] }
-        ];
-        setFormElements(aiElements.map(el => ({
-            ...el,
-            icon: sidebarElements.find(s => s.label === el.label)?.icon || FileText
-        })));
-        toast.success("AI generated a premium Feedback Form layout!");
+        setAiGeneratorTargetIndex(null);
+        setAiChatMessages([
+            { sender: 'ai', text: 'Hello! I am your AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+        ]);
+        setIsAiGeneratorOpen(true);
     };
 
     const handlePublish = async (mode = 'connected', settingsObj = null) => {
@@ -3666,8 +4013,29 @@ const TestBuilder = () => {
                                                             onRemoveAddon={(addonLabel) => handleRemoveAddon(originalIndex, addonLabel)}
                                                             onDragStartCustom={(e) => handleCustomDragStart(e, originalIndex)}
                                                             isDragged={draggedQuestionIndex === originalIndex}
-                                                            isDragging={isDragging}
                                                             onAddonClick={() => setSidebarTab('Elements/Addons')}
+                                                            onOpenAiGenerator={() => {
+                                                                setAiGeneratorTargetIndex(originalIndex);
+                                                                let defaultType = 'Multiple Choice';
+                                                                if (['Multiple Choice', 'Multiple choices', 'Checkboxes', 'Checkbox', 'Dropdown'].includes(el.label)) {
+                                                                    defaultType = 'Multiple Choice';
+                                                                } else if (['Short Answer', 'Short question'].includes(el.label)) {
+                                                                    defaultType = 'Short Answer';
+                                                                } else if (['Paragraph', 'ParagraphAnswer'].includes(el.label)) {
+                                                                    defaultType = 'Paragraph';
+                                                                } else if (['True/False', 'True/false'].includes(el.label)) {
+                                                                    defaultType = 'True/False';
+                                                                } else if (['Fill in the Blanks', 'Fill in the Blank'].includes(el.label)) {
+                                                                    defaultType = 'Fill in the Blanks';
+                                                                }
+                                                                setAiChatMessages([
+                                                                    { 
+                                                                        sender: 'ai', 
+                                                                        text: `Hello! I am your Gemini AI Assistant. I see you want to generate questions near a "${defaultType}" question. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!` 
+                                                                    }
+                                                                ]);
+                                                                setIsAiGeneratorOpen(true);
+                                                            }}
                                                         />
                                                     </div>
                                                 ));
@@ -4873,6 +5241,238 @@ const TestBuilder = () => {
                                     Close
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* AI Question Generator Modal */}
+                {isAiGeneratorOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg h-[600px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
+                            
+                            {/* Modal Header */}
+                            <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles size={18} className="text-indigo-650 animate-pulse" />
+                                    <h3 className="text-base font-extrabold text-slate-800 tracking-tight font-sans">AI Question Assistant</h3>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAiChatMessages([
+                                                { sender: 'ai', text: 'Hello! I am your Gemini AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+                                            ]);
+                                        }}
+                                        className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition-all px-2.5 py-1 hover:bg-rose-50 rounded-lg"
+                                        title="Clear chat history"
+                                    >
+                                        Clear Chat
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAiGeneratorOpen(false)}
+                                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-all cursor-pointer"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Chat Messages */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 custom-scrollbar">
+                                {aiChatMessages.map((msg, idx) => (
+                                    <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs font-semibold shadow-sm leading-relaxed ${
+                                            msg.sender === 'user' 
+                                                ? 'bg-indigo-600 text-white rounded-tr-none' 
+                                                : 'bg-white text-slate-800 border border-slate-200/60 rounded-tl-none'
+                                        }`}>
+                                            <p className="whitespace-pre-wrap">{msg.text}</p>
+                                            
+                                            {/* YouTube Embedded Cards */}
+                                            {msg.videos && msg.videos.length > 0 && (
+                                                <div className="mt-3 space-y-3">
+                                                    {msg.videos.map((vid, vIdx) => {
+                                                        const videoId = getYoutubeId(vid.url);
+                                                        const isAdded = addedVideoUrls.includes(vid.url);
+                                                        return (
+                                                            <div key={vIdx} className="bg-slate-900 text-white rounded-2xl overflow-hidden border border-slate-800 shadow-lg text-left">
+                                                                {videoId && (
+                                                                    <div className="relative group">
+                                                                        {activeVideoId === videoId ? (
+                                                                            <div className="aspect-video w-full">
+                                                                                <iframe
+                                                                                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                                                                                    title={vid.title}
+                                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                                    allowFullScreen
+                                                                                    className="w-full h-full border-0"
+                                                                                ></iframe>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div 
+                                                                                onClick={() => setActiveVideoId(videoId)}
+                                                                                className="relative aspect-video w-full cursor-pointer overflow-hidden group bg-black"
+                                                                            >
+                                                                                <img 
+                                                                                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} 
+                                                                                    alt={vid.title}
+                                                                                    className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all duration-300"
+                                                                                />
+                                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/35 group-hover:bg-black/45 transition-colors">
+                                                                                    <div className="w-10 h-10 rounded-full bg-rose-655 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg transition-transform transform group-hover:scale-110 duration-300">
+                                                                                        <Play size={16} fill="currentColor" className="ml-0.5" />
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 text-[9px] font-bold rounded">
+                                                                                    YouTube ↗
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                <div className="p-3 space-y-1">
+                                                                    <h4 className="text-[11px] font-extrabold line-clamp-1 leading-snug text-slate-100">{vid.title}</h4>
+                                                                    {vid.description && (
+                                                                        <p className="text-[9px] text-slate-400 font-medium line-clamp-2">{vid.description}</p>
+                                                                    )}
+                                                                    <div className="flex items-center justify-between gap-2 pt-2">
+                                                                        <a 
+                                                                            href={vid.url} 
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer"
+                                                                            className="inline-flex items-center gap-1 text-[9px] font-bold text-rose-500 hover:underline"
+                                                                        >
+                                                                            <span>Watch on YouTube</span>
+                                                                            <span>↗</span>
+                                                                        </a>
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={isAdded}
+                                                                            onClick={() => handleInsertEmbeddedVideo(vid, idx)}
+                                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
+                                                                                isAdded 
+                                                                                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed' 
+                                                                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                                                                            }`}
+                                                                        >
+                                                                            {isAdded ? (
+                                                                                <>
+                                                                                    <Check size={10} />
+                                                                                    <span>Added to Test</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <Plus size={10} />
+                                                                                    <span>Add to Test</span>
+                                                                                </>
+                                                                            )}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Nested Generated Questions Card */}
+                                            {msg.questions && msg.questions.length > 0 && (
+                                                <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[10px] text-emerald-650 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-100 flex items-center gap-1">
+                                                            <span>📦</span>
+                                                            <span>{msg.questions.length} Questions Generated</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            disabled={msg.added}
+                                                            onClick={() => handleInsertGeneratedQuestions(msg.questions, idx)}
+                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
+                                                                msg.added 
+                                                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                                                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                                                            }`}
+                                                        >
+                                                            {msg.added ? (
+                                                                <>
+                                                                    <Check size={10} />
+                                                                    <span>Added to Test</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={10} />
+                                                                    <span>Add to Test</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {/* Questions Mini Preview */}
+                                                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 text-[10px] text-slate-500 font-medium custom-scrollbar">
+                                                        {msg.questions.map((q, qIdx) => (
+                                                            <div key={qIdx} className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                                <span className="font-bold text-slate-700">Q{qIdx + 1}. </span>
+                                                                <span>{q.question}</span>
+                                                                {q.options && q.options.length > 0 && (
+                                                                    <div className="mt-1 pl-3 grid grid-cols-2 gap-1 text-[9px]">
+                                                                        {q.options.map((opt, oIdx) => (
+                                                                            <div key={oIdx} className={opt === q.correctAnswer ? 'text-emerald-600 font-bold' : ''}>
+                                                                                • {opt}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[9px] text-slate-400 mt-1 font-bold px-1">
+                                            {msg.sender === 'user' ? 'You' : 'Gemini AI'}
+                                        </span>
+                                    </div>
+                                ))}
+                                {aiGenerating && (
+                                    <div className="flex flex-col items-start animate-pulse">
+                                        <div className="bg-white text-slate-500 border border-slate-200/60 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs font-semibold flex items-center gap-2">
+                                            <div className="w-3.5 h-3.5 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin"></div>
+                                            <span>AI is thinking & generating...</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+
+                            {/* Chat Input */}
+                            <div className="p-3 border-t border-slate-100 bg-white shrink-0">
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        handleSendChatMessage();
+                                    }}
+                                    className="flex gap-2 items-center"
+                                >
+                                    <input
+                                        type="text"
+                                        value={aiChatInput}
+                                        onChange={(e) => setAiChatInput(e.target.value)}
+                                        placeholder="Type here (e.g. 'make 5 medium html questions')"
+                                        disabled={aiGenerating}
+                                        className="flex-1 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:border-indigo-600 transition-all font-sans disabled:opacity-60"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={aiGenerating || !aiChatInput.trim()}
+                                        className="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    >
+                                        <Send size={14} />
+                                    </button>
+                                </form>
+                            </div>
+
                         </div>
                     </div>
                 )}

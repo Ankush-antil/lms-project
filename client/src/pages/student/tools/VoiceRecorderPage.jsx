@@ -494,18 +494,15 @@ const VoiceRecorderPage = () => {
     // Cloud files state
     const [cloudFiles, setCloudFiles] = useState([]);
 
-    // Filter local audios by selected date (default: today) and inbox param
+    // Filter local audios only by inbox param (no date filter for local files)
     const filteredLocalAudios = useMemo(() => {
         let filtered = audios;
-        const targetDate = dateParam || todayDdMmYyyy;
-
-        filtered = filtered.filter(a => parseDateToDdMmYyyy(a.timestamp) === targetDate);
 
         if (inboxParam) {
             filtered = filtered.filter(a => a.inbox === inboxParam);
         }
         return filtered;
-    }, [audios, dateParam, todayDdMmYyyy, inboxParam]);
+    }, [audios, inboxParam]);
 
     // Filter cloud files by selected date (default: today) and inbox param
     const filteredCloudFiles = useMemo(() => {

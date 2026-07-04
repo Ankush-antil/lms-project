@@ -96,17 +96,14 @@ const ScreenshotToolPage = () => {
         contextDeleteScreenshot(id);
     };
 
-    // Filter local screenshots by selected date and inbox param
+    // Filter local screenshots only by inbox param (no date filter for local files)
     const filteredLocalScreenshots = useMemo(() => {
         let filtered = screenshots;
-        if (dateParam) {
-            filtered = filtered.filter(s => parseDateToDdMmYyyy(s.timestamp) === dateParam);
-        }
         if (inboxParam) {
             filtered = filtered.filter(s => s.inbox === inboxParam);
         }
         return filtered;
-    }, [screenshots, dateParam, inboxParam]);
+    }, [screenshots, inboxParam]);
 
     // Filter cloud files by selected date and inbox param
     const filteredCloudFiles = useMemo(() => {

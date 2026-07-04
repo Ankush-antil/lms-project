@@ -78,17 +78,14 @@ const FileUploadPage = () => {
         loadLocalFiles();
     }, []);
 
-    // Filter local files by selected date and inbox param
+    // Filter local files only by inbox param (no date filter for local files)
     const filteredLocalFiles = useMemo(() => {
         let filtered = localFiles;
-        if (dateParam) {
-            filtered = filtered.filter(f => parseDateToDdMmYyyy(f.timestamp) === dateParam);
-        }
         if (inboxParam) {
             filtered = filtered.filter(f => f.inbox === inboxParam);
         }
         return filtered;
-    }, [localFiles, dateParam, inboxParam]);
+    }, [localFiles, inboxParam]);
 
     // Filter cloud files by selected date and inbox param
     const filteredCloudFiles = useMemo(() => {

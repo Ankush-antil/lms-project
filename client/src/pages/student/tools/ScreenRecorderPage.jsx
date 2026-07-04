@@ -85,17 +85,14 @@ const ScreenRecorderPage = () => {
     const [shareModalItem, setShareModalItem] = useState(null);
     const [cloudGalleryModalOpen, setCloudGalleryModalOpen] = useState(false);
 
-    // Filter local recordings by selected date and inbox param
+    // Filter local recordings only by inbox param (no date filter for local files)
     const filteredRecordings = useMemo(() => {
         let filtered = recordings;
-        if (dateParam) {
-            filtered = filtered.filter(r => parseDateToDdMmYyyy(r.timestamp) === dateParam);
-        }
         if (inboxParam) {
             filtered = filtered.filter(r => r.inbox === inboxParam);
         }
         return filtered;
-    }, [recordings, dateParam, inboxParam]);
+    }, [recordings, inboxParam]);
 
     // Filter cloud files by selected date and inbox param
     const filteredCloudFiles = useMemo(() => {

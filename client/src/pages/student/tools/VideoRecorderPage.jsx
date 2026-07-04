@@ -88,17 +88,14 @@ const VideoRecorderPage = () => {
     const [shareModalItem, setShareModalItem] = useState(null);
     const [cloudGalleryModalOpen, setCloudGalleryModalOpen] = useState(false);
 
-    // Filter local videos by selected date and inbox param
+    // Filter local videos only by inbox param (no date filter for local files)
     const filteredLocalVideos = useMemo(() => {
         let filtered = videos;
-        if (dateParam) {
-            filtered = filtered.filter(v => parseDateToDdMmYyyy(v.timestamp) === dateParam);
-        }
         if (inboxParam) {
             filtered = filtered.filter(v => v.inbox === inboxParam);
         }
         return filtered;
-    }, [videos, dateParam, inboxParam]);
+    }, [videos, inboxParam]);
 
     // Filter cloud files by selected date and inbox param
     const filteredCloudFiles = useMemo(() => {

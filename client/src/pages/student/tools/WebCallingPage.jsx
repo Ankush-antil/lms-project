@@ -72,17 +72,14 @@ const WebCallingPage = () => {
     // Cloud files state
     const [cloudFiles, setCloudFiles] = useState([]);
 
-    // Filter local logs by selected date and inbox param
+    // Filter local logs only by inbox param (no date filter for local files)
     const filteredLocalLogs = useMemo(() => {
         let filtered = callLogs;
-        if (dateParam) {
-            filtered = filtered.filter(log => parseDateToDdMmYyyy(log.date) === dateParam);
-        }
         if (inboxParam) {
             filtered = filtered.filter(log => log.inbox === inboxParam);
         }
         return filtered;
-    }, [callLogs, dateParam, inboxParam]);
+    }, [callLogs, inboxParam]);
 
     // Filter cloud files by selected date and inbox param
     const filteredCloudFiles = useMemo(() => {

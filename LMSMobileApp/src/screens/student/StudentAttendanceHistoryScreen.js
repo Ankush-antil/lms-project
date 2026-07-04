@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    ActivityIndicator, Image, Modal, ScrollView, Platform, StatusBar
+    ActivityIndicator, Image, Modal, ScrollView, Platform, StatusBar,
+    TextInput, Alert
 } from 'react-native';
 import axios from 'axios';
 import { BASE_URL } from '../../config/api';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
-const StudentAttendanceHistoryScreen = ({ navigation }) => {
+const StudentAttendanceHistoryScreen = ({ navigation, route }) => {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+    // Leave Application States
+    const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+    const [leaveDate, setLeaveDate] = useState(new Date().toISOString().split('T')[0]);
+    const [leaveNote, setLeaveNote] = useState('');
+    const [submittingLeave, setSubmittingLeave] = useState(false);
 
     const fetchAttendanceHistory = async () => {
         try {
@@ -26,9 +33,39 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
         }
     };
 
+    const handleLeaveSubmit = async () => {
+        if (!leaveDate) {
+            Alert.alert("Error", "Please select a date.");
+            return;
+        }
+        if (!leaveNote.trim()) {
+            Alert.alert("Error", "Please write a reason / note.");
+            return;
+        }
+
+        setSubmittingLeave(true);
+        try {
+            await axios.post('/attendance/leave-application', {
+                date: leaveDate,
+                leaveNote: leaveNote.trim()
+            });
+            Alert.alert("Success", "Leave application submitted successfully!");
+            setLeaveModalVisible(false);
+            setLeaveNote('');
+            fetchAttendanceHistory();
+        } catch (error) {
+            Alert.alert("Error", error.response?.data?.message || "Failed to submit leave request.");
+        } finally {
+            setSubmittingLeave(false);
+        }
+    };
+
     useEffect(() => {
         fetchAttendanceHistory();
-    }, []);
+        if (route?.params?.openLeaveModal) {
+            setLeaveModalVisible(true);
+        }
+    }, [route?.params]);
 
     const handleRefresh = () => {
         setRefreshing(true);
@@ -37,13 +74,20 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            const date = new Date(year, month, day);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'long', // Displays full name (e.g., Saturday)
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        return dateStr;
     };
 
     const formatTime = (timeStr) => {
@@ -90,8 +134,10 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={colors.white} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>My Attendance History</Text>
-                <View style={{ width: 40 }} />
+                <Text style={styles.headerTitle}>Attendance History</Text>
+                <TouchableOpacity onPress={() => setLeaveModalVisible(true)} style={styles.applyLeaveHeaderBtn}>
+                    <Text style={styles.applyLeaveHeaderBtnText}>Apply Leave</Text>
+                </TouchableOpacity>
             </View>
 
             <FlatList
@@ -120,10 +166,21 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                         <View style={styles.dayCard}>
                             {group.data.map((item, index) => {
                                 const status = item.status || 'Absent';
+                                const leaveStatus = item.leaveStatus || 'Pending';
                                 let badgeStyle = styles.badgeAbsent;
                                 let badgeText = 'Absent';
                                 if (status === 'Present') { badgeStyle = styles.badgePresent; badgeText = 'Present'; }
                                 else if (status === 'In') { badgeStyle = styles.badgeIn; badgeText = 'Checked-In'; }
+                                else if (status === 'Leave') {
+                                    if (leaveStatus === 'Pending') {
+                                        badgeStyle = styles.badgePending;
+                                        badgeText = 'Pending';
+                                    } else {
+                                        badgeStyle = styles.badgeLeave;
+                                        badgeText = 'Leave';
+                                    }
+                                }
+                                else if (status === 'Holiday') { badgeStyle = styles.badgeHoliday; badgeText = 'Holiday'; }
 
                                 const subjectName = item.session?.subject || 'Class';
                                 const teacherName = item.session?.teacher?.name || 'Instructor';
@@ -142,16 +199,43 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                                                 </View>
                                             </View>
 
-                                            <View style={styles.timeRow}>
-                                                <View style={styles.timeItem}>
-                                                    <Text style={styles.timeLabel}>In Time</Text>
-                                                    <Text style={styles.timeVal}>{formatTime(item.checkInTime)}</Text>
+                                            {/* Show time details only if checked-in/present via QR scan */}
+                                            {(item.checkInTime || item.checkOutTime) && (
+                                                <View style={styles.timeRow}>
+                                                    <View style={styles.timeItem}>
+                                                        <Text style={styles.timeLabel}>In Time</Text>
+                                                        <Text style={styles.timeVal}>{formatTime(item.checkInTime)}</Text>
+                                                    </View>
+                                                    <View style={styles.timeItem}>
+                                                        <Text style={styles.timeLabel}>Out Time</Text>
+                                                        <Text style={styles.timeVal}>{formatTime(item.checkOutTime)}</Text>
+                                                    </View>
                                                 </View>
-                                                <View style={styles.timeItem}>
-                                                    <Text style={styles.timeLabel}>Out Time</Text>
-                                                    <Text style={styles.timeVal}>{formatTime(item.checkOutTime)}</Text>
+                                            )}
+
+                                            {/* Teacher Note Display */}
+                                            {item.teacherNote ? (
+                                                <View style={styles.noteContainer}>
+                                                    <Ionicons name="book" size={12} color="#4f46e5" style={{ marginTop: 2 }} />
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={styles.noteTitle}>Teacher Note:</Text>
+                                                        <Text style={styles.noteText}>{item.teacherNote}</Text>
+                                                    </View>
                                                 </View>
-                                            </View>
+                                            ) : null}
+
+                                            {/* Leave Note Display */}
+                                            {item.leaveNote ? (
+                                                <View style={[styles.noteContainer, { backgroundColor: '#fffbeb', borderColor: '#fef3c7' }]}>
+                                                    <Ionicons name="mail" size={12} color="#d97706" style={{ marginTop: 2 }} />
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={[styles.noteTitle, { color: '#b45309' }]}>
+                                                            My Leave Application ({item.leaveStatus || 'Pending'}):
+                                                        </Text>
+                                                        <Text style={[styles.noteText, { color: '#78350f' }]}>{item.leaveNote}</Text>
+                                                    </View>
+                                                </View>
+                                            ) : null}
 
                                             {/* Selfies Previews if present */}
                                             {(item.checkInPhoto || item.checkOutPhoto) && (
@@ -221,6 +305,59 @@ const StudentAttendanceHistoryScreen = ({ navigation }) => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Leave Application Modal */}
+            <Modal
+                visible={leaveModalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setLeaveModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.leaveModalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Apply for Leave</Text>
+                            <TouchableOpacity onPress={() => setLeaveModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{ padding: spacing.md }} keyboardShouldPersistTaps="handled">
+                            <Text style={styles.fieldLabel}>Leave Date (YYYY-MM-DD)</Text>
+                            <TextInput
+                                style={styles.textInput}
+                                value={leaveDate}
+                                onChangeText={setLeaveDate}
+                                placeholder="e.g. 2026-07-04"
+                                placeholderTextColor="#94a3b8"
+                            />
+
+                            <Text style={styles.fieldLabel}>Reason / Leave Note</Text>
+                            <TextInput
+                                style={[styles.textInput, { height: 100, textAlignVertical: 'top' }]}
+                                value={leaveNote}
+                                onChangeText={setLeaveNote}
+                                placeholder="Explain the reason for your leave..."
+                                placeholderTextColor="#94a3b8"
+                                multiline={true}
+                            />
+
+                            <TouchableOpacity
+                                style={[styles.submitBtn, submittingLeave && { opacity: 0.7 }]}
+                                onPress={handleLeaveSubmit}
+                                disabled={submittingLeave}
+                                activeOpacity={0.8}
+                            >
+                                {submittingLeave ? (
+                                    <ActivityIndicator size="small" color={colors.white} />
+                                ) : (
+                                    <Text style={styles.submitBtnText}>Submit Leave Application</Text>
+                                )}
+                            </TouchableOpacity>
+                            <View style={{ height: 20 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -280,6 +417,9 @@ const styles = StyleSheet.create({
     badgePresent: { backgroundColor: '#d1fae5' },
     badgeIn: { backgroundColor: '#fef3c7' },
     badgeAbsent: { backgroundColor: '#fee2e2' },
+    badgeLeave: { backgroundColor: '#eef2ff' }, // Light indigo/purple for approved leave
+    badgePending: { backgroundColor: '#ffedd5' }, // Light orange/yellow for pending leave
+    badgeHoliday: { backgroundColor: '#dbeafe' },
     badgeLabel: { fontSize: 10, fontWeight: '750', textTransform: 'uppercase', color: colors.textSecondary },
     
     divider: {
@@ -458,6 +598,93 @@ const styles = StyleSheet.create({
     },
     recordItemRow: {
         paddingVertical: spacing.md,
+    },
+    
+    // Notes and Leave application styling
+    noteContainer: {
+        flexDirection: 'row',
+        gap: 8,
+        backgroundColor: '#eef2ff',
+        borderWidth: 1,
+        borderColor: '#e0e7ff',
+        borderRadius: borderRadius.sm,
+        padding: spacing.sm,
+        marginTop: spacing.sm,
+    },
+    noteTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#3730a3',
+        textTransform: 'uppercase',
+    },
+    noteText: {
+        fontSize: fontSizes.xs,
+        color: '#1e1b4b',
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    applyLeaveHeaderBtn: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    applyLeaveHeaderBtnText: {
+        color: colors.white,
+        fontSize: fontSizes.xs,
+        fontWeight: '700',
+    },
+    leaveModalContent: {
+        width: '90%',
+        backgroundColor: colors.white,
+        borderRadius: borderRadius.md,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#005',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 8,
+    },
+    fieldLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        marginBottom: spacing.xs,
+        marginTop: spacing.sm,
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        fontSize: fontSizes.sm,
+        color: colors.text,
+        backgroundColor: colors.bg,
+        fontWeight: '600',
+    },
+    submitBtn: {
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.sm,
+        paddingVertical: spacing.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.md,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    submitBtnText: {
+        color: colors.white,
+        fontSize: fontSizes.sm,
+        fontWeight: '850',
     },
 });
 

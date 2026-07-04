@@ -155,29 +155,10 @@ const StudentDashboard = ({ navigation }) => {
                     <Ionicons name="chevron-forward" size={20} color={colors.success} />
                 </TouchableOpacity>
 
-                {/* Attendance Quick Banner */}
+                {/* Scan QR Code Card */}
                 <TouchableOpacity
-                    style={[styles.chatBanner, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}
-                    onPress={() => {
-                        Alert.alert(
-                            "Attendance Options",
-                            "Please choose an action:",
-                            [
-                                { 
-                                    text: "View My Attendance", 
-                                    onPress: () => navigation.navigate('StudentAttendanceHistory') 
-                                },
-                                { 
-                                    text: "Scan & Mark Attendance", 
-                                    onPress: () => navigation.navigate('ScanAttendance') 
-                                },
-                                { 
-                                    text: "Cancel", 
-                                    style: "cancel" 
-                                }
-                            ]
-                        );
-                    }}
+                    style={[styles.chatBanner, { backgroundColor: '#fef2f2', borderColor: '#fee2e2', marginBottom: spacing.sm }]}
+                    onPress={() => navigation.navigate('ScanAttendance')}
                     activeOpacity={0.85}
                 >
                     <View style={styles.chatBannerLeft}>
@@ -185,11 +166,29 @@ const StudentDashboard = ({ navigation }) => {
                             <Ionicons name="qr-code" size={22} color={colors.white} />
                         </View>
                         <View>
-                            <Text style={styles.chatBannerTitle}>Mark Attendance</Text>
-                            <Text style={styles.chatBannerSub}>Scan QR code, check history and logs</Text>
+                            <Text style={styles.chatBannerTitle}>Scan QR Code</Text>
+                            <Text style={styles.chatBannerSub}>Scan class QR to mark your attendance</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#ef4444" />
+                </TouchableOpacity>
+
+                {/* Attendance History Card */}
+                <TouchableOpacity
+                    style={[styles.chatBanner, { backgroundColor: '#eef2ff', borderColor: '#e0e7ff' }]}
+                    onPress={() => navigation.navigate('StudentAttendanceHistory')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.chatBannerLeft}>
+                        <View style={[styles.chatIconCircle, { backgroundColor: '#4f46e5' }]}>
+                            <Ionicons name="calendar" size={22} color={colors.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.chatBannerTitle}>Attendance History</Text>
+                            <Text style={styles.chatBannerSub}>View logs, teacher notes & leave approvals</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#4f46e5" />
                 </TouchableOpacity>
 
                 {/* Missed Calls */}

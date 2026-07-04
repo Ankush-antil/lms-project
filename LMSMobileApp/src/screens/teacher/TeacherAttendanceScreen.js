@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 const TeacherAttendanceScreen = ({ navigation }) => {
     // Active session state
     const [activeSession, setActiveSession] = useState(null);
+    const [activeSessions, setActiveSessions] = useState([]);
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -86,8 +87,11 @@ const TeacherAttendanceScreen = ({ navigation }) => {
             // 1. Check for active sessions
             const { data: activeRes } = await axios.get('/attendance/session/active');
             if (activeRes && activeRes.length > 0) {
+                setActiveSessions(activeRes);
                 setActiveSession(activeRes[0]);
                 fetchSessionRecords(activeRes[0]._id);
+            } else {
+                setActiveSessions([]);
             }
             
             // 2. Fetch courses
@@ -268,6 +272,7 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                 type: attendanceType
             });
             setActiveSession(data);
+            setActiveSessions(prev => [...prev, data]);
             fetchSessionRecords(data._id);
         } catch (error) {
             console.error("Create session error:", error);
@@ -290,6 +295,7 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                     onPress: async () => {
                         try {
                             await axios.post(`/attendance/session/${activeSession._id}/end`);
+                            setActiveSessions(prev => prev.filter(s => s._id !== activeSession._id));
                             setActiveSession(null);
                             setRecords([]);
                             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
@@ -446,20 +452,39 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                         </>
                     )}
 
-                    <TouchableOpacity 
-                        style={styles.btnStart} 
-                        onPress={handleCreateSession}
-                        disabled={submitting}
-                    >
-                        {submitting ? (
-                            <ActivityIndicator color={colors.white} />
-                        ) : (
-                            <>
-                                <Ionicons name="play-circle-outline" size={20} color={colors.white} />
-                                <Text style={styles.btnStartText}>Start QR Session</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                    {(() => {
+                        const existingSession = activeSessions.length > 0 ? activeSessions[0] : null;
+                        if (existingSession) {
+                            return (
+                                <TouchableOpacity 
+                                    style={[styles.btnStart, { backgroundColor: colors.success }]} 
+                                    onPress={() => {
+                                        setActiveSession(existingSession);
+                                        fetchSessionRecords(existingSession._id);
+                                    }}
+                                >
+                                    <Ionicons name="qr-code-outline" size={20} color={colors.white} />
+                                    <Text style={styles.btnStartText}>Back to Active QR</Text>
+                                </TouchableOpacity>
+                            );
+                        }
+                        return (
+                            <TouchableOpacity 
+                                style={styles.btnStart} 
+                                onPress={handleCreateSession}
+                                disabled={submitting}
+                            >
+                                {submitting ? (
+                                    <ActivityIndicator color={colors.white} />
+                                ) : (
+                                    <>
+                                        <Ionicons name="play-circle-outline" size={20} color={colors.white} />
+                                        <Text style={styles.btnStartText}>Start QR Session</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })()}
                 </ScrollView>
             ) : (
                 /* Live Attendance QR Screen */
@@ -469,9 +494,9 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                             <Text style={styles.sessionSubject}>{activeSession.subject}</Text>
                             <Text style={styles.sessionSection}>Section {activeSession.section}</Text>
                         </View>
-                        <View style={styles.timerBadge}>
-                            <Ionicons name="time-outline" size={14} color={colors.danger} />
-                            <Text style={styles.timerText}>{timeLeft}</Text>
+                        <View style={[styles.timerBadge, { backgroundColor: colors.success + '15', borderColor: colors.success }]}>
+                            <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} />
+                            <Text style={[styles.timerText, { color: colors.success }]}>Active</Text>
                         </View>
                     </View>
 
@@ -481,9 +506,16 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                             source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeSession.qrToken}` }}
                             style={styles.qrImage}
                         />
-                        <TouchableOpacity style={styles.btnEnd} onPress={handleEndSession}>
-                            <Text style={styles.btnEndText}>Close Attendance QR</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 20 }}>
+                            <TouchableOpacity 
+                                style={[styles.btnEnd, { flex: 1, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border }]} 
+                                onPress={() => setActiveSession(null)}>
+                                <Text style={[styles.btnEndText, { color: colors.text }]}>Hide / New QR</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.btnEnd, { flex: 1, marginTop: 0 }]} onPress={handleEndSession}>
+                                <Text style={styles.btnEndText}>Close QR</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     {/* Stats */}

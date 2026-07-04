@@ -2136,7 +2136,8 @@ const TeacherActivities = () => {
                                                     return (
                                                         <div
                                                             key={test._id}
-                                                            className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''}`}
+                                                            onClick={() => sub && navigate(`/student/test-result/${sub._id}`)}
+                                                            className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''} ${sub ? 'cursor-pointer' : ''}`}
                                                         >
                                                             <div className="flex items-start justify-between gap-2 min-w-0">
                                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -2320,9 +2321,12 @@ const TeacherActivities = () => {
                                                                         >
                                                                             Move to upcoming
                                                                         </button>
-                                                                    ) : sub ? (
+                                                                     ) : sub ? (
                                                                         <button
-                                                                            onClick={() => navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : ''}`)}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : isEvaluated ? '?mode=reevaluate' : ''}`);
+                                                                            }}
                                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
                                                                                 ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                                                                                 : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'

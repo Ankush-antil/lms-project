@@ -406,14 +406,13 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
 
                 {/* Profile */}
                 <div
-                    className="flex items-center space-x-3 relative group cursor-pointer"
-                    onClick={() => openProfile(user?._id || user?.id)}
+                    className="flex items-center space-x-3 relative group cursor-default"
                 >
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-slate-200 leading-none">{user?.name || 'User'}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 opacity-70">{user?.role || 'Guest'}</p>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-bold shadow-md shadow-black/10 ring-2 ring-slate-800 hover:rotate-3 transition-transform overflow-hidden">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-bold shadow-md shadow-black/10 ring-2 ring-slate-800 hover:rotate-3 transition-transform overflow-hidden cursor-pointer">
                         {user?.role === 'Institute' && user?.institute?.imageUrl ? (
                             <img src={user.institute.imageUrl} alt="Institute Logo" className="w-full h-full object-cover" />
                         ) : user?.avatar ? (
@@ -430,8 +429,11 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         onClick={(e) => e.stopPropagation()}
                         className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50 flex flex-col gap-1.5"
                     >
-                        <div className="px-3 py-2.5 border-b border-slate-800">
-                            <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Signed in as</p>
+                        <div 
+                            onClick={() => openProfile(user?._id || user?.id)}
+                            className="px-3 py-2.5 border-b border-slate-800 cursor-pointer hover:bg-white/5 rounded-xl transition-all"
+                        >
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed in as</p>
                             <p className="text-sm font-bold text-slate-200 truncate">{user?.email}</p>
                             <span className="inline-block mt-1.5 text-[8px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-widest">{user?.role}</span>
                         </div>

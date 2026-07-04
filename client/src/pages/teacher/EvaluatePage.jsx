@@ -41,6 +41,7 @@ const EvaluatePage = () => {
     const isFeedbackMode = queryParams.get('mode') === 'feedback';
 
     const role = userInfo?.role || 'Teacher';
+    const isReevaluateMode = queryParams.get('mode') === 'reevaluate';
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(id || null);
@@ -262,6 +263,28 @@ const EvaluatePage = () => {
         };
         fetchSubmissions();
     }, [id]);
+
+    // Pre-populate marks & feedback from existing submission data when in reevaluate mode
+    useEffect(() => {
+        if (isReevaluateMode && submissions.length > 0) {
+            const preMarks = {};
+            const preFeedback = {};
+            submissions.forEach(sub => {
+                preMarks[sub._id] = {};
+                preFeedback[sub._id] = {};
+                (sub.answers || []).forEach((ans, idx) => {
+                    if (ans.marks !== undefined && ans.marks !== null) {
+                        preMarks[sub._id][idx] = String(ans.marks);
+                    }
+                    if (ans.feedback) {
+                        preFeedback[sub._id][idx] = ans.feedback;
+                    }
+                });
+            });
+            setMarks(preMarks);
+            setFeedback(preFeedback);
+        }
+    }, [submissions, isReevaluateMode]);
 
     const setMark = (subId, qIdx, val) => {
         setMarks(prev => ({
@@ -1055,8 +1078,8 @@ const EvaluatePage = () => {
                                                                 {/* Actions Toolbar at bottom */}
                                                                 <div className="flex items-center justify-between bg-white px-4 py-2.5 border-t border-slate-100 flex-wrap gap-4">
                                                                     <div className="flex items-center gap-4 flex-1">
-                                                                        {/* Score & Improvement Feedback on the same line! */}
-                                                                        {submission.status !== 'evaluated' && !isFeedbackMode && (
+                                                                        {/* Score & Improvement Feedback — always visible for teacher */}
+                                                                        {!isFeedbackMode && (
                                                                             <div className="flex items-center gap-3 flex-1 justify-start">
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Score:</span>
@@ -1064,7 +1087,7 @@ const EvaluatePage = () => {
                                                                                         type="text"
                                                                                         value={marks[submission._id]?.[idx] ?? ans.marks ?? ''}
                                                                                         onChange={e => setMark(submission._id, idx, e.target.value)}
-                                                                                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400"
                                                                                         placeholder="0.0"
                                                                                     />
                                                                                 </div>
@@ -1074,7 +1097,7 @@ const EvaluatePage = () => {
                                                                                         type="text"
                                                                                         value={feedback[submission._id]?.[idx] ?? ans.feedback ?? ''}
                                                                                         onChange={e => setFeedbackText(submission._id, idx, e.target.value)}
-                                                                                        className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                                                        className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400"
                                                                                         placeholder="Notes for student..."
                                                                                     />
                                                                                 </div>
@@ -1093,7 +1116,12 @@ const EvaluatePage = () => {
                                                             </div>
 
                                                             {/* Conversation Thread / Feedback / Grading Section */}
-                                                            {(submission.status === 'evaluated' || ans.reaction || marks[submission._id]?.[idx] || feedback[submission._id]?.[idx] || (ans.conversation && ans.conversation.length > 0)) ? (
+                                                            {isReevaluateMode && (
+                                                                <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                                                                    <RefreshCw size={12} /> Re-evaluation Mode Active
+                                                                </div>
+                                                            )}
+                                                            {((submission.status === 'evaluated' && !isReevaluateMode) || ans.reaction || marks[submission._id]?.[idx] || feedback[submission._id]?.[idx] || (ans.conversation && ans.conversation.length > 0)) ? (
                                                                 collapsedFeedback[`${submission._id}-${idx}`] && (
                                                                     <div className="mt-4 pt-4 border-t border-slate-100 space-y-4 animate-fade-in text-left">
                                                                         {/* Conversation History */}
@@ -1359,9 +1387,11 @@ const EvaluatePage = () => {
                                     <button
                                         onClick={() => submitEvaluation(submission)}
                                         disabled={saving === submission._id}
-                                        className={`flex items-center gap-1.5 px-4 py-1.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 text-xs uppercase ${submission.status === 'evaluated'
-                                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                        className={`flex items-center gap-1.5 px-4 py-1.5 font-bold rounded-xl transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 text-xs uppercase ${isReevaluateMode
+                                            ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                            : submission.status === 'evaluated'
+                                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                                : 'bg-red-500 hover:bg-red-600 text-white'
                                             }`}
                                     >
                                         {saving === submission._id ? (
@@ -1369,7 +1399,7 @@ const EvaluatePage = () => {
                                         ) : (
                                             <>
                                                 <CheckCircle2 size={14} />
-                                                {submission.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
+                                                {isReevaluateMode ? 'SAVE RE-EVALUATION' : submission.status === 'evaluated' ? 'UPDATE ASSESSMENT' : 'FINALIZE EVALUATION'}
                                             </>
                                         )}
                                     </button>

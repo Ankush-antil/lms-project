@@ -437,7 +437,7 @@ const ViewTestResult = ({ isSharedView = false }) => {
 
                     {isTeacher && !isSharedView && (
                         <button
-                            onClick={() => navigate(`/teacher/evaluate/${id}`)}
+                            onClick={() => navigate(isEvaluated ? `/teacher/evaluate/${id}?mode=reevaluate` : `/teacher/evaluate/${id}`)}
                             className="bg-amber-500 hover:bg-amber-600 px-4 py-1 rounded-full text-white font-black text-xs border border-amber-600 shadow-sm flex items-center gap-2 transition-all active:scale-95"
                         >
                             <RefreshCw size={12} /> {isEvaluated ? 'Re-evaluate Test' : 'Evaluate Test'}
@@ -445,8 +445,6 @@ const ViewTestResult = ({ isSharedView = false }) => {
                     )}
                 </div>
             </div>
-
-
 
             {/* Main Content Area */}
             <div className="p-6 flex-1 flex flex-col">
@@ -957,89 +955,89 @@ const ViewTestResult = ({ isSharedView = false }) => {
                 </div>
             )}
 
-        {/* Footer Bar */}
-        {!isTeacher && sharedQuestionIndex === null && (
-            <div className="bg-[#111A24] border-t border-[#1C2836] py-3.5 px-4 flex items-center justify-between flex-wrap gap-4 text-white w-full shrink-0">
-                {/* Left: Overall Likes & Dislikes */}
-                <div className="flex items-center gap-3">
-                    {/* Overall Thumbs Up (Like) */}
-                    <button
-                        onClick={() => handleToggleOverallReaction('like')}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'like' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
-                        title="Like Test"
-                    >
-                        <ThumbsUp size={15} fill={overallReaction === 'like' ? 'currentColor' : 'none'} />
-                        <span className="text-xs font-semibold">{overallLikesCount}</span>
-                    </button>
+            {/* Footer Bar */}
+            {!isTeacher && sharedQuestionIndex === null && (
+                <div className="bg-[#111A24] border-t border-[#1C2836] py-3.5 px-4 flex items-center justify-between flex-wrap gap-4 text-white w-full shrink-0">
+                    {/* Left: Overall Likes & Dislikes */}
+                    <div className="flex items-center gap-3">
+                        {/* Overall Thumbs Up (Like) */}
+                        <button
+                            onClick={() => handleToggleOverallReaction('like')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'like' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
+                            title="Like Test"
+                        >
+                            <ThumbsUp size={15} fill={overallReaction === 'like' ? 'currentColor' : 'none'} />
+                            <span className="text-xs font-semibold">{overallLikesCount}</span>
+                        </button>
 
-                    {/* Overall Thumbs Down (Dislike) */}
-                    <button
-                        onClick={() => handleToggleOverallReaction('dislike')}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'dislike' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
-                        title="Dislike Test"
-                    >
-                        <ThumbsDown size={15} fill={overallReaction === 'dislike' ? 'currentColor' : 'none'} />
-                        <span className="text-xs font-semibold">{overallDislikesCount}</span>
-                    </button>
+                        {/* Overall Thumbs Down (Dislike) */}
+                        <button
+                            onClick={() => handleToggleOverallReaction('dislike')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${overallReaction === 'dislike' ? 'text-amber-400 bg-amber-950/20 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
+                            title="Dislike Test"
+                        >
+                            <ThumbsDown size={15} fill={overallReaction === 'dislike' ? 'currentColor' : 'none'} />
+                            <span className="text-xs font-semibold">{overallDislikesCount}</span>
+                        </button>
+                    </div>
+
+                    {/* Right: Actions — sequence: Comment | Share | Feedback | Total Evaluation */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Comment */}
+                        <button
+                            onClick={() => {
+                                if (!showOverallComments) {
+                                    loadOverallComments(id);
+                                }
+                                setShowOverallComments(!showOverallComments);
+                            }}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 cursor-pointer ${showOverallComments ? 'text-[#E84393] bg-[#E84393]/10 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
+                        >
+                            <MessageSquare size={14} />
+                            <span>Comment ({overallComments.length > 0 ? overallComments.length : ''})</span>
+                        </button>
+
+                        <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                        {/* Share */}
+                        <button
+                            onClick={handleShareOverall}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Share2 size={14} />
+                            <span>Share</span>
+                        </button>
+
+                        <div className="w-[1px] h-4 bg-slate-700"></div>
+
+                        {/* Feedback Chat */}
+                        <button
+                            onClick={() => {
+                                loadChatHistory(id);
+                                setChatModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <MessageSquare size={14} />
+                            <span>Feedback</span>
+                        </button>
+
+                        {isEvaluated && (
+                            <>
+                                <div className="w-[1px] h-4 bg-slate-700"></div>
+                                {/* Total Evaluation */}
+                                <button
+                                    onClick={() => setTotalEvalModalOpen(true)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F8A5C2]/15 hover:bg-[#F8A5C2]/25 text-[#E84393] rounded-lg text-xs font-bold border border-[#F8A5C2]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    <Star size={12} fill="currentColor" />
+                                    <span>Total Evaluation</span>
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
-
-                {/* Right: Actions — sequence: Comment | Share | Feedback | Total Evaluation */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Comment */}
-                    <button
-                        onClick={() => {
-                            if (!showOverallComments) {
-                                loadOverallComments(id);
-                            }
-                            setShowOverallComments(!showOverallComments);
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 cursor-pointer ${showOverallComments ? 'text-[#E84393] bg-[#E84393]/10 font-bold' : 'text-slate-400 hover:text-slate-350 hover:bg-slate-800/30'}`}
-                    >
-                        <MessageSquare size={14} />
-                        <span>Comment ({overallComments.length > 0 ? overallComments.length : ''})</span>
-                    </button>
-
-                    <div className="w-[1px] h-4 bg-slate-700"></div>
-
-                    {/* Share */}
-                    <button
-                        onClick={handleShareOverall}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
-                    >
-                        <Share2 size={14} />
-                        <span>Share</span>
-                    </button>
-
-                    <div className="w-[1px] h-4 bg-slate-700"></div>
-
-                    {/* Feedback Chat */}
-                    <button
-                        onClick={() => {
-                            loadChatHistory(id);
-                            setChatModalOpen(true);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 hover:bg-slate-800/30 transition-all active:scale-95 cursor-pointer"
-                    >
-                        <MessageSquare size={14} />
-                        <span>Feedback</span>
-                    </button>
-
-                    {isEvaluated && (
-                        <>
-                            <div className="w-[1px] h-4 bg-slate-700"></div>
-                            {/* Total Evaluation */}
-                            <button
-                                onClick={() => setTotalEvalModalOpen(true)}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F8A5C2]/15 hover:bg-[#F8A5C2]/25 text-[#E84393] rounded-lg text-xs font-bold border border-[#F8A5C2]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                            >
-                                <Star size={12} fill="currentColor" />
-                                <span>Total Evaluation</span>
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
-        )}
+            )}
         </div>
     );
 

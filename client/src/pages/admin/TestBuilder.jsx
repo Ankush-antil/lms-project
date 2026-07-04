@@ -12,7 +12,7 @@ import {
     PlaySquare, Box, Globe, Headphones, Brain, Trash2, X, Sparkles, CheckCircle2, AlertCircle, Copy, Info,
     Bold, Italic, Underline, Strikethrough, ArrowRightLeft, Activity, Code, Quote, Table, HelpCircle, Sliders, GitBranch, Smile, Heading, ListOrdered, GripVertical, AlertTriangle,
     Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip,
-    Files, Volume2, PhoneCall, Film
+    Files, Volume2, PhoneCall, Film, MapPin, Lock, Shield, LayoutTemplate
 } from 'lucide-react';
 import { uploadVideo } from "../../api/videoApi";
 import axios from 'axios';
@@ -2075,7 +2075,129 @@ const TestBuilder = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [allowTeacherEdit, setAllowTeacherEdit] = useState(false);
     const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
+    const [monitoringEnabled, setMonitoringEnabled] = useState(false);
+    const [locationLockedEnabled, setLocationLockedEnabled] = useState(false);
+    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+    const formNameInputRef = useRef(null);
     const [discussionActivity, setDiscussionActivity] = useState({ activityName: '', activityLink: '' });
+
+    const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
+    const [templateMeta, setTemplateMeta] = useState({
+        name: '',
+        type: 'form', // 'section' | 'form'
+        target: 'site' // 'site' | 'cloud'
+    });
+
+    const [isTemplatesBrowseOpen, setIsTemplatesBrowseOpen] = useState(false);
+    const [browseTab, setBrowseTab] = useState('site'); // 'site' | 'cloud'
+    const [activeLibraryHeaderTab, setActiveLibraryHeaderTab] = useState('Templates'); // 'Section' | 'Form' | 'Templates'
+    const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+
+    const [siteTemplates, setSiteTemplates] = useState(() => {
+        const saved = localStorage.getItem('lms_site_templates');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    const [cloudTemplates, setCloudTemplates] = useState(() => {
+        const saved = localStorage.getItem('lms_cloud_templates');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    useEffect(() => {
+        localStorage.setItem('lms_site_templates', JSON.stringify(siteTemplates));
+    }, [siteTemplates]);
+
+    useEffect(() => {
+        localStorage.setItem('lms_cloud_templates', JSON.stringify(cloudTemplates));
+    }, [cloudTemplates]);
+
+    const handleSaveAsTemplate = () => {
+        if (!templateMeta.name.trim()) {
+            toast.error("Please enter a template name");
+            return;
+        }
+
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = new Date().toLocaleDateString('en-US', options);
+
+        const newTemplate = {
+            id: 'template_' + Date.now(),
+            name: templateMeta.name.trim(),
+            type: templateMeta.type === 'form' ? 'Form' : 'Section',
+            createdBy: user?.name || user?.username || 'mubarakgnr',
+            creationDate: formattedDate,
+            target: templateMeta.target,
+            elements: JSON.parse(JSON.stringify(formElements)) // clone elements
+        };
+
+        if (templateMeta.target === 'site') {
+            setSiteTemplates(prev => [newTemplate, ...prev]);
+            toast.success(`Saved to Site Templates (Your Profile)!`);
+        } else {
+            setCloudTemplates(prev => [newTemplate, ...prev]);
+            toast.success(`Saved to Cloud Templates (Publicly Shared)!`);
+        }
+
+        setIsSaveTemplateModalOpen(false);
+    };
+
+    const handleSelectTemplate = (template) => {
+        if (template.elements && template.elements.length > 0) {
+            setFormElements(template.elements);
+            toast.success(`Loaded template: ${template.name}`);
+        } else {
+            toast.error("Selected template is empty");
+        }
+        setIsTemplatesBrowseOpen(false);
+    };
+
+    const handleExportForm = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+            connectData,
+            formElements,
+            version: "1.0",
+            exportedAt: new Date().toISOString()
+        }, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `${connectData?.name || 'form'}_export.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        toast.success("Form exported as JSON successfully!");
+    };
+
+    const importFileInputRef = useRef(null);
+
+    const handleImportForm = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsedData = JSON.parse(event.target.result);
+                if (parsedData && (parsedData.formElements || Array.isArray(parsedData.elements))) {
+                    if (parsedData.connectData) {
+                        setConnectData(parsedData.connectData);
+                        if (parsedData.connectData.name) {
+                            setIsConnected(true);
+                        }
+                    }
+                    const elements = parsedData.formElements || parsedData.elements;
+                    setFormElements(elements);
+                    toast.success("Form imported successfully!");
+                } else {
+                    toast.error("Invalid JSON format. Make sure it is a valid exported form.");
+                }
+            } catch (err) {
+                console.error("JSON parsing error:", err);
+                toast.error("Failed to parse JSON file.");
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+    };
     const [connectData, setConnectData] = useState({
         name: 'Untitled Form',
         institute: '',
@@ -2954,14 +3076,115 @@ const TestBuilder = () => {
                     <div className="h-5 w-px bg-slate-800"></div>
 
                     {/* Form Name Input */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative">
                         <input
                             type="text"
+                            ref={formNameInputRef}
                             value={connectData?.name || ''}
                             onChange={(e) => setConnectData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Untitled Form"
                             className="bg-transparent font-bold text-white text-base border-b border-transparent hover:border-slate-750 focus:border-white focus:outline-none transition-colors px-1 py-0.5 min-w-[150px] max-w-[240px]"
                         />
+                        {/* Options Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                                className="p-1 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-all focus:outline-none flex items-center justify-center"
+                                title="Form Options"
+                            >
+                                <ChevronDown size={14} />
+                            </button>
+
+                            {isHeaderMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsHeaderMenuOpen(false)} />
+                                    <div className="absolute left-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-50 text-slate-800 animate-fade-in text-left">
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                toast.success("Starred this form!");
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700"
+                                        >
+                                            <Star size={13} className="text-amber-500" fill="currentColor" />
+                                            <span>Star</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                toast("Add internal note feature coming soon!", { icon: '📝' });
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700"
+                                        >
+                                            <FileText size={13} className="text-slate-400" />
+                                            <span>Add internal note</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                formNameInputRef.current?.focus();
+                                                formNameInputRef.current?.select();
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700 border-t border-slate-100"
+                                        >
+                                            <Edit size={13} className="text-slate-400" />
+                                            <span>Rename</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                toast.success("Form duplicated as draft!");
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700"
+                                        >
+                                            <Copy size={13} className="text-slate-400" />
+                                            <span>Duplicate</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                handleExportForm();
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700 border-t border-slate-100"
+                                        >
+                                            <Download size={13} className="text-emerald-600" />
+                                            <span className="text-emerald-700 font-extrabold">Export form</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                toast("Access management details opened.");
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700"
+                                        >
+                                            <Users size={13} className="text-slate-400" />
+                                            <span>Manage Access</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                navigate(-1);
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-rose-50 hover:text-rose-700 transition-colors text-left text-slate-700 border-t border-slate-100"
+                                        >
+                                            <X size={13} className="text-rose-500" />
+                                            <span>Close form</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsHeaderMenuOpen(false);
+                                                toast.error("Moved to trash!");
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-red-50 hover:text-red-700 transition-colors text-left text-slate-700"
+                                        >
+                                            <Trash2 size={13} className="text-red-500" />
+                                            <span>Move to trash</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
                         <span className="text-[10px] uppercase font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">Draft</span>
                     </div>
                 </div>
@@ -3325,8 +3548,15 @@ const TestBuilder = () => {
                             <span>Integrate</span>
                         </button>
 
+                        <input
+                            type="file"
+                            ref={importFileInputRef}
+                            onChange={handleImportForm}
+                            accept=".json"
+                            style={{ display: 'none' }}
+                        />
                         <button
-                            onClick={() => toast("Drag and drop JSON schema file to import elements.", { icon: '📥' })}
+                            onClick={() => importFileInputRef.current?.click()}
                             className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <FolderUp size={14} className="text-[#0b1329]" />
@@ -3334,7 +3564,14 @@ const TestBuilder = () => {
                         </button>
 
                         <button
-                            onClick={() => toast("Layout saved as reusable template in your dashboard.", { icon: '💾' })}
+                            onClick={() => {
+                                setTemplateMeta({
+                                    name: connectData?.name || 'Untitled Template',
+                                    type: 'form',
+                                    target: 'site'
+                                });
+                                setIsSaveTemplateModalOpen(true);
+                            }}
                             className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
                         >
                             <Save size={14} className="text-[#0b1329]" />
@@ -4100,7 +4337,10 @@ const TestBuilder = () => {
                                             <span>Logic Rules</span>
                                         </button>
                                         <button
-                                            onClick={() => toast("Pick form Elements template design from database.")}
+                                            onClick={() => {
+                                                setBrowseTab('site');
+                                                setIsTemplatesBrowseOpen(true);
+                                            }}
                                             className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
                                         >
                                             <Layout size={12} />
@@ -4108,11 +4348,60 @@ const TestBuilder = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Right Side: Location Locked + Monitoring */}
+                                <div className="absolute right-6 flex items-center gap-2">
+                                    {/* Location Locked Button + Toggle */}
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
+                                        <MapPin size={13} className={locationLockedEnabled ? 'text-rose-500 animate-pulse' : 'text-slate-400'} />
+                                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Location Locked</span>
+                                        {/* Toggle Switch */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLocationLockedEnabled(prev => !prev);
+                                                toast(locationLockedEnabled ? 'Location Lock disabled' : 'Location Lock enabled — students must be at the designated location.');
+                                            }}
+                                            className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
+                                            style={{ backgroundColor: locationLockedEnabled ? '#f43f5e' : '#cbd5e1' }}
+                                            title={locationLockedEnabled ? 'Location Lock ON' : 'Location Lock OFF'}
+                                        >
+                                            <div
+                                                className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                                                style={{ transform: locationLockedEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    <div className="w-px h-4 bg-slate-200" />
+
+                                    {/* Monitoring Button + Toggle */}
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
+                                        <Shield size={13} className={monitoringEnabled ? 'text-emerald-500' : 'text-slate-400'} />
+                                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Monitoring</span>
+                                        {/* Toggle Switch */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setMonitoringEnabled(prev => !prev);
+                                                toast(monitoringEnabled ? 'Monitoring disabled' : 'Monitoring enabled — student activity will be tracked.');
+                                            }}
+                                            className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
+                                            style={{ backgroundColor: monitoringEnabled ? '#10b981' : '#cbd5e1' }}
+                                            title={monitoringEnabled ? 'Monitoring ON' : 'Monitoring OFF'}
+                                        >
+                                            <div
+                                                className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                                                style={{ transform: monitoringEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
                         {/* Floating Counter Badge */}
-                        <div className="absolute bottom-4 right-4 z-30">
+                        <div className="absolute bottom-16 right-4 z-30">
                             <button
                                 onClick={() => toast(`Form is composed of ${formElements.length} custom Elements.`)}
                                 className="bg-[#0b1329] hover:bg-[#0b1329] text-white px-5 py-2.5 rounded-full shadow-lg hover:shadow-xl font-bold text-xs flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
@@ -4275,6 +4564,313 @@ const TestBuilder = () => {
                                     className="px-5 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-[#0b1329]/15"
                                 >
                                     Save Activity
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Save as Template Modal */}
+                {isSaveTemplateModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 border border-slate-100 flex flex-col gap-4 animate-scale-up">
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                    <Save size={16} className="text-indigo-650" />
+                                    <span>Save as Template</span>
+                                </h3>
+                                <button
+                                    onClick={() => setIsSaveTemplateModalOpen(false)}
+                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 transition-all focus:outline-none"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Template Name</label>
+                                    <input
+                                        type="text"
+                                        value={templateMeta.name}
+                                        onChange={(e) => setTemplateMeta(prev => ({ ...prev, name: e.target.value }))}
+                                        placeholder="e.g. Admission Form"
+                                        className="w-full px-4 py-2.5 bg-slate-55 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0b1329] outline-none text-sm font-semibold transition-all text-slate-800"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Template Type</label>
+                                    <select
+                                        value={templateMeta.type}
+                                        onChange={(e) => setTemplateMeta(prev => ({ ...prev, type: e.target.value }))}
+                                        className="w-full px-4 py-2.5 bg-slate-55 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0b1329] outline-none text-sm font-semibold transition-all text-slate-800"
+                                    >
+                                        <option value="form">Form (Complete layout)</option>
+                                        <option value="section">Section (Group of questions)</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider block">Where to Save?</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTemplateMeta(prev => ({ ...prev, target: 'site' }))}
+                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'site' 
+                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600' 
+                                                : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                                        >
+                                            <span className="text-xs font-bold">Save as Site</span>
+                                            <span className="text-[10px] text-slate-450 leading-tight">Save privately to your profile dashboard</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTemplateMeta(prev => ({ ...prev, target: 'cloud' }))}
+                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'cloud' 
+                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600' 
+                                                : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                                        >
+                                            <span className="text-xs font-bold">Save as Cloud</span>
+                                            <span className="text-[10px] text-slate-450 leading-tight">Save publicly under public template store</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSaveTemplateModalOpen(false)}
+                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveAsTemplate}
+                                    className="px-5 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-[#0b1329]/15"
+                                >
+                                    Save Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Browse Templates Modal */}
+                {isTemplatesBrowseOpen && (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-6xl w-full shadow-2xl p-6 border border-slate-100 flex flex-col gap-4 animate-scale-up max-h-[85vh]">
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                    <LayoutTemplate size={18} className="text-indigo-650" />
+                                    <span>Browse Templates</span>
+                                </h3>
+                                <button
+                                    onClick={() => setIsTemplatesBrowseOpen(false)}
+                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 transition-all focus:outline-none"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Library Sub Header */}
+                            <div className="flex items-center gap-6 border-b border-slate-200 pb-2 mb-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveLibraryHeaderTab('Section')}
+                                    className={`${activeLibraryHeaderTab === 'Section' 
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                        : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
+                                >
+                                    Section
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveLibraryHeaderTab('Form')}
+                                    className={`${activeLibraryHeaderTab === 'Form' 
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                        : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
+                                >
+                                    Form
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveLibraryHeaderTab('Templates')}
+                                    className={`${activeLibraryHeaderTab === 'Templates' 
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                        : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
+                                >
+                                    Templates
+                                </button>
+                            </div>
+
+                            {/* Tab Pills Selection */}
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBrowseTab('site')}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-extrabold border transition-all ${browseTab === 'site'
+                                            ? 'bg-slate-100 border-slate-350 text-slate-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-55'}`}
+                                    >
+                                        <FolderUp size={12} />
+                                        <span>Site templates</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBrowseTab('cloud')}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-extrabold border transition-all ${browseTab === 'cloud'
+                                            ? 'bg-slate-100 border-slate-350 text-slate-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-55'}`}
+                                    >
+                                        <Globe size={12} />
+                                        <span>Cloud templates</span>
+                                        <span className="text-[8px] bg-indigo-50 text-indigo-700 font-black px-1.5 py-0.5 rounded border border-indigo-100 scale-90 origin-left">Pro</span>
+                                    </button>
+                                </div>
+
+                                {/* Search display */}
+                                <div className="relative flex items-center">
+                                    <Search size={12} className="absolute left-3 text-slate-400 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search templates..."
+                                        value={templateSearchQuery}
+                                        onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                                        className="pl-8 pr-8 py-1.5 w-60 bg-slate-55 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0b1329] outline-none text-xs font-bold text-slate-800 transition-all placeholder-slate-400"
+                                    />
+                                    {templateSearchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTemplateSearchQuery('')}
+                                            className="absolute right-2.5 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all focus:outline-none"
+                                        >
+                                            <X size={10} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Table area */}
+                            <div className="flex-1 overflow-y-auto min-h-[320px] max-h-[50vh] pr-1 custom-scrollbar mt-2">
+                                {(() => {
+                                    const currentTemplates = (browseTab === 'site' ? siteTemplates : cloudTemplates).filter(tpl => {
+                                        // 1. Tab filter
+                                        if (activeLibraryHeaderTab === 'Form' && tpl.type !== 'Form') return false;
+                                        if (activeLibraryHeaderTab === 'Section' && tpl.type !== 'Section') return false;
+                                        
+                                        // 2. Search query filter
+                                        if (templateSearchQuery.trim()) {
+                                            const query = templateSearchQuery.toLowerCase().trim();
+                                            return (
+                                                tpl.name.toLowerCase().includes(query) ||
+                                                (tpl.createdBy && tpl.createdBy.toLowerCase().includes(query)) ||
+                                                (tpl.type && tpl.type.toLowerCase().includes(query))
+                                            );
+                                        }
+                                        return true;
+                                    });
+                                    if (currentTemplates.length === 0) {
+                                        return (
+                                            <div className="text-center py-16 text-slate-400 text-xs italic font-medium bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                {templateSearchQuery.trim() ? (
+                                                    <span>No matching results found for "{templateSearchQuery}".</span>
+                                                ) : (
+                                                    <span>
+                                                        {browseTab === 'site' 
+                                                            ? `No ${activeLibraryHeaderTab.toLowerCase()} templates saved yet in your profile.` 
+                                                            : `No public cloud ${activeLibraryHeaderTab.toLowerCase()} templates available.`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse text-[11px]">
+                                                <thead>
+                                                    <tr className="border-b border-slate-250 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                                                        <th className="py-2.5 px-4 font-black">Name</th>
+                                                        <th className="py-2.5 px-4 font-black">Type</th>
+                                                        <th className="py-2.5 px-4 font-black">Created By</th>
+                                                        <th className="py-2.5 px-4 font-black">Creation Date</th>
+                                                        <th className="py-2.5 px-4 font-black text-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {currentTemplates.map((tpl, index) => (
+                                                        <tr key={tpl.id} className="hover:bg-slate-50/70 transition-colors group">
+                                                            <td className="py-3 px-4 font-bold text-slate-800">
+                                                                {index + 1}. {tpl.name}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-slate-550 font-semibold">
+                                                                {tpl.type}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-slate-500 font-semibold">
+                                                                {tpl.createdBy}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-slate-450 font-semibold">
+                                                                {tpl.creationDate}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-right">
+                                                                <div className="flex items-center justify-end gap-4">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            toast(`Previewing: ${tpl.name} (${tpl.elements?.length || 0} fields)`);
+                                                                        }}
+                                                                        className="text-slate-500 hover:text-indigo-650 font-extrabold flex items-center gap-1 transition-colors focus:outline-none"
+                                                                    >
+                                                                        <Eye size={12} />
+                                                                        <span>Preview</span>
+                                                                    </button>
+                                                                    
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSelectTemplate(tpl)}
+                                                                        className="text-indigo-650 hover:text-indigo-750 font-extrabold flex items-center gap-1 transition-colors focus:outline-none"
+                                                                    >
+                                                                        <FolderUp size={12} />
+                                                                        <span>Insert</span>
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (browseTab === 'site') {
+                                                                                setSiteTemplates(prev => prev.filter(t => t.id !== tpl.id));
+                                                                            } else {
+                                                                                setCloudTemplates(prev => prev.filter(t => t.id !== tpl.id));
+                                                                            }
+                                                                            toast.success("Template deleted");
+                                                                        }}
+                                                                        className="text-slate-350 hover:text-rose-600 transition-colors focus:outline-none"
+                                                                        title="Delete Template"
+                                                                    >
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTemplatesBrowseOpen(false)}
+                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all"
+                                >
+                                    Close
                                 </button>
                             </div>
                         </div>

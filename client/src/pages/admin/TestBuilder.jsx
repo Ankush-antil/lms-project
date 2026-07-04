@@ -692,7 +692,7 @@ const QuestionBuilderCard = ({
                             <button
                                 type="button"
                                 onClick={label === 'Short Answer' ? () => toast("Coming Soon", { icon: 'ℹ️' }) : handleAiGenerate}
-                                className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                 title="Generate Question content automatically using AI"
                             >
                                 <Wand2 size={13} />
@@ -706,7 +706,7 @@ const QuestionBuilderCard = ({
                                         <button
                                             type="button"
                                             onClick={() => setShowUploadMenu(!showUploadMenu)}
-                                            className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                             title="Manage uploaded resource"
                                         >
                                             <Upload size={13} />
@@ -778,7 +778,7 @@ const QuestionBuilderCard = ({
                                     <button
                                         type="button"
                                         onClick={() => resourceFileInputRef.current?.click()}
-                                        className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                         title="Upload supporting resources (PDF, DOC, etc.)"
                                     >
                                         <Upload size={13} />
@@ -789,7 +789,7 @@ const QuestionBuilderCard = ({
                                 <button
                                     type="button"
                                     onClick={handleUploadClick}
-                                    className="px-3 py-1.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                     title="Upload supporting resources (PDF, DOC, etc.)"
                                 >
                                     <Upload size={13} />
@@ -904,7 +904,7 @@ const QuestionBuilderCard = ({
                                                 setShowNoteModal(true);
                                                 setTimeout(updateNoteActiveFormat, 100);
                                             }}
-                                            className="px-3 py-1.5 bg-black hover:bg-slate-900 text-white rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm"
                                             title="Open Note Editor"
                                         >
                                             <Type size={13} />
@@ -922,7 +922,7 @@ const QuestionBuilderCard = ({
                                             onUpdateText(stripHtml(element.text || ''));
                                         }
                                     }}
-                                    className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm ${writeMode ? 'bg-[#0b1329] text-white' : 'bg-black hover:bg-slate-900 text-white'}`}
+                                    className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm border ${writeMode ? 'bg-[#0b1329] text-white border-slate-800' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200/80'}`}
                                     title="Toggle Advanced Rich Text Toolbar"
                                 >
                                     <Type size={13} />

@@ -32,7 +32,9 @@ const WebCallingPage = () => {
         callState,
         callInfo,
         callDuration,
-        onlineUsers = []
+        onlineUsers = [],
+        localStreamRef,
+        remoteStreamRef
     } = useSocket();
 
     const localVideoRef = useRef(null);
@@ -127,12 +129,59 @@ const WebCallingPage = () => {
         if (callState === 'connected' && prevCallStateRef.current !== 'connected') {
             callStartTimeRef.current = Date.now();
             
-            // Start recording user's microphone if active during WebRTC call
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: micEnabled, video: false })
-                    .then(stream => {
-                        if (stream.getAudioTracks().length > 0) {
-                            const mediaRecorder = new MediaRecorder(stream);
+            // Wait 1 second to ensure that remote/local streams are established
+            setTimeout(() => {
+                const localStream = localStreamRef?.current;
+                const remoteStream = remoteStreamRef?.current;
+
+                if (localStream && remoteStream) {
+                    try {
+                        console.log('[WebCallingPage Recording] Mixing local & remote streams...');
+                        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                        const mixContext = new AudioContextClass();
+
+                        // Clone streams to prevent WebRTC track close conflicts
+                        const clonedLocal = localStream.clone();
+                        const clonedRemote = remoteStream.clone();
+
+                        const localSource = mixContext.createMediaStreamSource(clonedLocal);
+                        const remoteSource = mixContext.createMediaStreamSource(clonedRemote);
+                        const mixDestination = mixContext.createMediaStreamDestination();
+
+                        localSource.connect(mixDestination);
+                        remoteSource.connect(mixDestination);
+
+                        const mixedStream = mixDestination.stream;
+                        audioChunksRef.current = [];
+
+                        const mediaRecorder = new MediaRecorder(mixedStream, { mimeType: 'audio/webm' });
+                        mediaRecorderRef.current = mediaRecorder;
+
+                        mediaRecorder.ondataavailable = (event) => {
+                            if (event.data && event.data.size > 0) {
+                                audioChunksRef.current.push(event.data);
+                            }
+                        };
+
+                        mediaRecorder.onstop = () => {
+                            try {
+                                clonedLocal.getTracks().forEach(t => t.stop());
+                                clonedRemote.getTracks().forEach(t => t.stop());
+                                mixContext.close();
+                            } catch (e) {}
+                        };
+
+                        mediaRecorder.start(1000); // Record in 1-second chunks
+                        console.log('[WebCallingPage Recording] Mixed WebRTC recording started.');
+                    } catch (err) {
+                        console.error('[WebCallingPage Recording] Failed to start mixed WebRTC recording:', err);
+                    }
+                } else {
+                    // Fallback to mic only if stream is missing
+                    console.log('[WebCallingPage Recording] Streams missing, fallback to mic-only...');
+                    if (localStream) {
+                        try {
+                            const mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
                             mediaRecorderRef.current = mediaRecorder;
                             audioChunksRef.current = [];
                             mediaRecorder.ondataavailable = (event) => {
@@ -140,17 +189,17 @@ const WebCallingPage = () => {
                                     audioChunksRef.current.push(event.data);
                                 }
                             };
-                            mediaRecorder.start();
+                            mediaRecorder.start(1000);
+                        } catch (err) {
+                            console.error('[WebCallingPage Recording] Mic-only fallback failed:', err);
                         }
-                    })
-                    .catch(err => {
-                        console.error("Could not capture local stream for WebRTC call recording:", err);
-                    });
-            }
+                    }
+                }
+            }, 1000);
         }
 
-        // When call ends
-        if (callState === 'idle' && prevCallStateRef.current === 'connected') {
+        // When call ends (leaves 'connected' state)
+        if (callState !== 'connected' && prevCallStateRef.current === 'connected') {
             const durationMs = callStartTimeRef.current ? (Date.now() - callStartTimeRef.current) : 0;
             const durationSecs = Math.max(1, Math.floor(durationMs / 1000));
             
@@ -183,18 +232,13 @@ const WebCallingPage = () => {
                     finalizeWebRtcDraft(audioBlob);
                 };
                 mediaRecorderRef.current.stop();
-                
-                // Stop tracks on recording stream
-                if (mediaRecorderRef.current.stream) {
-                    mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-                }
             } else {
                 finalizeWebRtcDraft();
             }
         }
 
         prevCallStateRef.current = callState;
-    }, [callState, callInfo, micEnabled]);
+    }, [callState, callInfo, micEnabled, localStreamRef, remoteStreamRef]);
 
     // Google Drive Modal State
     const [driveModalOpen, setDriveModalOpen] = useState(false);
@@ -397,7 +441,7 @@ const WebCallingPage = () => {
                         audioChunksRef.current.push(event.data);
                     }
                 };
-                mediaRecorder.start();
+                mediaRecorder.start(1000);
             }
         } catch (err) {
             console.error("Could not activate local video preview:", err);

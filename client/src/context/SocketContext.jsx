@@ -852,7 +852,9 @@ export const SocketProvider = ({ children }) => {
             toggleMute,
             toggleCamera,
             registerGuest,
-            emitStudentActivity
+            emitStudentActivity,
+            localStreamRef,
+            remoteStreamRef
         }}>
             {children}
 

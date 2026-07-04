@@ -641,16 +641,30 @@ const WebCallingPage = () => {
             toast.error("Syncing files is disabled in Read-Only archive.");
             return;
         }
-        const toastId = toast.loading(`Syncing log to cloud...`);
+        const toastId = toast.loading(`Syncing call to cloud...`);
         try {
-            const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
-            const blob = new Blob([logContent], { type: 'text/plain' });
+            let blob;
+            let filename;
+            let format;
+
+            if (item.audioId) {
+                blob = await getLocalBlob(item.audioId);
+                filename = `call_recording_${item.id}.webm`;
+                format = 'WEBM';
+            }
+
+            if (!blob) {
+                const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
+                blob = new Blob([logContent], { type: 'text/plain' });
+                filename = `call_log_${item.id}.txt`;
+                format = 'TXT';
+            }
 
             const formData = new FormData();
-            formData.append('file', blob, `call_log_${item.id}.txt`);
+            formData.append('file', blob, filename);
             formData.append('toolType', 'web-calling');
             formData.append('duration', item.duration);
-            formData.append('format', 'TXT');
+            formData.append('format', format);
             if (item.inbox) {
                 formData.append('inbox', item.inbox);
             }
@@ -666,25 +680,36 @@ const WebCallingPage = () => {
             setCallLogs(updated);
             localStorage.setItem('practice_call_logs', JSON.stringify(updated));
 
-            toast.success(`Successfully synced log to cloud!`, { id: toastId });
+            toast.success(`Successfully synced call to cloud!`, { id: toastId });
             await fetchCloudFiles();
         } catch (err) {
             console.error("Sync error for log:", item.id, err);
-            const errMsg = err.response?.data?.message || 'Failed to sync call log to cloud.';
+            const errMsg = err.response?.data?.message || 'Failed to sync call to cloud.';
             toast.error(errMsg, { id: toastId });
         }
     };
 
-    const handleSyncSingleWithDrive = (item) => {
+    const handleSyncSingleWithDrive = async (item) => {
         if (isReadOnly) {
             toast.error("Google Drive upload is disabled in Read-Only archive.");
             return;
         }
-        const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
-        const blob = new Blob([logContent], { type: 'text/plain' });
+        let blob;
+        let filename;
+
+        if (item.audioId) {
+            blob = await getLocalBlob(item.audioId);
+            filename = `call_recording_${item.id}.webm`;
+        }
+
+        if (!blob) {
+            const logContent = `LMS CALL LOG\n====================\nName: ${item.name}\nType: ${item.type}\nDuration: ${item.duration}\nStatus: ${item.status}\nDate: ${item.date}`;
+            blob = new Blob([logContent], { type: 'text/plain' });
+            filename = `call_log_${item.id}.txt`;
+        }
 
         setDriveFileMeta({
-            name: `call_log_${item.id || Date.now()}.txt`,
+            name: filename,
             blob: blob,
             itemId: item.id
         });

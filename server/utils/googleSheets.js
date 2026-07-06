@@ -177,9 +177,189 @@ async function deleteFromSheets(recordId) {
     }
 }
 
+/**
+ * Import all data from Google Sheets into MongoDB
+ */
+async function importFromSheets() {
+    const client = getSheetsClient();
+    if (!client) throw new Error('Google Sheets client not configured');
+
+    const { sheets, spreadsheetId, sheetName } = client;
+    const User = require('../models/User');
+    const FeeRecord = require('../models/FeeRecord');
+
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${sheetName}!A:J`,
+    });
+
+    const rows = res.data.values || [];
+    if (rows.length <= 1) {
+        return { importedCount: 0, message: 'No rows to import' };
+    }
+
+    let importedCount = 0;
+    const updatedRows = [];
+    updatedRows.push(rows[0]); // Header
+
+    isSyncDisabled = true;
+
+    try {
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) {
+                updatedRows.push([]);
+                continue;
+            }
+
+            const id = row[0] ? row[0].toString().trim() : '';
+            const email = row[1] ? row[1].toString().trim() : '';
+            const name = row[2] ? row[2].toString().trim() : '';
+            const course = row[3] ? row[3].toString().trim() : '';
+            const batch = row[4] ? row[4].toString().trim() : '';
+            const totalFee = row[5] ? parseFloat(row[5]) : 0;
+            const nextDueDate = row[9] ? row[9].toString().trim() : '';
+
+            if (!email) {
+                updatedRows.push(row);
+                continue;
+            }
+
+            // Find or create student
+            let student = await User.findOne({ email, role: 'Student' });
+            if (!student) {
+                console.log(`[Import] Creating student user for ${email}...`);
+                student = new User({
+                    name: name || email.split('@')[0],
+                    email,
+                    password: '123456',
+                    role: 'Student'
+                });
+                await student.save();
+            }
+
+            // Find or create FeeRecord
+            let record = null;
+            if (id) {
+                try {
+                    record = await FeeRecord.findById(id);
+                } catch (err) {
+                    record = null;
+                }
+            }
+
+            if (!record) {
+                record = await FeeRecord.findOne({ student: student._id });
+            }
+
+            if (!record) {
+                console.log(`[Import] Creating FeeRecord for student ${student._id}...`);
+                record = new FeeRecord({ student: student._id });
+            }
+
+            // Update fields
+            record.course = course || record.course || '';
+            record.batch = batch || record.batch || '';
+            record.totalFee = Number(totalFee);
+            if (nextDueDate) record.nextDueDate = new Date(nextDueDate);
+
+            await record.save();
+            importedCount++;
+
+            // Prepare row data back to sheet
+            const updatedRow = [
+                record._id.toString(),
+                email,
+                student.name,
+                record.course,
+                record.batch,
+                record.totalFee,
+                record.paidAmount,
+                record.pendingAmount,
+                record.status,
+                record.nextDueDate ? new Date(record.nextDueDate).toISOString().split('T')[0] : ''
+            ];
+            updatedRows.push(updatedRow);
+        }
+
+        // Overwrite Sheet
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `${sheetName}!A1:J${updatedRows.length}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: updatedRows }
+        });
+
+        return { success: true, importedCount };
+    } finally {
+        isSyncDisabled = false;
+    }
+}
+
+/**
+ * Export all data from MongoDB into Google Sheets
+ */
+async function exportToSheets() {
+    const client = getSheetsClient();
+    if (!client) throw new Error('Google Sheets client not configured');
+
+    const { sheets, spreadsheetId, sheetName } = client;
+    const FeeRecord = require('../models/FeeRecord');
+
+    const records = await FeeRecord.find({}).populate('student', 'name email').lean();
+
+    const header = [
+        'FeeRecord ID',
+        'Student Email',
+        'Student Name',
+        'Course',
+        'Batch',
+        'Total Fee',
+        'Paid Amount',
+        'Pending Amount',
+        'Status',
+        'Next Due Date'
+    ];
+
+    const rows = [header];
+    records.forEach(record => {
+        const student = record.student || {};
+        rows.push([
+            record._id.toString(),
+            student.email || '',
+            student.name || '',
+            record.course || '',
+            record.batch || '',
+            record.totalFee || 0,
+            record.paidAmount || 0,
+            record.pendingAmount || 0,
+            record.status || 'Pending',
+            record.nextDueDate ? new Date(record.nextDueDate).toISOString().split('T')[0] : ''
+        ]);
+    });
+
+    // Clear
+    await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: `${sheetName}!A:J`,
+    });
+
+    // Write all
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:J${rows.length}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: rows }
+    });
+
+    return { success: true, exportedCount: records.length };
+}
+
 module.exports = {
     syncToSheets,
     deleteFromSheets,
     setSyncDisabled,
-    getSyncDisabled
+    getSyncDisabled,
+    importFromSheets,
+    exportToSheets
 };

@@ -126,4 +126,38 @@ router.post('/sheets', async (req, res) => {
     }
 });
 
+// GET /api/sync/config
+// Returns the configured spreadsheet ID
+const { protect, adminOrEditor } = require('../middleware/authMiddleware');
+const { importFromSheets, exportToSheets } = require('../utils/googleSheets');
+
+router.get('/config', protect, adminOrEditor, (req, res) => {
+    res.json({
+        spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || '',
+        sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1'
+    });
+});
+
+// POST /api/sync/import
+// Trigger full manual import from Google Sheets to MongoDB
+router.post('/import', protect, adminOrEditor, async (req, res) => {
+    try {
+        const result = await importFromSheets();
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// POST /api/sync/export
+// Trigger full manual export from MongoDB to Google Sheets
+router.post('/export', protect, adminOrEditor, async (req, res) => {
+    try {
+        const result = await exportToSheets();
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 module.exports = router;

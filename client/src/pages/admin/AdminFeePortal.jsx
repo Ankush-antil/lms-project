@@ -234,6 +234,166 @@ const ReceiptModal = ({ receipt, onClose }) => {
     );
 };
 
+/* ─── Student Details Modal ─── */
+const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt }) => {
+    if (!record) return null;
+
+    const student = record.student || {};
+    const paidAmount = record.paidAmount || 0;
+    const totalFee = record.totalFee || 0;
+    const pendingAmount = record.pendingAmount || 0;
+    const percentage = totalFee > 0 ? Math.round((paidAmount / totalFee) * 100) : 0;
+    
+    // Filter receipts matching this student's ID
+    const studentReceipts = receipts.filter(r => 
+        r.studentId?.toString() === student._id?.toString()
+    );
+
+    const handleSendReminder = () => {
+        toast.success(`Fee reminder sent to ${student.name || 'Student'}!`);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-[720px] shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
+                
+                {/* Close Button */}
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1 bg-slate-50 hover:bg-slate-100 rounded-full"
+                >
+                    <X size={20} />
+                </button>
+
+                <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+                    <div>
+                        <h2 className="text-slate-850 font-black text-xl">Student Details</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        {/* Left Info Panel */}
+                        <div className="md:col-span-1 border border-slate-150 rounded-2xl p-5 flex flex-col items-center justify-center text-center space-y-4 bg-slate-50/50">
+                            <Avatar name={student.name || ''} size={90} className="shadow-inner" />
+                            <div>
+                                <h3 className="text-slate-800 font-black text-lg leading-tight">{student.name}</h3>
+                                <p className="text-indigo-600 text-xs font-bold mt-1">ID: {student.email ? student.email.split('@')[0].toUpperCase() : 'N/A'}</p>
+                                <p className="text-slate-400 text-xs mt-0.5">{student.mobileNumber || 'No mobile contact'}</p>
+                            </div>
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold ${STATUS_COLORS[record.status] || 'bg-slate-100 text-slate-600'}`}>
+                                {record.status}
+                            </span>
+                        </div>
+
+                        {/* Right Academic & Fee Progress Panel */}
+                        <div className="md:col-span-2 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Course</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{record.course || '—'}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Batch</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{record.batch || '—'}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Fee</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{fmt(totalFee)}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Next Due</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{fmtDate(record.nextDueDate)}</span>
+                                </div>
+                            </div>
+
+                            {/* Fee Progress Bar */}
+                            <div className="border border-slate-150 rounded-2xl p-4 space-y-3 bg-slate-50/50">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600 font-bold">Fee Progress</span>
+                                    <span className="text-slate-600 font-bold">
+                                        {percentage}% Paid {fmt(paidAmount)} / Due {fmt(pendingAmount)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                    <div className="bg-indigo-600 h-3 rounded-full transition-all" style={{ width: `${percentage}%` }} />
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        onCollect(student._id);
+                                        onClose();
+                                    }}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100"
+                                >
+                                    <CreditCard size={14} /> Collect Fee
+                                </button>
+                                <button
+                                    onClick={handleSendReminder}
+                                    className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                >
+                                    <MessageSquare size={14} /> Send Reminder
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Payment History Panel */}
+                    <div className="space-y-3 pt-2">
+                        <h3 className="text-slate-800 font-black text-sm flex items-center gap-2">
+                            Payment History ({studentReceipts.length})
+                        </h3>
+                        <div className="border border-slate-150 rounded-2xl overflow-hidden bg-white max-h-[180px] overflow-y-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-150 bg-slate-50 text-slate-400 font-bold uppercase tracking-wider">
+                                        <th className="px-4 py-2">Receipt No.</th>
+                                        <th className="px-4 py-2">Date</th>
+                                        <th className="px-4 py-2">Amount</th>
+                                        <th className="px-4 py-2">Mode</th>
+                                        <th className="px-4 py-2 text-center">View</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {studentReceipts.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-slate-400 italic">No payment history found</td>
+                                        </tr>
+                                    ) : (
+                                        studentReceipts.map(rec => (
+                                            <tr key={rec._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-2.5 font-bold text-slate-700">{rec.receiptNo}</td>
+                                                <td className="px-4 py-2.5 text-slate-500">{fmtDate(rec.date)}</td>
+                                                <td className="px-4 py-2.5 text-emerald-600 font-bold">{fmt(rec.amount)}</td>
+                                                <td className="px-4 py-2.5 text-slate-500">
+                                                    <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">{rec.paymentMode}</span>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <button 
+                                                        onClick={() => onOpenReceipt(rec)} 
+                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                                                    >
+                                                        <Eye size={13} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
 /* ─── Collect Fee Modal ─── */
 const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
     const [selectedId, setSelectedId] = useState(preselectedId || '');
@@ -431,6 +591,7 @@ export default function AdminFeePortal() {
     const [courseFilter, setCourseFilter] = useState('All');
     const [reportTab, setReportTab] = useState('course');
     const [selectedReceipt, setSelectedReceipt] = useState(null);
+    const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null);
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
@@ -780,7 +941,7 @@ export default function AdminFeePortal() {
                                         <div className="flex items-center justify-center gap-2">
                                             {r.student?._id && (
                                                 <button 
-                                                    onClick={() => navigate(`/admin/students/${r.student._id}`)}
+                                                    onClick={() => setSelectedStudentForDetails(r)}
                                                     className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
                                                     title="View Student Details"
                                                 >
@@ -1244,6 +1405,15 @@ export default function AdminFeePortal() {
 
             {/* Modals */}
             {selectedReceipt && <ReceiptModal receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+            {selectedStudentForDetails && (
+                <StudentDetailsModal
+                    record={selectedStudentForDetails}
+                    receipts={receipts}
+                    onClose={() => setSelectedStudentForDetails(null)}
+                    onCollect={openCollect}
+                    onOpenReceipt={(rec) => setSelectedReceipt(rec)}
+                />
+            )}
             {showCollectModal && (
                 <CollectFeeModal
                     students={students.filter(s => s.status !== 'Paid')}

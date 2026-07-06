@@ -39,6 +39,10 @@ const TestsList = () => {
     const [loading, setLoading] = useState(true);
     const [loadingPublic, setLoadingPublic] = useState(false);
     const [copiedId, setCopiedId] = useState(null);
+    const [previewTest, setPreviewTest] = useState(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [riTest, setRiTest] = useState(null);
+    const [showRiModal, setShowRiModal] = useState(false);
 
     // Google Forms Style Responses States
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'responses'
@@ -254,6 +258,16 @@ const TestsList = () => {
             fetchPublicTests();
         }
     }, [navigate, activeTab]);
+
+    const handlePreviewTest = (test) => {
+        setPreviewTest(test);
+        setShowPreviewModal(true);
+    };
+
+    const handleOpenRi = (test) => {
+        setRiTest(test);
+        setShowRiModal(true);
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this test?')) return;
@@ -1865,7 +1879,7 @@ const TestsList = () => {
                     <p className="text-slate-500 text-sm">Manage LMS tests and configure public testing web links.</p>
                 </div>
                 <button
-                    onClick={() => navigate(`${basePath}/tests/builder`)}
+                    onClick={() => navigate(`${basePath}/activities-builder`)}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95"
                 >
                     <Plus size={20} /> Create New Assessment
@@ -1996,6 +2010,7 @@ const TestsList = () => {
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
                                         <th className="p-4 font-extrabold whitespace-nowrap">Test Title</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap text-center">RI</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
@@ -2019,6 +2034,16 @@ const TestsList = () => {
                                                 <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
                                                     {test.course || 'N/A'}
                                                 </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenRi(test)}
+                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-850 border border-indigo-200 text-indigo-750 text-xs font-bold rounded-xl transition-all active:scale-95 flex items-center gap-1 mx-auto cursor-pointer"
+                                                    title="View Relevant Information (RI)"
+                                                >
+                                                    <Info size={13} />
+                                                    <span>RI</span>
+                                                </button>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
                                                 <span className="px-2.5 py-0.5 bg-amber-50 text-amber-705 rounded-full text-xs font-semibold">
@@ -2047,30 +2072,58 @@ const TestsList = () => {
                                                 </button>
                                             </td>
                                             <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
-                                                <button
-                                                    onClick={() => handleCopyUrl(test._id, 'connected')}
-                                                    className={`p-1.5 rounded-lg border transition-all ${copiedId === test._id
-                                                        ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-                                                        : 'text-slate-405 border-slate-200 hover:text-[#0b1329] hover:bg-slate-100/50 hover:border-slate-300'
-                                                        }`}
-                                                    title="Copy shareable link"
-                                                >
-                                                    {copiedId === test._id ? <Check size={15} /> : <Link2 size={15} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => navigate(getEditPath(test._id))}
-                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
-                                                    title="Edit Test"
-                                                >
-                                                    <Edit size={15} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(test._id)}
-                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
-                                                    title="Delete Test"
-                                                >
-                                                    <Trash2 size={15} />
-                                                </button>
+                                                {userInfo?.role === 'Admin' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handlePreviewTest(test)}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
+                                                            title="Preview Test"
+                                                        >
+                                                            <Eye size={15} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => navigate(getEditPath(test._id))}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                            title="Edit Test"
+                                                        >
+                                                            <Edit size={15} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(test._id)}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
+                                                            title="Delete Test"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleCopyUrl(test._id, 'connected')}
+                                                            className={`p-1.5 rounded-lg border transition-all ${copiedId === test._id
+                                                                ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                                                                : 'text-slate-405 border-slate-200 hover:text-[#0b1329] hover:bg-slate-100/50 hover:border-slate-300'
+                                                                }`}
+                                                            title="Copy shareable link"
+                                                        >
+                                                            {copiedId === test._id ? <Check size={15} /> : <Link2 size={15} />}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => navigate(getEditPath(test._id))}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                            title="Edit Test"
+                                                        >
+                                                            <Edit size={15} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(test._id)}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
+                                                            title="Delete Test"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -2170,27 +2223,55 @@ const TestsList = () => {
                                                     </button>
                                                 </td>
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
-                                                    <button
-                                                        onClick={() => navigate(getEditPath(test._id))}
-                                                        className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
-                                                        title="Edit Test"
-                                                    >
-                                                        <Edit size={15} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleOpenSettings(test)}
-                                                        className="p-1.5 text-slate-400 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
-                                                        title="Public Settings"
-                                                    >
-                                                        <Settings size={15} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(test._id)}
-                                                        className="p-1.5 text-slate-400 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
-                                                        title="Delete Link"
-                                                    >
-                                                        <Trash2 size={15} />
-                                                    </button>
+                                                    {userInfo?.role === 'Admin' ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handlePreviewTest(test)}
+                                                                className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
+                                                                title="Preview Test"
+                                                            >
+                                                                <Eye size={15} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => navigate(getEditPath(test._id))}
+                                                                className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                                title="Edit Test"
+                                                            >
+                                                                <Edit size={15} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(test._id)}
+                                                                className="p-1.5 text-slate-400 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
+                                                                title="Delete Link"
+                                                            >
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => navigate(getEditPath(test._id))}
+                                                                className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
+                                                                title="Edit Test"
+                                                            >
+                                                                <Edit size={15} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleOpenSettings(test)}
+                                                                className="p-1.5 text-slate-400 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                                title="Public Settings"
+                                                            >
+                                                                <Settings size={15} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(test._id)}
+                                                                className="p-1.5 text-slate-400 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
+                                                                title="Delete Link"
+                                                            >
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -2434,6 +2515,200 @@ const TestsList = () => {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* ── 2. PUBLIC/CONNECTED TEST PREVIEW MODAL ────────────────── */}
+            {showPreviewModal && previewTest && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
+                    <div className="bg-white w-full max-w-4xl max-h-[85vh] rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-[#0b1329] text-white">
+                            <div>
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <Eye size={18} className="text-emerald-450" /> Test Preview: <span className="text-emerald-450 font-extrabold">{previewTest.title}</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Course: {previewTest.course || 'N/A'} | Subject: {previewTest.subject || 'N/A'} | Duration: {previewTest.settings?.duration || 0} mins
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowPreviewModal(false)}
+                                className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50 space-y-6">
+                            {previewTest.description && (
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Description</h4>
+                                    <p className="text-slate-700 text-sm">{previewTest.description}</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Questions ({previewTest.questions?.length || 0})</h4>
+                                {(!previewTest.questions || previewTest.questions.length === 0) ? (
+                                    <div className="text-center py-8 bg-white rounded-xl border border-dashed border-slate-200">
+                                        <p className="text-slate-500 text-sm">No questions in this test.</p>
+                                    </div>
+                                ) : (
+                                    previewTest.questions.map((q, idx) => (
+                                        <div key={q.id || idx} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                                                <span className="text-sm font-black text-[#0b1329]">Question {idx + 1}</span>
+                                                <div className="flex gap-2">
+                                                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-md uppercase tracking-wider">{q.type}</span>
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md">{q.marks} {q.marks === 1 ? 'Mark' : 'Marks'}</span>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-slate-800 text-sm font-semibold">{q.text}</p>
+
+                                            {q.helperText && (
+                                                <p className="text-xs text-slate-550 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">{q.helperText}</p>
+                                            )}
+
+                                            {/* MCQ/Options */}
+                                            {q.options && q.options.length > 0 && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                                    {q.options.map((opt, oIdx) => (
+                                                        <div
+                                                            key={oIdx}
+                                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold ${opt.isCorrect 
+                                                                ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800' 
+                                                                : 'bg-slate-50 border-slate-200 text-slate-750'
+                                                            }`}
+                                                        >
+                                                            <span>{opt.text}</span>
+                                                            {opt.isCorrect && <Check size={14} className="text-emerald-600 font-extrabold" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Matching pairs */}
+                                            {q.matchingPairs && q.matchingPairs.length > 0 && (
+                                                <div className="space-y-1.5 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                                                    <span className="text-[10px] font-bold text-slate-550 uppercase tracking-widest block mb-1">Matching Pairs:</span>
+                                                    {q.matchingPairs.map((pair, pIdx) => (
+                                                        <div key={pIdx} className="flex items-center gap-3 text-xs">
+                                                            <span className="bg-white px-2.5 py-1 rounded border border-slate-205 font-semibold text-slate-700">{pair.key}</span>
+                                                            <span className="text-slate-400">➔</span>
+                                                            <span className="bg-white px-2.5 py-1 rounded border border-slate-205 font-semibold text-slate-700">{pair.value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Blank answers */}
+                                            {q.blankAnswers && q.blankAnswers.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    <span className="text-[10px] font-bold text-slate-550 uppercase tracking-widest block w-full mb-1">Correct Answers:</span>
+                                                    {q.blankAnswers.map((ans, aIdx) => (
+                                                        <span key={aIdx} className="bg-emerald-50 text-emerald-800 border border-emerald-250 px-2 py-0.5 rounded-md text-xs font-bold font-mono">
+                                                            {ans}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
+                            <button
+                                type="button"
+                                onClick={() => setShowPreviewModal(false)}
+                                className="px-5 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-black active:scale-95 transition-all"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 3. RELEVANT INFORMATION (RI) MODAL ────────────────── */}
+            {showRiModal && riTest && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-[#0b1329] text-white">
+                            <h3 className="text-sm font-bold flex items-center gap-2">
+                                <Info size={16} className="text-indigo-400" /> Relevant Information
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowRiModal(false)}
+                                className="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4 bg-slate-50 text-slate-700 text-xs">
+                            {/* Creator Details */}
+                            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Created By (Teacher)</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-sm uppercase">
+                                        {riTest.createdBy?.name ? riTest.createdBy.name.charAt(0) : 'U'}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-slate-800 text-sm">{riTest.createdBy?.name || 'N/A'}</p>
+                                        <p className="text-slate-500 text-[11px]">{riTest.createdBy?.email || 'N/A'}</p>
+                                        <span className="inline-block mt-1 text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">{riTest.createdBy?.role || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Academic Context */}
+                            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Academic Details</span>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Institute</span>
+                                        <p className="font-bold text-slate-800">{riTest.institute || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Course</span>
+                                        <p className="font-bold text-slate-800">{riTest.course || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Subject</span>
+                                        <p className="font-bold text-slate-800">{riTest.subject || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Created Date</span>
+                                        <p className="font-bold text-slate-800">
+                                            {riTest.createdAt ? new Date(riTest.createdAt).toLocaleDateString() : 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-100 flex justify-end bg-white">
+                            <button
+                                type="button"
+                                onClick={() => setShowRiModal(false)}
+                                className="px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-xs font-black shadow-md shadow-[#0b1329]/15 active:scale-95 transition-all"
+                            >
+                                Close Info
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

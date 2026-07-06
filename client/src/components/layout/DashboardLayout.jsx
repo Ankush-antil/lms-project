@@ -51,7 +51,7 @@ const ChatNotificationBar = () => {
 
     const handleClick = (notif) => {
         dismiss(notif.id);
-        const chatPath = user?.role === 'Student' ? '/student/chat' : '/teacher/chat';
+        const chatPath = `/${(user?.role || 'student').toLowerCase()}/chat`;
         // Navigate and pass senderId in state so ChatPage can auto-select
         navigate(chatPath, { state: { openContactId: notif.senderId } });
     };
@@ -215,7 +215,7 @@ const NotificationBell = ({ safeRole }) => {
     const openChat = (notif) => {
         setChatNotifications(prev => prev.filter(n => n.id !== notif.id));
         setOpen(false);
-        const chatPath = safeRole === 'Student' ? '/student/chat' : '/teacher/chat';
+        const chatPath = `/${(user?.role || safeRole || 'student').toLowerCase()}/chat`;
         navigate(chatPath, {
             state: {
                 openContactId: notif.senderId,
@@ -329,7 +329,7 @@ const NotificationBell = ({ safeRole }) => {
                     {unread > 0 && (
                         <div className="border-t border-slate-700/50 px-4 py-2.5 bg-slate-900/30">
                             <button
-                                onClick={() => { setOpen(false); navigate(safeRole === 'Student' ? '/student/chat' : '/teacher/chat'); }}
+                                onClick={() => { setOpen(false); navigate(`/${(user?.role || safeRole || 'student').toLowerCase()}/chat`); }}
                                 className="w-full text-[11px] font-black text-indigo-400 hover:text-indigo-300 transition-colors text-center"
                             >
                                 Open Chat Page →

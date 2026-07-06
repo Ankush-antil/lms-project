@@ -939,7 +939,10 @@ const EvaluatePage = () => {
                                                             )}
 
                                                             {q && q.videoUrl && !isVideoDisplay && (
-                                                                <div className="mb-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                                                <div 
+                                                                    className="mb-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
+                                                                    style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                                >
                                                                     <video
                                                                         src={q.videoUrl}
                                                                         controls
@@ -973,7 +976,10 @@ const EvaluatePage = () => {
                                                             )}
 
                                                             {q && (q.youtubeUrl || q.embeddedVideoUrl) && !isEmbeddedVideo && (
-                                                                <div className="mb-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                                <div 
+                                                                    className="mb-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
+                                                                    style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                                >
                                                                     <iframe
                                                                         src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
                                                                         title="YouTube Video"

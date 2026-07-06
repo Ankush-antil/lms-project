@@ -1750,7 +1750,10 @@ const PublicTestPage = () => {
                                             )}
 
                                             {(q.youtubeUrl || q.embeddedVideoUrl) && !isEmbeddedVideo && (
-                                                <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                <div 
+                                                    className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
+                                                    style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                >
                                                     <iframe
                                                         src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
                                                         title="YouTube Video"
@@ -2157,7 +2160,6 @@ const PublicTestPage = () => {
                                                                     size={32}
                                                                     className="mx-auto mb-2 text-purple-400"
                                                                 />
-
                                                                 <p className="text-xs font-semibold">
                                                                     No webpage URL or HTML content provided
                                                                 </p>
@@ -2167,7 +2169,10 @@ const PublicTestPage = () => {
                                                 )}
                                                 {/* Embedded Video Displaying */}
                                                 {isEmbeddedVideo && (
-                                                    <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                    <div 
+                                                        className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
+                                                        style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                    >
                                                         {(q.youtubeUrl || q.embeddedVideoUrl) ? (
                                                             <iframe
                                                                 src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}

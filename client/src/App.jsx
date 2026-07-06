@@ -133,6 +133,11 @@ function App() {
                                         <TestsList />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/chat" element={
+                                    <PrivateRoute role="Institute">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/institute/activities-builder" element={
                                     <PrivateRoute role="Institute">
                                         <TestBuilder />
@@ -200,6 +205,11 @@ function App() {
                                 <Route path="/admin/activities" element={
                                     <PrivateRoute role="Admin">
                                         <TestsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/chat" element={
+                                    <PrivateRoute role="Admin">
+                                        <ChatPage />
                                     </PrivateRoute>
                                 } />
                                 {/* <Route path="/admin/tools" element={

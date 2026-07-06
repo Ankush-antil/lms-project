@@ -93,6 +93,10 @@ const testSchema = new mongoose.Schema({
         videoCallRole: String,
         videoCallScenario: String,
         videoUrl: String,
+        videoWidth: {
+            type: Number,
+            default: 500
+        },
         webpageUrl: String,
         webpageHeight: {
             type: Number,

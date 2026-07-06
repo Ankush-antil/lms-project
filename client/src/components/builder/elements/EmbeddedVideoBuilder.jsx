@@ -26,6 +26,36 @@ const EmbeddedVideoBuilder = ({ element, onUpdateField, handleUpdateNestedField 
     const embedUrl = getEmbedUrl(element.embeddedVideoUrl || '');
     const particulars = element.particulars || {};
 
+    const handleResizeStart = (e, corner) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = element.videoWidth || 500;
+
+        const handleMouseMove = (moveEvent) => {
+            let deltaX = moveEvent.clientX - startX;
+            let deltaY = moveEvent.clientY - startY;
+            // Use maximum delta to represent uniform resize
+            let change = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+            if (deltaX < 0 && (corner === 'top-right' || corner === 'bottom-right')) change = -Math.abs(change);
+            if (deltaX > 0 && (corner === 'top-left' || corner === 'bottom-left')) change = -Math.abs(change);
+            if (deltaX > 0 && (corner === 'top-right' || corner === 'bottom-right')) change = Math.abs(change);
+            if (deltaX < 0 && (corner === 'top-left' || corner === 'bottom-left')) change = Math.abs(change);
+
+            const newWidth = Math.max(500, Math.min(1000, startWidth + change * 1.5));
+            onUpdateField('videoWidth', newWidth);
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
     return (
         <div className="space-y-4 bg-white p-4 border border-slate-150 rounded-2xl">
             {/* URL Input */}
@@ -47,14 +77,44 @@ const EmbeddedVideoBuilder = ({ element, onUpdateField, handleUpdateNestedField 
             {/* Preview */}
             {element.embeddedVideoUrl && (
                 embedUrl ? (
-                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm aspect-video bg-black max-h-44 flex items-center justify-center">
+                    <div 
+                        className="relative mx-auto group/video rounded-2xl border border-slate-200 shadow-md aspect-video bg-black flex items-center justify-center transition-shadow hover:shadow-lg"
+                        style={{ width: `${element.videoWidth || 500}px`, maxWidth: '100%' }}
+                    >
                         <iframe
                             src={embedUrl}
                             title="Embedded Video Preview"
-                            className="w-full h-full border-0"
+                            className="w-full h-full border-0 rounded-2xl pointer-events-auto"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                         />
+
+                        {/* Resize handles at four corners */}
+                        <div 
+                            onMouseDown={(e) => handleResizeStart(e, 'top-left')}
+                            className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                            title="Resize video"
+                        />
+                        <div 
+                            onMouseDown={(e) => handleResizeStart(e, 'top-right')}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                            title="Resize video"
+                        />
+                        <div 
+                            onMouseDown={(e) => handleResizeStart(e, 'bottom-left')}
+                            className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                            title="Resize video"
+                        />
+                        <div 
+                            onMouseDown={(e) => handleResizeStart(e, 'bottom-right')}
+                            className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                            title="Resize video"
+                        />
+
+                        {/* Drag Helper Label */}
+                        <div className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm text-[9px] font-black text-white px-2 py-1 rounded-lg uppercase tracking-wider opacity-0 group-hover/video:opacity-100 transition-opacity pointer-events-none select-none z-10 shadow-sm border border-white/10">
+                            Drag corners to resize
+                        </div>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center gap-2 py-6 bg-slate-55 border border-dashed border-slate-200 rounded-xl text-slate-400">

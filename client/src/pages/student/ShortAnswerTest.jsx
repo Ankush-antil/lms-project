@@ -1336,13 +1336,16 @@ const ShortAnswerTest = () => {
                                         )}
 
                                         {q.videoUrl && !isVideoDisplay && (
-                                            <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                            <div 
+                                                className="mt-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
+                                                style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                            >
                                                 <video
                                                     src={q.videoUrl}
                                                     controls
                                                     autoPlay={!!q.autoplay}
                                                     loop={!!q.loop}
-                                                    className="w-full max-h-60 rounded-lg object-contain bg-black"
+                                                    className="w-full rounded-2xl object-contain bg-black"
                                                 />
                                             </div>
                                         )}
@@ -1705,13 +1708,16 @@ const ShortAnswerTest = () => {
 
                                              {/* Video Displaying */}
                                              {isVideoDisplay && (
-                                                 <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                                 <div 
+                                                     className="mt-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
+                                                     style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                 >
                                                      <video
                                                          src={q.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
                                                          controls
                                                          autoPlay={!!q.autoplay}
                                                          loop={!!q.loop}
-                                                         className="w-full max-h-60 rounded-lg object-contain bg-black"
+                                                         className="w-full rounded-2xl object-contain bg-black"
                                                      />
                                                  </div>
                                              )}
@@ -1766,7 +1772,10 @@ const ShortAnswerTest = () => {
 
                                              {/* Embedded Video Displaying */}
                                              {isEmbeddedVideo && (
-                                                 <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                 <div 
+                                                     className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
+                                                     style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                 >
                                                      {(q.youtubeUrl || q.embeddedVideoUrl) ? (
                                                          <iframe
                                                              src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}

@@ -72,7 +72,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         date: '',
         index: '',
         activity: '',
-        name: ''
+        name: '',
+        isAssigned: false
     });
 
     const [allCourses, setAllCourses] = useState([]);
@@ -146,7 +147,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                     date: initialData.date || new Date().toISOString().split('T')[0],
                     index: initialData.index || '',
                     activity: initialData.activity || '',
-                    name: initialData.name || ''
+                    name: initialData.name || '',
+                    isAssigned: initialData.isAssigned !== undefined ? initialData.isAssigned : false
                 });
             } else {
                 setFormData({
@@ -156,7 +158,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                     date: '',
                     index: '',
                     activity: '',
-                    name: ''
+                    name: '',
+                    isAssigned: false
                 });
             }
         }
@@ -279,6 +282,32 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                                 placeholder="Enter test name..."
                                 className="w-full p-4 font-bold text-indigo-600 bg-indigo-50/30 border border-indigo-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 placeholder-indigo-300 transition-all"
                             />
+                        </div>
+
+                        {/* Status (Assign / Upcoming) */}
+                        <div className="space-y-3 pt-2">
+                            <label className="text-sm font-bold text-slate-700 block">Status</label>
+                            <div className="flex gap-4">
+                                <label className="flex-1 flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100/50 transition-all select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={!formData.isAssigned}
+                                        onChange={() => setFormData(prev => ({ ...prev, isAssigned: false }))}
+                                        className="rounded-full text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 cursor-pointer"
+                                    />
+                                    <span className="text-sm font-bold text-slate-800">Assign</span>
+                                </label>
+
+                                <label className="flex-1 flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100/50 transition-all select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.isAssigned}
+                                        onChange={() => setFormData(prev => ({ ...prev, isAssigned: true }))}
+                                        className="rounded-full text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 cursor-pointer"
+                                    />
+                                    <span className="text-sm font-bold text-slate-800">Upcoming</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>

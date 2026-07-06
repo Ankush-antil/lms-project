@@ -2592,7 +2592,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         subject: '',
         date: new Date().toISOString().split('T')[0],
         index: 'Index 1',
-        activity: 'Quiz'
+        activity: 'Quiz',
+        isAssigned: false
     });
 
     const [publishing, setPublishing] = useState(false);
@@ -2679,7 +2680,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         subject: test.subject || '',
                         date: test.date || new Date().toISOString().split('T')[0],
                         index: test.index || 'Index 1',
-                        activity: test.activity || 'Quiz'
+                        activity: test.activity || 'Quiz',
+                        isAssigned: !!test.isAssigned
                     });
                     setIsConnected(true);
                     setAllowTeacherEdit(!!test.allowTeacherEdit);
@@ -2805,6 +2807,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             videoCallRole: q.videoCallRole || 'interviewer',
                             videoCallScenario: q.videoCallScenario || '',
                             videoUrl: q.videoUrl || '',
+                            videoWidth: q.videoWidth || 500,
                             autoplay: !!q.autoplay,
                             loop: !!q.loop,
                             quality: q.quality || '1080p',
@@ -3247,6 +3250,36 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         });
     };
 
+    const handleVideoResizeStart = (e, index, corner) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = formElements[index].videoWidth || 500;
+
+        const handleMouseMove = (moveEvent) => {
+            let deltaX = moveEvent.clientX - startX;
+            let deltaY = moveEvent.clientY - startY;
+            // Use the maximum delta to represent uniform resize
+            let change = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+            if (deltaX < 0 && (corner === 'top-right' || corner === 'bottom-right')) change = -Math.abs(change);
+            if (deltaX > 0 && (corner === 'top-left' || corner === 'bottom-left')) change = -Math.abs(change);
+            if (deltaX > 0 && (corner === 'top-right' || corner === 'bottom-right')) change = Math.abs(change);
+            if (deltaX < 0 && (corner === 'top-left' || corner === 'bottom-left')) change = Math.abs(change);
+
+            const newWidth = Math.max(500, Math.min(1000, startWidth + change * 1.5));
+            setFormElements(prev => prev.map((el, i) => i === index ? { ...el, videoWidth: newWidth } : el));
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
     const handleConnectSave = (data) => {
         setConnectData(data);
         setIsConnected(true);
@@ -3299,7 +3332,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     discussionActivity: discussionActivity,
                     assignmentType: (mode === 'connected' && settingsObj) ? settingsObj.assignmentType : 'all',
                     assignedStudents: (mode === 'connected' && settingsObj) ? settingsObj.assignedStudents : [],
-                    allowTeacherEdit: (mode === 'connected' && settingsObj && settingsObj.allowTeacherEdit !== undefined) ? settingsObj.allowTeacherEdit : allowTeacherEdit
+                    allowTeacherEdit: (mode === 'connected' && settingsObj && settingsObj.allowTeacherEdit !== undefined) ? settingsObj.allowTeacherEdit : allowTeacherEdit,
+                    isAssigned: mode === 'connected' ? (connectData?.isAssigned || false) : false
                 },
                 questions: formElements.map((el, index) => ({
                     id: `q${index}`,
@@ -3354,6 +3388,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     videoCallRole: el.videoCallRole || 'interviewer',
                     videoCallScenario: el.videoCallScenario || '',
                     videoUrl: el.videoUrl || '',
+                    videoWidth: el.videoWidth || 500,
                     htmlContent: el.htmlContent || '',
                     autoplay: !!el.autoplay,
                     loop: !!el.loop,
@@ -4358,13 +4393,38 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                         )}
 
                                                         {(el.label === 'Video' || el.label === 'Video Displaying') && (
-                                                            <div className="mt-2 flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden">
+                                                            <div 
+                                                                className="mt-2 relative mx-auto group/video rounded-2xl border border-slate-800 bg-black flex items-center justify-center transition-shadow hover:shadow-lg"
+                                                                style={{ width: `${el.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                            >
                                                                 <video
                                                                     src={el.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
                                                                     controls
                                                                     autoPlay={!!el.autoplay}
                                                                     loop={!!el.loop}
-                                                                    className="w-full max-h-60 rounded-lg object-contain bg-black"
+                                                                    className="w-full rounded-2xl object-contain bg-black pointer-events-auto"
+                                                                />
+                                                                
+                                                                {/* Resize handles at four corners */}
+                                                                <div 
+                                                                    onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-left')}
+                                                                    className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                    title="Resize video"
+                                                                />
+                                                                <div 
+                                                                    onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-right')}
+                                                                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                    title="Resize video"
+                                                                />
+                                                                <div 
+                                                                    onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-left')}
+                                                                    className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                    title="Resize video"
+                                                                />
+                                                                <div 
+                                                                    onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-right')}
+                                                                    className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                    title="Resize video"
                                                                 />
                                                             </div>
                                                         )}
@@ -4392,15 +4452,47 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                         )}
 
                                                         {(el.label === 'YouTube' || el.label === 'Embedded Video Displaying') && (
-                                                            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black max-h-[300px] flex items-center justify-center">
+                                                            <div 
+                                                                className="mt-2 relative mx-auto group/video rounded-2xl border border-slate-200 shadow-md aspect-video bg-black flex items-center justify-center transition-shadow hover:shadow-lg"
+                                                                style={{ width: `${el.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                            >
                                                                 {el.youtubeUrl || el.embeddedVideoUrl ? (
-                                                                    <iframe
-                                                                        src={getEmbedUrl(el.embeddedVideoUrl || el.youtubeUrl)}
-                                                                        title="YouTube Video"
-                                                                        className="w-full h-full border-0"
-                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                        allowFullScreen
-                                                                    ></iframe>
+                                                                    <>
+                                                                        <iframe
+                                                                            src={getEmbedUrl(el.embeddedVideoUrl || el.youtubeUrl)}
+                                                                            title="YouTube Video"
+                                                                            className="w-full h-full border-0 rounded-2xl pointer-events-auto"
+                                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                            allowFullScreen
+                                                                        ></iframe>
+
+                                                                        {/* Resize handles at four corners */}
+                                                                        <div 
+                                                                            onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-left')}
+                                                                            className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                            title="Resize video"
+                                                                        />
+                                                                        <div 
+                                                                            onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-right')}
+                                                                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                            title="Resize video"
+                                                                        />
+                                                                        <div 
+                                                                            onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-left')}
+                                                                            className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                            title="Resize video"
+                                                                        />
+                                                                        <div 
+                                                                            onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-right')}
+                                                                            className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
+                                                                            title="Resize video"
+                                                                        />
+
+                                                                        {/* Drag Helper Label */}
+                                                                        <div className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm text-[9px] font-black text-white px-2 py-1 rounded-lg uppercase tracking-wider opacity-0 group-hover/video:opacity-100 transition-opacity pointer-events-none select-none z-10 shadow-sm border border-white/10">
+                                                                            Drag corners to resize
+                                                                        </div>
+                                                                    </>
                                                                 ) : (
                                                                     <div className="text-center text-slate-400 p-4">
                                                                         <Play size={32} className="mx-auto mb-2 text-red-500" />

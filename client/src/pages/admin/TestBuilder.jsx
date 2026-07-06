@@ -3303,10 +3303,21 @@ const TestBuilder = () => {
                                                 openProfile(user?._id || user?.id);
                                                 setIsProfileDropdownOpen(false);
                                             }}
-                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-350 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
+                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
                                         >
                                             <User size={16} />
                                             <span>My Profile Settings</span>
+                                        </button>
+                                        
+                                        <button
+                                            onClick={() => {
+                                                setIsConnectModalOpen(true);
+                                                setIsProfileDropdownOpen(false);
+                                            }}
+                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
+                                        >
+                                            <Settings size={16} />
+                                            <span>Settings</span>
                                         </button>
                                         
                                         {/* Saved Accounts Switcher */}

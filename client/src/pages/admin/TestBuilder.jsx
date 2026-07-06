@@ -2021,6 +2021,22 @@ const TestBuilder = () => {
     const { openProfile } = useUserProfile();
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
+    const handleCloseBuilder = () => {
+        const fallbackPath = user?.role === 'Editor'
+            ? '/editor'
+            : user?.role === 'Teacher'
+                ? '/teacher/activities'
+                : user?.role === 'Institute'
+                    ? '/institute/activities'
+                    : '/admin/activities';
+        navigate(fallbackPath);
+    };
+
+    const hasActivityControl = (controlName) => {
+        if (user?.role === 'Admin') return true;
+        return user?.institute?.controls?.activities?.[controlName] !== false;
+    };
+
     const savedAccounts = (() => {
         try {
             const listStr = localStorage.getItem('lmsSavedAccounts');

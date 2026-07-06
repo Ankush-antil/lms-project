@@ -35,7 +35,7 @@ const AGING_COLORS = {
 const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Bank', 'Card', 'Cheque'];
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 
 /* ─── Avatar ─── */
 const Avatar = ({ name = '', size = 36, className = '' }) => {
@@ -248,7 +248,7 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
     useEffect(() => {
         if (selectedId) {
             setLoadingRecord(true);
-            axios.get(`${API}/fees/admin/student/${selectedId}`, { withCredentials: true })
+            axios.get(`/api/fees/admin/student/${selectedId}`, { withCredentials: true })
                 .then(r => setSelectedRecord(r.data))
                 .catch(() => setSelectedRecord(null))
                 .finally(() => setLoadingRecord(false));
@@ -259,7 +259,7 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
         if (!selectedId || !amount) return toast.error('Select student and enter amount');
         setLoading(true);
         try {
-            const res = await axios.post(`${API}/fees/admin/collect`, {
+            const res = await axios.post(`/api/fees/admin/collect`, {
                 studentId: selectedId, amount: Number(amount), paymentMode: mode, referenceNo: refNo, remark
             }, { withCredentials: true });
             toast.success(`Receipt generated: ${res.data.receiptNo}`);
@@ -442,11 +442,11 @@ export default function AdminFeePortal() {
         setLoading(true);
         try {
             const [statsR, studentsR, pendingR, receiptsR, reportsR] = await Promise.all([
-                axios.get(`${API}/fees/admin/stats`, { withCredentials: true }),
-                axios.get(`${API}/fees/admin/all`, { withCredentials: true }),
-                axios.get(`${API}/fees/admin/pending-dues`, { withCredentials: true }),
-                axios.get(`${API}/fees/admin/receipts`, { withCredentials: true }),
-                axios.get(`${API}/fees/admin/reports`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/stats`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/all`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/pending-dues`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/receipts`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/reports`, { withCredentials: true }),
             ]);
             setStats(statsR.data);
             setStudents(studentsR.data);

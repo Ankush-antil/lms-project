@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 import {
     CreditCard, TrendingUp, Clock, CheckCircle, AlertCircle, FileText,
     Printer, Download, ChevronDown, X, IndianRupee, Calendar, Wallet,
@@ -112,7 +112,7 @@ const StudentFeePortal = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await axios.get(`${API}/fees/student/my-fees`, { withCredentials: true });
+                const res = await axios.get(`/api/fees/student/my-fees`, { withCredentials: true });
                 setRecord(res.data);
             } catch (err) {
                 // If 404 (no record yet), show empty state — not an error

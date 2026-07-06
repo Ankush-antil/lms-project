@@ -179,22 +179,18 @@ const updateUser = asyncHandler(async (req, res) => {
         }
 
         if (user.role === 'Student') {
-            user.studentProfile = {
-                ...user.studentProfile,
-                course: req.body.course || user.studentProfile?.course,
-                subject: req.body.subject !== undefined ? req.body.subject : user.studentProfile?.subject,
-                batch: req.body.batch !== undefined ? req.body.batch : user.studentProfile?.batch,
-                section: req.body.section !== undefined ? req.body.section : user.studentProfile?.section
-            };
+            if (!user.studentProfile) user.studentProfile = {};
+            user.studentProfile.course = req.body.course || user.studentProfile.course;
+            user.studentProfile.subject = req.body.subject !== undefined ? req.body.subject : user.studentProfile.subject;
+            user.studentProfile.batch = req.body.batch !== undefined ? req.body.batch : user.studentProfile.batch;
+            user.studentProfile.section = req.body.section !== undefined ? req.body.section : user.studentProfile.section;
         } else if (user.role === 'Teacher') {
-            user.teacherProfile = {
-                ...user.teacherProfile,
-                assignedCourses: req.body.course ? [req.body.course] : user.teacherProfile?.assignedCourses,
-                subjects: req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile?.subjects,
-                studentAssignmentMode: req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile?.studentAssignmentMode,
-                assignedSections: req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile?.assignedSections,
-                assignedStudents: req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile?.assignedStudents
-            };
+            if (!user.teacherProfile) user.teacherProfile = {};
+            user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;
+            user.teacherProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile.subjects;
+            user.teacherProfile.studentAssignmentMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile.studentAssignmentMode;
+            user.teacherProfile.assignedSections = req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile.assignedSections;
+            user.teacherProfile.assignedStudents = req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile.assignedStudents;
         }
 
         const updatedUser = await user.save();

@@ -80,6 +80,7 @@ app.use('/api/notes', require('./routes/noteRoutes'));
 app.use('/api/registration-requests', require('./routes/registrationRequestRoutes'));
 app.use('/api/attendance', require('./routes/common/attendanceRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
+app.use('/api/sync', require('./routes/syncRoutes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

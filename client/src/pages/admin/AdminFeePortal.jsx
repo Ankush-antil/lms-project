@@ -652,31 +652,90 @@ export default function AdminFeePortal() {
     );
 
     /* ─── All Students Tab ─── */
-    const renderStudents = () => (
-        <div className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-                <div className="relative flex-1 min-w-48">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
-                        className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                </div>
-                <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                    <option value="All" className="bg-white">All Courses</option>
-                    {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
-                </select>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                    {['All', 'Paid', 'Partial', 'Pending'].map(s => (
-                        <option key={s} value={s} className="bg-white">{s}</option>
-                    ))}
-                </select>
-                <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
-            </div>
+    const renderStudents = () => {
+        const sheetUrl = syncConfig?.spreadsheetId 
+            ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
+            : null;
 
-            {/* Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        return (
+            <div className="space-y-4">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-3">
+                    <div className="relative flex-1 min-w-48">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
+                            className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                        <option value="All" className="bg-white">All Courses</option>
+                        {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
+                    </select>
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                        {['All', 'Paid', 'Partial', 'Pending'].map(s => (
+                            <option key={s} value={s} className="bg-white">{s}</option>
+                        ))}
+                    </select>
+                    <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
+                </div>
+
+                {/* Google Sheets Integration Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
+                                📊 Google Sheets Integration
+                            </h3>
+                            <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                        </div>
+                        {sheetUrl && (
+                            <a 
+                                href={sheetUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
+                            >
+                                <FileText size={12} /> Open Sheet ↗
+                            </a>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={spreadsheetIdInput}
+                                    onChange={e => setSpreadsheetIdInput(e.target.value)}
+                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                    placeholder="Paste Google Spreadsheet ID here"
+                                />
+                                <button
+                                    onClick={saveAllSettings}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
+                                >
+                                    {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[10px] text-slate-500 leading-relaxed">
+                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
+                            <ol className="list-decimal pl-4 space-y-0.5">
+                                <li>Create a new Google Sheet in your account.</li>
+                                <li>
+                                    Share it with editor permissions to email: 
+                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
+                                </li>
+                                <li>Paste the Spreadsheet ID from the URL and click Save.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
@@ -734,7 +793,8 @@ export default function AdminFeePortal() {
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     /* ─── Pending Dues Tab ─── */
     const renderPending = () => (
@@ -1003,10 +1063,6 @@ export default function AdminFeePortal() {
 
     /* ─── Settings Tab ─── */
     const renderSettings = () => {
-        const sheetUrl = syncConfig?.spreadsheetId 
-            ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
-            : null;
-
         return (
             <div className="max-w-xl space-y-6">
                 <div>
@@ -1062,56 +1118,6 @@ export default function AdminFeePortal() {
                         >
                             {settingsSaved ? '✓ Saved!' : 'Save Settings'}
                         </button>
-                    </div>
-                </div>
-
-                {/* Google Sheets Sync Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                    <div>
-                        <h3 className="text-slate-800 font-black text-base">Google Sheets Integration</h3>
-                        <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
-                            <input
-                                value={spreadsheetIdInput}
-                                onChange={e => setSpreadsheetIdInput(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                                placeholder="Paste Google Spreadsheet ID here"
-                            />
-                        </div>
-
-                        {sheetUrl && (
-                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-600 text-xs font-bold">Linked Sheet:</span>
-                                    <a 
-                                        href={sheetUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
-                                    >
-                                        <FileText size={12} /> Open Sheet ↗
-                                    </a>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-[10px] text-slate-500 leading-relaxed space-y-1.5">
-                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
-                            <ol className="list-decimal pl-4 space-y-1">
-                                <li>Create a new Google Sheet in your Google Account.</li>
-                                <li>
-                                    Click <strong>Share</strong> (top right) and add email:
-                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 py-0.5 rounded ml-1 block select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
-                                    Set permissions as <strong>Editor</strong> and click Share.
-                                </li>
-                                <li>Copy the ID from the Sheet's URL and paste it in the field above.</li>
-                                <li>Click <strong>Save Settings</strong>.</li>
-                            </ol>
-                        </div>
                     </div>
                 </div>
             </div>

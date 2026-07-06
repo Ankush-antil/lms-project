@@ -85,7 +85,8 @@ const createUser = asyncHandler(async (req, res) => {
             subject: subject || '',
             batch: batch || '',
             section: assignedSection,
-            enrollmentDate: new Date()
+            enrollmentDate: new Date(),
+            controls: req.body.controls
         };
     } else if (role === 'Teacher') {
         userFields.teacherProfile = {
@@ -184,6 +185,10 @@ const updateUser = asyncHandler(async (req, res) => {
             user.studentProfile.subject = req.body.subject !== undefined ? req.body.subject : user.studentProfile.subject;
             user.studentProfile.batch = req.body.batch !== undefined ? req.body.batch : user.studentProfile.batch;
             user.studentProfile.section = req.body.section !== undefined ? req.body.section : user.studentProfile.section;
+            if (req.body.controls !== undefined) {
+                user.studentProfile.controls = req.body.controls;
+                user.markModified('studentProfile.controls');
+            }
         } else if (user.role === 'Teacher') {
             if (!user.teacherProfile) user.teacherProfile = {};
             user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;

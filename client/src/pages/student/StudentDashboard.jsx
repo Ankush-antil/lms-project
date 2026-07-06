@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
-import { BookOpen, Clock, FileText, CheckCircle, User, Phone, X } from 'lucide-react';
+import { BookOpen, Clock, FileText, CheckCircle, User, Phone, X, Lock } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import toast from 'react-hot-toast';
 
@@ -89,10 +89,37 @@ const StudentDashboard = () => {
     const completedTests = tests.filter(t => submittedTestIds.has(t._id));
     const upcomingTests = pendingTests.slice(0, 3); // Just show first 3 for dashboard
 
+    const isDashboardDisabled = profile?.studentProfile?.controls?.dashboard?.enabled === false;
+    const dashboardMode = profile?.studentProfile?.controls?.dashboard?.mode || 'hide';
+
+    if (isDashboardDisabled && dashboardMode === 'hide') {
+        return (
+            <DashboardLayout role="Student" fullWidth={true}>
+                <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-8 text-center animate-fade-in">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+                        <Lock size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Feature Restricted</h2>
+                    <p className="text-xs text-slate-500 max-w-sm mt-1">
+                        Your dashboard has been disabled by your administrator.
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout role="Student" fullWidth={true}>
-            <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+            <div className={`relative ${isDashboardDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+                {isDashboardDisabled && (
+                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-start justify-center pt-12 pointer-events-auto">
+                        <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
+                            <Lock size={16} className="text-amber-500" />
+                            <span className="text-xs font-bold">Dashboard is Disabled (View-Only Mode)</span>
+                        </div>
+                    </div>
+                )}
+                <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Student Dashboard</h1>
                     <p className="text-slate-500">Welcome back, {profile?.name?.split(' ')[0]}! Track your progress here.</p>
@@ -267,8 +294,9 @@ const StudentDashboard = () => {
                     )}
                 </div>
             </div>
-        </DashboardLayout>
-    );
+        </div>
+    </DashboardLayout>
+);
 };
 
 export default StudentDashboard;

@@ -532,9 +532,53 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const safeRole = role || 'Admin';
     const items = menuItems[safeRole] || [];
 
+    const preparedItems = items.map(item => {
+        if (user?.role === 'Student') {
+            const controls = user.studentProfile?.controls;
+            if (controls) {
+                const name = item.name.toLowerCase();
+                let controlKey = '';
+                if (name === 'my activities') controlKey = 'myActivity';
+                else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'chat') controlKey = 'chat';
+
+                if (controlKey) {
+                    const ctrl = controls[controlKey];
+                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                        return { ...item, disabled: true };
+                    }
+                }
+            }
+        }
+        return item;
+    });
+
     const isMenuItemAllowed = (item) => {
         // Super Admins bypass all controls
         if (user?.role === 'Admin') return true;
+
+        if (user?.role === 'Student') {
+            const controls = user.studentProfile?.controls;
+            if (!controls) return true;
+
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (name === 'my activities') controlKey = 'myActivity';
+            else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
+            else if (name === 'fee portal') controlKey = 'feePortal';
+            else if (name === 'tools') controlKey = 'tools';
+            else if (name === 'chat') controlKey = 'chat';
+
+            if (controlKey) {
+                const ctrl = controls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         const controls = user?.institute?.controls;
         if (!controls) return true;
@@ -565,7 +609,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         return true;
     };
 
-    const filteredItems = items.filter(isMenuItemAllowed);
+    const filteredItems = preparedItems.filter(isMenuItemAllowed);
 
     const isActive = (path) => {
         const baseRolePath = `/${safeRole.toLowerCase()}`;
@@ -594,14 +638,17 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                         return (
                             <button
                                 key={item.name}
-                                onClick={() => navigate(item.path)}
+                                onClick={() => !item.disabled && navigate(item.path)}
                                 title={collapsed ? item.name : undefined}
+                                disabled={item.disabled}
                                 className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
                                     ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
                                     ${active
                                         ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
                                         : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
+                                    }
+                                    ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
+                                `}
                             >
                                 <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
                                 {!collapsed && <span>{item.name}</span>}
@@ -636,11 +683,15 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                             return (
                                 <button
                                     key={item.name}
-                                    onClick={() => navigate(item.path)}
-                                    className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold ${active
-                                        ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
-                                        : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                                        }`}
+                                    onClick={() => !item.disabled && navigate(item.path)}
+                                    disabled={item.disabled}
+                                    className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold 
+                                        ${active
+                                            ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
+                                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                                        }
+                                        ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
+                                    `}
                                 >
                                     <item.icon size={22} />
                                     <span className="text-base">{item.name}</span>

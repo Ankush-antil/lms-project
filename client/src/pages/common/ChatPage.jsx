@@ -978,9 +978,28 @@ const ChatPage = () => {
         return [...core, ...customItems];
     }, [customLists]);
 
+    const isContactAllowed = (contact) => {
+        if (!user || user.role !== 'Student') return true;
+        const chatCtrl = user.studentProfile?.controls?.chat;
+        if (!chatCtrl) return true;
+        if (chatCtrl.enabled === false) return false;
+
+        const role = contact.role;
+        if (role === 'Teacher') {
+            return chatCtrl.chatWithTeacher !== false;
+        }
+        if (role === 'Admin' || role === 'Institute') {
+            return chatCtrl.chatWithAdmin !== false;
+        }
+        if (role === 'Editor') {
+            return chatCtrl.chatWithEditor !== false;
+        }
+        return true;
+    };
+
     // Enhanced contacts list that includes custom list users so they can be chatted with instantly
     const allAvailableContacts = useMemo(() => {
-        const list = [...contacts];
+        let list = [...contacts];
         customLists.forEach(cl => {
             if (cl.users) {
                 cl.users.forEach(u => {
@@ -990,8 +1009,20 @@ const ChatPage = () => {
                 });
             }
         });
+        if (user?.role === 'Student') {
+            list = list.filter(isContactAllowed);
+        }
         return list;
-    }, [contacts, customLists]);
+    }, [contacts, customLists, user]);
+
+    useEffect(() => {
+        if (selectedContact && !isContactAllowed(selectedContact)) {
+            setSelectedContact(null);
+            if (mobileActiveTab === 'chat') {
+                setMobileActiveTab('list');
+            }
+        }
+    }, [selectedContact, user]);
 
     // Filters contacts based on search keyword and active filter tab
     const filteredContacts = useMemo(() => {
@@ -1085,9 +1116,37 @@ const ChatPage = () => {
     // So we ALSO need to check per-test via the new endpoint in the grid view
     // We use a helper that fetches doubt counts per test lazily (done inside the grid render)
 
+    const chatCtrl = user?.studentProfile?.controls?.chat;
+    const isChatDisabled = user?.role === 'Student' && chatCtrl?.enabled === false;
+    const chatMode = chatCtrl?.mode || 'hide';
+
+    if (isChatDisabled && chatMode === 'hide') {
+        return (
+            <DashboardLayout role={user?.role} fullWidth={true}>
+                <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-8 text-center animate-fade-in">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+                        <Lock size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Feature Restricted</h2>
+                    <p className="text-xs text-slate-500 max-w-sm mt-1">
+                        Chat features have been disabled by your administrator.
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={user?.role} fullWidth={true}>
-            <div className="flex bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-140px)] min-h-[500px]">
+            <div className={`relative flex bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-140px)] min-h-[500px] ${isChatDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+                {isChatDisabled && (
+                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto">
+                        <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
+                            <Lock size={16} className="text-amber-500" />
+                            <span className="text-xs font-bold">Chat features are Disabled</span>
+                        </div>
+                    </div>
+                )}
                 {/* Left Side Pane: Contact List */}
                 <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-100 flex-shrink-0 ${mobileActiveTab === 'chat' ? 'hidden md:flex' : 'flex'
                     }`}>
@@ -1364,20 +1423,47 @@ const ChatPage = () => {
                                     >
                                         <Search size={16} />
                                     </button>
-                                    <button
-                                        onClick={() => callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio')}
-                                        className="p-2.5 text-slate-550 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white"
-                                        title="Voice Call"
-                                    >
-                                        <Phone size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'video')}
-                                        className="p-2.5 text-slate-550 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white"
-                                        title="Video Call"
-                                    >
-                                        <Video size={16} />
-                                    </button>
+                                    {/* Audio Call Button */}
+                                    {(!user || user.role !== 'Student' || user.studentProfile?.controls?.chat?.audioCall !== false || user.studentProfile?.controls?.chat?.mode === 'disable') && (
+                                        <button
+                                            onClick={() => {
+                                                if (user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false) {
+                                                    toast.error("Audio calling is disabled by your administrator.");
+                                                    return;
+                                                }
+                                                callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio');
+                                            }}
+                                            className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
+                                                ${(user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false) 
+                                                    ? 'opacity-40 cursor-not-allowed text-slate-300' 
+                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                            title="Voice Call"
+                                            disabled={user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false}
+                                        >
+                                            <Phone size={16} />
+                                        </button>
+                                    )}
+
+                                    {/* Video Call Button */}
+                                    {(!user || user.role !== 'Student' || user.studentProfile?.controls?.chat?.videoCall !== false || user.studentProfile?.controls?.chat?.mode === 'disable') && (
+                                        <button
+                                            onClick={() => {
+                                                if (user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false) {
+                                                    toast.error("Video calling is disabled by your administrator.");
+                                                    return;
+                                                }
+                                                callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'video');
+                                            }}
+                                            className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
+                                                ${(user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false) 
+                                                    ? 'opacity-40 cursor-not-allowed text-slate-300' 
+                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                            title="Video Call"
+                                            disabled={user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false}
+                                        >
+                                            <Video size={16} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

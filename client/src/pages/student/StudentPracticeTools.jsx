@@ -8,10 +8,12 @@ import {
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const StudentPracticeTools = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
 
     // Parse active date from URL query parameter if present
     const searchParams = new URLSearchParams(location.search);
@@ -235,6 +237,27 @@ const StudentPracticeTools = () => {
         navigate(`/student/practice-tools?date=${date}`, { replace: true });
     };
 
+    const getToolControl = (toolTitle) => {
+        if (!user || !user.studentProfile?.controls?.tools) return { enabled: true, mode: 'hide' };
+
+        const toolsCtrl = user.studentProfile.controls.tools;
+        if (toolsCtrl.enabled === false) {
+            return { enabled: false, mode: toolsCtrl.mode };
+        }
+
+        let key = '';
+        if (toolTitle === "Voice Recorder") key = 'voiceRecorder';
+        else if (toolTitle === "Video Recorder") key = 'videoRecorder';
+        else if (toolTitle === "File Uploader") key = 'fileUploader';
+        else if (toolTitle === "Notes Writing") key = 'notesWriting';
+        else if (toolTitle === "Screenshot Tool") key = 'screenshotTool';
+        else if (toolTitle === "Screen Recorder") key = 'screenRecorder';
+        else if (toolTitle === "Web-Calling Tool") key = 'webCalling';
+
+        const isEnabled = toolsCtrl[key] !== false;
+        return { enabled: isEnabled, mode: toolsCtrl.mode };
+    };
+
     const handleLaunchTool = (path) => {
         navigate(`${path}?date=${selectedDate}`);
     };
@@ -284,9 +307,36 @@ const StudentPracticeTools = () => {
         }
     ];
 
+    const toolsCtrl = user?.studentProfile?.controls?.tools;
+    const isToolsDisabled = toolsCtrl?.enabled === false;
+
+    if (isToolsDisabled && toolsCtrl?.mode === 'hide') {
+        return (
+            <DashboardLayout role="Student" fullWidth={true}>
+                <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-8 text-center animate-fade-in">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+                        <Lock size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Feature Restricted</h2>
+                    <p className="text-xs text-slate-500 max-w-sm mt-1">
+                        Workspace tools have been disabled by your administrator.
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role="Student" fullWidth={true}>
-            <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden font-sans">
+            <div className={`flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden font-sans relative ${isToolsDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+                {isToolsDisabled && (
+                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto">
+                        <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
+                            <Lock size={16} className="text-amber-500" />
+                            <span className="text-xs font-bold">Workspace Tools are Disabled</span>
+                        </div>
+                    </div>
+                )}
                 
                 {/* ── LEFT DATE SIDEBAR ───────────────────────────────── */}
                 <aside className="w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden text-left">
@@ -411,33 +461,52 @@ const StudentPracticeTools = () => {
                     {/* Tools Grid */}
                     <div className="flex-1 p-8 overflow-y-auto custom-scrollbar bg-slate-50/30">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {practiceToolsConfig.map((tool, idx) => {
-                                const ToolIcon = tool.icon;
-                                const fileCount = getFileCountForTool(tool.title);
+                            {practiceToolsConfig
+                                .map(tool => {
+                                    const ctrl = getToolControl(tool.title);
+                                    return { ...tool, ctrl };
+                                })
+                                .filter(tool => {
+                                    return !(tool.ctrl.enabled === false && tool.ctrl.mode === 'hide');
+                                })
+                                .map((tool, idx) => {
+                                    const ToolIcon = tool.icon;
+                                    const fileCount = getFileCountForTool(tool.title);
+                                    const isDisabled = tool.ctrl.enabled === false && tool.ctrl.mode === 'disable';
 
-                                return (
-                                    <div 
-                                        key={idx} 
-                                        onClick={() => handleLaunchTool(tool.path)}
-                                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer h-20"
-                                    >
-                                        {/* Left Side: Icon */}
-                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
-                                            <ToolIcon size={18} />
+                                    return (
+                                        <div 
+                                            key={idx} 
+                                            onClick={() => {
+                                                if (isDisabled) {
+                                                    toast.error(`${tool.title} has been disabled by your administrator.`);
+                                                    return;
+                                                }
+                                                handleLaunchTool(tool.path);
+                                            }}
+                                            className={`bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer h-20 
+                                                ${isDisabled ? 'opacity-40 cursor-not-allowed hover:-translate-y-0' : ''}`}
+                                        >
+                                            {/* Left Side: Icon */}
+                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
+                                                <ToolIcon size={18} />
+                                            </div>
+                                            
+                                            {/* Right Side: Files Count and Tool Title */}
+                                            <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
+                                                <div className="flex items-center gap-1">
+                                                    {isDisabled && <Lock size={11} className="text-slate-400 shrink-0" />}
+                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
+                                                        fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {fileCount} {fileCount === 1 ? 'file' : 'files'}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
+                                            </div>
                                         </div>
-                                        
-                                        {/* Right Side: Files Count and Tool Title */}
-                                        <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
-                                            <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${
-                                                fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
-                                            }`}>
-                                                {fileCount} {fileCount === 1 ? 'file' : 'files'}
-                                            </span>
-                                            <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
                         </div>
                     </div>
                 </main>

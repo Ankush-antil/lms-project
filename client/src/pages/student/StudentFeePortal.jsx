@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     CreditCard, TrendingUp, Clock, CheckCircle, AlertCircle, FileText,
     Printer, Download, ChevronDown, X, IndianRupee, Calendar, Wallet,
-    Receipt, BarChart2, Phone, MessageSquare, ArrowRight, Loader2
+    Receipt, BarChart2, Phone, MessageSquare, ArrowRight, Loader2, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -132,14 +132,42 @@ const StudentFeePortal = () => {
         </div>
     );
 
-    if (!record) return (
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center">
-                <CreditCard size={28} className="text-slate-500" />
+    const feePortalCtrl = user?.studentProfile?.controls?.feePortal;
+    const isFeePortalDisabled = feePortalCtrl?.enabled === false;
+    const feePortalMode = feePortalCtrl?.mode || 'hide';
+
+    if (isFeePortalDisabled && feePortalMode === 'hide') {
+        return (
+            <div className="min-h-screen bg-[#070b12] text-slate-350 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+                <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400 mb-4 border border-white/5">
+                    <Lock size={28} />
+                </div>
+                <h2 className="text-lg font-black text-white">Feature Restricted</h2>
+                <p className="text-xs text-slate-400 max-w-sm mt-1">
+                    The fee portal has been disabled by your administrator.
+                </p>
             </div>
-            <div className="text-center">
-                <p className="text-white font-bold text-lg">No Fee Record Found</p>
-                <p className="text-slate-400 text-sm mt-1">Your fee details haven't been set up yet. Contact the accounts office.</p>
+        );
+    }
+
+    if (!record) return (
+        <div className="relative">
+            {isFeePortalDisabled && (
+                <div className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto">
+                    <div className="bg-[#0f1621] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-slide-up">
+                        <Lock size={16} className="text-amber-500" />
+                        <span className="text-xs font-bold">Fee Portal is Disabled</span>
+                    </div>
+                </div>
+            )}
+            <div className={`flex flex-col items-center justify-center h-64 gap-4 ${isFeePortalDisabled ? 'opacity-40 select-none pointer-events-none' : ''}`}>
+                <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center">
+                    <CreditCard size={28} className="text-slate-500" />
+                </div>
+                <div className="text-center">
+                    <p className="text-white font-bold text-lg">No Fee Record Found</p>
+                    <p className="text-slate-400 text-sm mt-1">Your fee details haven't been set up yet. Contact the accounts office.</p>
+                </div>
             </div>
         </div>
     );
@@ -147,7 +175,16 @@ const StudentFeePortal = () => {
     const paidPct = record.totalFee > 0 ? Math.min(100, Math.round((record.paidAmount / record.totalFee) * 100)) : 0;
 
     return (
-        <div className="space-y-6 max-w-3xl mx-auto">
+        <div className="relative">
+            {isFeePortalDisabled && (
+                <div className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto">
+                    <div className="bg-[#0f1621] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-slide-up">
+                        <Lock size={16} className="text-amber-500" />
+                        <span className="text-xs font-bold">Fee Portal is Disabled</span>
+                    </div>
+                </div>
+            )}
+            <div className={`space-y-6 max-w-3xl mx-auto ${isFeePortalDisabled ? 'opacity-40 select-none pointer-events-none' : ''}`}>
             {/* Back Button */}
             <div className="flex items-center gap-3">
                 <button
@@ -296,7 +333,8 @@ const StudentFeePortal = () => {
                 <ReceiptModal tx={selectedTx} record={record} onClose={() => setSelectedTx(null)} />
             )}
         </div>
-    );
+    </div>
+);
 };
 
 export default StudentFeePortal;

@@ -141,6 +141,28 @@ const StudentTests = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
+
+    const getTabControl = (tabId) => {
+        if (!user || !user.studentProfile?.controls?.myActivity) return { enabled: true, mode: 'hide' };
+        
+        const myActivityCtrl = user.studentProfile.controls.myActivity;
+        if (myActivityCtrl.enabled === false) {
+            return { enabled: false, mode: myActivityCtrl.mode };
+        }
+
+        const inbox = myActivityCtrl.inbox;
+        if (!inbox) return { enabled: true, mode: 'hide' };
+
+        let inboxKey = '';
+        if (tabId === 'pending') inboxKey = 'upcoming';
+        else if (tabId === 'study-material') inboxKey = 'studyMaterial';
+        else if (tabId === 'practice') inboxKey = 'tools';
+        else inboxKey = tabId;
+
+        const isEnabled = inbox[inboxKey] !== false;
+        return { enabled: isEnabled, mode: myActivityCtrl.mode };
+    };
+
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
     const [inboxConfigs, setInboxConfigs] = useState([]);
@@ -148,6 +170,19 @@ const StudentTests = () => {
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
+
+    useEffect(() => {
+        if (user) {
+            const allowedTabs = ['pending', 'submitted', 'returned', 'evaluated', 'expired', 'study-material', 'practice', 'analytics']
+                .filter(tabId => {
+                    const ctrl = getTabControl(tabId);
+                    return ctrl.enabled !== false;
+                });
+            if (allowedTabs.length > 0 && !allowedTabs.includes(viewMode)) {
+                setViewMode(allowedTabs[0]);
+            }
+        }
+    }, [user, viewMode]);
     const [infoModalData, setInfoModalData] = useState(null);
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -716,6 +751,24 @@ const StudentTests = () => {
         }
     };
 
+    const isMyActivityDisabled = user?.studentProfile?.controls?.myActivity?.enabled === false;
+
+    if (isMyActivityDisabled) {
+        return (
+            <DashboardLayout role="Student" fullWidth={true}>
+                <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-8 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+                        <Lock size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Feature Restricted</h2>
+                    <p className="text-xs text-slate-500 max-w-sm mt-1">
+                        My Activities has been disabled by your administrator. Please contact your institute for details.
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role="Student" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -882,22 +935,37 @@ const StudentTests = () => {
                                         { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
                                         { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
                                         { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
-                                    ].map(tab => {
+                                    ]
+                                    .map(tab => {
+                                        const ctrl = getTabControl(tab.id);
+                                        return { ...tab, ctrl };
+                                    })
+                                    .filter(tab => {
+                                        return !(tab.ctrl.enabled === false && tab.ctrl.mode === 'hide');
+                                    })
+                                    .map(tab => {
+                                        const ctrl = tab.ctrl;
+                                        const isDisabled = ctrl.enabled === false && ctrl.mode === 'disable';
                                         const isActive = viewMode === tab.id;
                                         const TabIcon = tab.icon;
                                         return (
                                             <button
                                                 key={tab.id}
                                                 onClick={() => {
+                                                    if (isDisabled) return;
                                                     setViewMode(tab.id);
                                                     setSelectedCategory(null);
                                                 }}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                    ? tab.activeClass
-                                                    : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                disabled={isDisabled}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap 
+                                                    ${isDisabled 
+                                                        ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-100/50' 
+                                                        : isActive
+                                                            ? tab.activeClass
+                                                            : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
                                                     }`}
                                             >
-                                                <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                                <TabIcon size={12} className={isDisabled ? 'text-slate-450' : isActive ? 'text-white' : 'text-slate-400'} />
                                                 <span>{tab.label}</span>
                                             </button>
                                         );

@@ -146,6 +146,28 @@ const getAllPublicSubmissions = asyncHandler(async (req, res) => {
     res.json(submissions);
 });
 
+// @desc    Evaluate guest submission (Admin only)
+// @route   PUT /api/public-tests/admin/submissions/:id/evaluate
+// @access  Private/Admin
+const evaluatePublicSubmission = asyncHandler(async (req, res) => {
+    const { answers, score } = req.body;
+    const submission = await PublicSubmission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    if (answers && Array.isArray(answers)) {
+        submission.answers = answers;
+    }
+    if (score !== undefined) {
+        submission.score = score;
+    }
+    submission.status = 'evaluated';
+
+    await submission.save();
+    res.json({ success: true, submission });
+});
+
 module.exports = {
     getPublicTestsDashboard,
     getPublicTestStats,
@@ -153,5 +175,6 @@ module.exports = {
     togglePublicTestStatus,
     updatePublicTestSettings,
     deletePublicSubmission,
-    getAllPublicSubmissions
+    getAllPublicSubmissions,
+    evaluatePublicSubmission
 };

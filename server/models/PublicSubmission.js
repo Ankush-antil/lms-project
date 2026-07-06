@@ -47,6 +47,11 @@ const publicSubmissionSchema = new mongoose.Schema({
         enum: ['Completed', 'Incomplete'],
         default: 'Completed'
     },
+    status: {
+        type: String,
+        enum: ['submitted', 'evaluated'],
+        default: 'submitted'
+    },
     submittedAt: {
         type: Date,
         default: Date.now

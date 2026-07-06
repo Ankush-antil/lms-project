@@ -72,6 +72,8 @@ const PublicTestPage = () => {
     const [test, setTest] = useState(null);
     const [viewState, setViewState] = useState('register'); // 'password' | 'register' | 'test' | 'success' | 'error'
     const [errorMsg, setErrorMsg] = useState('');
+    const [existingSubmission, setExistingSubmission] = useState(null);
+    const [isAlreadySubmittedView, setIsAlreadySubmittedView] = useState(false);
 
     // Password Protection
     const [password, setPassword] = useState('');
@@ -217,7 +219,7 @@ const PublicTestPage = () => {
 
     // Timer effect
     useEffect(() => {
-        if (viewState === 'test' && test?.publicSettings?.timeLimit > 0) {
+        if (viewState === 'test' && test?.publicSettings?.timeLimit > 0 && !isAlreadySubmittedView) {
             setTimeLeft(test.publicSettings.timeLimit * 60);
 
             timerRef.current = setInterval(() => {
@@ -281,7 +283,7 @@ const PublicTestPage = () => {
 
     // Save draft to local storage and sync with backend when answers change
     useEffect(() => {
-        if (viewState === 'test' && test && Object.keys(answers).length > 0) {
+        if (viewState === 'test' && test && Object.keys(answers).length > 0 && !isAlreadySubmittedView) {
             const filteredAnswers = {};
             Object.keys(answers).forEach(key => {
                 const idx = Number(key);
@@ -439,9 +441,41 @@ const PublicTestPage = () => {
         try {
             const res = await axios.post(`/api/public-tests/${testId}/check-email`, { email: guestEmail });
             if (res.data.exists) {
-                toast.error("You have already submitted this test.");
-                setErrorMsg("You have already submitted this test. Duplicate responses are disabled by the instructor.");
-                setViewState('error');
+                const subId = res.data.submissionId;
+                const subRes = await axios.get(`/api/submissions/shared/${subId}`);
+                const submissionData = subRes.data;
+                
+                const loadedAnswers = {};
+                const loadedSubmittedAnswers = {};
+                
+                test.questions.forEach((q, idx) => {
+                    const ans = submissionData.answers.find(item => item.questionId === (q.id || `q${idx}`));
+                    if (ans) {
+                        let textVal = ans.textAnswer || '';
+                        try {
+                            if ((textVal.startsWith('{') && textVal.endsWith('}')) || (textVal.startsWith('[') && textVal.endsWith(']'))) {
+                                textVal = JSON.parse(textVal);
+                            }
+                        } catch (e) {}
+
+                        loadedSubmittedAnswers[idx] = {
+                            text: textVal,
+                            audioData: ans.audioData || '',
+                            videoData: ans.videoData || '',
+                            marks: ans.marks || 0,
+                            feedback: ans.feedback || '',
+                            conversation: ans.conversation || []
+                        };
+                        loadedAnswers[idx] = textVal;
+                    }
+                });
+
+                setAnswers(loadedAnswers);
+                setSubmittedAnswers(loadedSubmittedAnswers);
+                setExistingSubmission(submissionData);
+                setIsAlreadySubmittedView(true);
+                setViewState('test');
+                toast.success("Loaded your previous responses!");
             } else {
                 if (res.data.isDraft && res.data.draftAnswers) {
                     const loadedAnswers = {};
@@ -1598,7 +1632,7 @@ const PublicTestPage = () => {
                             },
                             supportingResources: []
                         };
-                        const isEditable = questionTimes[idx] !== 0 && !(submittedAnswers[idx] && !qParticulars.allowEditing);
+                        const isEditable = !isAlreadySubmittedView && questionTimes[idx] !== 0 && !(submittedAnswers[idx] && !qParticulars.allowEditing);
                         const hasAnyAction = !!(
                             q.moreSettings?.allowUpload === true ||
                             q.moreSettings?.allowAudioAnswer === true ||
@@ -3953,49 +3987,72 @@ const PublicTestPage = () => {
 
                         {/* Action Buttons (Right) */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                                type="button"
-                                onClick={() => submitAllResponses(false)}
-                                disabled={submitting}
-                                className="px-6 py-2 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
-                            >
-                                {submitting ? <Loader2 size={13} className="animate-spin" /> : "Submit"}
-                            </button>
+                            {isAlreadySubmittedView ? (
+                                <>
+                                    <span className="text-xs font-bold text-slate-500 mr-2 bg-slate-200 px-3 py-1.5 rounded-lg select-none">
+                                        Already Submitted (Read-only)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (existingSubmission && existingSubmission.status === 'evaluated') {
+                                                window.open(`/shared/test-result/${existingSubmission._id}`, '_blank');
+                                            } else {
+                                                toast.error("Your response has not been evaluated by the teacher yet.");
+                                            }
+                                        }}
+                                        className="px-6 py-2 bg-[#007BFF] hover:bg-[#0056b3] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                                    >
+                                        Result
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => submitAllResponses(false)}
+                                        disabled={submitting}
+                                        className="px-6 py-2 bg-[#DC3545] hover:bg-[#c82333] text-white font-black text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : "Submit"}
+                                    </button>
 
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    setSaveStatus("Saving...");
-                                    try {
-                                        const formattedAnswers = test.questions.map((q, idx) => {
-                                            return {
-                                                questionId: q.id || `q${idx}`,
-                                                questionText: q.text || `Question ${idx + 1}`,
-                                                questionType: q.type,
-                                                textAnswer: typeof answers[idx] === 'object' ? JSON.stringify(answers[idx]) : (answers[idx] || ''),
-                                                audioData: '',
-                                                videoData: ''
-                                            };
-                                        });
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setSaveStatus("Saving...");
+                                            try {
+                                                const formattedAnswers = test.questions.map((q, idx) => {
+                                                    return {
+                                                        questionId: q.id || `q${idx}`,
+                                                        questionText: q.text || `Question ${idx + 1}`,
+                                                        questionType: q.type,
+                                                        textAnswer: typeof answers[idx] === 'object' ? JSON.stringify(answers[idx]) : (answers[idx] || ''),
+                                                        audioData: '',
+                                                        videoData: ''
+                                                    };
+                                                });
 
-                                        await axios.post(`/api/public-tests/${testId}/save-draft`, {
-                                            name: guestName,
-                                            email: guestEmail,
-                                            phone: guestPhone,
-                                            organization: guestOrg,
-                                            answers: formattedAnswers
-                                        });
-                                        setSaveStatus("Saved to Cloud");
-                                        toast.success("Draft saved to cloud successfully!");
-                                    } catch (err) {
-                                        console.error("Manual cloud save error:", err);
-                                        toast.error("Failed to save draft to cloud. Saved locally.");
-                                    }
-                                }}
-                                className="px-5 py-2 bg-[#28A745] hover:bg-[#218838] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
-                            >
-                                Save as Draft
-                            </button>
+                                                await axios.post(`/api/public-tests/${testId}/save-draft`, {
+                                                    name: guestName,
+                                                    email: guestEmail,
+                                                    phone: guestPhone,
+                                                    organization: guestOrg,
+                                                    answers: formattedAnswers
+                                                });
+                                                setSaveStatus("Saved to Cloud");
+                                                toast.success("Draft saved to cloud successfully!");
+                                            } catch (err) {
+                                                console.error("Manual cloud save error:", err);
+                                                toast.error("Failed to save draft to cloud. Saved locally.");
+                                            }
+                                        }}
+                                        className="px-5 py-2 bg-[#28A745] hover:bg-[#218838] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+                                    >
+                                        Save as Draft
+                                    </button>
+                                </>
+                            )}
 
                             <button
                                 type="button"

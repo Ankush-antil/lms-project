@@ -2227,10 +2227,10 @@ const TestBuilder = () => {
                 description: q.answer || '',
                 helperText: '',
                 instructions: '',
-                required: false,
+                required: q.required !== undefined ? q.required : false,
                 enabled: true,
-                marks: 1,
-                negativeMarks: 0,
+                marks: q.marks !== undefined ? Number(q.marks) : 1,
+                negativeMarks: q.negativeMarks !== undefined ? Number(q.negativeMarks) : 0,
                 partialMarks: false,
                 evaluationMode: 'auto',
                 validation: {
@@ -2278,7 +2278,8 @@ const TestBuilder = () => {
                         borderColor: '#E2E8F0'
                     },
                     supportingResources: []
-                }
+                },
+                addons: Array.isArray(q.addons) ? q.addons : []
             };
         });
 
@@ -2447,8 +2448,9 @@ User's new request: "${userMessage}"
 Your instructions:
 1. If the user asks to generate, update, or refine questions (e.g. "make 5 HTML questions", "translate to Hindi", "make it hard"), you MUST generate the requested questions and place them in the "questions" array.
 2. If the user asks for video tutorials, courses, or video links (e.g. "muja 5 HTML videos chaya"), find or construct a list of valid, real YouTube video links matching the topic, and place them in the "videos" array. If they do not ask for videos, keep the "videos" array empty [].
-3. In the "message" field, provide a friendly and helpful response to the user in Hinglish/English.
-4. If the user is just chatting or asking a general question without requesting test questions, you can leave the "questions" array empty.
+3. If the user asks to add any add-ons or tools (e.g., "addon bhi add kar do", "calculator", "timer"), include them in the "addons" array for each question. Available addons are: "Translator it", "Help with AI", "Voice typing", "Timer", "Rich Text", "Calculator".
+4. In the "message" field, provide a friendly and helpful response to the user in Hinglish/English.
+5. If the user is just chatting or asking a general question without requesting test questions, you can leave the "questions" array empty.
 
 JSON Output Schema format (strictly return ONLY valid JSON matching this structure, do NOT wrap in markdown code blocks like \`\`\`json):
 {
@@ -2458,7 +2460,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
       "question": "The question text here",
       "options": ["Option A", "Option B", "Option C", "Option D"], // Include 2 or 4 options if MCQ/True-False, or keep empty array [] if short answer/paragraph/etc.
       "correctAnswer": "Option A", // Match one option exactly if MCQ, otherwise empty string "" or short text
-      "answer": "Model answer or explanation"
+      "answer": "Model answer or explanation",
+      "addons": ["Timer", "Translator it"], // Add addons if requested by user, otherwise empty array []
+      "marks": 1, // Default to 1, update if user asks for specific marks
+      "negativeMarks": 0, // Default to 0, update if user asks for negative marking
+      "required": false // Default to false, update if user wants to make question mandatory
     }
   ],
   "videos": [

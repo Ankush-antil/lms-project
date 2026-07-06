@@ -25,12 +25,11 @@ function getSheetsClient() {
     }
 
     try {
-        const auth = new google.auth.JWT(
+        const auth = new google.auth.JWT({
             email,
-            null,
-            key.replace(/\\n/g, '\n'),
-            ['https://www.googleapis.com/auth/spreadsheets']
-        );
+            key: key.trim().replace(/^"/, '').replace(/"$/, '').replace(/\\n/g, '\n'),
+            scopes: ['https://www.googleapis.com/auth/spreadsheets']
+        });
         return {
             sheets: google.sheets({ version: 'v4', auth }),
             spreadsheetId,

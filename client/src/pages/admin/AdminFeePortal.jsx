@@ -234,8 +234,168 @@ const ReceiptModal = ({ receipt, onClose }) => {
     );
 };
 
-/* ─── Collect Fee Modal ─── */
-const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
+/* ─── Student Details Modal ─── */
+const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt }) => {
+    if (!record) return null;
+
+    const student = record.student || {};
+    const paidAmount = record.paidAmount || 0;
+    const totalFee = record.totalFee || 0;
+    const pendingAmount = record.pendingAmount || 0;
+    const percentage = totalFee > 0 ? Math.round((paidAmount / totalFee) * 100) : 0;
+    
+    // Filter receipts matching this student's ID
+    const studentReceipts = receipts.filter(r => 
+        r.studentId?.toString() === student._id?.toString()
+    );
+
+    const handleSendReminder = () => {
+        toast.success(`Fee reminder sent to ${student.name || 'Student'}!`);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-[720px] shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
+                
+                {/* Close Button */}
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1 bg-slate-50 hover:bg-slate-100 rounded-full"
+                >
+                    <X size={20} />
+                </button>
+
+                <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+                    <div>
+                        <h2 className="text-slate-850 font-black text-xl">Student Details</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        {/* Left Info Panel */}
+                        <div className="md:col-span-1 border border-slate-150 rounded-2xl p-5 flex flex-col items-center justify-center text-center space-y-4 bg-slate-50/50">
+                            <Avatar name={student.name || ''} size={90} className="shadow-inner" />
+                            <div>
+                                <h3 className="text-slate-800 font-black text-lg leading-tight">{student.name}</h3>
+                                <p className="text-indigo-600 text-xs font-bold mt-1">ID: {student.email ? student.email.split('@')[0].toUpperCase() : 'N/A'}</p>
+                                <p className="text-slate-400 text-xs mt-0.5">{student.mobileNumber || 'No mobile contact'}</p>
+                            </div>
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold ${STATUS_COLORS[record.status] || 'bg-slate-100 text-slate-600'}`}>
+                                {record.status}
+                            </span>
+                        </div>
+
+                        {/* Right Academic & Fee Progress Panel */}
+                        <div className="md:col-span-2 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Course</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{record.course || '—'}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Batch</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{record.batch || '—'}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Fee</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{fmt(totalFee)}</span>
+                                </div>
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Next Due</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">{fmtDate(record.nextDueDate)}</span>
+                                </div>
+                            </div>
+
+                            {/* Fee Progress Bar */}
+                            <div className="border border-slate-150 rounded-2xl p-4 space-y-3 bg-slate-50/50">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600 font-bold">Fee Progress</span>
+                                    <span className="text-slate-600 font-bold">
+                                        {percentage}% Paid {fmt(paidAmount)} / Due {fmt(pendingAmount)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                    <div className="bg-indigo-600 h-3 rounded-full transition-all" style={{ width: `${percentage}%` }} />
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        onCollect(student._id);
+                                        onClose();
+                                    }}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100"
+                                >
+                                    <CreditCard size={14} /> Collect Fee
+                                </button>
+                                <button
+                                    onClick={handleSendReminder}
+                                    className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                >
+                                    <MessageSquare size={14} /> Send Reminder
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Payment History Panel */}
+                    <div className="space-y-3 pt-2">
+                        <h3 className="text-slate-800 font-black text-sm flex items-center gap-2">
+                            Payment History ({studentReceipts.length})
+                        </h3>
+                        <div className="border border-slate-150 rounded-2xl overflow-hidden bg-white max-h-[180px] overflow-y-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-150 bg-slate-50 text-slate-400 font-bold uppercase tracking-wider">
+                                        <th className="px-4 py-2">Receipt No.</th>
+                                        <th className="px-4 py-2">Date</th>
+                                        <th className="px-4 py-2">Amount</th>
+                                        <th className="px-4 py-2">Mode</th>
+                                        <th className="px-4 py-2 text-center">View</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {studentReceipts.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-slate-400 italic">No payment history found</td>
+                                        </tr>
+                                    ) : (
+                                        studentReceipts.map(rec => (
+                                            <tr key={rec._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-2.5 font-bold text-slate-700">{rec.receiptNo}</td>
+                                                <td className="px-4 py-2.5 text-slate-500">{fmtDate(rec.date)}</td>
+                                                <td className="px-4 py-2.5 text-emerald-600 font-bold">{fmt(rec.amount)}</td>
+                                                <td className="px-4 py-2.5 text-slate-500">
+                                                    <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">{rec.paymentMode}</span>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <button 
+                                                        onClick={() => onOpenReceipt(rec)} 
+                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                                                    >
+                                                        <Eye size={13} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+/* ─── Collect Fee Form (Reusable) ─── */
+const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     const [selectedId, setSelectedId] = useState(preselectedId || '');
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [amount, setAmount] = useState('');
@@ -252,8 +412,16 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                 .then(r => setSelectedRecord(r.data))
                 .catch(() => setSelectedRecord(null))
                 .finally(() => setLoadingRecord(false));
+        } else {
+            setSelectedRecord(null);
         }
     }, [selectedId]);
+
+    useEffect(() => {
+        if (preselectedId) {
+            setSelectedId(preselectedId);
+        }
+    }, [preselectedId]);
 
     const handleSubmit = async () => {
         if (!selectedId || !amount) return toast.error('Select student and enter amount');
@@ -264,7 +432,7 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
             }, { withCredentials: true });
             toast.success(`Receipt generated: ${res.data.receiptNo}`);
             onSuccess();
-            onClose();
+            if (onCancel) onCancel();
         } catch {
             toast.error('Failed to collect fee');
         } finally {
@@ -275,16 +443,149 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
     const newBalance = selectedRecord ? Math.max(0, selectedRecord.pendingAmount - (Number(amount) || 0)) : null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-col md:flex-row gap-6 text-slate-800">
+            {/* Left: Form */}
+            <div className="flex-1 space-y-4">
+                {/* Student Select */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Search Student</label>
+                    <select
+                        value={selectedId}
+                        onChange={e => setSelectedId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                    >
+                        <option value="">— Select Student —</option>
+                        {students.map(s => (
+                            <option key={s._id} value={s.student?._id || s._id} className="bg-white">
+                                {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Fee Info */}
+                {loadingRecord && <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 size={14} className="animate-spin" /> Loading...</div>}
+                {selectedRecord && !loadingRecord ? (
+                    <div className="grid grid-cols-3 gap-3 animate-fade-in">
+                        <div className="bg-slate-100 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Total Fee</p>
+                            <p className="text-slate-805 font-black">{fmt(selectedRecord.totalFee)}</p>
+                        </div>
+                        <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Already Paid</p>
+                            <p className="text-emerald-600 font-black">{fmt(selectedRecord.paidAmount)}</p>
+                        </div>
+                        <div className="bg-red-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Pending</p>
+                            <p className="text-red-500 font-black">{fmt(selectedRecord.pendingAmount)}</p>
+                        </div>
+                    </div>
+                ) : !loadingRecord && (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-slate-100 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Total Fee</p>
+                            <p className="text-slate-805 font-black">₹0</p>
+                        </div>
+                        <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Already Paid</p>
+                            <p className="text-emerald-600 font-black">₹0</p>
+                        </div>
+                        <div className="bg-red-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Pending</p>
+                            <p className="text-red-500 font-black">₹0</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Amount */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Receive Amount</label>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+
+                {/* Payment Mode */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Payment Mode</label>
+                    <div className="flex flex-wrap gap-2">
+                        {PAYMENT_MODES.map(m => (
+                            <button key={m} onClick={() => setMode(m)}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${mode === m ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                {m}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Ref + Remark */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Reference No. (Optional)</label>
+                        <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} placeholder="e.g. UPI ref / cheque no."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Remark (Optional)</label>
+                        <input type="text" value={remark} onChange={e => setRemark(e.target.value)} placeholder="e.g. First installment"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                    <button onClick={handleSubmit} disabled={loading}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                        {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
+                        Save & Generate Receipt
+                    </button>
+                    {onCancel && (
+                        <button onClick={onCancel} className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors">
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Right: Receipt Preview */}
+            <div className="w-full md:w-64 flex-shrink-0 bg-white border border-slate-200 rounded-3xl p-5 space-y-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Receipt Preview</p>
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3 text-xs leading-relaxed">
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Receipt No: </span><span className="text-slate-650 font-bold">Auto-generated</span></div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Date: </span><span className="text-slate-650 font-bold">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Collected By: </span><span className="text-slate-650 font-bold">Admin</span></div>
+                    {selectedRecord ? (
+                        <>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Student: </span><span className="text-slate-700 font-bold">{selectedRecord.student?.name}</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Course: </span><span className="text-slate-700 font-bold">{selectedRecord.course}</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Amount: </span><span className="text-slate-800 font-black">{amount ? fmt(amount) : '₹0'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">New Balance: </span><span className={`font-bold ${newBalance === 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmt(newBalance)}</span></div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Student: </span><span className="text-slate-300 italic">None</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Course: </span><span className="text-slate-300 italic">None</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Amount: </span><span className="text-slate-500">₹0</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">New Balance: </span><span className="text-slate-500">₹0</span></div>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ─── Collect Fee Modal Wrapper ─── */
+const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-200 sticky top-0 bg-white z-10 text-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-                            <CreditCard size={16} className="text-indigo-400" />
+                        <div className="w-9 h-9 bg-indigo-500/10 rounded-xl flex items-center justify-center">
+                            <CreditCard size={16} className="text-indigo-600" />
                         </div>
                         <div>
-                            <p className="text-white font-black text-base">Collect Fee</p>
+                            <p className="text-slate-850 font-black text-base">Collect Fee</p>
                             <p className="text-xs text-slate-400">Search student and record payment</p>
                         </div>
                     </div>
@@ -293,106 +594,13 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                     </button>
                 </div>
 
-                <div className="flex gap-6 p-6">
-                    {/* Left: Form */}
-                    <div className="flex-1 space-y-4">
-                        {/* Student Select */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Search Student</label>
-                            <select
-                                value={selectedId}
-                                onChange={e => setSelectedId(e.target.value)}
-                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            >
-                                <option value="">— Select Student —</option>
-                                {students.map(s => (
-                                    <option key={s._id} value={s._id} className="bg-white">
-                                        {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Fee Info */}
-                        {loadingRecord && <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 size={14} className="animate-spin" /> Loading...</div>}
-                        {selectedRecord && !loadingRecord && (
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="bg-slate-100 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Total Fee</p>
-                                    <p className="text-slate-800 font-black">{fmt(selectedRecord.totalFee)}</p>
-                                </div>
-                                <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Already Paid</p>
-                                    <p className="text-emerald-400 font-black">{fmt(selectedRecord.paidAmount)}</p>
-                                </div>
-                                <div className="bg-red-500/10 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Pending</p>
-                                    <p className="text-red-400 font-black">{fmt(selectedRecord.pendingAmount)}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Amount */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Receive Amount</label>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount"
-                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                        </div>
-
-                        {/* Payment Mode */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Payment Mode</label>
-                            <div className="flex flex-wrap gap-2">
-                                {PAYMENT_MODES.map(m => (
-                                    <button key={m} onClick={() => setMode(m)}
-                                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${mode === m ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-300 hover:bg-slate-100'}`}>
-                                        {m}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Ref + Remark */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Reference No. (Optional)</label>
-                                <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} placeholder="e.g. UPI-12345"
-                                    className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Remark (Optional)</label>
-                                <input type="text" value={remark} onChange={e => setRemark(e.target.value)} placeholder="e.g. First installment"
-                                    className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button onClick={handleSubmit} disabled={loading}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                                {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
-                                Save & Generate Receipt
-                            </button>
-                            <button onClick={onClose} className="px-4 bg-white/5 hover:bg-slate-100 text-slate-300 rounded-xl font-bold text-sm transition-colors">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Right: Receipt Preview */}
-                    <div className="w-56 flex-shrink-0">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Receipt Preview</p>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
-                            <div><span className="text-slate-500">Receipt No: </span><span className="text-white text-xs">Auto-generated</span></div>
-                            <div><span className="text-slate-500">Date: </span><span className="text-white text-xs">{new Date().toLocaleDateString('en-IN')}</span></div>
-                            <div><span className="text-slate-500">Collected By: </span><span className="text-white text-xs">Admin</span></div>
-                            {selectedRecord && <>
-                                <div><span className="text-slate-500">Student: </span><span className="text-white text-xs">{selectedRecord.student?.name}</span></div>
-                                <div><span className="text-slate-500">Course: </span><span className="text-white text-xs">{selectedRecord.course}</span></div>
-                                <div><span className="text-slate-500">Amount: </span><span className="text-white text-xs">{amount ? fmt(amount) : '—'}</span></div>
-                                {newBalance !== null && <div><span className="text-slate-500">New Balance: </span><span className={`text-xs font-bold ${newBalance === 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(newBalance)}</span></div>}
-                            </>}
-                        </div>
-                    </div>
+                <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                    <CollectFeeForm 
+                        students={students} 
+                        preselectedId={preselectedId} 
+                        onCancel={onClose} 
+                        onSuccess={onSuccess} 
+                    />
                 </div>
             </div>
         </div>
@@ -431,6 +639,7 @@ export default function AdminFeePortal() {
     const [courseFilter, setCourseFilter] = useState('All');
     const [reportTab, setReportTab] = useState('course');
     const [selectedReceipt, setSelectedReceipt] = useState(null);
+    const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null);
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
@@ -439,6 +648,7 @@ export default function AdminFeePortal() {
     const [settingsSaved, setSettingsSaved] = useState(false);
     const [syncConfig, setSyncConfig] = useState(null);
     const [syncLoading, setSyncLoading] = useState(false);
+    const [spreadsheetIdInput, setSpreadsheetIdInput] = useState('');
 
     const fetchAll = async () => {
         setLoading(true);
@@ -456,11 +666,30 @@ export default function AdminFeePortal() {
             setPendingDues(pendingR.data);
             setReceipts(receiptsR.data);
             setReports(reportsR.data);
-            if (configR && configR.data) setSyncConfig(configR.data);
+            if (configR && configR.data) {
+                setSyncConfig(configR.data);
+                setSpreadsheetIdInput(configR.data.spreadsheetId || '');
+            }
         } catch (e) {
             toast.error('Failed to load fee data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const saveAllSettings = async () => {
+        try {
+            if (spreadsheetIdInput) {
+                await axios.post(`/api/sync/config`, { spreadsheetId: spreadsheetIdInput }, { withCredentials: true });
+                const configR = await axios.get(`/api/sync/config`, { withCredentials: true });
+                setSyncConfig(configR.data);
+            }
+            setSettingsSaved(true);
+            toast.success('Settings saved successfully!');
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Failed to save settings');
+        } finally {
+            setTimeout(() => setSettingsSaved(false), 2000);
         }
     };
 
@@ -632,31 +861,90 @@ export default function AdminFeePortal() {
     );
 
     /* ─── All Students Tab ─── */
-    const renderStudents = () => (
-        <div className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-                <div className="relative flex-1 min-w-48">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
-                        className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                </div>
-                <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                    <option value="All" className="bg-white">All Courses</option>
-                    {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
-                </select>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                    {['All', 'Paid', 'Partial', 'Pending'].map(s => (
-                        <option key={s} value={s} className="bg-white">{s}</option>
-                    ))}
-                </select>
-                <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
-            </div>
+    const renderStudents = () => {
+        const sheetUrl = syncConfig?.spreadsheetId 
+            ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
+            : null;
 
-            {/* Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        return (
+            <div className="space-y-4">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-3">
+                    <div className="relative flex-1 min-w-48">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
+                            className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                        <option value="All" className="bg-white">All Courses</option>
+                        {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
+                    </select>
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                        {['All', 'Paid', 'Partial', 'Pending'].map(s => (
+                            <option key={s} value={s} className="bg-white">{s}</option>
+                        ))}
+                    </select>
+                    <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
+                </div>
+
+                {/* Google Sheets Integration Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
+                                📊 Google Sheets Integration
+                            </h3>
+                            <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                        </div>
+                        {sheetUrl && (
+                            <a 
+                                href={sheetUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
+                            >
+                                <FileText size={12} /> Open Sheet ↗
+                            </a>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={spreadsheetIdInput}
+                                    onChange={e => setSpreadsheetIdInput(e.target.value)}
+                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                    placeholder="Paste Google Spreadsheet ID here"
+                                />
+                                <button
+                                    onClick={saveAllSettings}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
+                                >
+                                    {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[10px] text-slate-500 leading-relaxed">
+                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
+                            <ol className="list-decimal pl-4 space-y-0.5">
+                                <li>Create a new Google Sheet in your account.</li>
+                                <li>
+                                    Share it with editor permissions to email: 
+                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
+                                </li>
+                                <li>Paste the Spreadsheet ID from the URL and click Save.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
@@ -699,6 +987,15 @@ export default function AdminFeePortal() {
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">
+                                            {r.student?._id && (
+                                                <button 
+                                                    onClick={() => setSelectedStudentForDetails(r)}
+                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                    title="View Student Details"
+                                                >
+                                                    <Eye size={15} />
+                                                </button>
+                                            )}
                                             {r.status !== 'Paid' && (
                                                 <button onClick={() => openCollect(r.student?._id)}
                                                     className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
@@ -714,7 +1011,25 @@ export default function AdminFeePortal() {
                 </div>
             </div>
         </div>
-    );
+        );
+    };
+
+    /* ─── Collect Fee Tab (Inline Page) ─── */
+    const renderCollect = () => {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-slate-800 font-black text-lg">Collect Fee</h2>
+                    <p className="text-slate-400 text-sm mt-0.5">Manage fees, collections and reports</p>
+                </div>
+                <CollectFeeForm 
+                    students={students.filter(s => s.status !== 'Paid')} 
+                    preselectedId={collectPreselect} 
+                    onSuccess={fetchAll} 
+                />
+            </div>
+        );
+    };
 
     /* ─── Pending Dues Tab ─── */
     const renderPending = () => (
@@ -983,10 +1298,6 @@ export default function AdminFeePortal() {
 
     /* ─── Settings Tab ─── */
     const renderSettings = () => {
-        const sheetUrl = syncConfig?.spreadsheetId 
-            ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
-            : null;
-
         return (
             <div className="max-w-xl space-y-6">
                 <div>
@@ -1037,59 +1348,10 @@ export default function AdminFeePortal() {
                     </div>
                     <div className="pt-2">
                         <button
-                            onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2000); toast.success('Settings saved!'); }}
+                            onClick={saveAllSettings}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-2.5 text-sm font-bold transition-colors"
                         >
                             {settingsSaved ? '✓ Saved!' : 'Save Settings'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Google Sheets Sync Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                    <div>
-                        <h3 className="text-slate-800 font-black text-base">Google Sheets Integration</h3>
-                        <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
-                    </div>
-
-                    {sheetUrl ? (
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-600 text-sm font-bold">Linked Spreadsheet:</span>
-                                <a 
-                                    href={sheetUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
-                                >
-                                    <FileText size={14} /> Open Google Sheet ↗
-                                </a>
-                            </div>
-                            <p className="text-[10px] text-slate-400">Spreadsheet ID: <code className="bg-slate-100 px-1 py-0.5 rounded">{syncConfig.spreadsheetId}</code></p>
-                        </div>
-                    ) : (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                            <p className="text-amber-700 text-xs font-bold">⚠️ Google Sheets Not Configured</p>
-                            <p className="text-[10px] text-amber-500 mt-1">Please set GOOGLE_SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY in your server .env file.</p>
-                        </div>
-                    )}
-
-                    <div className="flex gap-3 pt-2 border-t border-slate-100">
-                        <button
-                            onClick={handleImport}
-                            disabled={syncLoading || !sheetUrl}
-                            className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-50 text-slate-700 rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                        >
-                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} className="rotate-180" />}
-                            Import from Sheets
-                        </button>
-                        <button
-                            onClick={handleExport}
-                            disabled={syncLoading || !sheetUrl}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                        >
-                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} />}
-                            Export to Sheets
                         </button>
                     </div>
                 </div>
@@ -1120,6 +1382,16 @@ export default function AdminFeePortal() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {syncConfig?.spreadsheetId && (
+                        <a
+                            href={`https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl px-3 py-1.5 text-xs text-white font-bold transition-colors"
+                        >
+                            <FileText size={12} /> Google Sheet
+                        </a>
+                    )}
                     <button onClick={fetchAll} disabled={loading} className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-slate-300 transition-colors">
                         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
                     </button>
@@ -1175,18 +1447,7 @@ export default function AdminFeePortal() {
                         <>
                             {activeTab === 'dashboard' && renderDashboard()}
                             {activeTab === 'students' && renderStudents()}
-                            {activeTab === 'collect' && (
-                                <div className="flex flex-col items-center justify-center py-16 gap-4">
-                                    <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center">
-                                        <CreditCard size={32} className="text-indigo-400" />
-                                    </div>
-                                    <h3 className="text-slate-800 font-black text-xl">Collect Fee</h3>
-                                    <p className="text-slate-500 text-sm">Search student and record a new payment</p>
-                                    <button onClick={() => openCollect()} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold transition-colors">
-                                        <Plus size={16} /> Open Collect Fee Form
-                                    </button>
-                                </div>
-                            )}
+                            {activeTab === 'collect' && renderCollect()}
                             {activeTab === 'pending' && renderPending()}
                             {activeTab === 'receipts' && renderReceipts()}
                             {activeTab === 'reports' && renderReports()}
@@ -1198,6 +1459,15 @@ export default function AdminFeePortal() {
 
             {/* Modals */}
             {selectedReceipt && <ReceiptModal receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+            {selectedStudentForDetails && (
+                <StudentDetailsModal
+                    record={selectedStudentForDetails}
+                    receipts={receipts}
+                    onClose={() => setSelectedStudentForDetails(null)}
+                    onCollect={openCollect}
+                    onOpenReceipt={(rec) => setSelectedReceipt(rec)}
+                />
+            )}
             {showCollectModal && (
                 <CollectFeeModal
                     students={students.filter(s => s.status !== 'Paid')}

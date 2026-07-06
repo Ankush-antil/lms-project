@@ -59,7 +59,7 @@ const CoursesList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Courses Management</h1>
                     <p className="text-slate-500">Organize curriculum and academic programs.</p>
                 </div>
-                {user?.role !== 'Admin' && (
+                {user?.role !== 'Admin' && user?.institute?.controls?.course?.addCourse !== false && (
                     <button
                         onClick={() => {
                             setSelectedCourse(null);
@@ -102,16 +102,18 @@ const CoursesList = () => {
                     filteredCourses.map((course) => (
                         <div key={course._id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative flex flex-col">
                             <div className="absolute top-6 right-6 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => {
-                                        setSelectedCourse(course);
-                                        setIsModalOpen(true);
-                                    }}
-                                    className="p-2 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-xl transition-all"
-                                    title="Edit Course"
-                                >
-                                    <Edit size={18} />
-                                </button>
+                                {user?.institute?.controls?.course?.editCourse !== false && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedCourse(course);
+                                            setIsModalOpen(true);
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-xl transition-all"
+                                        title="Edit Course"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => handleDelete(course._id)}
                                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"

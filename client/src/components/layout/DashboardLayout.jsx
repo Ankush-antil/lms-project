@@ -524,10 +524,45 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
 const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
 
     const safeRole = role || 'Admin';
     const items = menuItems[safeRole] || [];
+
+    const isMenuItemAllowed = (item) => {
+        // Super Admins bypass all controls
+        if (user?.role === 'Admin') return true;
+
+        const controls = user?.institute?.controls;
+        if (!controls) return true;
+
+        const name = item.name.toLowerCase();
+        
+        if (name === 'dashboard') {
+            return controls.dashboard?.show !== false;
+        }
+        if (name === 'students') {
+            return controls.student?.show !== false;
+        }
+        if (name === 'teachers') {
+            return controls.teacher?.show !== false;
+        }
+        if (name === 'editors') {
+            return controls.editor?.show !== false;
+        }
+        if (name === 'courses' || name === 'subjects') {
+            return controls.course?.show !== false;
+        }
+        if (name === 'activities' || name === 'activities builder') {
+            return controls.activities?.show !== false;
+        }
+        if (name === 'chat') {
+            return controls.chat?.show !== false;
+        }
+        return true;
+    };
+
+    const filteredItems = items.filter(isMenuItemAllowed);
 
     const isActive = (path) => {
         const baseRolePath = `/${safeRole.toLowerCase()}`;
@@ -551,7 +586,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 </button>
 
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-                    {items.map((item) => {
+                    {filteredItems.map((item) => {
                         const active = isActive(item.path);
                         return (
                             <button
@@ -593,7 +628,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 {/* Drawer panel */}
                 <div className={`absolute left-0 top-0 bottom-0 w-64 bg-[#0b1329] shadow-2xl p-6 flex flex-col transition-transform duration-300 text-white ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <nav className="flex-1 space-y-2">
-                        {items.map((item) => {
+                        {filteredItems.map((item) => {
                             const active = isActive(item.path);
                             return (
                                 <button

@@ -125,7 +125,7 @@ const StudentsList = () => {
                         <h1 className="text-2xl font-bold text-slate-800">Students Management</h1>
                         <p className="text-slate-500">Manage student enrollment and details.</p>
                     </div>
-                    {user?.role === 'Institute' && (
+                    {user?.role === 'Institute' && user?.institute?.controls?.student?.admissionOpen !== false && (
                         <div className="flex items-center gap-2.5 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100/80">
                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admissions:</span>
                             <button
@@ -141,7 +141,7 @@ const StudentsList = () => {
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && (
+                {user?.role !== 'Admin' && user?.institute?.controls?.student?.addStudent !== false && (
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="btn-primary flex items-center gap-2"
@@ -291,8 +291,7 @@ const StudentsList = () => {
                                             </button>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
-
-                                            {user?.role !== 'Admin' && (
+                                            {user?.role !== 'Admin' && user?.institute?.controls?.student?.editStudent !== false && (
                                                 <button
                                                     onClick={() => {
                                                         setSelectedUser(student);

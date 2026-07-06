@@ -98,23 +98,23 @@ const EditorsList = () => {
                         <h1 className="text-2xl font-bold text-slate-800">Editors Management</h1>
                         <p className="text-slate-500">Manage platform editors and track their activity.</p>
                     </div>
-                    {user?.role === 'Institute' && (
+                    {user?.role === 'Institute' && user?.institute?.controls?.editor?.hiring !== false && (
                         <div className="flex items-center gap-2.5 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100/80">
                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hiring Status:</span>
                             <button
-                                 type="button"
-                                 onClick={() => handleToggleFlag('editorHiring')}
-                                 className={`w-11 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${instituteDetails?.editorHiring ? 'bg-amber-500' : 'bg-slate-300'}`}
-                             >
-                                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-all duration-300 ${instituteDetails?.editorHiring ? 'translate-x-5' : 'translate-x-0'}`} />
-                             </button>
+                                type="button"
+                                onClick={() => handleToggleFlag('editorHiring')}
+                                className={`w-11 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${instituteDetails?.editorHiring ? 'bg-amber-600' : 'bg-slate-300'}`}
+                            >
+                                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-all duration-300 ${instituteDetails?.editorHiring ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
                             <span className={`text-[11px] font-extrabold uppercase tracking-wide ${instituteDetails?.editorHiring ? 'text-amber-600' : 'text-slate-400'}`}>
                                 {instituteDetails?.editorHiring ? 'Active' : 'Inactive'}
                             </span>
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && (
+                {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2"
@@ -196,7 +196,7 @@ const EditorsList = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
-                                            {user?.role !== 'Admin' && (
+                                            {user?.role !== 'Admin' && user?.institute?.controls?.editor?.editEditor !== false && (
                                                 <button
                                                     onClick={() => {
                                                         setSelectedUser(editor);

@@ -3232,6 +3232,26 @@ const TestBuilder = () => {
 
                 {/* Right actions: Green Publish button */}
                 <div className="flex items-center gap-3">
+                    {/* User profile avatar to verify account */}
+                    {user && (
+                        <div 
+                            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800"
+                            title={`Logged in as: ${user.name} (${user.role})`}
+                        >
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black shadow-md overflow-hidden ring-1 ring-white/20 flex-shrink-0">
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    user.name?.[0]?.toUpperCase() || 'U'
+                                )}
+                            </div>
+                            <div className="flex flex-col text-left hidden sm:block">
+                                <span className="text-[11px] font-bold text-slate-200 leading-tight truncate max-w-[100px] block">{user.name}</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-0.5 block">{user.role}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <button
                         onClick={() => setIsPublishOptionsModalOpen(true)}
                         disabled={publishing}

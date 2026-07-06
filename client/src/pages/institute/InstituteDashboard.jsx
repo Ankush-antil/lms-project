@@ -243,28 +243,32 @@ const InstituteDashboard = () => {
                     >
                         Overview
                     </button>
-                    <button
-                        onClick={() => setActiveTab('applications')}
-                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:text-slate-905'}`}
-                    >
-                        Applications
-                        {stats.pendingApps > 0 && (
-                            <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                {stats.pendingApps}
-                            </span>
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('role-requests')}
-                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
-                    >
-                        Staff Requests
-                        {roleRequests.length > 0 && (
-                            <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                {roleRequests.length}
-                            </span>
-                        )}
-                    </button>
+                    {user?.institute?.controls?.dashboard?.application !== false && (
+                        <button
+                            onClick={() => setActiveTab('applications')}
+                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:text-slate-905'}`}
+                        >
+                            Applications
+                            {stats.pendingApps > 0 && (
+                                <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                                    {stats.pendingApps}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    {user?.institute?.controls?.dashboard?.staffRequest !== false && (
+                        <button
+                            onClick={() => setActiveTab('role-requests')}
+                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
+                        >
+                            Staff Requests
+                            {roleRequests.length > 0 && (
+                                <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                                    {roleRequests.length}
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
 

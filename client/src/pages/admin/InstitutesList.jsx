@@ -2,8 +2,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { createPortal } from 'react-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit, Building, MapPin, Hash, Eye, BookOpen, ChevronRight } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Building, MapPin, Hash, Eye, BookOpen, ChevronRight, Shield, X, Check } from 'lucide-react';
 import AddInstituteModal from '../../components/AddInstituteModal';
 import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
@@ -25,6 +26,55 @@ const InstitutesList = () => {
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
     const [resolvingId, setResolvingId] = useState(null);
+    const [controlsPanel, setControlsPanel] = useState(null); // { inst } or null
+    const [controlsData, setControlsData] = useState(null);
+    const [savingControls, setSavingControls] = useState(false);
+
+    const defaultControls = {
+        dashboard: { show: true, application: true, staffRequest: true },
+        student: { show: true, admissionOpen: true, addStudent: true, editStudent: true },
+        teacher: { show: true, hiring: true, addTeacher: true, editTeacher: true },
+        editor: { show: true, hiring: true, addEditor: true, editEditor: true },
+        course: { show: true, addCourse: true, editCourse: true },
+        activities: { show: true },
+        chat: { show: true }
+    };
+
+    const openControlsPanel = (inst) => {
+        const merged = {
+            dashboard: { ...defaultControls.dashboard, ...inst.controls?.dashboard },
+            student: { ...defaultControls.student, ...inst.controls?.student },
+            teacher: { ...defaultControls.teacher, ...inst.controls?.teacher },
+            editor: { ...defaultControls.editor, ...inst.controls?.editor },
+            course: { ...defaultControls.course, ...inst.controls?.course },
+            activities: { ...defaultControls.activities, ...inst.controls?.activities },
+            chat: { ...defaultControls.chat, ...inst.controls?.chat },
+        };
+        setControlsData(merged);
+        setControlsPanel(inst);
+    };
+
+    const handleControlChange = (section, field, value) => {
+        setControlsData(prev => ({
+            ...prev,
+            [section]: { ...prev[section], [field]: value }
+        }));
+    };
+
+    const handleSaveControls = async () => {
+        if (!controlsPanel) return;
+        setSavingControls(true);
+        try {
+            await axios.put(`/api/setup/institutes/${controlsPanel._id}`, { controls: controlsData });
+            toast.success('Controls saved successfully!');
+            setInstitutes(prev => prev.map(i => i._id === controlsPanel._id ? { ...i, controls: controlsData } : i));
+            setControlsPanel(null);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to save controls');
+        } finally {
+            setSavingControls(false);
+        }
+    };
 
     const fetchPendingRequests = async () => {
         try {
@@ -239,6 +289,13 @@ const InstitutesList = () => {
                                                         <Eye size={20} />
                                                     </button>
                                                     <button
+                                                        onClick={() => openControlsPanel(inst)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                        title="Manage Controls"
+                                                    >
+                                                        <Shield size={20} />
+                                                    </button>
+                                                    <button
                                                         onClick={() => {
                                                             setSelectedInstitute(inst);
                                                             setIsEditModalOpen(true);
@@ -430,6 +487,187 @@ const InstitutesList = () => {
                 }}
                 instituteId={selectedInstitute?._id}
             />
+
+            {/* Controls Panel Modal */}
+            {controlsPanel && controlsData && createPortal(
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && setControlsPanel(null)}>
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setControlsPanel(null)} />
+                    {/* Panel */}
+                    <div className="relative bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-slate-100 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                    <Shield size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-extrabold text-slate-800 leading-none">{controlsPanel.name}</h3>
+                                    <p className="text-xs text-slate-400 font-bold mt-0.5">Manage Access Controls</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setControlsPanel(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-700">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body - scrollable */}
+                        <div className="overflow-y-auto p-7 space-y-4">
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3.5 text-xs text-indigo-700 font-semibold flex items-center gap-2">
+                                <Shield size={13} className="shrink-0" />
+                                Uncheck items to hide them from this institute's admin panel.
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                                {/* Dashboard */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Dashboard Page</span>
+                                        <input type="checkbox" checked={controlsData.dashboard?.show !== false} onChange={e => handleControlChange('dashboard', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    {controlsData.dashboard?.show !== false && (
+                                        <div className="pl-1 space-y-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.dashboard?.application !== false} onChange={e => handleControlChange('dashboard', 'application', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Applications Tab
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.dashboard?.staffRequest !== false} onChange={e => handleControlChange('dashboard', 'staffRequest', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Staff Requests Tab
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Students */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Student Page</span>
+                                        <input type="checkbox" checked={controlsData.student?.show !== false} onChange={e => handleControlChange('student', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    {controlsData.student?.show !== false && (
+                                        <div className="pl-1 space-y-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.student?.admissionOpen !== false} onChange={e => handleControlChange('student', 'admissionOpen', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Admission Toggle
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.student?.addStudent !== false} onChange={e => handleControlChange('student', 'addStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Add Student Button
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.student?.editStudent !== false} onChange={e => handleControlChange('student', 'editStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Edit Student Button
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Teachers */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Teacher Page</span>
+                                        <input type="checkbox" checked={controlsData.teacher?.show !== false} onChange={e => handleControlChange('teacher', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    {controlsData.teacher?.show !== false && (
+                                        <div className="pl-1 space-y-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.teacher?.hiring !== false} onChange={e => handleControlChange('teacher', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Hiring Toggle
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.teacher?.addTeacher !== false} onChange={e => handleControlChange('teacher', 'addTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Add Teacher Button
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.teacher?.editTeacher !== false} onChange={e => handleControlChange('teacher', 'editTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Edit Teacher Button
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Editors */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Editor Page</span>
+                                        <input type="checkbox" checked={controlsData.editor?.show !== false} onChange={e => handleControlChange('editor', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    {controlsData.editor?.show !== false && (
+                                        <div className="pl-1 space-y-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.editor?.hiring !== false} onChange={e => handleControlChange('editor', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Hiring Toggle
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.editor?.addEditor !== false} onChange={e => handleControlChange('editor', 'addEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Add Editor Button
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.editor?.editEditor !== false} onChange={e => handleControlChange('editor', 'editEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Edit Editor Button
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Courses */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Course Page</span>
+                                        <input type="checkbox" checked={controlsData.course?.show !== false} onChange={e => handleControlChange('course', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    {controlsData.course?.show !== false && (
+                                        <div className="pl-1 space-y-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.course?.addCourse !== false} onChange={e => handleControlChange('course', 'addCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Add Course Button
+                                            </label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
+                                                <input type="checkbox" checked={controlsData.course?.editCourse !== false} onChange={e => handleControlChange('course', 'editCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Edit Course Button
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Activities & Chat */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                        <span className="text-sm font-extrabold text-slate-800">Activities Page</span>
+                                        <input type="checkbox" checked={controlsData.activities?.show !== false} onChange={e => handleControlChange('activities', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-extrabold text-slate-800">Chat Page</span>
+                                        <input type="checkbox" checked={controlsData.chat?.show !== false} onChange={e => handleControlChange('chat', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="shrink-0 px-7 py-5 border-t border-slate-100 flex gap-3">
+                            <button
+                                onClick={() => setControlsPanel(null)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveControls}
+                                disabled={savingControls}
+                                className="flex-1 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                            >
+                                {savingControls && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                {savingControls ? 'Saving...' : <><Check size={16} /> Save Controls</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </DashboardLayout>
     );
 };

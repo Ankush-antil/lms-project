@@ -17,7 +17,7 @@ const loginUser = async (req, res) => {
         console.log(`Login attempt for: ${email}`);
 
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
-            .populate('institute', 'name imageUrl')
+            .populate('institute', 'name imageUrl controls')
             .populate('studentProfile.course', 'name subjects')
             .populate('teacherProfile.assignedCourses', 'name');
 
@@ -58,7 +58,7 @@ const getMe = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
             .select('-password')
-            .populate('institute', 'name imageUrl')
+            .populate('institute', 'name imageUrl controls')
             .populate('studentProfile.course', 'name subjects duration')
             .populate('teacherProfile.assignedCourses', 'name')
             .populate('teacherProfile.assignedStudents', 'name email studentProfile');

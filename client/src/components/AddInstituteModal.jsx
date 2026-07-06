@@ -5,6 +5,16 @@ import { X, Copy, Check, Upload, Phone, Mail, Headphones, FileText, Shield, Imag
 import { createPortal } from 'react-dom';
 
 const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
+    const defaultControls = {
+        dashboard: { show: true, application: true, staffRequest: true },
+        student: { show: true, admissionOpen: true, addStudent: true, editStudent: true },
+        teacher: { show: true, hiring: true, addTeacher: true, editTeacher: true },
+        editor: { show: true, hiring: true, addEditor: true, editEditor: true },
+        course: { show: true, addCourse: true, editCourse: true },
+        activities: { show: true },
+        chat: { show: true }
+    };
+
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -15,7 +25,8 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
         helplineNumber: '',
         description: '',
         termsAndPolicies: '',
-        imageUrl: ''
+        imageUrl: '',
+        controls: defaultControls
     });
     const [imagePreview, setImagePreview] = useState(null);
     const [imageUploading, setImageUploading] = useState(false);
@@ -23,7 +34,7 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
     const [loading, setLoading] = useState(false);
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
-    const [activeSection, setActiveSection] = useState('basic'); // 'basic' | 'contact' | 'info'
+    const [activeSection, setActiveSection] = useState('basic'); // 'basic' | 'contact' | 'info' | 'controls'
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -39,7 +50,8 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
                 helplineNumber: '',
                 description: '',
                 termsAndPolicies: '',
-                imageUrl: ''
+                imageUrl: '',
+                controls: defaultControls
             });
             setImagePreview(null);
             setCreatedUser(null);
@@ -97,6 +109,19 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleNestedControlChange = (section, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            controls: {
+                ...prev.controls,
+                [section]: {
+                    ...prev.controls[section],
+                    [field]: value
+                }
+            }
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.name || !formData.code || !formData.contactEmail) {
@@ -133,6 +158,7 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
         { id: 'basic', label: 'Basic Info', icon: Building },
         { id: 'contact', label: 'Contact', icon: Phone },
         { id: 'info', label: 'About & Terms', icon: FileText },
+        { id: 'controls', label: 'Controls', icon: Shield },
     ];
 
     return createPortal(
@@ -396,6 +422,259 @@ const AddInstituteModal = ({ isOpen, onClose, refreshData }) => {
                                         <button
                                             type="button"
                                             onClick={() => setActiveSection('contact')}
+                                            className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all text-sm"
+                                        >
+                                            ← Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveSection('controls')}
+                                            className="flex-1 py-3.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] transition-all text-sm"
+                                        >
+                                            Next: Controls →
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── SECTION: Controls ── */}
+                            {activeSection === 'controls' && (
+                                <div className="space-y-5 animate-fade-in text-left">
+                                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-xs text-indigo-700 font-semibold flex items-center gap-2">
+                                        <Shield size={14} className="text-indigo-600 shrink-0" />
+                                        Configure which pages and action buttons this institute has access to.
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Dashboard Controls */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">1. Dashboard Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.dashboard?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('dashboard', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            {(formData.controls?.dashboard?.show !== false) && (
+                                                <div className="pl-2 space-y-2">
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.dashboard?.application !== false}
+                                                            onChange={(e) => handleNestedControlChange('dashboard', 'application', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Applications Tab
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.dashboard?.staffRequest !== false}
+                                                            onChange={(e) => handleNestedControlChange('dashboard', 'staffRequest', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Staff Requests Tab
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Student Controls */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">2. Student Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.student?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('student', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            {(formData.controls?.student?.show !== false) && (
+                                                <div className="pl-2 space-y-2">
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.student?.admissionOpen !== false}
+                                                            onChange={(e) => handleNestedControlChange('student', 'admissionOpen', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Admissions Toggle
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.student?.addStudent !== false}
+                                                            onChange={(e) => handleNestedControlChange('student', 'addStudent', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Add Student Button
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.student?.editStudent !== false}
+                                                            onChange={(e) => handleNestedControlChange('student', 'editStudent', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Edit Student Button
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Teacher Controls */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">3. Teacher Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.teacher?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('teacher', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            {(formData.controls?.teacher?.show !== false) && (
+                                                <div className="pl-2 space-y-2">
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.teacher?.hiring !== false}
+                                                            onChange={(e) => handleNestedControlChange('teacher', 'hiring', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Hiring Status Toggle
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.teacher?.addTeacher !== false}
+                                                            onChange={(e) => handleNestedControlChange('teacher', 'addTeacher', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Add Teacher Button
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.teacher?.editTeacher !== false}
+                                                            onChange={(e) => handleNestedControlChange('teacher', 'editTeacher', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Edit Teacher Button
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Editor Controls */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">4. Editor Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.editor?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('editor', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            {(formData.controls?.editor?.show !== false) && (
+                                                <div className="pl-2 space-y-2">
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.editor?.hiring !== false}
+                                                            onChange={(e) => handleNestedControlChange('editor', 'hiring', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Hiring Status Toggle
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.editor?.addEditor !== false}
+                                                            onChange={(e) => handleNestedControlChange('editor', 'addEditor', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Add Editor Button
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.editor?.editEditor !== false}
+                                                            onChange={(e) => handleNestedControlChange('editor', 'editEditor', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Edit Editor Button
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Course Controls */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">5. Course Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.course?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('course', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            {(formData.controls?.course?.show !== false) && (
+                                                <div className="pl-2 space-y-2">
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.course?.addCourse !== false}
+                                                            onChange={(e) => handleNestedControlChange('course', 'addCourse', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Add Course Button
+                                                    </label>
+                                                    <label className="flex items-center gap-2.5 text-xs text-slate-650 font-bold cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={formData.controls?.course?.editCourse !== false}
+                                                            onChange={(e) => handleNestedControlChange('course', 'editCourse', e.target.checked)}
+                                                            className="rounded text-indigo-650"
+                                                        />
+                                                        Show Edit Course Button
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Single Toggles (Activities & Chat) */}
+                                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">6. Activities Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.activities?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('activities', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-sm font-extrabold text-slate-800">7. Chat Page</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={formData.controls?.chat?.show !== false}
+                                                    onChange={(e) => handleNestedControlChange('chat', 'show', e.target.checked)}
+                                                    className="rounded text-indigo-650"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveSection('info')}
                                             className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all text-sm"
                                         >
                                             ← Back

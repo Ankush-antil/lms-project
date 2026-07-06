@@ -36,7 +36,8 @@ const getInstitutes = asyncHandler(async (req, res) => {
                 courses: { $slice: ['$courses', 5] }, // Just some preview courses
                 admissionOpen: 1,
                 teacherHiring: 1,
-                editorHiring: 1
+                editorHiring: 1,
+                controls: 1
             }
         }
     ]);
@@ -148,7 +149,7 @@ const uploadInstituteDocumentController = asyncHandler(async (req, res) => {
 // @route   PUT /api/setup/institutes/:id
 // @access  Private/Admin
 const updateInstitute = asyncHandler(async (req, res) => {
-    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber, admissionOpen, teacherHiring, editorHiring } = req.body;
+    const { name, code, address, contactEmail, password, imageUrl, description, termsAndPolicies, phone, helplineNumber, admissionOpen, teacherHiring, editorHiring, controls } = req.body;
     const institute = await Institute.findById(req.params.id);
 
     if (institute) {
@@ -164,6 +165,7 @@ const updateInstitute = asyncHandler(async (req, res) => {
         if (admissionOpen !== undefined) institute.admissionOpen = admissionOpen;
         if (teacherHiring !== undefined) institute.teacherHiring = teacherHiring;
         if (editorHiring !== undefined) institute.editorHiring = editorHiring;
+        if (controls !== undefined) institute.controls = controls;
 
         const updatedInstitute = await institute.save();
 
@@ -239,7 +241,7 @@ const createInstitute = asyncHandler(async (req, res) => {
         throw new Error('A user account with this email address already exists');
     }
 
-    const { description, termsAndPolicies, phone, helplineNumber, imageUrl } = req.body;
+    const { description, termsAndPolicies, phone, helplineNumber, imageUrl, controls } = req.body;
 
     const institute = await Institute.create({
         name,
@@ -250,7 +252,8 @@ const createInstitute = asyncHandler(async (req, res) => {
         description: description || '',
         termsAndPolicies: termsAndPolicies || '',
         phone: phone || '',
-        helplineNumber: helplineNumber || ''
+        helplineNumber: helplineNumber || '',
+        controls: controls || undefined
     });
 
     // Auto-generate or accept custom password

@@ -778,6 +778,15 @@ export default function AdminFeePortal() {
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">
+                                            {r.student?._id && (
+                                                <button 
+                                                    onClick={() => navigate(`/admin/students/${r.student._id}`)}
+                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                    title="View Student Details"
+                                                >
+                                                    <Eye size={15} />
+                                                </button>
+                                            )}
                                             {r.status !== 'Paid' && (
                                                 <button onClick={() => openCollect(r.student?._id)}
                                                     className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">

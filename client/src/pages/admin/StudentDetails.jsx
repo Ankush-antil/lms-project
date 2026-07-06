@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { ArrowLeft, Mail, BookOpen, Award, User, Lock, Save, Edit2, X, Check, Camera } from 'lucide-react';
+import { ArrowLeft, Mail, BookOpen, Award, User, Lock, Save, Edit2, X, Check, Camera, Phone } from 'lucide-react';
 
 const StudentDetails = () => {
     const { user: currentUser } = useAuth();

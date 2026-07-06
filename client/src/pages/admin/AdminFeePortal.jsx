@@ -466,7 +466,7 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                             >
                                 <option value="">— Select Student —</option>
                                 {students.map(s => (
-                                    <option key={s._id} value={s._id} className="bg-white">
+                                    <option key={s._id} value={s.student?._id || s._id} className="bg-white">
                                         {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
                                     </option>
                                 ))}

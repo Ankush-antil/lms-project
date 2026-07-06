@@ -72,6 +72,7 @@ app.use('/api/submissions', require('./routes/submissionRoutes'));
 app.use('/api/public-tests', require('./routes/publicTestRoutes'));
 app.use('/api/calls', require('./routes/teacher/callRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/ai', require('./routes/common/aiRoutes'));
 app.use('/api/messages', require('./routes/common/messageRoutes'));
 app.use('/api/practice-files', require('./routes/student/practiceFileRoutes'));
 app.use('/api/study-materials', require('./routes/studyMaterialRoutes'));
@@ -128,14 +129,18 @@ const { initSocket } = require('./socket');
 // Initialize Socket.io Connection Handlers
 initSocket(server);
 
+// Initialize Cron Jobs
+const initAttendanceCron = require('./cron/attendanceCron');
+initAttendanceCron();
+
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
         await connectDB();
-        server.listen(PORT, () => {
+        server.listen(PORT, '0.0.0.0', () => {
             console.log(`=========================================`);
-            console.log(`Server running on: http://localhost:${PORT}`);
+            console.log(`Server running on: http://0.0.0.0:${PORT}`);
             console.log(`LMS API v1.0.1 Started with Socket.IO`);
             console.log(`MongoDB Connected successfully.`);
             console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

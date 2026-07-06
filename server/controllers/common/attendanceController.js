@@ -46,19 +46,41 @@ const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
 // 1. Create a new Attendance QR Session (Teacher only)
 exports.createSession = async (req, res) => {
     try {
-        const { courseId, subject, section, duration, type } = req.body;
+
         const teacherId = req.user._id;
+        const teacher = await User.findById(teacherId);
+        if (!teacher) {
+            return res.status(404).json({ message: "Teacher not found" });
+        }
+
+        const { courseId, subject, section, duration, type, locationRequired, latitude, longitude } = req.body;
+        
+        // Auto-determine Section:
+        // "agar teacher k pass 2 scetion hai to vo qr code dono section k liy hai agar ek hai to ek liya liya ho"
+        let finalSection = section || 'ALL';
+        if (!section && teacher.teacherProfile?.assignedSections && teacher.teacherProfile.assignedSections.length > 0) {
+            if (teacher.teacherProfile.assignedSections.length === 1) {
+                finalSection = teacher.teacherProfile.assignedSections[0];
+            } else {
+                finalSection = 'ALL';
+            }
+        }
+
+        // Auto-determine Course:
+        let finalCourseId = courseId || null;
+        if (!finalCourseId && teacher.teacherProfile?.assignedCourses && teacher.teacherProfile.assignedCourses.length > 0) {
+            finalCourseId = teacher.teacherProfile.assignedCourses[0];
+        }
+
+        // Auto-determine Subject:
+        let finalSubject = 'Daily Attendance';
+
+        // Auto-determine Duration (Indefinite: default to 1 year)
+        let finalDuration = duration ? parseInt(duration) : 525600;
+
         const date = new Date().toISOString().split('T')[0];
         
-        const finalSubject = subject || 'General';
-        const finalSection = section || 'ALL';
-        const finalDuration = duration ? parseInt(duration) : 1440; // 24 hours
-        
-        // Deactivate previous active sessions by this teacher
-        await AttendanceSession.updateMany(
-            { teacher: teacherId, isActive: true },
-            { isActive: false }
-        );
+        // Allow multiple active sessions (e.g., Mark In and Mark Out simultaneously)
         
         const qrToken = crypto.randomUUID();
         const startTime = new Date();
@@ -66,7 +88,7 @@ exports.createSession = async (req, res) => {
         
         const session = await AttendanceSession.create({
             teacher: teacherId,
-            course: courseId || null,
+            course: finalCourseId,
             subject: finalSubject,
             section: finalSection,
             date,
@@ -77,9 +99,10 @@ exports.createSession = async (req, res) => {
             isActive: true,
             wifiSSID: req.body.wifiSSID || null,
             wifiIP: req.ip || null,
-            latitude: req.body.latitude || null,
-            longitude: req.body.longitude || null,
-            type: type || 'in'
+            type: type || 'in',
+            locationRequired: !!locationRequired,
+            latitude: latitude || null,
+            longitude: longitude || null
         });
         
         res.status(201).json(session);
@@ -158,13 +181,11 @@ exports.getSessionByToken = async (req, res) => {
             return res.status(404).json({ message: "Invalid or inactive QR code" });
         }
         
-        if (new Date() > session.endTime) {
-            return res.status(400).json({ message: "This class attendance QR has expired" });
-        }
+        // Expiration check removed (QR codes stay active indefinitely until manually closed)
         
         // Validate section immediately when student scans QR code
         const student = await User.findById(req.user._id);
-        if (session.section !== 'ALL' && student && student.studentProfile?.section && student.studentProfile.section !== session.section) {
+        if (student && student.studentProfile?.section && session.section && session.section.toUpperCase() !== 'ALL' && student.studentProfile.section !== session.section) {
             return res.status(400).json({ 
                 message: `This QR code is only for Section ${session.section}. You belong to Section ${student.studentProfile.section || 'N/A'}.` 
             });
@@ -213,8 +234,8 @@ exports.getSessionByToken = async (req, res) => {
             }
         }
         
-        // Also check if student is checked in
-        const record = await Attendance.findOne({ session: session._id, student: req.user._id });
+        // Also check if student is checked in today
+        const record = await Attendance.findOne({ student: req.user._id, date: session.date });
         const checkStatus = record ? (record.checkOutTime ? 'completed' : 'checked-in') : 'not-started';
         
         res.json({
@@ -230,13 +251,13 @@ exports.getSessionByToken = async (req, res) => {
 // 3. Mark Attendance (Check-in/Check-out)
 exports.markAttendance = async (req, res) => {
     try {
-        const { qrToken, photo, type } = req.body;
-        const studentId = req.user._id;
+        const { qrToken, photo, latitude, longitude } = req.body;
         
-        if (!qrToken || !photo || !type) {
-            return res.status(400).json({ message: "Missing required fields" });
+        if (!qrToken || !photo) {
+            return res.status(400).json({ message: "Please provide QR token and photo" });
         }
         
+        const studentId = req.user._id;
         const student = await User.findById(studentId);
         if (!student) {
             return res.status(404).json({ message: "Student not found" });
@@ -248,12 +269,10 @@ exports.markAttendance = async (req, res) => {
             return res.status(404).json({ message: "Invalid or inactive QR code" });
         }
         
-        if (new Date() > session.endTime) {
-            return res.status(400).json({ message: "This class attendance QR has expired" });
-        }
+        // Expiration check removed (QR codes stay active indefinitely until manually closed)
         
         // Validate section
-        if (student.studentProfile?.section && session.section !== 'ALL' && student.studentProfile.section !== session.section) {
+        if (student.studentProfile?.section && session.section && session.section.toUpperCase() !== 'ALL' && student.studentProfile.section !== session.section) {
             return res.status(400).json({ 
                 message: `You belong to section ${student.studentProfile.section}, but this attendance is for section ${session.section}` 
             });
@@ -276,44 +295,53 @@ exports.markAttendance = async (req, res) => {
             }
         }
 
-        const isLocalhost = (ip) => ip === '::1' || ip === '127.0.0.1' || ip.includes('127.0.0.1');
-        if (session.wifiIP && process.env.NODE_ENV === 'production' && !isLocalhost(studentIP) && !isLocalhost(session.wifiIP)) {
-            if (studentIP !== session.wifiIP) {
+        // Validate Location (Geofencing check)
+        if (session.locationRequired && session.latitude && session.longitude) {
+            if (latitude === undefined || longitude === undefined) {
                 return res.status(400).json({
-                    message: "You must be connected to the same Wi-Fi router network as the teacher."
+                    message: "Location access is required to mark attendance. Please enable GPS."
+                });
+            }
+            
+            const getDistance = (lat1, lon1, lat2, lon2) => {
+                const R = 6371000; // Earth radius in meters
+                const phi1 = lat1 * Math.PI / 180;
+                const phi2 = lat2 * Math.PI / 180;
+                const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+                const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+                const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                          Math.cos(phi1) * Math.cos(phi2) *
+                          Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                return R * c; // in meters
+            };
+
+            const distance = getDistance(session.latitude, session.longitude, latitude, longitude);
+            
+            // Limit distance to 150 meters (classroom range)
+            if (distance > 150) {
+                return res.status(400).json({
+                    message: `Location check failed: You are not in the classroom. (Distance: ${Math.round(distance)}m)`
                 });
             }
         }
 
-        // Validate location proximity (if teacher recorded their location)
-        if (session.latitude && session.longitude) {
-            const studentLat = parseFloat(req.body.latitude);
-            const studentLon = parseFloat(req.body.longitude);
-            if (!studentLat || !studentLon) {
-                return res.status(400).json({
-                    message: "Location access is required to submit attendance."
-                });
-            }
-            const distance = getDistanceInMeters(session.latitude, session.longitude, studentLat, studentLon);
-            if (distance > 150) { // 150 meters
-                return res.status(400).json({
-                    message: `Proximity check failed. You must be in the same classroom as the teacher (${Math.round(distance)} meters away).`
-                });
-            }
+        let record = await Attendance.findOne({ student: studentId, date: session.date });
+        
+        // Determine action based on existing record
+        const actionType = record ? (record.checkOutTime ? 'completed' : 'out') : 'in';
+
+        if (actionType === 'completed') {
+            return res.status(400).json({ message: "You have already completed your attendance for today" });
         }
         
-        // Folder to save attendance photos
         const attendanceFolder = path.join(__dirname, '../../uploads/attendance', session._id.toString());
-        const fileName = `${studentId}_${type}.jpg`;
+        const fileName = `${studentId}_${actionType}.jpg`;
         const relativePhotoPath = saveBase64Image(photo, attendanceFolder, fileName);
         
-        let record = await Attendance.findOne({ session: session._id, student: studentId });
-        
-        if (type === 'in') {
-            if (record) {
-                return res.status(400).json({ message: "You have already checked in for this class" });
-            }
-            
+        if (actionType === 'in') {
             record = await Attendance.create({
                 session: session._id,
                 student: studentId,
@@ -323,42 +351,27 @@ exports.markAttendance = async (req, res) => {
                 status: 'In'
             });
             
-            // Sync to User's physicalAttendance array as Present (since they checked in)
+            // Sync to User's physicalAttendance array
             const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === session.date);
             if (existingIndex > -1) {
                 student.studentProfile.physicalAttendance[existingIndex].status = 'Present';
+                student.studentProfile.physicalAttendance[existingIndex].source = 'qr';
             } else {
-                student.studentProfile.physicalAttendance.push({ date: session.date, status: 'Present' });
+                student.studentProfile.physicalAttendance.push({ date: session.date, status: 'Present', source: 'qr' });
             }
+            student.markModified('studentProfile.physicalAttendance');
             await student.save();
             
-            return res.status(200).json({ message: "Check-in successful!", record });
-        } else {
+            return res.status(200).json({ message: "Check-in successful! Your class time has started.", record });
+        } else if (actionType === 'out') {
             // Check-out
-            if (!record) {
-                return res.status(400).json({ message: "You need to check in before checking out" });
-            }
-            
-            if (record.checkOutTime) {
-                return res.status(400).json({ message: "You have already checked out for this class" });
-            }
-            
-            // Allow check-out only in the last 10 minutes of the class duration
-            const now = new Date();
-            const endTime = new Date(session.endTime);
-            const minutesLeft = (endTime - now) / 60000;
-            if (minutesLeft > 10) {
-                return res.status(400).json({ 
-                    message: "Please wait for class end and mark out attendance." 
-                });
-            }
-            
             record.checkOutTime = new Date();
             record.checkOutPhoto = relativePhotoPath;
             record.status = 'Present';
+            record.session = session._id; // Link to the current check-out session
             await record.save();
             
-            return res.status(200).json({ message: "Check-out successful!", record });
+            return res.status(200).json({ message: "Check-out successful! Your class time has stopped.", record });
         }
     } catch (error) {
         console.error("Error marking attendance:", error);
@@ -422,9 +435,11 @@ exports.manualMark = async (req, res) => {
         const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === session.date);
         if (existingIndex > -1) {
             student.studentProfile.physicalAttendance[existingIndex].status = userStatus;
+            student.studentProfile.physicalAttendance[existingIndex].source = 'qr';
         } else {
-            student.studentProfile.physicalAttendance.push({ date: session.date, status: userStatus });
+            student.studentProfile.physicalAttendance.push({ date: session.date, status: userStatus, source: 'qr' });
         }
+        student.markModified('studentProfile.physicalAttendance');
         await student.save();
         
         res.json({ message: "Attendance updated manually", record });
@@ -443,29 +458,31 @@ exports.getSessionRecords = async (req, res) => {
             return res.status(404).json({ message: "Session not found" });
         }
         
-        const teacher = await User.findById(session.teacher);
+        // Find all students in this section or all teacher's students if section is 'ALL'
         let studentQuery = { role: 'Student' };
+        if (session.course) {
+            studentQuery['studentProfile.course'] = session.course;
+        }
 
-        if (teacher && teacher.teacherProfile) {
-            const courseIds = teacher.teacherProfile.assignedCourses || [];
-            const mode = teacher.teacherProfile.studentAssignmentMode || 'all';
-            const assignedSections = teacher.teacherProfile.assignedSections || [];
-            const assignedStudents = teacher.teacherProfile.assignedStudents || [];
-
-            studentQuery['studentProfile.course'] = { $in: courseIds };
-
-            if (session.section !== 'ALL') {
-                studentQuery['studentProfile.section'] = session.section;
-            } else {
-                if (mode === 'section') {
+        if (session.section && session.section.toUpperCase() !== 'ALL') {
+            studentQuery['studentProfile.section'] = session.section;
+        } else {
+            const teacher = await User.findById(session.teacher);
+            if (teacher) {
+                const assignedCourses = teacher.teacherProfile?.assignedCourses || [];
+                const courseIds = assignedCourses.map(c => c._id || c);
+                if (courseIds.length > 0) {
+                    studentQuery['studentProfile.course'] = { $in: courseIds };
+                }
+                const mode = teacher.teacherProfile?.studentAssignmentMode || 'all';
+                const assignedSections = teacher.teacherProfile?.assignedSections || [];
+                const assignedStudents = teacher.teacherProfile?.assignedStudents || [];
+                
+                if (mode === 'section' && assignedSections.length > 0) {
                     studentQuery['studentProfile.section'] = { $in: assignedSections };
-                } else if (mode === 'selected') {
+                } else if (mode === 'selected' && assignedStudents.length > 0) {
                     studentQuery['_id'] = { $in: assignedStudents };
                 }
-            }
-        } else {
-            if (session.section !== 'ALL') {
-                studentQuery['studentProfile.section'] = session.section;
             }
         }
 
@@ -504,16 +521,332 @@ exports.getSessionRecords = async (req, res) => {
 exports.getMyAttendanceRecords = async (req, res) => {
     try {
         const studentId = req.user._id;
-        const records = await Attendance.find({ student: studentId })
+
+        // 1. Get student profile physical attendance
+        const student = await User.findById(studentId).select('studentProfile');
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+        const physicalRecords = student.studentProfile?.physicalAttendance || [];
+
+        // 2. Get QR attendance records
+        const qrRecords = await Attendance.find({ student: studentId })
             .populate({
                 path: 'session',
                 populate: { path: 'teacher', select: 'name' }
             })
-            .sort({ createdAt: -1 });
-        
-        res.json(records);
+            .sort({ date: -1 });
+
+        // 3. Merge date-keyed map
+        const dateMap = {};
+        physicalRecords.forEach(rec => {
+            dateMap[rec.date] = {
+                date: rec.date,
+                status: rec.status,
+                source: rec.source || 'manual',
+                teacherNote: rec.teacherNote || '',
+                leaveNote: rec.leaveNote || '',
+                leaveFile: rec.leaveFile || '',
+                leaveStatus: rec.leaveStatus || 'Pending',
+                sessionSubject: 'Class Room',
+                teacherName: 'Instructor'
+            };
+        });
+
+        qrRecords.forEach(qr => {
+            const d = qr.date;
+            if (!dateMap[d]) {
+                dateMap[d] = {
+                    date: d,
+                    status: qr.status === 'In' ? 'Present' : qr.status,
+                    source: 'qr',
+                    teacherNote: qr.teacherNote || '',
+                    leaveNote: '',
+                    leaveFile: '',
+                    leaveStatus: 'Approved'
+                };
+            }
+            dateMap[d].checkInTime = qr.checkInTime;
+            dateMap[d].checkInPhoto = qr.checkInPhoto;
+            dateMap[d].checkOutTime = qr.checkOutTime;
+            dateMap[d].checkOutPhoto = qr.checkOutPhoto;
+            if (qr.session) {
+                dateMap[d].sessionSubject = qr.session.subject;
+                if (qr.session.teacher) {
+                    dateMap[d].teacherName = qr.session.teacher.name;
+                }
+            }
+        });
+
+        // 4. Format to match mobile screen schema expectations
+        const historyList = Object.values(dateMap).map(rec => ({
+            _id: rec.date,
+            date: rec.date,
+            status: rec.status,
+            source: rec.source,
+            checkInTime: rec.checkInTime,
+            checkInPhoto: rec.checkInPhoto,
+            checkOutTime: rec.checkOutTime,
+            checkOutPhoto: rec.checkOutPhoto,
+            teacherNote: rec.teacherNote,
+            leaveNote: rec.leaveNote,
+            leaveStatus: rec.leaveStatus,
+            session: {
+                subject: rec.sessionSubject || 'Lecture',
+                teacher: {
+                    name: rec.teacherName || 'Instructor'
+                }
+            }
+        })).sort((a, b) => b.date.localeCompare(a.date));
+
+        res.json(historyList);
     } catch (error) {
         console.error("Error fetching student attendance:", error);
         res.status(500).json({ message: "Failed to fetch attendance history" });
+    }
+};
+
+// 9. Get combined attendance history for a student (Teacher view) — physical + QR sessions
+exports.getStudentAttendanceHistory = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        
+        // Load student's physical attendance array
+        const student = await User.findById(studentId).select('name email avatar studentProfile');
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        
+        const physicalRecords = student.studentProfile?.physicalAttendance || [];
+        
+        // Load QR session records for this student
+        const qrRecords = await Attendance.find({ student: studentId })
+            .populate({
+                path: 'session',
+                populate: { path: 'teacher', select: 'name' }
+            })
+            .sort({ date: -1 });
+        
+        // Build a date-keyed map from physical records
+        const dateMap = {};
+        physicalRecords.forEach(rec => {
+            dateMap[rec.date] = {
+                date: rec.date,
+                status: rec.status,
+                source: rec.source || 'manual',
+                teacherNote: rec.teacherNote || '',
+                leaveNote: rec.leaveNote || '',
+                leaveFile: rec.leaveFile || '',
+                leaveStatus: rec.leaveStatus || 'Pending'
+            };
+        });
+        
+        // Merge QR records (add additional info like check-in photo)
+        qrRecords.forEach(qr => {
+            const d = qr.date;
+            if (!dateMap[d]) {
+                dateMap[d] = {
+                    date: d,
+                    status: qr.status === 'In' ? 'Present' : qr.status,
+                    source: 'qr',
+                    teacherNote: qr.teacherNote || '',
+                    leaveNote: '',
+                    leaveFile: ''
+                };
+            }
+            // Attach QR-specific fields
+            dateMap[d].checkInTime = qr.checkInTime;
+            dateMap[d].checkInPhoto = qr.checkInPhoto;
+            dateMap[d].checkOutTime = qr.checkOutTime;
+            dateMap[d].checkOutPhoto = qr.checkOutPhoto;
+            dateMap[d].isManual = qr.isManual;
+            dateMap[d].qrSessionId = qr.session?._id;
+            dateMap[d].sessionSubject = qr.session?.subject;
+        });
+        
+        // Sort by date descending
+        const history = Object.values(dateMap).sort((a, b) => b.date.localeCompare(a.date));
+        
+        res.json({
+            student: {
+                _id: student._id,
+                name: student.name,
+                email: student.email,
+                avatar: student.avatar,
+                section: student.studentProfile?.section,
+                course: student.studentProfile?.course
+            },
+            history
+        });
+    } catch (error) {
+        console.error('Error fetching student attendance history:', error);
+        res.status(500).json({ message: 'Failed to fetch attendance history' });
+    }
+};
+
+// 10. Delete a student's physical attendance for a specific date (Teacher only)
+exports.deletePhysicalAttendance = async (req, res) => {
+    try {
+        const { studentId, date } = req.params;
+        
+        const student = await User.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        
+        // Delete QR session records from Attendance collection
+        const qrDelResult = await Attendance.deleteMany({ student: studentId, date: date });
+        
+        const beforeLen = student.studentProfile?.physicalAttendance?.length || 0;
+        student.studentProfile.physicalAttendance = (
+            student.studentProfile.physicalAttendance || []
+        ).filter(a => a.date !== date);
+        
+        const arrayChanged = student.studentProfile.physicalAttendance.length !== beforeLen;
+        
+        if (qrDelResult.deletedCount === 0 && !arrayChanged) {
+            return res.status(404).json({ message: 'No attendance record found for this date' });
+        }
+        
+        if (arrayChanged) {
+            student.markModified('studentProfile.physicalAttendance');
+            await student.save();
+        }
+        
+        res.json({ success: true, message: `Attendance deleted for ${date}` });
+    } catch (error) {
+        console.error('Error deleting physical attendance:', error);
+        res.status(500).json({ message: 'Failed to delete attendance record' });
+    }
+};
+
+// 11. Student submits leave application (note + optional PDF/image)
+exports.submitLeaveApplication = async (req, res) => {
+    try {
+        const studentId = req.user._id;
+        const { date, leaveNote } = req.body;
+
+        if (!date) {
+            return res.status(400).json({ message: 'Date is required for leave application' });
+        }
+
+        const student = await User.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        if (!student.studentProfile) student.studentProfile = {};
+        if (!student.studentProfile.physicalAttendance) student.studentProfile.physicalAttendance = [];
+
+        let leaveFileUrl = '';
+        if (req.file) {
+            leaveFileUrl = `/uploads/leave-applications/${req.file.filename}`;
+        }
+
+        const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+        if (existingIndex > -1) {
+            // Update existing record to set leave status
+            student.studentProfile.physicalAttendance[existingIndex].status = 'Leave';
+            student.studentProfile.physicalAttendance[existingIndex].leaveStatus = 'Pending';
+            student.studentProfile.physicalAttendance[existingIndex].leaveNote = leaveNote || '';
+            if (leaveFileUrl) {
+                student.studentProfile.physicalAttendance[existingIndex].leaveFile = leaveFileUrl;
+            }
+        } else {
+            student.studentProfile.physicalAttendance.push({
+                date,
+                status: 'Leave',
+                leaveStatus: 'Pending',
+                leaveNote: leaveNote || '',
+                leaveFile: leaveFileUrl,
+                source: 'manual'
+            });
+        }
+
+        student.markModified('studentProfile.physicalAttendance');
+        await student.save();
+
+        res.json({ success: true, message: 'Leave application submitted successfully' });
+    } catch (error) {
+        console.error('Error submitting leave application:', error);
+        res.status(500).json({ message: 'Failed to submit leave application' });
+    }
+};
+
+// 12. Approve or Reject student leave application (Teacher only)
+exports.approveOrRejectLeave = async (req, res) => {
+    try {
+        const { studentId, date } = req.params;
+        const { approved } = req.body; // Boolean: true -> Approve, false -> Reject
+
+        const student = await User.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        if (!student.studentProfile) student.studentProfile = {};
+        if (!student.studentProfile.physicalAttendance) student.studentProfile.physicalAttendance = [];
+
+        const index = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+        if (index === -1) {
+            return res.status(404).json({ message: 'No attendance record found for this date' });
+        }
+
+        if (approved) {
+            student.studentProfile.physicalAttendance[index].status = 'Leave';
+            student.studentProfile.physicalAttendance[index].leaveStatus = 'Approved';
+        } else {
+            student.studentProfile.physicalAttendance[index].status = 'Absent';
+            student.studentProfile.physicalAttendance[index].leaveStatus = 'Rejected';
+        }
+
+        student.markModified('studentProfile.physicalAttendance');
+        await student.save();
+
+        res.json({
+            success: true,
+            message: `Leave application ${approved ? 'approved' : 'rejected'} for ${date}`,
+            status: student.studentProfile.physicalAttendance[index].status,
+            leaveStatus: student.studentProfile.physicalAttendance[index].leaveStatus
+        });
+    } catch (error) {
+        console.error('Error approving/rejecting leave:', error);
+        res.status(500).json({ message: 'Failed to update leave application status' });
+    }
+};
+// 13. Get Auto QR Config
+exports.getAutoConfig = async (req, res) => {
+    try {
+        const teacher = await User.findById(req.user._id).populate('teacherProfile.autoQRConfig.course', 'name code');
+        if (!teacher || teacher.role !== 'Teacher') {
+            return res.status(403).json({ message: 'Not authorized as teacher' });
+        }
+        res.json(teacher.teacherProfile.autoQRConfig || {});
+    } catch (error) {
+        console.error('Error fetching auto QR config:', error);
+        res.status(500).json({ message: 'Failed to fetch auto QR config' });
+    }
+};
+
+// 14. Save Auto QR Config
+exports.saveAutoConfig = async (req, res) => {
+    try {
+        const teacher = await User.findById(req.user._id);
+        if (!teacher || teacher.role !== 'Teacher') {
+            return res.status(403).json({ message: 'Not authorized as teacher' });
+        }
+        
+        if (!teacher.teacherProfile) teacher.teacherProfile = {};
+        
+        teacher.teacherProfile.autoQRConfig = {
+            ...teacher.teacherProfile.autoQRConfig,
+            ...req.body
+        };
+        
+        await teacher.save();
+        res.json({ success: true, message: 'Auto QR Schedule saved successfully', config: teacher.teacherProfile.autoQRConfig });
+    } catch (error) {
+        console.error('Error saving auto QR config:', error);
+        res.status(500).json({ message: 'Failed to save auto QR config' });
     }
 };

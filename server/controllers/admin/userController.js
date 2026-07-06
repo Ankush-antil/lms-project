@@ -234,10 +234,15 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
         }
     }
 
-    const { date, status, note } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent" / "Leave"
+    const { date, status, teacherNote } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent" / "Leave" / "Holiday"
     if (!date || !status) {
         res.status(400);
         throw new Error('Please provide both date and status');
+    }
+
+    if (!['Present', 'Absent', 'Leave', 'Holiday', 'In'].includes(status)) {
+        res.status(400);
+        throw new Error('Invalid status');
     }
 
     if (!student.studentProfile) {
@@ -251,11 +256,15 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
     const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
     if (existingIndex !== -1) {
         student.studentProfile.physicalAttendance[existingIndex].status = status;
-        student.studentProfile.physicalAttendance[existingIndex].note = note || '';
+        student.studentProfile.physicalAttendance[existingIndex].source = 'manual';
+        if (teacherNote !== undefined) {
+            student.studentProfile.physicalAttendance[existingIndex].teacherNote = teacherNote;
+        }
     } else {
-        student.studentProfile.physicalAttendance.push({ date, status, note: note || '' });
+        student.studentProfile.physicalAttendance.push({ date, status, teacherNote: teacherNote || '', source: 'manual' });
     }
 
+    student.markModified('studentProfile.physicalAttendance');
     await student.save();
     res.json({ success: true, physicalAttendance: student.studentProfile.physicalAttendance });
 });
@@ -348,7 +357,7 @@ const updateFeeStatus = asyncHandler(async (req, res) => {
 // @access  Private/Admin, Editor, Institute, Teacher
 const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
     const { date, attendanceRecords } = req.body;
-    // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent"|"Leave", note: "" }]
+    // attendanceRecords format: [{ studentId: "id", status: "Present"|"Absent"|"Leave"|"Holiday", note: "..." }]
     if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
         res.status(400);
         throw new Error('Please provide date and attendanceRecords array');
@@ -365,7 +374,7 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
 
     try {
         for (const record of attendanceRecords) {
-            const { studentId, status } = record;
+            const { studentId, status, note } = record;
             if (!studentId || !status) continue;
 
             const student = await User.findById(studentId);
@@ -389,15 +398,22 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
                 student.studentProfile.physicalAttendance = [];
             }
 
-            const { note } = record;
             const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
             if (existingIndex !== -1) {
                 student.studentProfile.physicalAttendance[existingIndex].status = status;
-                if (note !== undefined) student.studentProfile.physicalAttendance[existingIndex].note = note;
+                student.studentProfile.physicalAttendance[existingIndex].source = 'manual';
+                if (note !== undefined) {
+                    student.studentProfile.physicalAttendance[existingIndex].teacherNote = note;
+                }
             } else {
-                student.studentProfile.physicalAttendance.push({ date, status, note: note || '' });
+                student.studentProfile.physicalAttendance.push({
+                    date, status,
+                    teacherNote: note || '',
+                    source: 'manual'
+                });
             }
 
+            student.markModified('studentProfile.physicalAttendance');
             await student.save();
         }
 

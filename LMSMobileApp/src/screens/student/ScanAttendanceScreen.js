@@ -248,17 +248,26 @@ const ScanAttendanceScreen = ({ navigation }) => {
         setLoading(true);
         try {
             const studentWifiSSID = await getWifiSSID();
-            const location = await getStudentLocation();
-            const attendanceType = session?.type || (checkStatus === 'checked-in' ? 'out' : 'in');
             const base64Data = `data:image/jpeg;base64,${capturedPhoto.base64}`;
+            
+            // Get student GPS coordinates
+            let coords = null;
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    coords = loc.coords;
+                }
+            } catch (err) {
+                console.warn("Failed to get student coordinates:", err);
+            }
             
             await axios.post('/attendance/mark', {
                 qrToken,
                 photo: base64Data,
-                type: attendanceType,
                 wifiSSID: studentWifiSSID,
-                latitude: location?.latitude || null,
-                longitude: location?.longitude || null
+                latitude: coords ? coords.latitude : null,
+                longitude: coords ? coords.longitude : null
             });
             
             setStep('success');

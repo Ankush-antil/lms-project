@@ -17,6 +17,8 @@ import {
 import { uploadVideo } from "../../api/videoApi";
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { LogOut, User, UserPlus } from 'lucide-react';
+import { useUserProfile } from '../../components/common/UserProfileContext';
 import ShortAnswerWidget from '../../components/builder/ShortAnswerWidget';
 import VoiceWidget from '../../components/builder/VoiceWidget';
 import VideoWidget from '../../components/builder/VideoWidget';
@@ -2016,7 +2018,20 @@ const TestBuilder = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, logout, switchAccount, removeAccount } = useAuth();
+    const { openProfile } = useUserProfile();
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
+    const savedAccounts = (() => {
+        try {
+            const listStr = localStorage.getItem('lmsSavedAccounts');
+            const list = listStr ? JSON.parse(listStr) : [];
+            return Array.isArray(list) ? list.filter(acc => acc.user?.email !== user?.email) : [];
+        } catch (e) {
+            return [];
+        }
+    })();
+
     const [activeTab, setActiveTab] = useState('Edit');
     const [sidebarTab, setSidebarTab] = useState('Elements & Addons');
     const [searchQuery, setSearchQuery] = useState('');
@@ -3230,28 +3245,8 @@ const TestBuilder = () => {
                     ))}
                 </div>
 
-                {/* Right actions: Green Publish button */}
-                <div className="flex items-center gap-3">
-                    {/* User profile avatar to verify account */}
-                    {user && (
-                        <div 
-                            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800"
-                            title={`Logged in as: ${user.name} (${user.role})`}
-                        >
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black shadow-md overflow-hidden ring-1 ring-white/20 flex-shrink-0">
-                                {user.avatar ? (
-                                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-                                ) : (
-                                    user.name?.[0]?.toUpperCase() || 'U'
-                                )}
-                            </div>
-                            <div className="flex flex-col text-left hidden sm:block">
-                                <span className="text-[11px] font-bold text-slate-200 leading-tight truncate max-w-[100px] block">{user.name}</span>
-                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-0.5 block">{user.role}</span>
-                            </div>
-                        </div>
-                    )}
-
+                {/* Right actions: Green Publish button, More Setting, and Profile Dropdown */}
+                <div className="flex items-center gap-3 relative">
                     <button
                         onClick={() => setIsPublishOptionsModalOpen(true)}
                         disabled={publishing}
@@ -3260,6 +3255,129 @@ const TestBuilder = () => {
                         <Send size={16} />
                         <span>Publish</span>
                     </button>
+
+                    <button
+                        onClick={() => setIsConnectModalOpen(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 hover:bg-white/5 text-slate-300 hover:text-white rounded-xl text-sm font-bold active:scale-95 transition-all focus:outline-none"
+                    >
+                        <Settings size={15} />
+                        <span>More Setting</span>
+                    </button>
+
+                    {/* User profile avatar to verify account and open settings dropdown */}
+                    {user && (
+                        <div className="relative">
+                            <button 
+                                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                                className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-md overflow-hidden ring-2 ring-slate-805 hover:scale-105 active:scale-95 transition-all cursor-pointer focus:outline-none flex-shrink-0"
+                                title={`Logged in as: ${user.name} (${user.role})`}
+                            >
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    user.name?.[0]?.toUpperCase() || 'U'
+                                )}
+                            </button>
+
+                            {isProfileDropdownOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileDropdownOpen(false)} />
+                                    <div 
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-1.5 text-white text-left animate-fade-in"
+                                    >
+                                        <div 
+                                            onClick={() => {
+                                                openProfile(user?._id || user?.id);
+                                                setIsProfileDropdownOpen(false);
+                                            }}
+                                            className="px-3 py-2.5 border-b border-slate-800 cursor-pointer hover:bg-white/5 rounded-xl transition-all"
+                                        >
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed in as</p>
+                                            <p className="text-xs font-bold text-slate-200 truncate">{user?.email}</p>
+                                            <span className="inline-block mt-1.5 text-[8px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-widest">{user?.role}</span>
+                                        </div>
+                                        
+                                        <button
+                                            onClick={() => {
+                                                openProfile(user?._id || user?.id);
+                                                setIsProfileDropdownOpen(false);
+                                            }}
+                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-350 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
+                                        >
+                                            <User size={16} />
+                                            <span>My Profile Settings</span>
+                                        </button>
+                                        
+                                        {/* Saved Accounts Switcher */}
+                                        {savedAccounts.length > 0 && (
+                                            <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
+                                                <p className="px-3 text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Switch Account</p>
+                                                {savedAccounts.map((acc, index) => (
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => {
+                                                            switchAccount(acc.token, acc.user);
+                                                            setIsProfileDropdownOpen(false);
+                                                        }}
+                                                        className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
+                                                    >
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
+                                                                {acc.user?.avatar ? (
+                                                                    <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
+                                                                ) : (
+                                                                    acc.user?.name?.[0]?.toUpperCase() || 'U'
+                                                                )}
+                                                            </div>
+                                                            <div className="text-left min-w-0">
+                                                                <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
+                                                                <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                removeAccount(acc.user?.email);
+                                                            }}
+                                                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
+                                                            title="Remove Account"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => {
+                                                setIsProfileDropdownOpen(false);
+                                                window.location.href = '/login?mode=add-account';
+                                            }}
+                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-indigo-400 hover:bg-indigo-950/20 rounded-xl transition-all font-bold border border-indigo-900/30 border-dashed text-left"
+                                        >
+                                            <UserPlus size={16} />
+                                            <span>Add More Account</span>
+                                        </button>
+                                        
+                                        <hr className="my-0.5 border-slate-800" />
+                                        
+                                        <button
+                                            onClick={() => {
+                                                setIsProfileDropdownOpen(false);
+                                                logout();
+                                            }}
+                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold text-left"
+                                        >
+                                            <LogOut size={16} />
+                                            <span>Sign Out Portal</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </header>
 

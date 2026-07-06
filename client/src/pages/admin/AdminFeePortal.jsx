@@ -437,22 +437,26 @@ export default function AdminFeePortal() {
     // Settings state
     const [settings, setSettings] = useState({ instituteName: 'Institute Fee Portal', contact: '', address: '', monthlyTarget: '' });
     const [settingsSaved, setSettingsSaved] = useState(false);
+    const [syncConfig, setSyncConfig] = useState(null);
+    const [syncLoading, setSyncLoading] = useState(false);
 
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [statsR, studentsR, pendingR, receiptsR, reportsR] = await Promise.all([
+            const [statsR, studentsR, pendingR, receiptsR, reportsR, configR] = await Promise.all([
                 axios.get(`/api/fees/admin/stats`, { withCredentials: true }),
                 axios.get(`/api/fees/admin/all`, { withCredentials: true }),
                 axios.get(`/api/fees/admin/pending-dues`, { withCredentials: true }),
                 axios.get(`/api/fees/admin/receipts`, { withCredentials: true }),
                 axios.get(`/api/fees/admin/reports`, { withCredentials: true }),
+                axios.get(`/api/sync/config`, { withCredentials: true }).catch(() => ({ data: null }))
             ]);
             setStats(statsR.data);
             setStudents(studentsR.data);
             setPendingDues(pendingR.data);
             setReceipts(receiptsR.data);
             setReports(reportsR.data);
+            if (configR && configR.data) setSyncConfig(configR.data);
         } catch (e) {
             toast.error('Failed to load fee data');
         } finally {
@@ -948,64 +952,150 @@ export default function AdminFeePortal() {
         );
     };
 
+    const handleImport = async () => {
+        setSyncLoading(true);
+        try {
+            const res = await axios.post(`/api/sync/import`, {}, { withCredentials: true });
+            if (res.data.success) {
+                toast.success(`Successfully imported ${res.data.importedCount} records!`);
+                fetchAll();
+            }
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Import failed');
+        } finally {
+            setSyncLoading(false);
+        }
+    };
+
+    const handleExport = async () => {
+        setSyncLoading(true);
+        try {
+            const res = await axios.post(`/api/sync/export`, {}, { withCredentials: true });
+            if (res.data.success) {
+                toast.success(`Successfully exported ${res.data.exportedCount} records!`);
+            }
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Export failed');
+        } finally {
+            setSyncLoading(false);
+        }
+    };
+
     /* ─── Settings Tab ─── */
-    const renderSettings = () => (
-        <div className="max-w-xl space-y-6">
-            <div>
-                <h2 className="text-slate-800 font-black text-lg">Settings</h2>
-                <p className="text-slate-400 text-sm mt-0.5">Institute preferences</p>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Institute Name</label>
-                        <input
-                            value={settings.instituteName}
-                            onChange={e => setSettings(s => ({ ...s, instituteName: e.target.value }))}
-                            className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            placeholder="e.g. ABC Computer Institute"
-                        />
+    const renderSettings = () => {
+        const sheetUrl = syncConfig?.spreadsheetId 
+            ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
+            : null;
+
+        return (
+            <div className="max-w-xl space-y-6">
+                <div>
+                    <h2 className="text-slate-800 font-black text-lg">Settings</h2>
+                    <p className="text-slate-400 text-sm mt-0.5">Institute preferences</p>
+                </div>
+                
+                {/* General Settings */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Institute Name</label>
+                            <input
+                                value={settings.instituteName}
+                                onChange={e => setSettings(s => ({ ...s, instituteName: e.target.value }))}
+                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                placeholder="e.g. ABC Computer Institute"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Contact</label>
+                            <input
+                                value={settings.contact}
+                                onChange={e => setSettings(s => ({ ...s, contact: e.target.value }))}
+                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                placeholder="+91 98765 43210"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Address</label>
+                            <input
+                                value={settings.address}
+                                onChange={e => setSettings(s => ({ ...s, address: e.target.value }))}
+                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                placeholder="123 Main Street, City"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Monthly Target (₹)</label>
+                            <input
+                                type="number"
+                                value={settings.monthlyTarget}
+                                onChange={e => setSettings(s => ({ ...s, monthlyTarget: e.target.value }))}
+                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                placeholder="e.g. 500000"
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Contact</label>
-                        <input
-                            value={settings.contact}
-                            onChange={e => setSettings(s => ({ ...s, contact: e.target.value }))}
-                            className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            placeholder="+91 98765 43210"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Address</label>
-                        <input
-                            value={settings.address}
-                            onChange={e => setSettings(s => ({ ...s, address: e.target.value }))}
-                            className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            placeholder="123 Main Street, City"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Monthly Target (₹)</label>
-                        <input
-                            type="number"
-                            value={settings.monthlyTarget}
-                            onChange={e => setSettings(s => ({ ...s, monthlyTarget: e.target.value }))}
-                            className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            placeholder="e.g. 500000"
-                        />
+                    <div className="pt-2">
+                        <button
+                            onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2000); toast.success('Settings saved!'); }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-2.5 text-sm font-bold transition-colors"
+                        >
+                            {settingsSaved ? '✓ Saved!' : 'Save Settings'}
+                        </button>
                     </div>
                 </div>
-                <div className="pt-2">
-                    <button
-                        onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2000); toast.success('Settings saved!'); }}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-2.5 text-sm font-bold transition-colors"
-                    >
-                        {settingsSaved ? '✓ Saved!' : 'Save Settings'}
-                    </button>
+
+                {/* Google Sheets Sync Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+                    <div>
+                        <h3 className="text-slate-800 font-black text-base">Google Sheets Integration</h3>
+                        <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                    </div>
+
+                    {sheetUrl ? (
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600 text-sm font-bold">Linked Spreadsheet:</span>
+                                <a 
+                                    href={sheetUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
+                                >
+                                    <FileText size={14} /> Open Google Sheet ↗
+                                </a>
+                            </div>
+                            <p className="text-[10px] text-slate-400">Spreadsheet ID: <code className="bg-slate-100 px-1 py-0.5 rounded">{syncConfig.spreadsheetId}</code></p>
+                        </div>
+                    ) : (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                            <p className="text-amber-700 text-xs font-bold">⚠️ Google Sheets Not Configured</p>
+                            <p className="text-[10px] text-amber-500 mt-1">Please set GOOGLE_SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY in your server .env file.</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2 border-t border-slate-100">
+                        <button
+                            onClick={handleImport}
+                            disabled={syncLoading || !sheetUrl}
+                            className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-50 text-slate-700 rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} className="rotate-180" />}
+                            Import from Sheets
+                        </button>
+                        <button
+                            onClick={handleExport}
+                            disabled={syncLoading || !sheetUrl}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} />}
+                            Export to Sheets
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="min-h-screen bg-[#f1f5f9] text-slate-800 flex flex-col">

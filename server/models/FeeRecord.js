@@ -32,4 +32,17 @@ feeRecordSchema.pre('save', function (next) {
     next();
 });
 
+// Trigger Google Sheets sync after save/delete
+feeRecordSchema.post('save', function (doc) {
+    const { syncToSheets } = require('../utils/googleSheets');
+    syncToSheets(doc).catch(err => console.error('Error in FeeRecord post-save hook:', err.message));
+});
+
+feeRecordSchema.post('findOneAndDelete', function (doc) {
+    if (doc) {
+        const { deleteFromSheets } = require('../utils/googleSheets');
+        deleteFromSheets(doc._id).catch(err => console.error('Error in FeeRecord post-delete hook:', err.message));
+    }
+});
+
 module.exports = mongoose.model('FeeRecord', feeRecordSchema);

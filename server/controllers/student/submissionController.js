@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Submission = require('../../models/Submission');
 const Test = require('../../models/Test');
 const User = require('../../models/User');
+const PublicSubmission = require('../../models/PublicSubmission');
 const jwt = require('jsonwebtoken');
 
 // @desc    Submit student answers for a test
@@ -30,11 +31,12 @@ const submitTest = asyncHandler(async (req, res) => {
     res.status(201).json(submission);
 });
 
-// @desc    Get submissions for the logged in student
-// @route   GET /api/submissions
-// @access  Private (Student)
 const getSubmissions = asyncHandler(async (req, res) => {
-    const submissions = await Submission.find({ student: req.user._id })
+    const query = { student: req.user._id };
+    if (req.query.testId) {
+        query.test = req.query.testId;
+    }
+    const submissions = await Submission.find(query)
         .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email')
         .sort({ submittedAt: -1 });
@@ -139,13 +141,26 @@ const updateStudentComment = asyncHandler(async (req, res) => {
 // @route   GET /api/submissions/shared/:id
 // @access  Public
 const getSharedSubmissionById = asyncHandler(async (req, res) => {
-    const submission = await Submission.findById(req.params.id)
+    let submission = await Submission.findById(req.params.id)
         .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } })
         .populate('student', 'name email');
 
     if (!submission) {
-        res.status(404);
-        throw new Error('Submission not found');
+        submission = await PublicSubmission.findById(req.params.id)
+            .populate({ path: 'test', populate: { path: 'createdBy', select: 'name email role' } });
+            
+        if (!submission) {
+            res.status(404);
+            throw new Error('Submission not found');
+        }
+
+        // Map fields to match the Submission shape for frontend compatibility
+        const submissionObj = submission.toObject();
+        submissionObj.student = { name: submission.name, email: submission.email };
+        submissionObj.studentName = submission.name;
+        // Let's set status to evaluated so student can see it as checked/evaluated
+        submissionObj.status = 'evaluated';
+        return res.json(submissionObj);
     }
 
     res.json(submission);
@@ -157,7 +172,10 @@ const getSharedSubmissionById = asyncHandler(async (req, res) => {
 const updateSharedComment = asyncHandler(async (req, res) => {
     const { answers } = req.body;
 
-    const submission = await Submission.findById(req.params.id);
+    let submission = await Submission.findById(req.params.id);
+    if (!submission) {
+        submission = await PublicSubmission.findById(req.params.id);
+    }
     if (!submission) {
         res.status(404);
         throw new Error('Submission not found');

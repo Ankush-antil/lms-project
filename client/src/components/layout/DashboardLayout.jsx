@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
-    BarChart3, UserPlus, Trash2
+    BarChart3, UserPlus, Trash2, Wallet, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -155,6 +155,7 @@ const menuItems = {
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Activities Builder', icon: PenTool, path: '/admin/activities-builder' },
+        { name: 'Fee Portal', icon: CreditCard, path: '/admin/fee-portal' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -166,6 +167,7 @@ const menuItems = {
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Activities Builder', icon: PenTool, path: '/institute/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
+        { name: 'Fee Portal', icon: CreditCard, path: '/institute/fee-portal' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
@@ -187,6 +189,7 @@ const menuItems = {
     Student: [
         { name: 'My Activities', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },
+        { name: 'Fee Portal', icon: Wallet, path: '/student/fee-portal' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
         { name: 'My SnapShots', icon: BarChart3, path: '/student/performance' },
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' }

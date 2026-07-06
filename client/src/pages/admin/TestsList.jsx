@@ -111,10 +111,12 @@ const TestsList = () => {
         if (!data) return;
 
         try {
-            // Update local submissions list
+            let updatedAnswers = [];
+            let newTotalScore = 0;
+
             setPublicSubmissions(prev => prev.map(sub => {
                 if (sub._id === submissionId) {
-                    const updatedAnswers = sub.answers.map(a => {
+                    updatedAnswers = sub.answers.map(a => {
                         if (a.questionId === qId) {
                             return {
                                 ...a,
@@ -127,7 +129,7 @@ const TestsList = () => {
                     });
 
                     // Recalculate total score
-                    const newTotalScore = updatedAnswers.reduce((sum, item) => sum + (item.marks || 0), 0);
+                    newTotalScore = updatedAnswers.reduce((sum, item) => sum + (item.marks || 0), 0);
                     return {
                         ...sub,
                         answers: updatedAnswers,
@@ -136,6 +138,11 @@ const TestsList = () => {
                 }
                 return sub;
             }));
+
+            await axios.put(`/api/public-tests/admin/submissions/${submissionId}/evaluate`, {
+                answers: updatedAnswers,
+                score: newTotalScore
+            });
 
             toast.success("Evaluation graded and feedback saved!");
         } catch (err) {

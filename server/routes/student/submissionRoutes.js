@@ -12,12 +12,7 @@ const {
 } = require('../../controllers/student/submissionController');
 const { protect } = require('../../middleware/authMiddleware');
 
-// Shared/Public result routes (no authentication required)
-router.route('/shared/:id')
-    .get(getSharedSubmissionById);
 
-router.route('/shared/:id/comment')
-    .put(updateSharedComment);
 
 router.route('/')
     .get(protect, getSubmissions)

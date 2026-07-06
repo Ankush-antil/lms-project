@@ -7,7 +7,8 @@ const {
     togglePublicTestStatus,
     updatePublicTestSettings,
     deletePublicSubmission,
-    getAllPublicSubmissions
+    getAllPublicSubmissions,
+    evaluatePublicSubmission
 } = require('../../controllers/admin/publicTestController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 
@@ -18,5 +19,6 @@ router.get('/admin/:id/submissions', protect, adminOrEditor, getPublicTestSubmis
 router.put('/admin/:id/toggle-status', protect, adminOrEditor, togglePublicTestStatus);
 router.put('/admin/:id/settings', protect, adminOrEditor, updatePublicTestSettings);
 router.delete('/admin/submissions/:id', protect, adminOrEditor, deletePublicSubmission);
+router.put('/admin/submissions/:id/evaluate', protect, adminOrEditor, evaluatePublicSubmission);
 
 module.exports = router;

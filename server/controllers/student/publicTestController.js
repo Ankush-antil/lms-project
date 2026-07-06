@@ -291,7 +291,7 @@ const checkPublicTestEmail = asyncHandler(async (req, res) => {
     if (!allowMultiple) {
         const existing = await PublicSubmission.findOne({ test: test._id, email: email.toLowerCase(), completedStatus: 'Completed' });
         if (existing) {
-            return res.json({ exists: true });
+            return res.json({ exists: true, submissionId: existing._id });
         }
     }
     res.json({ exists: false });

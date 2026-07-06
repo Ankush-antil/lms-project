@@ -30,11 +30,12 @@ const getEmbedUrl = (url) => {
     return url;
 };
 
-const ViewTestResult = ({ isSharedView = false }) => {
+const ViewTestResult = ({ isSharedView = false, submissionId = null }) => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
-    const { id } = useParams();
+    const { id: urlId } = useParams();
+    const id = submissionId || urlId;
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showInfo, setShowInfo] = useState(false);

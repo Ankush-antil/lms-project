@@ -12,6 +12,7 @@ import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import AdvancedVideoRecorder from '../../components/builder/AdvancedVideoRecorder';
+import ViewTestResult from './ViewTestResult';
 
 const validateLanguage = (text, lang) => {
     if (!text || !lang) return true;
@@ -57,6 +58,7 @@ const ShortAnswerTest = () => {
     const [teachersList, setTeachersList] = useState([]);
     const [selectedTeachers, setSelectedTeachers] = useState({});
     const [test, setTest] = useState(null);
+    const [existingSubmission, setExistingSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
     const [answers, setAnswers] = useState({});
     const [lightboxImage, setLightboxImage] = useState(null);
@@ -184,6 +186,14 @@ const ShortAnswerTest = () => {
         const fetchTest = async () => {
             try {
                 if (!user) return;
+
+                // Check if student has already submitted this test
+                const subRes = await axios.get(`/api/submissions?testId=${id}`).catch(() => ({ data: [] }));
+                if (subRes.data && subRes.data.length > 0) {
+                    setExistingSubmission(subRes.data[0]);
+                    setLoading(false);
+                    return;
+                }
                 // Check if activity is disabled
                 const configRes = await axios.get('/api/users/activity-configs').catch(() => ({ data: [] }));
                 const actConfigs = configRes.data || [];
@@ -991,6 +1001,10 @@ const ShortAnswerTest = () => {
     if (loading) return (
         <LoadingPlaceholder type="test" />
     );
+
+    if (existingSubmission) {
+        return <ViewTestResult submissionId={existingSubmission._id} />;
+    }
 
     if (!test) return <div className="p-10 text-center">Test not found.</div>;
 

@@ -41,6 +41,8 @@ import VideoRecorderPage from './pages/student/tools/VideoRecorderPage';
 import WebCallingPage from './pages/student/tools/WebCallingPage';
 import FileUploadPage from './pages/student/tools/FileUploadPage';
 import NotesPage from './pages/student/tools/NotesPage';
+import StudentFeePortal from './pages/student/StudentFeePortal';
+import AdminFeePortal from './pages/admin/AdminFeePortal';
 import SharedAudioPage from './pages/SharedAudioPage';
 import SharedVideoPage from './pages/SharedVideoPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
@@ -143,6 +145,11 @@ function App() {
                                         <TestBuilder />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/fee-portal" element={
+                                    <PrivateRoute role={['Institute', 'Admin']}>
+                                        <AdminFeePortal />
+                                    </PrivateRoute>
+                                } />
 
                                 {/* Admin Routes */}
                                 <Route path="/admin" element={
@@ -217,6 +224,11 @@ function App() {
                                 <Route path="/admin/activities-edit/:id" element={
                                     <PrivateRoute role={['Admin', 'Editor']}>
                                         <TestBuilder />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/fee-portal" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminFeePortal />
                                     </PrivateRoute>
                                 } />
 
@@ -317,6 +329,11 @@ function App() {
                                 <Route path="/student" element={
                                     <PrivateRoute role="Student">
                                         <StudentDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/student/fee-portal" element={
+                                    <PrivateRoute role="Student">
+                                        <StudentFeePortal />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/tests" element={

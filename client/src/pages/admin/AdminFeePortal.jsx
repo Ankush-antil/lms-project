@@ -394,8 +394,8 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
     );
 };
 
-/* ─── Collect Fee Modal ─── */
-const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
+/* ─── Collect Fee Form (Reusable) ─── */
+const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     const [selectedId, setSelectedId] = useState(preselectedId || '');
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [amount, setAmount] = useState('');
@@ -412,8 +412,16 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                 .then(r => setSelectedRecord(r.data))
                 .catch(() => setSelectedRecord(null))
                 .finally(() => setLoadingRecord(false));
+        } else {
+            setSelectedRecord(null);
         }
     }, [selectedId]);
+
+    useEffect(() => {
+        if (preselectedId) {
+            setSelectedId(preselectedId);
+        }
+    }, [preselectedId]);
 
     const handleSubmit = async () => {
         if (!selectedId || !amount) return toast.error('Select student and enter amount');
@@ -424,7 +432,7 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
             }, { withCredentials: true });
             toast.success(`Receipt generated: ${res.data.receiptNo}`);
             onSuccess();
-            onClose();
+            if (onCancel) onCancel();
         } catch {
             toast.error('Failed to collect fee');
         } finally {
@@ -435,16 +443,149 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
     const newBalance = selectedRecord ? Math.max(0, selectedRecord.pendingAmount - (Number(amount) || 0)) : null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-col md:flex-row gap-6 text-slate-800">
+            {/* Left: Form */}
+            <div className="flex-1 space-y-4">
+                {/* Student Select */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Search Student</label>
+                    <select
+                        value={selectedId}
+                        onChange={e => setSelectedId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                    >
+                        <option value="">— Select Student —</option>
+                        {students.map(s => (
+                            <option key={s._id} value={s.student?._id || s._id} className="bg-white">
+                                {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Fee Info */}
+                {loadingRecord && <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 size={14} className="animate-spin" /> Loading...</div>}
+                {selectedRecord && !loadingRecord ? (
+                    <div className="grid grid-cols-3 gap-3 animate-fade-in">
+                        <div className="bg-slate-100 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Total Fee</p>
+                            <p className="text-slate-805 font-black">{fmt(selectedRecord.totalFee)}</p>
+                        </div>
+                        <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Already Paid</p>
+                            <p className="text-emerald-600 font-black">{fmt(selectedRecord.paidAmount)}</p>
+                        </div>
+                        <div className="bg-red-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Pending</p>
+                            <p className="text-red-500 font-black">{fmt(selectedRecord.pendingAmount)}</p>
+                        </div>
+                    </div>
+                ) : !loadingRecord && (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-slate-100 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Total Fee</p>
+                            <p className="text-slate-805 font-black">₹0</p>
+                        </div>
+                        <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Already Paid</p>
+                            <p className="text-emerald-600 font-black">₹0</p>
+                        </div>
+                        <div className="bg-red-500/10 rounded-xl p-3 text-center">
+                            <p className="text-xs text-slate-500 mb-1">Pending</p>
+                            <p className="text-red-500 font-black">₹0</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Amount */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Receive Amount</label>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+
+                {/* Payment Mode */}
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Payment Mode</label>
+                    <div className="flex flex-wrap gap-2">
+                        {PAYMENT_MODES.map(m => (
+                            <button key={m} onClick={() => setMode(m)}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${mode === m ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                {m}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Ref + Remark */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Reference No. (Optional)</label>
+                        <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} placeholder="e.g. UPI ref / cheque no."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Remark (Optional)</label>
+                        <input type="text" value={remark} onChange={e => setRemark(e.target.value)} placeholder="e.g. First installment"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                    <button onClick={handleSubmit} disabled={loading}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                        {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
+                        Save & Generate Receipt
+                    </button>
+                    {onCancel && (
+                        <button onClick={onCancel} className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors">
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Right: Receipt Preview */}
+            <div className="w-full md:w-64 flex-shrink-0 bg-white border border-slate-200 rounded-3xl p-5 space-y-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Receipt Preview</p>
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3 text-xs leading-relaxed">
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Receipt No: </span><span className="text-slate-650 font-bold">Auto-generated</span></div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Date: </span><span className="text-slate-650 font-bold">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Collected By: </span><span className="text-slate-650 font-bold">Admin</span></div>
+                    {selectedRecord ? (
+                        <>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Student: </span><span className="text-slate-700 font-bold">{selectedRecord.student?.name}</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Course: </span><span className="text-slate-700 font-bold">{selectedRecord.course}</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Amount: </span><span className="text-slate-800 font-black">{amount ? fmt(amount) : '₹0'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">New Balance: </span><span className={`font-bold ${newBalance === 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmt(newBalance)}</span></div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Student: </span><span className="text-slate-300 italic">None</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Course: </span><span className="text-slate-300 italic">None</span></div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Amount: </span><span className="text-slate-500">₹0</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">New Balance: </span><span className="text-slate-500">₹0</span></div>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ─── Collect Fee Modal Wrapper ─── */
+const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-200 sticky top-0 bg-white z-10 text-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-                            <CreditCard size={16} className="text-indigo-400" />
+                        <div className="w-9 h-9 bg-indigo-500/10 rounded-xl flex items-center justify-center">
+                            <CreditCard size={16} className="text-indigo-600" />
                         </div>
                         <div>
-                            <p className="text-white font-black text-base">Collect Fee</p>
+                            <p className="text-slate-850 font-black text-base">Collect Fee</p>
                             <p className="text-xs text-slate-400">Search student and record payment</p>
                         </div>
                     </div>
@@ -453,106 +594,13 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                     </button>
                 </div>
 
-                <div className="flex gap-6 p-6">
-                    {/* Left: Form */}
-                    <div className="flex-1 space-y-4">
-                        {/* Student Select */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Search Student</label>
-                            <select
-                                value={selectedId}
-                                onChange={e => setSelectedId(e.target.value)}
-                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                            >
-                                <option value="">— Select Student —</option>
-                                {students.map(s => (
-                                    <option key={s._id} value={s.student?._id || s._id} className="bg-white">
-                                        {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Fee Info */}
-                        {loadingRecord && <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 size={14} className="animate-spin" /> Loading...</div>}
-                        {selectedRecord && !loadingRecord && (
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="bg-slate-100 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Total Fee</p>
-                                    <p className="text-slate-800 font-black">{fmt(selectedRecord.totalFee)}</p>
-                                </div>
-                                <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Already Paid</p>
-                                    <p className="text-emerald-400 font-black">{fmt(selectedRecord.paidAmount)}</p>
-                                </div>
-                                <div className="bg-red-500/10 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-slate-500 mb-1">Pending</p>
-                                    <p className="text-red-400 font-black">{fmt(selectedRecord.pendingAmount)}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Amount */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Receive Amount</label>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount"
-                                className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                        </div>
-
-                        {/* Payment Mode */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Payment Mode</label>
-                            <div className="flex flex-wrap gap-2">
-                                {PAYMENT_MODES.map(m => (
-                                    <button key={m} onClick={() => setMode(m)}
-                                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${mode === m ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-300 hover:bg-slate-100'}`}>
-                                        {m}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Ref + Remark */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Reference No. (Optional)</label>
-                                <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} placeholder="e.g. UPI-12345"
-                                    className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Remark (Optional)</label>
-                                <input type="text" value={remark} onChange={e => setRemark(e.target.value)} placeholder="e.g. First installment"
-                                    className="w-full bg-white/5 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button onClick={handleSubmit} disabled={loading}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                                {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
-                                Save & Generate Receipt
-                            </button>
-                            <button onClick={onClose} className="px-4 bg-white/5 hover:bg-slate-100 text-slate-300 rounded-xl font-bold text-sm transition-colors">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Right: Receipt Preview */}
-                    <div className="w-56 flex-shrink-0">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Receipt Preview</p>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
-                            <div><span className="text-slate-500">Receipt No: </span><span className="text-white text-xs">Auto-generated</span></div>
-                            <div><span className="text-slate-500">Date: </span><span className="text-white text-xs">{new Date().toLocaleDateString('en-IN')}</span></div>
-                            <div><span className="text-slate-500">Collected By: </span><span className="text-white text-xs">Admin</span></div>
-                            {selectedRecord && <>
-                                <div><span className="text-slate-500">Student: </span><span className="text-white text-xs">{selectedRecord.student?.name}</span></div>
-                                <div><span className="text-slate-500">Course: </span><span className="text-white text-xs">{selectedRecord.course}</span></div>
-                                <div><span className="text-slate-500">Amount: </span><span className="text-white text-xs">{amount ? fmt(amount) : '—'}</span></div>
-                                {newBalance !== null && <div><span className="text-slate-500">New Balance: </span><span className={`text-xs font-bold ${newBalance === 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(newBalance)}</span></div>}
-                            </>}
-                        </div>
-                    </div>
+                <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                    <CollectFeeForm 
+                        students={students} 
+                        preselectedId={preselectedId} 
+                        onCancel={onClose} 
+                        onSuccess={onSuccess} 
+                    />
                 </div>
             </div>
         </div>
@@ -963,6 +1011,23 @@ export default function AdminFeePortal() {
                 </div>
             </div>
         </div>
+        );
+    };
+
+    /* ─── Collect Fee Tab (Inline Page) ─── */
+    const renderCollect = () => {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-slate-800 font-black text-lg">Collect Fee</h2>
+                    <p className="text-slate-400 text-sm mt-0.5">Manage fees, collections and reports</p>
+                </div>
+                <CollectFeeForm 
+                    students={students.filter(s => s.status !== 'Paid')} 
+                    preselectedId={collectPreselect} 
+                    onSuccess={fetchAll} 
+                />
+            </div>
         );
     };
 
@@ -1382,18 +1447,7 @@ export default function AdminFeePortal() {
                         <>
                             {activeTab === 'dashboard' && renderDashboard()}
                             {activeTab === 'students' && renderStudents()}
-                            {activeTab === 'collect' && (
-                                <div className="flex flex-col items-center justify-center py-16 gap-4">
-                                    <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center">
-                                        <CreditCard size={32} className="text-indigo-400" />
-                                    </div>
-                                    <h3 className="text-slate-800 font-black text-xl">Collect Fee</h3>
-                                    <p className="text-slate-500 text-sm">Search student and record a new payment</p>
-                                    <button onClick={() => openCollect()} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold transition-colors">
-                                        <Plus size={16} /> Open Collect Fee Form
-                                    </button>
-                                </div>
-                            )}
+                            {activeTab === 'collect' && renderCollect()}
                             {activeTab === 'pending' && renderPending()}
                             {activeTab === 'receipts' && renderReceipts()}
                             {activeTab === 'reports' && renderReports()}

@@ -1,0 +1,2576 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forms Settings Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --dark-sidebar: #1a252f;
+            --gray: #7f8c8d;
+            --light-gray: #ecf0f1;
+            --white: #ffffff;
+            --border: #e0e0e0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            --radius: 8px;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-main);
+        }
+
+        /* Missing Utility Classes from Source */
+        .setting-desc {
+            color: var(--gray);
+            font-size: 13px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Conversion Kit (Leads) Styles */
+        .ck-tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 30px;
+        }
+
+        .ck-tab {
+            padding: 10px 20px;
+            margin-right: 10px;
+            cursor: pointer;
+            color: var(--gray);
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+        }
+
+        .ck-tab.active {
+            color: var(--dark);
+            border-color: var(--dark);
+        }
+
+        .ck-content {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .ck-desc {
+            max-width: 500px;
+            margin: 0 auto 20px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+
+        /* Pricing Styles */
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Note: .pricing-card might conflict with existing, ensuring we use these styles for the grid items */
+        .pricing-grid .pricing-card {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            padding-bottom: 25px;
+            position: relative;
+            background: var(--white);
+            display: block;
+            /* reset flex if needed */
+        }
+
+        .pricing-head {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .price {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--dark);
+            margin: 20px 0;
+        }
+
+        .price sub {
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .btn-teal {
+            background: #009b8b;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 80%;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+        }
+
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(180deg, #1a252f 0%, #2c3e50 100%);
+            color: #ecf0f1;
+            padding: 20px 0;
+            height: 100vh;
+            overflow-y: auto;
+            position: fixed;
+            box-shadow: 3px 0 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .logo-container {
+            padding: 0 20px 25px;
+            border-bottom: 1px solid #34495e;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .logo i {
+            color: #3498db;
+            font-size: 28px;
+        }
+
+        .logo-text {
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0 10px;
+        }
+
+        .menu-item {
+            margin-bottom: 3px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item a:hover {
+            background-color: rgba(52, 73, 94, 0.7);
+            color: #ecf0f1;
+            border-left: 4px solid #3498db;
+        }
+
+        .menu-item.active a {
+            background-color: #3498db;
+            color: white;
+            border-left: 4px solid #2ecc71;
+            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.3);
+        }
+
+        .menu-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .menu-item.active .menu-number {
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .menu-text {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .menu-badge {
+            background-color: #e74c3c;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #34495e, transparent);
+            margin: 15px 20px;
+        }
+
+        .menu-heading {
+            padding: 15px 20px 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: 300px;
+            padding: 0;
+            width: calc(100% - 300px);
+        }
+
+        .header {
+            background-color: white;
+            padding: 15px 25px;
+            border-bottom: 1px solid #e0e0e0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .content-container {
+            padding: 20px 25px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section h2 i {
+            color: #3498db;
+        }
+
+        .setting-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .setting-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .setting-title {
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+        }
+
+        .setting-title i {
+            color: #3498db;
+        }
+
+        .setting-description {
+            color: #5d6d7e;
+            font-size: 13px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .setting-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 54px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.toggle-slider {
+            background-color: #3498db;
+        }
+
+        input:checked+.toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9, #2573a7);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #d5dbdb;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d5dbdb;
+            transform: translateY(-2px);
+        }
+
+        .form-select,
+        .form-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 100%;
+            max-width: 300px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .image-placeholder {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            color: #7f8c8d;
+            margin: 20px 0;
+        }
+
+        .image-placeholder i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 25px;
+            flex: 1;
+            min-width: 200px;
+            border-left: 5px solid #3498db;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table th,
+        .table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: 700;
+            color: #2c3e50;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tag {
+            display: inline-block;
+            background-color: #e8f4fc;
+            color: #3498db;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #d1e7f5;
+        }
+
+        .coming-soon {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .coming-soon i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+
+        .coming-soon h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #5d6d7e;
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .sidebar {
+                width: 260px;
+            }
+
+            .main-content {
+                margin-left: 260px;
+                width: calc(100% - 260px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                max-height: 400px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .content-container {
+                padding: 20px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .stats-container {
+                flex-direction: column;
+            }
+
+            .stat-card {
+                min-width: 100%;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #bdc3c7;
+        }
+
+        /* Dashboard Styles */
+        .dashboard-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            flex: 1;
+            min-width: 250px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid #3498db;
+            background-color: #f8f9fa;
+        }
+
+        .card-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .card-label {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .billing-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .billing-section-title i {
+            color: #3498db;
+        }
+
+        .billing-placeholder {
+            background-color: #f1f3f5;
+            border: 1px dashed #ced4da;
+            border-radius: 8px;
+            padding: 60px 20px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .billing-placeholder i {
+            font-size: 48px;
+            color: #adb5bd;
+            margin-bottom: 15px;
+        }
+
+        .billing-placeholder h4 {
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        /* Pricing Table Styles */
+        .pricing-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .pricing-card {
+            flex: 1;
+            min-width: 200px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            /* Slightly sharper corners as per image */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding-bottom: 30px;
+        }
+
+        .pricing-header-strip {
+            height: 40px;
+            /* Approx height for the header strip */
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        .pricing-header-strip.current-plan {
+            background-color: #7f8c8d;
+            /* Grey color for Current Plan */
+        }
+
+        .pricing-header-strip.recommended {
+            background-color: #009b8b;
+            /* Teal color for Recommended */
+        }
+
+        .pricing-header-strip.empty {
+            background-color: transparent;
+        }
+
+        .pricing-content {
+            padding: 20px;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plan-name {
+            font-size: 20px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .plan-desc {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            line-height: 1.4;
+            min-height: 40px;
+            /* Align heights */
+        }
+
+        .plan-price {
+            font-size: 36px;
+            font-weight: 900;
+            color: #2c3e50;
+            margin-top: auto;
+            /* Push to bottom of content area */
+            margin-bottom: 20px;
+        }
+
+        .plan-price sub {
+            font-size: 14px;
+            font-weight: normal;
+            color: #2c3e50;
+            bottom: 0.2em;
+        }
+
+        .btn-teal {
+            background-color: #009b8b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 80%;
+            margin: 0 auto;
+        }
+
+        .btn-teal:hover {
+            background-color: #007f72;
+        }
+
+        .pricing-card.free-tier {
+            background-color: #e8eaeb;
+            /* Light grey bg for free tier */
+            border: none;
+        }
+
+        .pricing-card.free-tier .plan-price {
+            color: #2c3e50;
+            font-size: 42px;
+            /* Bigger FREE text */
+        }
+
+        .see-full-comparison {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .see-full-comparison a {
+            color: #009b8b;
+            text-decoration: underline;
+            font-size: 14px;
+        }
+
+        .see-full-comparison {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .see-full-comparison a {
+            color: #009b8b;
+            text-decoration: underline;
+            font-size: 14px;
+        }
+
+        /* Conversion Kit Styles */
+        .ck-container {
+            font-family: inherit;
+        }
+
+        .ck-header {
+            margin-bottom: 20px;
+        }
+
+        .ck-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .ck-subtitle {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .ck-tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 40px;
+        }
+
+        .ck-tab {
+            padding: 10px 0;
+            margin-right: 30px;
+            font-weight: 600;
+            color: #7f8c8d;
+            cursor: pointer;
+            position: relative;
+            font-size: 15px;
+        }
+
+        .ck-tab.active {
+            color: #2c3e50;
+            border-bottom: 2px solid #2c3e50;
+            margin-bottom: -1px;
+        }
+
+        .ck-content {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .ck-icon-circle {
+            width: 60px;
+            height: 60px;
+            background-color: #2ecc71;
+            border-radius: 50%;
+            /* Make it rounded if needed, image shows a bell icon colored green */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 28px;
+        }
+
+        /* Specific bell icon style from image looks more like just the icon is green, no background circle? 
+           Let's adjust to match image closer: Green bell icon, no circle background visible in the snippet 
+           but usually these have one. Image shows just a green bell. 
+        */
+        .ck-icon {
+            font-size: 48px;
+            color: #2ecc71;
+            margin-bottom: 20px;
+        }
+
+        .ck-content h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .ck-content p {
+            color: #7f8c8d;
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+
+        .ck-btn {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .ck-btn:hover {
+            background-color: #34495e;
+        }
+
+        /* New Settings Styles (Conditions, Notifications, etc.) */
+        .setting-card {
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            overflow: hidden;
+            display: flex;
+            transition: transform 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .setting-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stripe {
+            width: 6px;
+            flex-shrink: 0;
+        }
+
+        .stripe.blue {
+            background-color: #3498db;
+        }
+
+        .stripe.green {
+            background-color: #2ecc71;
+        }
+
+        .stripe.purple {
+            background-color: #9b59b6;
+        }
+
+        .stripe.orange {
+            background-color: #f39c12;
+        }
+
+        .stripe.red {
+            background-color: #e74c3c;
+        }
+
+        .card-content {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-info h4 {
+            margin: 0 0 5px;
+            color: #2c3e50;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .card-info p {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: white;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        /* Editor Toolbar */
+        .editor-toolbar {
+            background: #0e1e35;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .editor-tools {
+            display: flex;
+            gap: 15px;
+        }
+
+        .editor-tool {
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .editor-tool:hover {
+            opacity: 1;
+        }
+
+        .editor-canvas {
+            background: #f4f6f8;
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 40px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .editor-btn {
+            background: #2ecc71;
+            /* Green for Add Field */
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+        }
+
+        .editor-btn.blue {
+            background: #3498db;
+        }
+    </style>
+
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+
+    <nav class="sidebar">
+        <div class="logo-container">
+            <div class="logo"><i class="fas fa-th-large"></i><span class="logo-text">Forms</span></div>
+            <p style="font-size: 13px; color: #95a5a6; margin-top: 8px;">Settings Dashboard</p>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-heading">Form Configuration</li>
+            <li class="menu-item active" id="menu-1"><a href="#form-behavior" data-section="form-behavior"><span
+                        class="menu-number">1</span><i class="fas fa-sliders-h"></i><span class="menu-text">Form
+                        Behavior</span></a></li>
+            <li class="menu-item" id="menu-2"><a href="#language" data-section="language"><span
+                        class="menu-number">2</span><i class="fas fa-language"></i><span
+                        class="menu-text">Language</span></a></li>
+            <li class="menu-item" id="menu-3"><a href="#location" data-section="location"><span
+                        class="menu-number">3</span><i class="fas fa-globe"></i><span
+                        class="menu-text">Location</span></a></li>
+            <li class="menu-item" id="menu-4"><a href="#url-parameter" data-section="url-parameter"><span
+                        class="menu-number">4</span><i class="fas fa-link"></i><span class="menu-text">URL
+                        Parameter</span></a></li>
+            <li class="menu-item" id="menu-5"><a href="#access" data-section="access"><span
+                        class="menu-number">5</span><i class="fas fa-lock"></i><span class="menu-text">Access</span></a>
+            </li>
+            <li class="menu-item" id="menu-6"><a href="#users-auth" data-section="users-auth"><span
+                        class="menu-number">6</span><i class="fas fa-users"></i><span class="menu-text">Users &
+                        Authentication</span></a></li>
+            <li class="menu-item" id="menu-7"><a href="#guest-access" data-section="guest-access"><span
+                        class="menu-number">7</span><i class="fas fa-user-friends"></i><span class="menu-text">Guest
+                        Access</span><span class="menu-badge">New</span></a></li>
+            <li class="menu-item" id="menu-8"><a href="#conditional-settings" data-section="conditional-settings"><span
+                        class="menu-number">8</span><i class="fas fa-random"></i><span class="menu-text">Conditional
+                        Settings</span></a></li>
+            <li class="menu-item" id="menu-9"><a href="#validations" data-section="validations"><span
+                        class="menu-number">9</span><i class="fas fa-check-circle"></i><span
+                        class="menu-text">Validations</span></a></li>
+            <li class="menu-item" id="menu-10"><a href="#advanced-settings" data-section="advanced-settings"><span
+                        class="menu-number">10</span><i class="fas fa-cog"></i><span class="menu-text">Advanced
+                        Settings</span></a></li>
+            <li class="menu-divider"></li>
+            <li class="menu-heading">Form Pages & Notifications</li>
+            <li class="menu-item" id="menu-11"><a href="#thank-you-page" data-section="thank-you-page"><span
+                        class="menu-number">11</span><i class="fas fa-thumbs-up"></i><span class="menu-text">Thank
+                        You Page</span></a></li>
+            <li class="menu-item" id="menu-12"><a href="#notification" data-section="notification"><span
+                        class="menu-number">12</span><i class="fas fa-bell"></i><span
+                        class="menu-text">Notification</span></a></li>
+            <li class="menu-item" id="menu-13"><a href="#email-settings" data-section="email-settings"><span
+                        class="menu-number">13</span><i class="fas fa-envelope"></i><span class="menu-text">Email
+                        Settings</span></a></li>
+            <li class="menu-item" id="menu-14"><a href="#email-domains" data-section="email-domains"><span
+                        class="menu-number">14</span><i class="fas fa-at"></i><span class="menu-text">Email
+                        Domains</span></a></li>
+            <li class="menu-item" id="menu-15"><a href="#track-read-unread" data-section="track-read-unread"><span
+                        class="menu-number">15</span><i class="fas fa-eye"></i><span class="menu-text">Track
+                        Read/Unread</span></a></li>
+            <li class="menu-divider"></li>
+            <li class="menu-heading">Data & Analytics</li>
+            <li class="menu-item" id="menu-16"><a href="#usage" data-section="usage"><span
+                        class="menu-number">16</span><i class="fas fa-chart-bar"></i><span
+                        class="menu-text">Usage</span></a></li>
+            <li class="menu-item" id="menu-17"><a href="#referrals" data-section="referrals"><span
+                        class="menu-number">17</span><i class="fas fa-share-alt"></i><span
+                        class="menu-text">Referrals</span></a></li>
+            <li class="menu-item" id="menu-18"><a href="#documents" data-section="documents"><span
+                        class="menu-number">18</span><i class="fas fa-file-pdf"></i><span
+                        class="menu-text">Documents</span></a></li>
+            <li class="menu-divider"></li>
+            <li class="menu-heading">Integrations & Features</li>
+            <li class="menu-item" id="menu-19"><a href="#sign" data-section="sign"><span class="menu-number">19</span><i
+                        class="fas fa-signature"></i><span class="menu-text">E-Sign</span></a></li>
+            <li class="menu-item" id="menu-20"><a href="#leads-marketing" data-section="leads-marketing"><span
+                        class="menu-number">20</span><i class="fas fa-bullseye"></i><span class="menu-text">Leads &
+                        Marketing</span></a></li>
+            <li class="menu-item" id="menu-21"><a href="#security-privacy" data-section="security-privacy"><span
+                        class="menu-number">21</span><i class="fas fa-shield-alt"></i><span class="menu-text">Security &
+                        Privacy</span></a></li>
+            <li class="menu-item" id="menu-22"><a href="#development" data-section="development"><span
+                        class="menu-number">22</span><i class="fas fa-code"></i><span
+                        class="menu-text">Development</span></a></li>
+            <li class="menu-item" id="menu-23"><a href="#plan-billing" data-section="plan-billing"><span
+                        class="menu-number">23</span><i class="fas fa-credit-card"></i><span class="menu-text">Plan
+                        & Billing</span></a></li>
+        </ul>
+    </nav>
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="header">
+            <h1>Forms Settings Dashboard</h1>
+            <p>Configure and manage all form settings from one centralized dashboard</p>
+        </div>
+        <div class="content-container">
+            <!-- Section 1: Form Behavior -->
+            <section id="form-behavior" class="section active">
+                <h2><i class="fas fa-sliders-h"></i>1. Form Behavior</h2>
+                <p class="setting-description">Global settings to control how your form behaves when used
+                </p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-cookie-bite"></i>Cookie Consent</div>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox" checked><span
+                                class="toggle-slider"></span></label><span>Enabled - Users
+                            will see cookie consent banner</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-pause-circle"></i>Allow Resuming Partial
+                        Submissions </div>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox"><span
+                                class="toggle-slider"></span></label><span>Disabled - Users cannot resume
+                            incomplete forms</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-forward"></i>Auto-jump to the Next Page
+                    </div>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox" checked><span
+                                class="toggle-slider"></span></label><span>Enabled - Form
+                            automatically advances to next page</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-tasks"></i>Show Progress Bar</div>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox" checked><span
+                                class="toggle-slider"></span></label><span>Enabled - Users see
+                            completion progress</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-database"></i>Storage Options</div>
+                    <p class="setting-description">Choose where form data is stored</p>
+                    <div class="setting-controls"><label style="display: flex; align-items: center; gap: 10px;"><input
+                                type="radio" name="storage" checked><span>Default Storage</span></label><label
+                            style="display: flex; align-items: center; gap: 10px;"><input type="radio"
+                                name="storage"><span>External Storage (Enterprise only)</span><span
+                                class="tag">Enterprise</span></label></div>
+                </div>
+
+
+            </section>
+            <!-- Section 2: Language -->
+            <section id="language" class="section">
+                <h2><i class="fas fa-language"></i>2. Language</h2>
+                <p class="setting-description">Configure language settings for your form</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-globe"></i>Multi-language Support</div>
+                    <p class="setting-description">Allow your form to be translated into multiple
+                        languages.</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox" checked><span
+                                class="toggle-slider"></span></label><span>Enabled - Form
+                            supports multiple languages</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-robot"></i>Auto-translate</div>
+                    <p class="setting-description">Automatically translate form content using browser
+                        settings</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox"><span
+                                class="toggle-slider"></span></label><span>Disabled - Auto-translation
+                            is turned off</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-text-width"></i>Text Direction</div>
+                    <p class="setting-description">Set text direction for right-to-left languages</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox"><span
+                                class="toggle-slider"></span></label><span>Left-to-right
+                            (Default)</span></div>
+                    <p class="setting-description" style="margin-top: 10px;">When enabled,
+                        form text will display right-to-left for languages like Arabic and Hebrew</p>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-language"></i>Default Language</div>
+                    <p class="setting-description">Set the primary language for your form</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>English (US)</option>
+                            <option>English (UK)</option>
+                            <option>Spanish</option>
+                            <option>French</option>
+                            <option>German</option>
+                            <option>Chinese</option>
+                            <option>Japanese</option>
+                        </select></div>
+                </div>
+            </section>
+            <!-- Section 3: Location -->
+            <section id="location" class="section">
+                <h2><i class="fas fa-globe"></i>3. Location</h2>
+                <p class="setting-description">Configure regional settings for your form</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-flag"></i>Country</div>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>India</option>
+                            <option>United States</option>
+                            <option>United Kingdom</option>
+                            <option>Australia</option>
+                            <option>Canada</option>
+                            <option>Germany</option>
+                            <option>France</option>
+                        </select></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-language"></i>Language</div>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>English</option>
+                            <option>Spanish</option>
+                            <option>French</option>
+                            <option>German</option>
+                            <option>Chinese</option>
+                            <option>Japanese</option>
+                        </select></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-money-bill-wave"></i>Currency</div>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>Indian Rupee (₹)</option>
+                            <option>US Dollar ($)</option>
+                            <option>Euro (€)</option>
+                            <option>British Pound (£)</option>
+                            <option>Japanese Yen (¥)</option>
+                        </select></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-clock"></i>Time Zone</div>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>(UTC) Coordinated Universal Time</option>
+                            <option>(UTC-5) Eastern Time</option>
+                            <option>(UTC+1) Central European Time</option>
+                            <option>(UTC+5:30) India Standard Time</option>
+                            <option>(UTC+8) China Standard Time</option>
+                        </select></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-calendar-alt"></i>Date Format</div>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>MM/DD/YYYY (US Format)</option>
+                            <option>DD/MM/YYYY (European Format)</option>
+                            <option>YYYY-MM-DD (ISO Format)</option>
+                        </select></div>
+                </div>
+            </section>
+            <!-- Section 4: URL Parameter -->
+            <section id="url-parameter" class="section">
+                <h2><i class="fas fa-link"></i>4. URL Parameter</h2>
+                <p class="setting-description">Personalize your form to the person filling it
+                    out,
+                    or pre-fill fields with URL parameters.</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-external-link-alt"></i>URL
+                        Parameter Basics</div>
+                    <p class="setting-description">Add parameters to your form URL to pre-fill
+                        fields. For example:
+                        <code>https: //yourform.com?name=John&email=john@example.com</code>
+                    </p><button class="btn btn-primary"><i class="fas fa-plus"></i>Add New
+                        Parameter</button>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-lightbulb"></i>Suggestions</div>
+                    <p class="setting-description">Common URL parameters you might want to use:
+                    </p>
+                    <div style="margin-top: 15px;"><span class="tag">name</span><span class="tag">email</span><span
+                            class="tag">phone</span><span class="tag">company</span><span
+                            class="tag">user_id</span><span class="tag">source</span><span
+                            class="tag">campaign</span><span class="tag">referral</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-graduation-cap"></i>Tutorial
+                    </div>
+                    <p class="setting-description">Learn how to use URL parameters effectively
+                        with our tutorial.</p><a href="#" class="btn btn-secondary"><i
+                            class="fas fa-play-circle"></i>Watch Tutorial</a><a href="#" class="btn btn-secondary"
+                        style="margin-left: 10px;"><i class="fas fa-book"></i>Read Documentation</a>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-cogs"></i>Advanced Settings
+                    </div>
+                    <p class="setting-description">Configure how URL parameters are handled</p>
+                    <div class="setting-controls" style="margin-top: 15px;"><label class="toggle-switch"><input
+                                type="checkbox" checked><span class="toggle-slider"></span></label><span>Allow URL
+                            parameter
+                            overrides</span></div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label class="toggle-switch"><input
+                                type="checkbox"><span class="toggle-slider"></span></label><span>Require parameter
+                            validation</span></div>
+                </div>
+            </section>
+            <!-- Section 5: Access -->
+            <section id="access" class="section">
+                <h2><i class="fas fa-lock"></i>5. Access</h2>
+                <p class="setting-description">Manage when your form is open or closed.</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-door-closed"></i>Close Form
+                    </div>
+                    <p class="setting-description">Close your form to new submissions.</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox"><span
+                                class="toggle-slider"></span></label><span>Form is currently
+                            open to submissions</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-calendar-plus"></i>Form Open
+                        Date</div>
+                    <p class="setting-description">Set a date for your form to become
+                        available</p>
+                    <div class="setting-controls"><input type="datetime-local" class="form-input"
+                            value="2023-11-01T09:00"><span style="color: #7f8c8d; font-size: 14px;">Form will open at
+                            this
+                            date/time</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-calendar-minus"></i>Form
+                        Expiration Date</div>
+                    <p class="setting-description">Close form upon reaching a certain date
+                    </p>
+                    <div class="setting-controls"><input type="datetime-local" class="form-input"
+                            value="2023-12-31T23:59"><span style="color: #7f8c8d; font-size: 14px;">Form will close at
+                            this
+                            date/time</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-chart-line"></i>Form
+                        Submission Limit</div>
+                    <p class="setting-description">Close form upon reaching a certain number
+                        of submissions</p>
+                    <div class="setting-controls"><input type="number" class="form-input" placeholder="Enter limit"
+                            value="1000"><span style="color: #7f8c8d; font-size: 14px;">Form will close after
+                            this many submissions</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-user-clock"></i>Time-based
+                        Access</div>
+                    <p class="setting-description">Restrict form access to specific time
+                        windows</p>
+                    <div class="setting-controls" style="margin-top: 15px;"><label
+                            style="display: flex; align-items: center; gap: 10px;"><input type="checkbox"><span>Only
+                                allow access during business
+                                hours (9 AM - 5 PM, Mon-Fri)</span></label></div>
+                </div>
+            </section>
+            <!-- Section 6: Users & Authentication -->
+            <section id="users-auth" class="section">
+                <h2><i class="fas fa-users"></i>6. Users & Authentication</h2>
+                <p class="setting-description">Configure authentication settings for
+                    your organization</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-user-shield"></i>Authentication</div>
+                    <p class="setting-description">Configure authentication settings for
+                        all users of your organization. <a href="#" style="color: #3498db;">Learn more.</a></p>
+                    <div class="setting-controls" style="margin-top: 15px;"><label class="toggle-switch"><input
+                                type="checkbox" checked><span class="toggle-slider"></span></label><span>Allow users
+                            to remain logged in with single sign-on</span></div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label class="toggle-switch"><input
+                                type="checkbox"><span class="toggle-slider"></span></label><span>Require
+                            two-factor authentication for all users in your
+                            organization</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-sign-in-alt"></i>Require
+                        SSO</div>
+                    <p class="setting-description">Require Single Sign-On (SSO) login to
+                        fill out this form</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox"><span
+                                class="toggle-slider"></span></label><span>SSO not
+                            required - Users can log in with email/password</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-key"></i>Require Login
+                    </div>
+                    <p class="setting-description">Require login for users to view and
+                        complete this form</p>
+                    <div class="setting-controls"><label class="toggle-switch"><input type="checkbox" checked><span
+                                class="toggle-slider"></span></label><span>Login
+                            required - Users must authenticate</span></div>
+                    <p class="setting-description" style="margin-top: 10px;"><i class="fas fa-save"></i>Let users save
+                        their submission and
+                        continue it later</p>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-user-check"></i>User
+                        Permissions</div>
+                    <p class="setting-description">Configure what different user roles
+                        can do</p>
+                    <div class="setting-controls" style="margin-top: 15px;"><label
+                            style="display: flex; align-items: center; gap: 10px;"><input type="checkbox"
+                                checked><span>Admins can edit form
+                                settings</span></label></div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label
+                            style="display: flex; align-items: center; gap: 10px;"><input type="checkbox"
+                                checked><span>Editors can view
+                                submissions</span></label></div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label
+                            style="display: flex; align-items: center; gap: 10px;"><input type="checkbox"><span>Viewers
+                                can only fill out
+                                forms</span></label></div>
+                </div>
+            </section>
+            <!-- Section 7: Guest Access -->
+            <section id="guest-access" class="section">
+                <h2><i class="fas fa-user-friends"></i>7. Guest Access</h2>
+                <p class="setting-description">Enable Guest Access to securely
+                    collaborate with people outside your organization</p>
+                <div class="image-placeholder"><i class="fas fa-users fa-3x"></i>
+                    <h3 style="margin: 15px 0 10px; color: #5d6d7e;">Guest Access
+                        Portal</h3>
+                    <p>Preview of the guest interface for clients,
+                        volunteers,
+                        members,
+                        and more</p>
+                </div>
+                <div class="setting-group">
+                    <p class="setting-description">Give guests a personalized,
+                        self-service experience while staying in control of what
+                        they see and do.</p>
+                    <div class="setting-controls" style="margin-top: 15px;"><label class="toggle-switch"><input
+                                type="checkbox" checked><span class="toggle-slider"></span></label><span>Allow
+                            guests to securely log in with a code sent to their
+                            email - no password needed</span></div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label class="toggle-switch"><input
+                                type="checkbox" checked><span class="toggle-slider"></span></label><span>Let
+                            guests view their specific entries,
+                            submit forms,
+                            and track their progress in one convenient place</span>
+                    </div>
+                    <div class="setting-controls" style="margin-top: 10px;"><label class="toggle-switch"><input
+                                type="checkbox"><span class="toggle-slider"></span></label><span>Use
+                            automated email reminders to help guests stay on top of
+                            assigned tasks and keep your workflows moving
+                            forward</span></div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-user-tag"></i>Guest
+                        Types</div>
+                    <p class="setting-description">Different types of guest users
+                        you can invite:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">
+                        <div style="text-align: center;">
+                            <div
+                                style="width: 60px; height: 60px; background: #e8f4fc; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                                <i class="fas fa-briefcase" style="color: #3498db; font-size: 24px;"></i>
+                            </div>
+                            <div style="font-weight: 600; color: #2c3e50;">Clients
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="width: 60px; height: 60px; background: #f0f7e6; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                                <i class="fas fa-hands-helping" style="color: #27ae60; font-size: 24px;"></i>
+                            </div>
+                            <div style="font-weight: 600; color: #2c3e50;">
+                                Volunteers</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="width: 60px; height: 60px; background: #f9ebf0; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                                <i class="fas fa-users" style="color: #e74c3c; font-size: 24px;"></i>
+                            </div>
+                            <div style="font-weight: 600; color: #2c3e50;">Members
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="width: 60px; height: 60px; background: #f5eef8; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                                <i class="fas fa-user-tie" style="color: #9b59b6; font-size: 24px;"></i>
+                            </div>
+                            <div style="font-weight: 600; color: #2c3e50;">Partners
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-credit-card"></i>Guest
+                        Plan</div>
+                    <p class="setting-description">The Team plan includes 5 active
+                        guests per month. <a href="#" style="color: #3498db;">Learn
+                            more about guest user pricing</a></p>
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-value">5</div>
+                            <div class="stat-label">Active Guests Included</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">0</div>
+                            <div class="stat-label">Guests This Month</div>
+                        </div>
+                    </div><button class="btn btn-primary" style="margin-top: 20px;"><i
+                            class="fas fa-arrow-up"></i>Upgrade Plan for More
+                        Guests</button>
+                </div>
+            </section>
+            <!-- Section 16: Usage -->
+            <section id="usage" class="section">
+                <h2><i class="fas fa-chart-bar"></i>16. Usage</h2>
+                <p class="setting-description">Monitor your form usage and
+                    storage</p>
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-value">0 of 100 MB</div>
+                        <div class="stat-label">Storage Used</div>
+                        <div
+                            style="height: 8px; background: #ecf0f1; border-radius: 4px; margin-top: 10px; overflow: hidden;">
+                            <div style="width: 0%; height: 100%; background: #3498db;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">6</div>
+                        <div class="stat-label">Forms Created</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Total Submissions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                </div>
+                <div class="setting-group" style="margin-top: 30px;">
+                    <div class="setting-title"><i class="fas fa-list"></i>Forms
+                    </div>
+                    <p class="setting-description">All forms in your account</p>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Folder</th>
+                                <th>Storage</th>
+                                <th>Entries</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Admissions Application
+                                        (Basic)</strong></td>
+                                <td>Document Templates</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #e8f6f3; color: #1abc9c;">Active</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Classroom Observation Form</strong>
+                                </td>
+                                <td>-</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #e8f6f3; color: #1abc9c;">Active</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>College Orientation
+                                        Registration</strong></td>
+                                <td>-</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #fef9e7; color: #f39c12;">Draft</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>College Programs Lookup
+                                        Form</strong></td>
+                                <td>-</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #e8f6f3; color: #1abc9c;">Active</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Orientation Dates Lookup
+                                        Form</strong></td>
+                                <td>-</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #fef9e7; color: #f39c12;">Draft</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Untitled Form</strong></td>
+                                <td>-</td>
+                                <td>0 KB</td>
+                                <td>0</td>
+                                <td><span class="tag" style="background: #fdEDEC; color: #e74c3c;">Inactive</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-history"></i>Usage
+                        History</div>
+                    <p class="setting-description">View your usage over time</p>
+                    <div class="image-placeholder"><i class="fas fa-chart-line fa-3x"></i>
+                        <h3 style="margin: 15px 0 10px; color: #5d6d7e;">Usage
+                            Analytics Chart</h3>
+                        <p>Chart showing form submissions and storage usage over
+                            the past 30 days</p>
+                    </div>
+                </div>
+            </section>
+            <!-- Section 17: Referrals -->
+            <section id="referrals" class="section">
+                <h2><i class="fas fa-share-alt"></i>17. Referrals</h2>
+                <p class="setting-description">Spread the word and earn 20%
+                    commission</p>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-gift"></i>Referral Program</div>
+                    <p class="setting-description">Recommend Cognito Forms
+                        to your friends and colleagues,
+                        and they'll
+                        receive a free month of advanced form building. When
+                        they sign up,
+                        you'll receive 20% of their
+                        monthly subscription for the first 12 months. <a href="#" style="color: #3498db;">See
+                            details.</a></p>
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-value">20%</div>
+                            <div class="stat-label">Commission Rate</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">12</div>
+                            <div class="stat-label">Months Paid</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">0</div>
+                            <div class="stat-label">Successful Referrals
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-link"></i>Your
+                        Referral Link</div>
+                    <p class="setting-description">Share this link with
+                        friends and colleagues</p>
+                    <div class="setting-controls"><input type="text" class="form-input"
+                            value="https://www.cognitoforms.com/l/referral/?crs=cmVmZGlyZWN0OjplQVJUUk9OMQ=="
+                            style="max-width: 500px;"><button class="btn btn-primary" id="copy-referral-btn"><i
+                                class="fas fa-copy"></i>Copy Link</button>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-share-square"></i>Share Options
+                    </div>
+                    <p class="setting-description">Share your referral link
+                        through different channels</p>
+                    <div class="setting-controls"><button class="btn btn-secondary"><i
+                                class="fab fa-twitter"></i>Twitter</button><button class="btn btn-secondary"
+                            style="margin-left: 10px;"><i class="fab fa-facebook"></i>Facebook</button><button
+                            class="btn btn-secondary" style="margin-left: 10px;"><i
+                                class="fab fa-linkedin"></i>LinkedIn</button><button class="btn btn-secondary"
+                            style="margin-left: 10px;"><i class="fas fa-envelope"></i>Email</button>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-trophy"></i>Referral Rewards</div>
+                    <p class="setting-description">Track your referral
+                        earnings and rewards</p>
+                    <div class="image-placeholder"><i class="fas fa-award fa-3x"></i>
+                        <h3 style="margin: 15px 0 10px; color: #5d6d7e;">
+                            Your Referral Dashboard</h3>
+                        <p>Track your referrals,
+                            earnings,
+                            and rewards in one place</p>
+                    </div>
+                </div>
+            </section>
+            <!-- Section 22: Development -->
+            <section id="development" class="section">
+                <h2><i class="fas fa-code"></i>22. Development</h2>
+                <p class="setting-desc" style="margin-bottom: 20px;">Advanced development settings and custom code</p>
+
+                <!-- Custom Code -->
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-code"></i>Custom Code</div>
+                    <p class="setting-desc">Inject your own code snippets, like Drift, Intercom, etc., on your form.
+                        Code is injected only on the live, published form links.</p>
+                    <div class="controls">
+                        <button class="btn btn-secondary"><i class="fas fa-square"></i> Load form element</button>
+                        <button class="btn btn-secondary"><i class="fas fa-plug"></i> Load Add-ons</button>
+                        <button class="btn btn-secondary"><i class="fas fa-code"></i> Embed HTML</button>
+                        <button class="btn btn-secondary"><i class="fab fa-js"></i> Custom JavaScript</button>
+                    </div>
+                </div>
+
+                <!-- API Settings -->
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-cogs"></i>API Settings</div>
+                    <p class="setting-desc">Configure API access and webhooks</p>
+                    <div class="controls" style="margin-bottom: 10px;">
+                        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <span>Enable API access</span>
+                    </div>
+                    <div class="controls" style="margin-bottom: 20px;">
+                        <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                        <span>Enable webhooks for form submissions</span>
+                    </div>
+                    <button class="btn btn-primary"><i class="fas fa-key"></i> Generate API Key</button>
+                </div>
+
+                <!-- Developer Tools -->
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-tools"></i>Developer Tools</div>
+                    <p class="setting-desc">Tools for developers working with your forms</p>
+                    <div class="controls">
+                        <button class="btn btn-secondary"><i class="fas fa-code-branch"></i> Form Schema</button>
+                        <button class="btn btn-secondary"><i class="fas fa-database"></i> Data Export</button>
+                        <button class="btn btn-secondary"><i class="fas fa-bug"></i> Debug Mode</button>
+                    </div>
+                </div>
+            </section>
+            <!-- Section 23: Plan & Billing -->
+            <!-- Empty Sections (Placeholders) -->
+            <section id="conditional-settings" class="section">
+                <div style="display:flex; align-items:flex-start; margin-bottom:20px;">
+                    <div
+                        style="background:#003366; width:40px; height:40px; border-radius:4px; display:flex; align-items:center; justify-content:center; margin-right:15px; flex-shrink:0;">
+                        <i class="fas fa-random" style="color:white; font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <h2
+                            style="border:none; padding:0; margin:0 0 5px 0; font-size:18px; color:#0e2a47; font-weight:700;">
+                            NEW CONDITION</h2>
+                        <p style="color:#6f7ea8; font-size:14px; margin:0;">Automatically trigger an action if a
+                            condition is met</p>
+                    </div>
+                </div>
+
+                <!-- Show/Hide Field -->
+                <div class="setting-card">
+                    <div class="stripe blue"></div>
+                    <div class="card-icon" style="background:#3498db; margin-left: 15px;">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>SHOW/HIDE FIELD</h4>
+                            <p>Change visibility of specific form fields</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Update/Calculate Field -->
+                <div class="setting-card">
+                    <div class="stripe blue"></div>
+                    <div class="card-icon" style="background:#3498db; margin-left: 15px;">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>UPDATE/CALCULATE FIELD</h4>
+                            <p>Copy a field's value or perform complex calculations</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Enable/Require/Mask Field -->
+                <div class="setting-card">
+                    <div class="stripe blue"></div>
+                    <div class="card-icon" style="background:#3498db; margin-left: 15px;">
+                        <i class="fas fa-asterisk"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>ENABLE/REQUIRE/MASK FIELD</h4>
+                            <p>Require or disable a field, or set a mask</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Skip to/Hide a Page -->
+                <div class="setting-card">
+                    <div class="stripe green"></div>
+                    <div class="card-icon" style="background:#2ecc71; margin-left: 15px;">
+                        <i class="fas fa-share"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>SKIP TO/HIDE A PAGE</h4>
+                            <p>Skip to or hide a specific page</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Change Thank You Page -->
+                <div class="setting-card">
+                    <div class="stripe green"></div>
+                    <div class="card-icon" style="background:#2ecc71; margin-left: 15px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>CHANGE THANK YOU PAGE</h4>
+                            <p>Customize your Thank You page action</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Change Email Recipient -->
+                <div class="setting-card">
+                    <div class="stripe purple"></div>
+                    <div class="card-icon" style="background:#9b59b6; margin-left: 15px;">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>CHANGE EMAIL RECIPIENT</h4>
+                            <p>Send emails to specific people</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+            </section>
+            <section id="validations" class="section">
+                <h2><i class="fas fa-check-circle"></i>9. Validations</h2>
+                <div class="setting-group">
+                    <div class="setting-title" style="color:#003366;">Unique Submission</div>
+                    <p class="setting-description">Use cookies or IP address to prevent multiple form submissions</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>No check</option>
+                            <option>Check cookies only</option>
+                            <option>Check IP address only</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title" style="color:#003366;">Unique Field</div>
+                    <p class="setting-description">Don't allow previously entered values for a specific field</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>No Check</option>
+                            <option>Email</option>
+                            <option>Phone Number</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title" style="color:#003366;">Clear Hidden Field Values</div>
+                    <p class="setting-description">Choose whether or not to clear values for fields hidden by
+                        conditional logic</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>Clear when hidden</option>
+                            <option>Don't clear</option>
+                        </select></div>
+                </div>
+            </section>
+            <section id="advanced-settings" class="section">
+                <h2><i class="fas fa-cog"></i>10. Advanced Settings</h2>
+
+                <div class="setting-group">
+                    <div class="setting-title">Draft Mode</div>
+                    <p class="setting-description">Edit your form in draft mode and sync updates to the live form at any
+                        time.</p>
+                    <div class="setting-controls"
+                        style="display: flex; align-items: center; justify-content: flex-end;">
+                        <i class="fas fa-lock" style="color:#bdc3c7; font-size: 20px;"></i>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Save and Continue Later</div>
+                    <p class="setting-description">Let form users save their form submission and continue it later</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>Enabled</option>
+                            <option>Disabled</option>
+                        </select></div>
+                    <a href="#" style="font-size:13px; color:#3498db; display:block; margin-top:5px;">Customize Save and
+                        Continue Later Email</a>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Highlight Effect</div>
+                    <p class="setting-description">Enable or disable yellow background highlight for form fields</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>Enabled</option>
+                            <option>Disabled</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Show Error Navigation</div>
+                    <p class="setting-description">Allow navigation between form errors</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>No</option>
+                            <option>Yes</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Allow Browser Autocomplete</div>
+                    <p class="setting-description">Allow browsers to store and autocomplete form fields.</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>No</option>
+                            <option>Yes</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Prevent Cloning</div>
+                    <p class="setting-description">Prevent other users from cloning this form</p>
+                    <div class="setting-controls"><select class="form-select">
+                            <option selected>No</option>
+                            <option>Yes</option>
+                        </select></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title">Auto-Delete Submissions</div>
+                    <p class="setting-description">Delete form submissions after a certain period of time</p>
+                    <div style="display:flex; justify-content: space-between; align-items: center;">
+                        <a href="#" style="font-size:13px; color:#3498db;">Add a default deletion period to all of your
+                            forms</a>
+                        <button class="btn btn-primary" style="background:#007bff;">ENABLE</button>
+                    </div>
+                </div>
+            </section>
+            <section id="thank-you-page" class="section">
+                <h2><i class="fas fa-check-circle"></i>THANK YOU PAGE</h2>
+                <p class="setting-description">Choose an Action After Submission:</p>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px;">
+                    <label
+                        style="background:white; padding:15px; border-radius:6px; flex:1; display:flex; align-items:center; gap:10px; border:1px solid #ddd; cursor:pointer;">
+                        <input type="radio" name="ty-action" checked>
+                        <span style="font-weight:600; color:#2c3e50;">Show a Thank You Page after submission</span>
+                    </label>
+                    <label
+                        style="background:white; padding:15px; border-radius:6px; flex:1; display:flex; align-items:center; gap:10px; border:1px solid #ddd; cursor:pointer;">
+                        <input type="radio" name="ty-action">
+                        <span style="font-weight:600; color:#2c3e50;">Redirect to an external link after
+                            submission</span>
+                    </label>
+                </div>
+
+                <div class="ty-editor"
+                    style="border-radius:6px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                    <div class="editor-toolbar">
+                        <div class="editor-tools">
+                            <span class="editor-tool">T</span>
+                            <span class="editor-tool">TT</span>
+                            <span class="editor-tool">B</span>
+                            <span class="editor-tool">I</span>
+                            <span class="editor-tool"><i class="fas fa-align-left"></i></span>
+                            <span class="editor-tool"><i class="fas fa-link"></i></span>
+                            <span class="editor-tool"><i class="fas fa-image"></i></span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="editor-btn blue"><i class="fas fa-mouse-pointer"></i> Action Buttons</button>
+                            <button class="editor-btn"><i class="fas fa-plus"></i> Add Field</button>
+                        </div>
+                    </div>
+                    <div class="editor-canvas">
+                        <div
+                            style="background:#2ecc71; width:80px; height:60px; border-radius:4px; display:flex; align-items:center; justify-content:center; margin-bottom:20px; position:relative;">
+                            <i class="fas fa-check" style="color:white; font-size:30px;"></i>
+                            <div
+                                style="position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.2) 50%);">
+                            </div>
+                        </div>
+                        <h1 style="color:#2c3e50; font-size:32px; margin-bottom:10px;">Thank You!</h1>
+                        <p style="color:#7f8c8d; font-size:16px;">Your submission has been received.</p>
+                    </div>
+                </div>
+            </section>
+            <section id="notification" class="section">
+                <h2><i class="fas fa-bell"></i>Notifications</h2>
+                <div style="border-bottom:1px solid #eee; margin-bottom:20px; padding-bottom:10px;">
+                    <button
+                        style="border:none; background:transparent; border-bottom:2px solid #2c3e50; padding-bottom:10px; margin-right:20px; font-weight:700; color:#2c3e50;">General</button>
+                    <button style="border:none; background:transparent; color:#7f8c8d; font-weight:600;">Custom
+                        emails</button>
+                </div>
+
+                <div class="setting-group" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="setting-title"><i class="fas fa-envelope"
+                                style="color:#bdc3c7; margin-right:10px;"></i>Self-email notifications</div>
+                        <p class="setting-description" style="margin-left:30px;">Get an email whenever your form is
+                            submitted</p>
+                    </div>
+                    <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                </div>
+
+                <div class="setting-group" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="setting-title"><i class="fas fa-bell"
+                                style="color:#bdc3c7; margin-right:10px;"></i>Respondent notifications</div>
+                        <p class="setting-description" style="margin-left:30px;">Send an email to the person who filled
+                            out your form upon submission</p>
+                    </div>
+                    <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                </div>
+
+                <!-- SMS -->
+                <div class="setting-card">
+                    <div class="stripe blue"></div>
+                    <div class="card-icon"
+                        style="background:white; border:1px solid #eee; margin-left: 15px; color:#3498db;">
+                        <i class="fas fa-comment-alt"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4 style="color:#0e2a47;">SMS / TEXT MESSAGE</h4>
+                            <p>Receive text messages for new submissions</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- WhatsApp -->
+                <div class="setting-card">
+                    <div class="stripe green"></div>
+                    <div class="card-icon"
+                        style="background:white; border:1px solid #eee; margin-left: 15px; color:#2ecc71;">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4 style="color:#0e2a47;">WHATSAPP</h4>
+                            <p>Receive submissions as WhatsApp messages</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Push Notification -->
+                <div class="setting-card">
+                    <div class="stripe purple"></div>
+                    <div class="card-icon"
+                        style="background:white; border:1px solid #eee; margin-left: 15px; color:#9b59b6;">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <h4 style="color:#0e2a47; margin:0;">PUSH NOTIFICATION</h4>
+                                <span class="tag"
+                                    style="background:#3498db; color:white; padding:2px 8px; font-size:10px; border-radius:10px;">Enabled</span>
+                            </div>
+                            <p style="margin-top:5px;">Customize and receive alerts on your device instantly</p>
+                        </div>
+                        <i class="fas fa-ellipsis-v" style="color:#7f8c8d;"></i>
+                    </div>
+                </div>
+            </section>
+            <section id="email-settings" class="section">
+                <div style="display:flex; align-items:flex-start; margin-bottom:20px;">
+                    <div
+                        style="background:#003366; width:40px; height:40px; border-radius:4px; display:flex; align-items:center; justify-content:center; margin-right:15px; flex-shrink:0;">
+                        <i class="fas fa-envelope" style="color:white; font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <h2
+                            style="border:none; padding:0; margin:0 0 5px 0; font-size:18px; color:#0e2a47; font-weight:700;">
+                            NEW EMAIL</h2>
+                        <p style="color:#6f7ea8; font-size:14px; margin:0;">Select an email type below to create your
+                            email.</p>
+                    </div>
+                </div>
+
+                <!-- Notification Email -->
+                <div class="setting-card">
+                    <div class="stripe orange"></div>
+                    <div class="card-icon" style="background:#e67e22; margin-left: 15px;">
+                        <i class="fas fa-envelope-open-text"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>NOTIFICATION EMAIL</h4>
+                            <p>Receive an email when someone fills out your form</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Autoresponder Email -->
+                <div class="setting-card">
+                    <div class="stripe green"></div>
+                    <div class="card-icon" style="background:#78bb07; margin-left: 15px;">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>AUTORESPONDER EMAIL</h4>
+                            <p>Send an email to the person who fills out your form</p>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:#ddd;"></i>
+                    </div>
+                </div>
+
+                <!-- Digest Email -->
+                <div class="setting-card">
+                    <div class="stripe purple"></div>
+                    <div class="card-icon" style="background:#9b59b6; margin-left: 15px;">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <h4>DIGEST EMAIL</h4>
+                            <p>Receive regular digest emails for new submissions</p>
+                        </div>
+                        <i class="fas fa-external-link-alt" style="color:#ddd;"></i>
+                    </div>
+                </div>
+            </section>
+            <section id="email-domains" class="section">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
+                    <h2 style="border:none; padding:0; margin:0; font-size:24px; color:#0e2a47;">Email Domains</h2>
+                    <button class="btn"
+                        style="background:white; border:1px solid #ddd; color:#333; height:30px; line-height:30px; padding:0 15px; font-size:13px;">Upgrade</button>
+                </div>
+
+                <div
+                    style="background:#f0fbff; border:1px solid #cceeff; padding:20px; border-radius:4px; display:flex; gap:15px;">
+                    <i class="fas fa-info-circle" style="color:#3498db; font-size:20px; margin-top:3px;"></i>
+                    <p style="margin:0; font-size:14px; line-height:1.5; color:#2c3e50;">
+                        Organizations on the Team and Enterprise plans can verify up to two email domains to allow us to
+                        send notification and confirmation emails on behalf of your domain—without any mention of
+                        Cognito Forms. <a href="#" style="color:#009b8b;">Upgrade now.</a>
+                    </p>
+                </div>
+            </section>
+            <section id="track-read-unread" class="section">
+                <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+                    <h2 style="border:none; padding:0; margin:0; font-size:18px; color:#0e2a47; font-weight:700;">Track
+                        Read/Unread Entries</h2>
+                    <i class="far fa-question-circle" style="color:#009b8b; font-size:16px; cursor:pointer;"></i>
+                </div>
+
+                <div class="setting-controls" style="margin-bottom:10px;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked>
+                        <span class="toggle-slider" style="background-color: #009b8b;"></span>
+                    </label>
+                </div>
+
+                <p style="color:#666; font-size:14px;">Track whether entries have been read by anyone in your
+                    organization.</p>
+            </section>
+            <section id="documents" class="section">
+                <div style="display:flex; align-items:flex-start; margin-bottom:20px;">
+                    <div
+                        style="background:#4170d8; width:40px; height:40px; border-radius:4px; display:flex; align-items:center; justify-content:center; margin-right:15px; flex-shrink:0;">
+                        <i class="fas fa-file-alt" style="color:white; font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <h2
+                            style="border:none; padding:0; margin:0 0 5px 0; font-size:18px; color:#0e2a47; font-weight:700;">
+                            DOCUMENTS</h2>
+                        <p style="color:#6f7ea8; font-size:14px; margin:0;">Generate professional documents from your
+                            submissions</p>
+                    </div>
+                </div>
+
+                <div
+                    style="display:flex; border:1px solid #e1eaf7; border-radius:6px; background:#eff4ff; overflow:hidden;">
+                    <div style="padding:30px; flex:1;">
+                        <h3 style="color:#0e2a47; font-size:18px; margin-bottom:15px;">Transform your data into designed
+                            documents</h3>
+
+                        <ul
+                            style="list-style:none; padding:0; margin:0 0 25px 0; color:#6f7ea8; font-size:14px; line-height:1.8;">
+                            <li style="display:flex; align-items:center;"><span
+                                    style="color:#6f7ea8; margin-right:10px;">•</span> Share, print, download and edit
+                                documents online</li>
+                            <li style="display:flex; align-items:center;"><span
+                                    style="color:#6f7ea8; margin-right:10px;">•</span> Send documents to Dropbox, Google
+                                Drive and OneDrive</li>
+                            <li style="display:flex; align-items:center;"><span
+                                    style="color:#6f7ea8; margin-right:10px;">•</span> Generate invoices, agreements,
+                                contracts, tickets — and much more</li>
+                        </ul>
+                    </div>
+                    <div style="width:200px; background:white; margin:20px; border-radius:4px;"></div>
+                </div>
+
+                <div
+                    style="border:1px solid #e1eaf7; border-top:none; border-radius:0 0 6px 6px; padding:20px; background:white;">
+                    <button class="btn"
+                        style="width:100%; background:white; color:#007bff; border:1px solid #007bff; font-weight:600; padding:12px; justify-content:center; border-radius:4px;">
+                        <i class="fas fa-plus-circle"></i> Create New Document
+                    </button>
+                </div>
+            </section>
+            <section id="sign" class="section">
+                <div style="display:flex; align-items:flex-start; margin-bottom:20px;">
+                    <div
+                        style="background:#78bb07; width:40px; height:40px; border-radius:4px; display:flex; align-items:center; justify-content:center; margin-right:15px; flex-shrink:0;">
+                        <i class="fas fa-signature" style="color:white; font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <h2
+                            style="border:none; padding:0; margin:0 0 5px 0; font-size:18px; color:#0e2a47; font-weight:700;">
+                            SIGN</h2>
+                        <p style="color:#6f7ea8; font-size:14px; margin:0;">Power up your forms with Jotform Sign
+                            features</p>
+                    </div>
+                </div>
+
+                <div style="border:1px solid #e1eaf7; border-radius:6px; padding:25px; background:white;">
+                    <h3 style="color:#0e2a47; font-size:16px; margin-bottom:10px;">ENABLE SIGN AUTOMATION</h3>
+                    <p style="color:#6f7ea8; font-size:14px; margin-bottom:15px;">Power up your forms with Jotform Sign
+                        features</p>
+
+                    <ul
+                        style="list-style:none; padding:0; margin:0 0 25px 0; color:#6f7ea8; font-size:14px; line-height:1.6;">
+                        <li style="display:flex; align-items:center;"><span
+                                style="color:#6f7ea8; margin-right:10px;">•</span> Automatically turn signed submissions
+                            into PDF documents</li>
+                        <li style="display:flex; align-items:center;"><span
+                                style="color:#6f7ea8; margin-right:10px;">•</span> Receive an audit trail for each
+                            signed document</li>
+                        <li style="display:flex; align-items:center;"><span
+                                style="color:#6f7ea8; margin-right:10px;">•</span> Disable submission editing</li>
+                        <li style="display:flex; align-items:center;"><span
+                                style="color:#6f7ea8; margin-right:10px;">•</span> Require form users to give consent
+                            for their signatures</li>
+                    </ul>
+
+                    <button class="btn"
+                        style="width:100%; background:#eef4ff; color:#2e69ff; border:1px dashed #2e69ff; font-weight:600; padding:12px; justify-content:center;">
+                        + Add Signature Field
+                    </button>
+                </div>
+            </section>
+            <section id="leads-marketing" class="section">
+                <div class="ck-header text-center">
+                    <h2>Conversion Kit</h2>
+                    <p class="setting-desc">Convert more leads with automated tools</p>
+                </div>
+                <div class="ck-tabs">
+                    <div class="ck-tab active">Form Abandonment</div>
+                    <div class="ck-tab">Email Enrichment</div>
+                    <div class="ck-tab">Google Ads</div>
+                </div>
+                <div class="ck-content">
+                    <i class="fas fa-bell fa-3x" style="color:var(--success); margin-bottom:15px;"></i>
+                    <h3>Capture Abandoned Leads</h3>
+                    <p class="ck-desc">Recover lost leads with automated email follow-ups. Set customizable
+                        notifications.</p>
+                    <button class="btn btn-primary" style="background:var(--dark);">Get Started <i
+                            class="fas fa-arrow-right"></i></button>
+                </div>
+            </section>
+            <section id="security-privacy" class="section">
+                <h2><i class="fas fa-shield-alt"></i>21. Security</h2>
+
+                <div class="setting-group"
+                    style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div class="setting-title" style="color:#003366; font-size:15px; margin-bottom:4px;">Encrypt
+                            Form Data</div>
+                        <div class="setting-desc" style="color:#667fa0; margin-bottom:4px;">Encrypt your form responses
+                            to store sensitive data securely.</div>
+                        <a href="#" style="color:#3498db; text-decoration:none; font-size:13px;">Learn more</a>
+                    </div>
+                    <div class="controls"><label class="switch"><input type="checkbox" checked><span
+                                class="slider"></span></label></div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title" style="color:#003366; font-size:15px;">Password Protection</div>
+                    <div class="setting-desc" style="color:#667fa0;">Set a password to limit access to your form</div>
+                    <div style="margin-top:10px;">
+                        <label
+                            style="display:flex; align-items:center; gap:8px; color:#333; font-size:14px; cursor:pointer;">
+                            <input type="checkbox" style="width:16px; height:16px;"> Enable password protection
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="setting-title" style="color:#003366; font-size:15px;">Form Warnings</div>
+                        <div class="setting-desc" style="color:#667fa0;">Change the warning messages on your form.</div>
+                    </div>
+                    <button class="btn btn-primary"
+                        style="background:#007bff; box-shadow:none; padding:6px 20px;">EDIT</button>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title" style="color:#003366; font-size:15px;">Form Accessibility</div>
+                    <div class="setting-desc" style="color:#667fa0;">Check your form's accessibility</div>
+                    <div style="margin-top:10px;">
+                        <select class="select" style="max-width:100%;">
+                            <option>Enabled</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:15px;">
+                        <label
+                            style="display:flex; align-items:center; gap:8px; color:#bdc3c7; font-size:14px; cursor:not-allowed;">
+                            <input type="checkbox" disabled style="width:16px; height:16px;"> Show accessibility badge
+                            on form
+                        </label>
+                    </div>
+                </div>
+            </section>
+            <section id="plan-billing" class="section">
+                <h2>Plan & Billing</h2>
+                <div class="pricing-grid">
+                    <!-- Individual -->
+                    <div class="pricing-card" style="background:#e8eaeb; border:none;">
+                        <div class="pricing-head" style="background:#7f8c8d;">Current Plan</div>
+                        <h3>Individual</h3>
+                        <p class="setting-desc">Create powerful forms free</p>
+                        <div class="price">FREE</div>
+                    </div>
+                    <!-- Pro -->
+                    <div class="pricing-card">
+                        <div class="pricing-head"></div>
+                        <h3>Pro</h3>
+                        <p class="setting-desc">Build advanced forms with no ads</p>
+                        <div class="price">$19<sub>/mo.</sub></div>
+                        <button class="btn-teal">Change Plan</button>
+                    </div>
+                    <!-- Team -->
+                    <div class="pricing-card">
+                        <div class="pricing-head" style="background:#009b8b;">Recommended</div>
+                        <h3>Team</h3>
+                        <p class="setting-desc">Create flexible workflows and use Square and PayPal</p>
+                        <div class="price">$39<sub>/mo.</sub></div>
+                        <button class="btn-teal">Change Plan</button>
+                    </div>
+                    <!-- Enterprise -->
+                    <div class="pricing-card">
+                        <div class="pricing-head"></div>
+                        <h3>Enterprise</h3>
+                        <p class="setting-desc">Connect teams and empower departments</p>
+                        <div class="price">$129<sub>/mo.</sub></div>
+                        <button class="btn-teal">Change Plan</button>
+                    </div>
+                </div>
+                <div class="text-center mt-20">
+                    <a href="#" style="color:#009b8b; text-decoration:underline; font-size:14px;">See full plan
+                        comparison</a>
+                </div>
+            </section>
+        </div>
+    </main>
+    <script>document.addEventListener('DOMContentLoaded', function () {
+            // Get all menu items and sections
+            const menuItems = document.querySelectorAll('.menu-item a');
+            const sections = document.querySelectorAll('.section');
+
+            // Function to show a specific section and hide others
+            function showSection(sectionId) {
+
+                // Hide all sections
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                // Show the requested section
+                const targetSection = document.getElementById(sectionId);
+
+                if (targetSection) {
+                    targetSection.classList.add('active');
+
+                    // Update URL hash without scrolling
+                    history.pushState(null, null, `#${sectionId}`);
+                }
+
+                // Update active menu item
+                menuItems.forEach(item => {
+                    item.parentElement.classList.remove('active');
+
+                    if (item.getAttribute('data-section') === sectionId) {
+                        item.parentElement.classList.add('active');
+                    }
+                });
+            }
+
+            // Add click event to each menu item
+            menuItems.forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-section');
+                    showSection(sectionId);
+                });
+            });
+
+            // Check URL hash on page load
+            const initialHash = window.location.hash.substring(1);
+
+            if (initialHash && document.getElementById(initialHash)) {
+                showSection(initialHash);
+            }
+
+            else {
+                // Default to first section
+                showSection('form-behavior');
+            }
+
+            // Copy referral link functionality
+            const copyButton = document.getElementById('copy-referral-btn');
+
+            if (copyButton) {
+                copyButton.addEventListener('click', function () {
+                    const referralLink = document.querySelector('input[value*="cognitoforms.com"]');
+
+                    if (referralLink) {
+                        referralLink.select();
+                        document.execCommand('copy');
+
+                        // Change button text temporarily
+                        const originalText = this.innerHTML;
+                        this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        this.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
+
+                        setTimeout(() => {
+                            this.innerHTML = originalText;
+                            this.style.background = '';
+                        }
+
+                            , 2000);
+                    }
+                });
+            }
+
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function () {
+                const hash = window.location.hash.substring(1);
+
+                if (hash && document.getElementById(hash)) {
+                    showSection(hash);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

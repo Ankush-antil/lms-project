@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Builder Settings Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(180deg, #1a237e 0%, #283593 100%);
+            color: #e8eaf6;
+            padding: 20px 0;
+            height: 100vh;
+            overflow-y: auto;
+            position: fixed;
+            box-shadow: 3px 0 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .logo-container {
+            padding: 0 20px 25px;
+            border-bottom: 1px solid #3949ab;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .logo i {
+            color: #5c6bc0;
+            font-size: 28px;
+        }
+
+        .logo-text {
+            background: linear-gradient(90deg, #7986cb, #3f51b5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0 10px;
+        }
+
+        .menu-item {
+            margin-bottom: 3px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            color: #c5cae9;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item a:hover {
+            background-color: rgba(57, 73, 171, 0.7);
+            color: #e8eaf6;
+            border-left: 4px solid #7986cb;
+        }
+
+        .menu-item.active a {
+            background-color: #3949ab;
+            color: white;
+            border-left: 4px solid #ff9800;
+            box-shadow: 0 4px 6px rgba(57, 73, 171, 0.3);
+        }
+
+        .menu-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .menu-item.active .menu-number {
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .menu-text {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .menu-badge {
+            background-color: #ff5722;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #3949ab, transparent);
+            margin: 15px 20px;
+        }
+
+        .menu-heading {
+            padding: 15px 20px 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #9fa8da;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: 300px;
+            padding: 0;
+            width: calc(100% - 300px);
+        }
+
+        .header {
+            background-color: white;
+            padding: 25px 40px;
+            border-bottom: 1px solid #e0e0e0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header h1 {
+            color: #1a237e;
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #5c6bc0;
+            font-size: 16px;
+        }
+
+        .content-container {
+            padding: 30px 40px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section h2 {
+            color: #1a237e;
+            font-size: 24px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section h2 i {
+            color: #3949ab;
+        }
+
+        .setting-group {
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .setting-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .setting-title {
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #1a237e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 17px;
+        }
+
+        .setting-title i {
+            color: #3949ab;
+        }
+
+        .setting-description {
+            color: #5c6bc0;
+            font-size: 14px;
+            margin-bottom: 18px;
+            line-height: 1.6;
+        }
+
+        .setting-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 54px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.toggle-slider {
+            background-color: #3949ab;
+        }
+
+        input:checked+.toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3949ab, #303f9f);
+            color: white;
+            box-shadow: 0 4px 6px rgba(57, 73, 171, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #303f9f, #283593);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(57, 73, 171, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: #e8eaf6;
+            color: #1a237e;
+            border: 1px solid #c5cae9;
+        }
+
+        .btn-secondary:hover {
+            background-color: #c5cae9;
+            transform: translateY(-2px);
+        }
+
+        .form-select,
+        .form-input,
+        .form-textarea {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 300px;
+            transition: all 0.3s;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3949ab;
+            box-shadow: 0 0 0 3px rgba(57, 73, 171, 0.1);
+        }
+
+        .image-placeholder {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px dashed #c5cae9;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            color: #5c6bc0;
+            margin: 20px 0;
+        }
+
+        .image-placeholder i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #e8eaf6, #c5cae9);
+            border-radius: 10px;
+            padding: 25px;
+            flex: 1;
+            min-width: 200px;
+            border-left: 5px solid #3949ab;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1a237e;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #5c6bc0;
+            font-weight: 600;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table th,
+        .table td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table th {
+            background-color: #e8eaf6;
+            font-weight: 700;
+            color: #1a237e;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tag {
+            display: inline-block;
+            background-color: #e8eaf6;
+            color: #3949ab;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #c5cae9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-draft {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-inactive {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radio-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .coming-soon {
+            text-align: center;
+            padding: 60px 20px;
+            color: #5c6bc0;
+        }
+
+        .coming-soon i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #c5cae9;
+        }
+
+        .coming-soon h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #3949ab;
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .sidebar {
+                width: 260px;
+            }
+
+            .main-content {
+                margin-left: 260px;
+                width: calc(100% - 260px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                max-height: 400px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .content-container {
+                padding: 20px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .stats-container {
+                flex-direction: column;
+            }
+
+            .stat-card {
+                min-width: 100%;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #5c6bc0;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #c5cae9;
+        }
+
+        .form-preview {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+
+        .form-field {
+            margin-bottom: 20px;
+        }
+
+        .form-field label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo-container">
+            <div class="logo">
+                <i class="fas fa-edit"></i>
+                <span class="logo-text">Form Builder</span>
+            </div>
+            <p style="font-size: 13px; color: #9fa8da; margin-top: 8px;">Settings Dashboard</p>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-heading">Form Configuration</li>
+
+            <li class="menu-item active" id="menu-1">
+                <a href="#basic" data-section="basic">
+                    <span class="menu-number">1</span>
+                    <i class="fas fa-cog"></i>
+                    <span class="menu-text">Basic</span>
+                </a>
+            </li>
+
+            <li class="menu-item" id="menu-2">
+                <a href="#defaults" data-section="defaults">
+                    <span class="menu-number">2</span>
+                    <i class="fas fa-sliders-h"></i>
+                    <span class="menu-text">Defaults</span>
+                </a>
+            </li>
+
+            <li class="menu-item" id="menu-3">
+                <a href="#presentation" data-section="presentation">
+                    <span class="menu-number">3</span>
+                    <i class="fas fa-paint-brush"></i>
+                    <span class="menu-text">Presentation</span>
+                </a>
+            </li>
+
+            <li class="menu-item" id="menu-4">
+                <a href="#useful" data-section="useful">
+                    <span class="menu-number">4</span>
+                    <i class="fas fa-tools"></i>
+                    <span class="menu-text">Useful</span>
+                </a>
+            </li>
+
+            <li class="menu-item" id="menu-5">
+                <a href="#quiz-mode" data-section="quiz-mode">
+                    <span class="menu-number">5</span>
+                    <i class="fas fa-graduation-cap"></i>
+                    <span class="menu-text">Quiz Mode</span>
+                    <span class="menu-badge">New</span>
+                </a>
+            </li>
+
+
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="header">
+            <h1>Form Builder Settings Dashboard</h1>
+            <p>Configure and manage all form settings from one centralized dashboard</p>
+        </div>
+
+        <div class="content-container">
+            <!-- Section 1: Basic -->
+            <section id="basic" class="section active">
+                <h2><i class="fas fa-cog"></i> 1. Basic Settings</h2>
+                <p class="setting-description">Configure the basic properties of your form</p>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-heading"></i> Form Title</div>
+                    <p class="setting-description">Enter a name for your form that will be displayed to users</p>
+                    <div class="setting-controls">
+                        <input type="text" class="form-input" value="Contact Information Form"
+                            placeholder="Enter form title">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-file-alt"></i> Page Title</div>
+                    <p class="setting-description">Enter a title to be shown as the browser page title</p>
+                    <div class="setting-controls">
+                        <input type="text" class="form-input" value="Contact Us - Our Company"
+                            placeholder="Enter page title">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-columns"></i> Form Layout</div>
+                    <p class="setting-description">Choose how your form questions are organized</p>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="layout" checked>
+                            <span>All questions on one page</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="layout">
+                            <span>Multiple pages (step-by-step)</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="layout">
+                            <span>Accordion style (expandable sections)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-toggle-on"></i> Form Status</div>
+                    <p class="setting-description">Enable, disable, or conditionally enable your form</p>
+                    <div class="setting-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="status-active status-badge">ENABLED</span>
+                        <span style="color: #2e7d32;">Your form is currently visible and able to receive
+                            submissions</span>
+                    </div>
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <select class="form-select">
+                            <option selected>Always enabled</option>
+                            <option>Enable on specific dates</option>
+                            <option>Enable based on user role</option>
+                            <option>Enable with access code</option>
+                        </select>
+                    </div>
+                </div>
+
+
+            </section>
+
+            <!-- Section 2: Defaults -->
+            <section id="defaults" class="section">
+                <h2><i class="fas fa-sliders-h"></i> 2. Defaults</h2>
+                <p class="setting-description">Configure default settings for forms and questions</p>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-file"></i> Form Defaults</div>
+                    <p class="setting-description">Settings applied to this form and new forms</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Collect email addresses
+                            by default</div>
+                        <select class="form-select">
+                            <option selected>Do not collect</option>
+                            <option>Collect as optional field</option>
+                            <option>Collect as required field</option>
+                            <option>Collect with verification</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default response storage
+                        </div>
+                        <select class="form-select">
+                            <option selected>Store in form database</option>
+                            <option>Send to email only</option>
+                            <option>Store in Google Sheets</option>
+                            <option>Integrate with CRM</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default notification
+                            settings</div>
+                        <select class="form-select">
+                            <option selected>Notify on all submissions</option>
+                            <option>Notify on first submission only</option>
+                            <option>Do not notify</option>
+                            <option>Custom notification rules</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-question-circle"></i> Question Defaults</div>
+                    <p class="setting-description">Settings applied to all new questions</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Make questions required by default</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Add description field by default</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Include "Other" option for multiple choice questions</span>
+                    </div>
+
+
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-magic"></i> Apply Defaults</div>
+                    <p class="setting-description">Apply these default settings to existing forms</p>
+                    <div class="setting-controls">
+                        <button class="btn btn-primary"><i class="fas fa-sync-alt"></i> Apply to This Form</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-layer-group"></i>
+                            Apply to All Forms</button>
+                    </div>
+                    <p class="setting-description" style="margin-top: 10px; color: #ff5722;">
+                        <i class="fas fa-exclamation-triangle"></i> Warning: Applying defaults to all forms will
+                        overwrite existing settings.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Section 3: Presentation -->
+            <section id="presentation" class="section">
+                <h2><i class="fas fa-paint-brush"></i> 3. Presentation</h2>
+                <p class="setting-description">Manage how the form and responses are presented</p>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-tv"></i> Form Presentation</div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Show progress bar</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Shuffle question order</span>
+                        <span class="tag" style="margin-left: 10px;">Randomized</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Show question numbers</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Show branding logo</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-check-circle"></i> After Submission</div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Confirmation message
+                        </div>
+                        <textarea class="form-textarea"
+                            style="max-width: 500px;">Thanks for submitting your contact info! We'll get back to you within 24 hours.</textarea>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Show link to submit another response</span>
+                        <span class="setting-description" style="margin-left: 10px;">Disabled by "Limit to 1
+                            response"</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>View results summary</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Share results summary with respondents</span>
+                        <span class="tag" style="margin-left: 10px; background: #fff3e0; color: #ef6c00;">Important
+                            details</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-ban"></i> Restrictions</div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Disable autosave for all respondents</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Prevent printing the form</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Prevent right-click on form</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-inbox"></i> Responses</div>
+                    <p class="setting-description">Manage how responses are collected and protected</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Collect email addresses</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Send responders a copy of their response</span>
+                        <span class="setting-description" style="margin-left: 10px;">Requires "Collect email
+                            addresses"</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Allow response editing</span>
+                        <span class="setting-description" style="margin-left: 10px;">Responses can be changed after
+                            being submitted</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Limit to 1 response</span>
+                        <span class="setting-description" style="margin-left: 10px;">REQUIRES SIGN IN - Respondents will
+                            be required to sign in to Google.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Useful -->
+            <section id="useful" class="section">
+                <h2><i class="fas fa-tools"></i> 4. Useful Tools</h2>
+                <p class="setting-description">Helpful tools for managing your forms</p>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-copy"></i> Form Management</div>
+                    <p class="setting-description">Manage your form copies and organization</p>
+
+                    <div class="setting-controls">
+                        <button class="btn btn-primary"><i class="fas fa-copy"></i> Make a Copy</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-trash"></i> Move
+                            to Trash</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-print"></i>
+                            Print</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-eye-slash"></i>
+                            Unpublish Form</button>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Enable keyboard shortcuts</span>
+                        <a href="#" style="margin-left: 10px; color: #3949ab; font-size: 13px;">View shortcut list</a>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-share-alt"></i> Sharing & Collaboration</div>
+                    <p class="setting-description">Share your form with others for collaboration</p>
+
+                    <div class="setting-controls">
+                        <button class="btn btn-primary"><i class="fas fa-share"></i> Share Form</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-user-plus"></i>
+                            Add Collaborator</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-code"></i> Embed
+                            Code</button>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Sharing permissions
+                        </div>
+                        <select class="form-select">
+                            <option selected>View only</option>
+                            <option>Can comment</option>
+                            <option>Can edit</option>
+                            <option>Full access</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-download"></i> Export & Backup</div>
+                    <p class="setting-description">Export your form data and create backups</p>
+
+                    <div class="setting-controls">
+                        <button class="btn btn-primary"><i class="fas fa-file-export"></i> Export Responses</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-file-archive"></i>
+                            Backup Form</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-sync"></i> Restore
+                            Version</button>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Export format</div>
+                        <select class="form-select">
+                            <option selected>CSV</option>
+                            <option>Excel (XLSX)</option>
+                            <option>Google Sheets</option>
+                            <option>PDF</option>
+                            <option>JSON</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-chart-line"></i> Analytics & Insights</div>
+                    <p class="setting-description">View analytics and insights about your form</p>
+
+                    <div class="setting-controls">
+                        <button class="btn btn-primary"><i class="fas fa-chart-bar"></i> View Analytics</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-chart-pie"></i>
+                            Response Summary</button>
+                        <button class="btn btn-secondary" style="margin-left: 10px;"><i class="fas fa-clock"></i>
+                            Response Time</button>
+                    </div>
+
+                    <div class="image-placeholder" style="margin-top: 20px;">
+                        <i class="fas fa-chart-line fa-3x"></i>
+                        <h3 style="margin: 15px 0 10px; color: #3949ab;">Form Analytics Dashboard</h3>
+                        <p>View submission trends, completion rates, and user engagement metrics</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: Quiz Mode -->
+            <section id="quiz-mode" class="section">
+                <h2><i class="fas fa-graduation-cap"></i> 5. Quiz Mode</h2>
+                <p class="setting-description">Make your form a scorable quiz. Useful for educational tests, lead
+                    quizzes, sharing content and more</p>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-toggle-on"></i> Quiz Mode</div>
+
+                    <div class="setting-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="status-active status-badge">Quiz mode enabled</span>
+                        <span style="color: #2e7d32;">Assign point values, set answers, and automatically provide
+                            feedback</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Grade release timing
+                        </div>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="grade-timing" checked>
+                                <span>Immediately after each submission</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="grade-timing">
+                                <span>Later, after manual review</span>
+                                <span class="tag" style="margin-left: 10px;">Turns on Responses → Collect email
+                                    addresses</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-user-graduate"></i> Respondent Settings</div>
+                    <p class="setting-description">Configure what quiz takers can see</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Missed questions - Respondents can see which questions were answered incorrectly</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Correct answers - Respondents can see correct answers after grades are released</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Point values - Respondents can see total points and points received for each
+                            question</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Show leaderboard - Display ranking of top scorers</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-cogs"></i> Global Quiz Defaults</div>
+                    <p class="setting-description">Set default values for quiz questions</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default question point
+                            value</div>
+                        <div class="setting-controls">
+                            <input type="number" class="form-input" value="10" style="width: 100px;">
+                            <span>points for every new question</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default answer options
+                        </div>
+                        <div class="setting-controls">
+                            <input type="number" class="form-input" value="4" style="width: 100px;">
+                            <span>multiple choice options per question</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default passing score
+                        </div>
+                        <div class="setting-controls">
+                            <input type="number" class="form-input" value="70" style="width: 100px;">
+                            <span>% required to pass the quiz</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Default time limit</div>
+                        <div class="setting-controls">
+                            <input type="number" class="form-input" value="30" style="width: 100px;">
+                            <span>minutes per quiz attempt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-medal"></i> Quiz Certificates</div>
+                    <p class="setting-description">Configure certificates for quiz completion</p>
+
+                    <div class="setting-controls" style="margin-top: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Issue certificates upon passing the quiz</span>
+                    </div>
+
+                    <div class="setting-controls" style="margin-top: 10px; display: none;" id="certificate-settings">
+                        <div class="setting-controls">
+                            <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Certificate template
+                            </div>
+                            <select class="form-select">
+                                <option selected>Default certificate</option>
+                                <option>Professional certificate</option>
+                                <option>Custom certificate</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-controls" style="margin-top: 15px;">
+                            <div class="setting-title" style="font-size: 15px; margin-bottom: 8px;">Certificate validity
+                            </div>
+                            <select class="form-select">
+                                <option selected>No expiration</option>
+                                <option>1 year</option>
+                                <option>2 years</option>
+                                <option>Custom period</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <script>
+                        // Show/hide certificate settings based on toggle
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const certificateToggle = document.querySelector('input[type="checkbox"]:last-of-type');
+                            const certificateSettings = document.getElementById('certificate-settings');
+
+                            if (certificateToggle && certificateSettings) {
+                                certificateToggle.addEventListener('change', function () {
+                                    certificateSettings.style.display = this.checked ? 'block' : 'none';
+                                });
+                            }
+                        });
+                    </script>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-question-circle"></i> Quiz Question Examples</div>
+                    <p class="setting-description">Preview how quiz questions will appear</p>
+
+                    <div class="form-preview">
+                        <div class="form-field">
+                            <label>Question 1: What is the capital of France? <span style="color: #3949ab;">(10
+                                    points)</span></label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="q1">
+                                    <span>London</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q1" checked>
+                                    <span>Paris</span>
+                                    <span class="tag" style="background: #e8f5e8; color: #2e7d32;">Correct answer</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q1">
+                                    <span>Berlin</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q1">
+                                    <span>Madrid</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Question 2: Which planet is known as the Red Planet? <span
+                                    style="color: #3949ab;">(15 points)</span></label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="q2">
+                                    <span>Venus</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q2">
+                                    <span>Jupiter</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q2" checked>
+                                    <span>Mars</span>
+                                    <span class="tag" style="background: #e8f5e8; color: #2e7d32;">Correct answer</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="q2">
+                                    <span>Saturn</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Form Behavior -->
+            <section id="form-behavior" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-sliders-h fa-3x"></i>
+                    <h3>Form Behavior</h3>
+                    <p>Configure how your form behaves during user interaction</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Section 7: Language -->
+            <section id="language" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-language fa-3x"></i>
+                    <h3>Language</h3>
+                    <p>Configure language and localization settings</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Additional sections (8-23) would follow the same pattern -->
+            <!-- For brevity, I'm showing a few more sections as examples -->
+
+            <!-- Section 8: Access -->
+            <section id="access" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-lock fa-3x"></i>
+                    <h3>Access Control</h3>
+                    <p>Configure who can access your form and when</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Section 9: Users & Authentication -->
+            <section id="users-auth" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-users fa-3x"></i>
+                    <h3>Users & Authentication</h3>
+                    <p>Configure user authentication and permissions</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Section 10: Guest Access -->
+            <section id="guest-access" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-user-friends fa-3x"></i>
+                    <h3>Guest Access</h3>
+                    <p>Configure guest access and permissions</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Section 19: Usage -->
+            <section id="usage" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-chart-bar fa-3x"></i>
+                    <h3>Usage Analytics</h3>
+                    <p>View form usage statistics and analytics</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+
+            <!-- Section 23: Plan & Billing -->
+            <section id="plan-billing" class="section">
+                <div class="empty-state">
+                    <i class="fas fa-credit-card fa-3x"></i>
+                    <h3>Plan & Billing</h3>
+                    <p>Manage your subscription plan and billing</p>
+                    <p style="margin-top: 20px; color: #5c6bc0;">This section will be available in the full version</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all menu items and sections
+            const menuItems = document.querySelectorAll('.menu-item a');
+            const sections = document.querySelectorAll('.section');
+
+            // Function to show a specific section and hide others
+            function showSection(sectionId) {
+                // Hide all sections
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                // Show the requested section
+                const targetSection = document.getElementById(sectionId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+
+                    // Update URL hash without scrolling
+                    history.pushState(null, null, `#${sectionId}`);
+                }
+
+                // Update active menu item
+                menuItems.forEach(item => {
+                    item.parentElement.classList.remove('active');
+                    if (item.getAttribute('data-section') === sectionId) {
+                        item.parentElement.classList.add('active');
+                    }
+                });
+            }
+
+            // Add click event to each menu item
+            menuItems.forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-section');
+                    showSection(sectionId);
+                });
+            });
+
+            // Check URL hash on page load
+            const initialHash = window.location.hash.substring(1);
+            if (initialHash && document.getElementById(initialHash)) {
+                showSection(initialHash);
+            } else {
+                // Default to first section
+                showSection('basic');
+            }
+
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function () {
+                const hash = window.location.hash.substring(1);
+                if (hash && document.getElementById(hash)) {
+                    showSection(hash);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

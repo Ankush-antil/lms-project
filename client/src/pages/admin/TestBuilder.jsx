@@ -3604,7 +3604,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     </button>
 
                     <button
-                        onClick={() => setIsConnectModalOpen(true)}
+                        onClick={() => window.open('/more-setting/more-settings.html', '_blank')}
                         className="flex items-center gap-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 hover:bg-white/5 text-slate-300 hover:text-white rounded-xl text-sm font-bold active:scale-95 transition-all focus:outline-none"
                     >
                         <Settings size={15} />
@@ -3658,7 +3658,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         
                                         <button
                                             onClick={() => {
-                                                setIsConnectModalOpen(true);
+                                                window.open('/more-setting/settings.html', '_blank');
                                                 setIsProfileDropdownOpen(false);
                                             }}
                                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"

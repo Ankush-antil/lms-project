@@ -19,7 +19,8 @@ jobs:
           script: |
             cd /var/www/lms-dev/lms-project
 
-            git pull origin main
+            git fetch --all
+            git reset --hard origin/main
 
             npm install
 
@@ -31,3 +32,4 @@ jobs:
             npm install
 
             pm2 restart lms-dev --update-env
+

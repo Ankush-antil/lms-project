@@ -54,7 +54,30 @@ const instituteSchema = new mongoose.Schema({
             editCourse: { type: Boolean, default: true }
         },
         activities: {
-            show: { type: Boolean, default: true }
+            show: { type: Boolean, default: true },
+            elementsControl: { type: Boolean, default: true },
+            inputElements: { type: Boolean, default: true },
+            displayingElements: { type: Boolean, default: true },
+            recordingElements: { type: Boolean, default: true },
+            advanceElements: { type: Boolean, default: true },
+            addons: { type: Boolean, default: true },
+            theme: { type: Boolean, default: true },
+            createWithAi: { type: Boolean, default: true },
+            integrate: { type: Boolean, default: true },
+            import: { type: Boolean, default: true },
+            saveAsTemplate: { type: Boolean, default: true },
+            decideActivity: { type: Boolean, default: true },
+            templates: { type: Boolean, default: true },
+            locationLocked: { type: Boolean, default: true },
+            logicRules: { type: Boolean, default: true },
+            monitoring: { type: Boolean, default: true },
+            connectIt: { type: Boolean, default: true },
+            profileUnderSettings: { type: Boolean, default: true },
+            moreSettings: { type: Boolean, default: true },
+            responses: { type: Boolean, default: true },
+            collaborate: { type: Boolean, default: true },
+            manageAccess: { type: Boolean, default: true },
+            publicToWeb: { type: Boolean, default: true }
         },
         chat: {
             show: { type: Boolean, default: true }

@@ -3604,7 +3604,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     </button>
 
                     <button
-                        onClick={() => window.open('/more-setting/more-settings.html', '_blank')}
+                        onClick={() => {
+                            sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
+                            window.location.href = '/more-setting/more-settings.html';
+                        }}
                         className="flex items-center gap-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 hover:bg-white/5 text-slate-300 hover:text-white rounded-xl text-sm font-bold active:scale-95 transition-all focus:outline-none"
                     >
                         <Settings size={15} />
@@ -3658,8 +3661,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         
                                         <button
                                             onClick={() => {
-                                                window.open('/more-setting/settings.html', '_blank');
+                                                sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
                                                 setIsProfileDropdownOpen(false);
+                                                window.location.href = '/more-setting/settings.html';
                                             }}
                                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
                                         >

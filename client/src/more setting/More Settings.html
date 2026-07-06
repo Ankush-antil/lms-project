@@ -1148,11 +1148,6 @@
     <!-- Sidebar Navigation -->
 
     <nav class="sidebar">
-        <div style="padding: 15px 20px 5px; border-bottom: 1px dashed rgba(255,255,255,0.15); margin-bottom: 10px;">
-            <a href="#" onclick="if(window.opener) { window.close(); } else { const lastUrl = sessionStorage.getItem('lastTestBuilderUrl') || document.referrer; let targetPath = '/'; if(lastUrl) { try { const urlObj = new URL(lastUrl, window.location.origin); targetPath = urlObj.pathname + urlObj.search; } catch(e) { targetPath = lastUrl; } } window.location.href = targetPath; } return false;" style="display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.7)'">
-                <i class="fas fa-arrow-left"></i> Back to Builder
-            </a>
-        </div>
         <div class="logo-container">
             <div class="logo"><i class="fas fa-th-large"></i><span class="logo-text">Forms</span></div>
             <p style="font-size: 13px; color: #95a5a6; margin-top: 8px;">Settings Dashboard</p>
@@ -2492,7 +2487,7 @@
             const sections = document.querySelectorAll('.section');
 
             // Function to show a specific section and hide others
-            function showSection(sectionId, isInitial = false) {
+            function showSection(sectionId) {
 
                 // Hide all sections
                 sections.forEach(section => {
@@ -2506,11 +2501,7 @@
                     targetSection.classList.add('active');
 
                     // Update URL hash without scrolling
-                    if (isInitial) {
-                        history.replaceState(null, null, `#${sectionId}`);
-                    } else {
-                        history.pushState(null, null, `#${sectionId}`);
-                    }
+                    history.pushState(null, null, `#${sectionId}`);
                 }
 
                 // Update active menu item
@@ -2536,12 +2527,12 @@
             const initialHash = window.location.hash.substring(1);
 
             if (initialHash && document.getElementById(initialHash)) {
-                showSection(initialHash, true);
+                showSection(initialHash);
             }
 
             else {
                 // Default to first section
-                showSection('form-behavior', true);
+                showSection('form-behavior');
             }
 
             // Copy referral link functionality

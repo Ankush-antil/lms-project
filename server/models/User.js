@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    mobile2: {
+        type: String,
+        default: ''
+    },
+    fatherName: {
+        type: String,
+        default: ''
+    },
+    admissionNo: {
+        type: String,
+        default: ''
+    },
     callEnabled: {
         type: Boolean,
         default: true

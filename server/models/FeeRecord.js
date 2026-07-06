@@ -19,6 +19,13 @@ const feeRecordSchema = new mongoose.Schema({
     nextDueDate: { type: Date },
     course: { type: String, default: '' },
     batch: { type: String, default: '' },
+    months: { type: Number, default: 0 },  // installment months / duration
+    extraCharges: [{
+        label: { type: String, default: '' },   // e.g. 'Fine', 'Party', 'Books'
+        amount: { type: Number, required: true },
+        date: { type: Date, default: Date.now },
+        remark: { type: String, default: '' }
+    }],
     transactions: [transactionSchema]
 }, { timestamps: true });
 

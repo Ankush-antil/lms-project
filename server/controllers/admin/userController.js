@@ -172,6 +172,9 @@ const updateUser = asyncHandler(async (req, res) => {
         }
 
         user.mobileNumber = req.body.mobileNumber !== undefined ? req.body.mobileNumber : user.mobileNumber;
+        user.mobile2 = req.body.mobile2 !== undefined ? req.body.mobile2 : user.mobile2;
+        user.fatherName = req.body.fatherName !== undefined ? req.body.fatherName : user.fatherName;
+        user.admissionNo = req.body.admissionNo !== undefined ? req.body.admissionNo : user.admissionNo;
         user.callEnabled = req.body.callEnabled !== undefined ? req.body.callEnabled : user.callEnabled;
         user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
 

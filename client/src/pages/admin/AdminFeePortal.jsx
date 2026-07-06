@@ -273,12 +273,20 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         
                         {/* Left Info Panel */}
-                        <div className="md:col-span-1 border border-slate-150 rounded-2xl p-5 flex flex-col items-center justify-center text-center space-y-4 bg-slate-50/50">
-                            <Avatar name={student.name || ''} size={90} className="shadow-inner" />
+                        <div className="md:col-span-1 border border-slate-150 rounded-2xl p-5 flex flex-col items-center justify-center text-center space-y-3 bg-slate-50/50">
+                            <Avatar name={student.name || ''} size={80} className="shadow-inner" />
                             <div>
                                 <h3 className="text-slate-800 font-black text-lg leading-tight">{student.name}</h3>
-                                <p className="text-indigo-600 text-xs font-bold mt-1">ID: {student.email ? student.email.split('@')[0].toUpperCase() : 'N/A'}</p>
-                                <p className="text-slate-400 text-xs mt-0.5">{student.mobileNumber || 'No mobile contact'}</p>
+                                {student.admissionNo && (
+                                    <p className="text-indigo-600 text-xs font-bold mt-0.5">Adm: {student.admissionNo}</p>
+                                )}
+                                <p className="text-slate-400 text-xs mt-0.5">{student.mobileNumber || 'No mobile'}</p>
+                                {student.mobile2 && (
+                                    <p className="text-slate-400 text-xs">{student.mobile2}</p>
+                                )}
+                                {student.fatherName && (
+                                    <p className="text-slate-500 text-xs mt-1">Father: <span className="font-semibold text-slate-600">{student.fatherName}</span></p>
+                                )}
                             </div>
                             <span className={`text-xs px-3 py-1 rounded-full font-bold ${STATUS_COLORS[record.status] || 'bg-slate-100 text-slate-600'}`}>
                                 {record.status}
@@ -297,12 +305,39 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                     <span className="text-slate-700 text-sm font-bold block mt-1">{record.batch || '—'}</span>
                                 </div>
                                 <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Fee</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Course Fee</span>
                                     <span className="text-slate-700 text-sm font-bold block mt-1">{fmt(totalFee)}</span>
                                 </div>
                                 <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Next Due</span>
-                                    <span className="text-slate-700 text-sm font-bold block mt-1">{fmtDate(record.nextDueDate)}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Balance Due</span>
+                                    <span className={`text-sm font-bold block mt-1 ${pendingAmount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmt(pendingAmount)}</span>
+                                </div>
+                                {record.months > 0 && (
+                                    <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Months</span>
+                                        <span className="text-slate-700 text-sm font-bold block mt-1">{record.months} months</span>
+                                    </div>
+                                )}
+                                {(record.extraCharges || []).length > 0 && (
+                                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider block">Extra Charges</span>
+                                        <span className="text-amber-600 text-sm font-bold block mt-1">
+                                            {fmt((record.extraCharges || []).reduce((s,ec) => s+(ec.amount||0), 0))}
+                                        </span>
+                                        <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                            {record.extraCharges.map((ec, i) => (
+                                                <div key={i}>{ec.label || 'Extra'}: {fmt(ec.amount)}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Joining Date</span>
+                                    <span className="text-slate-700 text-sm font-bold block mt-1">
+                                        {student.studentProfile?.enrollmentDate 
+                                            ? new Date(student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+                                            : '—'}
+                                    </span>
                                 </div>
                             </div>
 
@@ -946,66 +981,119 @@ export default function AdminFeePortal() {
                 {/* Table */}
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full text-sm" style={{minWidth: '1200px'}}>
                         <thead>
-                            <tr className="border-b border-slate-200">
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-5 py-3">Student</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Course / Batch</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Total</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Paid</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Due</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Next Due</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Status</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Action</th>
+                            <tr className="border-b border-slate-200 bg-slate-50">
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Adm. No.</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Student</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Father Name</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 1</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 2</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Joining Date</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course / Batch</th>
+                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course Fee</th>
+                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Extra Charges</th>
+                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Balance</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Months</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Status</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredStudents.length === 0 && (
-                                <tr><td colSpan={8} className="text-center py-10 text-slate-500">No records found</td></tr>
+                                <tr><td colSpan={13} className="text-center py-10 text-slate-500">No records found</td></tr>
                             )}
-                            {filteredStudents.map(r => (
-                                <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                    <td className="px-5 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar name={r.student?.name || ''} size={32} />
-                                            <div>
-                                                <p className="text-white text-sm font-bold">{r.student?.name || '—'}</p>
-                                                <p className="text-slate-500 text-xs">{r.student?.email || ''}</p>
+                            {filteredStudents.map(r => {
+                                const totalExtra = (r.extraCharges || []).reduce((s, ec) => s + (ec.amount || 0), 0);
+                                const joiningDate = r.student?.studentProfile?.enrollmentDate
+                                    ? new Date(r.student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+                                    : '—';
+                                return (
+                                    <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                        {/* Admission No */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="text-slate-500 text-xs font-mono">{r.student?.admissionNo || '—'}</span>
+                                        </td>
+                                        {/* Student Name + Email */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex items-center gap-2">
+                                                <Avatar name={r.student?.name || ''} size={30} />
+                                                <div>
+                                                    <p className="text-slate-800 text-sm font-bold">{r.student?.name || '—'}</p>
+                                                    <p className="text-slate-400 text-xs">{r.student?.email || ''}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <p className="text-slate-700 text-sm">{r.course}</p>
-                                        <p className="text-slate-500 text-xs">{r.batch}</p>
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-300 text-sm font-bold">{fmt(r.totalFee)}</td>
-                                    <td className="px-4 py-3 text-right text-emerald-400 text-sm font-bold">{fmt(r.paidAmount)}</td>
-                                    <td className="px-4 py-3 text-right text-red-400 text-sm font-bold">{fmt(r.pendingAmount)}</td>
-                                    <td className="px-4 py-3 text-slate-400 text-xs">{fmtDate(r.nextDueDate)}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        <span className={`text-xs px-2 py-1 rounded-lg font-bold ${STATUS_COLORS[r.status]}`}>{r.status}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {r.student?._id && (
-                                                <button 
-                                                    onClick={() => setSelectedStudentForDetails(r)}
-                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
-                                                    title="View Student Details"
-                                                >
-                                                    <Eye size={15} />
-                                                </button>
+                                        </td>
+                                        {/* Father Name */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="text-slate-600 text-sm">{r.student?.fatherName || '—'}</span>
+                                        </td>
+                                        {/* Mobile 1 */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="text-slate-600 text-sm font-mono">{r.student?.mobileNumber || '—'}</span>
+                                        </td>
+                                        {/* Mobile 2 */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="text-slate-500 text-sm font-mono">{r.student?.mobile2 || '—'}</span>
+                                        </td>
+                                        {/* Date of Joining */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="text-slate-500 text-xs">{joiningDate}</span>
+                                        </td>
+                                        {/* Course / Batch */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <p className="text-slate-700 text-sm font-semibold">{r.course || '—'}</p>
+                                            <p className="text-slate-400 text-xs">{r.batch || ''}</p>
+                                        </td>
+                                        {/* Course Fee */}
+                                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                                            <span className="text-slate-700 text-sm font-bold">{fmt(r.totalFee)}</span>
+                                        </td>
+                                        {/* Extra Charges */}
+                                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                                            {totalExtra > 0 ? (
+                                                <span className="text-amber-600 text-sm font-bold">{fmt(totalExtra)}</span>
+                                            ) : (
+                                                <span className="text-slate-300 text-sm">—</span>
                                             )}
-                                            {r.status !== 'Paid' && (
-                                                <button onClick={() => openCollect(r.student?._id)}
-                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
-                                                    Collect
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        {/* Balance */}
+                                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                                            <span className={`text-sm font-bold ${r.pendingAmount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                {fmt(r.pendingAmount)}
+                                            </span>
+                                        </td>
+                                        {/* Months */}
+                                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                                            <span className="text-slate-500 text-sm">{r.months > 0 ? `${r.months} mo` : '—'}</span>
+                                        </td>
+                                        {/* Status */}
+                                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                                            <span className={`text-xs px-2 py-1 rounded-lg font-bold ${STATUS_COLORS[r.status]}`}>{r.status}</span>
+                                        </td>
+                                        {/* Action */}
+                                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                {r.student?._id && (
+                                                    <button 
+                                                        onClick={() => setSelectedStudentForDetails(r)}
+                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                        title="View Student Details"
+                                                    >
+                                                        <Eye size={15} />
+                                                    </button>
+                                                )}
+                                                {r.status !== 'Paid' && (
+                                                    <button onClick={() => openCollect(r.student?._id)}
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
+                                                        Collect
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

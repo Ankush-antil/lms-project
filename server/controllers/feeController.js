@@ -15,7 +15,7 @@ const getAllFeeRecords = asyncHandler(async (req, res) => {
     const { search, status, course } = req.query;
 
     let feeRecords = await FeeRecord.find({})
-        .populate('student', 'name email mobileNumber studentProfile avatar')
+        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
         .sort({ updatedAt: -1 });
 
     if (search) {
@@ -89,7 +89,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 // @route   GET /api/fees/admin/pending-dues
 const getPendingDues = asyncHandler(async (req, res) => {
     const records = await FeeRecord.find({ status: { $in: ['Pending', 'Partial'] } })
-        .populate('student', 'name email mobileNumber studentProfile avatar')
+        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
         .sort({ nextDueDate: 1 });
 
     const now = new Date();
@@ -182,7 +182,7 @@ const collectFee = asyncHandler(async (req, res) => {
 // @desc    Create or update a fee record (admin)
 // @route   POST /api/fees/admin/setup
 const setupFeeRecord = asyncHandler(async (req, res) => {
-    const { studentId, totalFee, course, batch, nextDueDate } = req.body;
+    const { studentId, totalFee, course, batch, nextDueDate, months, extraCharge } = req.body;
     if (!studentId) return res.status(400).json({ message: 'studentId required' });
 
     let record = await FeeRecord.findOne({ student: studentId });
@@ -194,6 +194,18 @@ const setupFeeRecord = asyncHandler(async (req, res) => {
     if (course) record.course = course;
     if (batch) record.batch = batch;
     if (nextDueDate) record.nextDueDate = new Date(nextDueDate);
+    if (months !== undefined) record.months = Number(months);
+
+    // Add extra charge (fine, party, etc.) if provided
+    if (extraCharge && extraCharge.amount && Number(extraCharge.amount) > 0) {
+        record.extraCharges.push({
+            label: extraCharge.label || 'Extra',
+            amount: Number(extraCharge.amount),
+            remark: extraCharge.remark || ''
+        });
+        // Add extra charge to total fee as well
+        record.totalFee += Number(extraCharge.amount);
+    }
 
     await record.save();
     res.json({ success: true, record });

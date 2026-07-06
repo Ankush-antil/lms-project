@@ -28,7 +28,7 @@ function getSheetsClient() {
         const auth = new google.auth.JWT(
             email,
             null,
-            key.replace(/\\n/g, '\n'),
+            key.trim().replace(/^"/, '').replace(/"$/, '').replace(/\\n/g, '\n'),
             ['https://www.googleapis.com/auth/spreadsheets']
         );
         return {

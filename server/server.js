@@ -154,4 +154,5 @@ const startServer = async () => {
     }
 };
 
-startServer();
+startServer();
+// Nodemon sync trigger comment restarted

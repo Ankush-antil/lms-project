@@ -439,6 +439,7 @@ export default function AdminFeePortal() {
     const [settingsSaved, setSettingsSaved] = useState(false);
     const [syncConfig, setSyncConfig] = useState(null);
     const [syncLoading, setSyncLoading] = useState(false);
+    const [spreadsheetIdInput, setSpreadsheetIdInput] = useState('');
 
     const fetchAll = async () => {
         setLoading(true);
@@ -456,11 +457,30 @@ export default function AdminFeePortal() {
             setPendingDues(pendingR.data);
             setReceipts(receiptsR.data);
             setReports(reportsR.data);
-            if (configR && configR.data) setSyncConfig(configR.data);
+            if (configR && configR.data) {
+                setSyncConfig(configR.data);
+                setSpreadsheetIdInput(configR.data.spreadsheetId || '');
+            }
         } catch (e) {
             toast.error('Failed to load fee data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const saveAllSettings = async () => {
+        try {
+            if (spreadsheetIdInput) {
+                await axios.post(`/api/sync/config`, { spreadsheetId: spreadsheetIdInput }, { withCredentials: true });
+                const configR = await axios.get(`/api/sync/config`, { withCredentials: true });
+                setSyncConfig(configR.data);
+            }
+            setSettingsSaved(true);
+            toast.success('Settings saved successfully!');
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Failed to save settings');
+        } finally {
+            setTimeout(() => setSettingsSaved(false), 2000);
         }
     };
 
@@ -1037,7 +1057,7 @@ export default function AdminFeePortal() {
                     </div>
                     <div className="pt-2">
                         <button
-                            onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2000); toast.success('Settings saved!'); }}
+                            onClick={saveAllSettings}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-2.5 text-sm font-bold transition-colors"
                         >
                             {settingsSaved ? '✓ Saved!' : 'Save Settings'}
@@ -1052,45 +1072,46 @@ export default function AdminFeePortal() {
                         <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
                     </div>
 
-                    {sheetUrl ? (
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-600 text-sm font-bold">Linked Spreadsheet:</span>
-                                <a 
-                                    href={sheetUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
-                                >
-                                    <FileText size={14} /> Open Google Sheet ↗
-                                </a>
-                            </div>
-                            <p className="text-[10px] text-slate-400">Spreadsheet ID: <code className="bg-slate-100 px-1 py-0.5 rounded">{syncConfig.spreadsheetId}</code></p>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
+                            <input
+                                value={spreadsheetIdInput}
+                                onChange={e => setSpreadsheetIdInput(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                placeholder="Paste Google Spreadsheet ID here"
+                            />
                         </div>
-                    ) : (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                            <p className="text-amber-700 text-xs font-bold">⚠️ Google Sheets Not Configured</p>
-                            <p className="text-[10px] text-amber-500 mt-1">Please set GOOGLE_SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY in your server .env file.</p>
-                        </div>
-                    )}
 
-                    <div className="flex gap-3 pt-2 border-t border-slate-100">
-                        <button
-                            onClick={handleImport}
-                            disabled={syncLoading || !sheetUrl}
-                            className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-50 text-slate-700 rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                        >
-                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} className="rotate-180" />}
-                            Import from Sheets
-                        </button>
-                        <button
-                            onClick={handleExport}
-                            disabled={syncLoading || !sheetUrl}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                        >
-                            {syncLoading ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} />}
-                            Export to Sheets
-                        </button>
+                        {sheetUrl && (
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600 text-xs font-bold">Linked Sheet:</span>
+                                    <a 
+                                        href={sheetUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
+                                    >
+                                        <FileText size={12} /> Open Sheet ↗
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-[10px] text-slate-500 leading-relaxed space-y-1.5">
+                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
+                            <ol className="list-decimal pl-4 space-y-1">
+                                <li>Create a new Google Sheet in your Google Account.</li>
+                                <li>
+                                    Click <strong>Share</strong> (top right) and add email:
+                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 py-0.5 rounded ml-1 block select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
+                                    Set permissions as <strong>Editor</strong> and click Share.
+                                </li>
+                                <li>Copy the ID from the Sheet's URL and paste it in the field above.</li>
+                                <li>Click <strong>Save Settings</strong>.</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1120,6 +1141,16 @@ export default function AdminFeePortal() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {syncConfig?.spreadsheetId && (
+                        <a
+                            href={`https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl px-3 py-1.5 text-xs text-white font-bold transition-colors"
+                        >
+                            <FileText size={12} /> Google Sheet
+                        </a>
+                    )}
                     <button onClick={fetchAll} disabled={loading} className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-slate-300 transition-colors">
                         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
                     </button>

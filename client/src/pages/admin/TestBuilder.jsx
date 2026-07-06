@@ -2021,6 +2021,17 @@ const TestBuilder = () => {
     const { openProfile } = useUserProfile();
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
+    const handleCloseBuilder = () => {
+        const fallbackPath = user?.role === 'Editor'
+            ? '/editor'
+            : user?.role === 'Teacher'
+                ? '/teacher/activities'
+                : user?.role === 'Institute'
+                    ? '/institute/activities'
+                    : '/admin/activities';
+        navigate(fallbackPath);
+    };
+
     const savedAccounts = (() => {
         try {
             const listStr = localStorage.getItem('lmsSavedAccounts');
@@ -3429,7 +3440,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 {/* Left: Home & Form Title */}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={handleCloseBuilder}
                         className="flex items-center gap-2 px-3.5 py-2 border border-slate-800 rounded-xl hover:bg-white/10 text-white font-semibold text-sm transition-all"
                     >
                         <Home size={16} className="text-white" />
@@ -3525,7 +3536,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         <button
                                             onClick={() => {
                                                 setIsHeaderMenuOpen(false);
-                                                navigate(-1);
+                                                handleCloseBuilder();
                                             }}
                                             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-rose-50 hover:text-rose-700 transition-colors text-left text-slate-700 border-t border-slate-100"
                                         >

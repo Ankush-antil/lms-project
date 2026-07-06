@@ -36,7 +36,32 @@ const InstitutesList = () => {
         teacher: { show: true, hiring: true, addTeacher: true, editTeacher: true },
         editor: { show: true, hiring: true, addEditor: true, editEditor: true },
         course: { show: true, addCourse: true, editCourse: true },
-        activities: { show: true },
+        activities: {
+            show: true,
+            elementsControl: true,
+            inputElements: true,
+            displayingElements: true,
+            recordingElements: true,
+            advanceElements: true,
+            addons: true,
+            theme: true,
+            createWithAi: true,
+            integrate: true,
+            import: true,
+            saveAsTemplate: true,
+            decideActivity: true,
+            templates: true,
+            locationLocked: true,
+            logicRules: true,
+            monitoring: true,
+            connectIt: true,
+            profileUnderSettings: true,
+            moreSettings: true,
+            responses: true,
+            collaborate: true,
+            manageAccess: true,
+            publicToWeb: true
+        },
         chat: { show: true }
     };
 
@@ -632,12 +657,112 @@ const InstitutesList = () => {
                                     )}
                                 </div>
 
-                                {/* Activities & Chat */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                                {/* Activities */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                                         <span className="text-sm font-extrabold text-slate-800">Activities Page</span>
                                         <input type="checkbox" checked={controlsData.activities?.show !== false} onChange={e => handleControlChange('activities', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
                                     </div>
+                                    {controlsData.activities?.show !== false && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.elementsControl !== false} onChange={e => handleControlChange('activities', 'elementsControl', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Elements Control
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.inputElements !== false} onChange={e => handleControlChange('activities', 'inputElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Input Elements
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.displayingElements !== false} onChange={e => handleControlChange('activities', 'displayingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Displaying Elements
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.recordingElements !== false} onChange={e => handleControlChange('activities', 'recordingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Recording Elements
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.advanceElements !== false} onChange={e => handleControlChange('activities', 'advanceElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Advance Elements
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.addons !== false} onChange={e => handleControlChange('activities', 'addons', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Addons
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.theme !== false} onChange={e => handleControlChange('activities', 'theme', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Theme
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.createWithAi !== false} onChange={e => handleControlChange('activities', 'createWithAi', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Create With AI
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.integrate !== false} onChange={e => handleControlChange('activities', 'integrate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Integrate
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.import !== false} onChange={e => handleControlChange('activities', 'import', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Import
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.saveAsTemplate !== false} onChange={e => handleControlChange('activities', 'saveAsTemplate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Save As Template
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.decideActivity !== false} onChange={e => handleControlChange('activities', 'decideActivity', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Decide Activity
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.templates !== false} onChange={e => handleControlChange('activities', 'templates', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Templates
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.locationLocked !== false} onChange={e => handleControlChange('activities', 'locationLocked', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Location Locked
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.logicRules !== false} onChange={e => handleControlChange('activities', 'logicRules', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Logic Rules
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.monitoring !== false} onChange={e => handleControlChange('activities', 'monitoring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Monitoring
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.connectIt !== false} onChange={e => handleControlChange('activities', 'connectIt', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Connect It
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.profileUnderSettings !== false} onChange={e => handleControlChange('activities', 'profileUnderSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Profile Under Settings
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.moreSettings !== false} onChange={e => handleControlChange('activities', 'moreSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                More Settings
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.responses !== false} onChange={e => handleControlChange('activities', 'responses', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Responses
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.collaborate !== false} onChange={e => handleControlChange('activities', 'collaborate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Collaborate
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.manageAccess !== false} onChange={e => handleControlChange('activities', 'manageAccess', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Manage Access
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                <input type="checkbox" checked={controlsData.activities?.publicToWeb !== false} onChange={e => handleControlChange('activities', 'publicToWeb', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                Public To Web
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Chat */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-extrabold text-slate-800">Chat Page</span>
                                         <input type="checkbox" checked={controlsData.chat?.show !== false} onChange={e => handleControlChange('chat', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />

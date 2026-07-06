@@ -3,8 +3,12 @@ import { createPortal } from 'react-dom';
 import { X, Globe, Link2, Info, Lock, Clock, Calendar, ShieldCheck, Mail, CheckCircle2, RefreshCw, Folder, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 
 const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isConnected, onOpenConnect, initialMode, studentId, connectData, initialAllowTeacherEdit }) => {
+    const { user } = useAuth();
+    const hasPublicWebControl = user?.role === 'Admin' || user?.institute?.controls?.activities?.publicToWeb !== false;
+
     const [publishMode, setPublishMode] = useState('connected'); // 'connected' | 'public'
     const [targetAssignment, setTargetAssignment] = useState('particular');
     const [allStudents, setAllStudents] = useState([]);
@@ -161,9 +165,15 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
 
     useEffect(() => {
         if (initialMode) {
-            setPublishMode(initialMode);
+            if (initialMode === 'public' && !hasPublicWebControl) {
+                setPublishMode('connected');
+            } else {
+                setPublishMode(initialMode);
+            }
+        } else if (!hasPublicWebControl) {
+            setPublishMode('connected');
         }
-    }, [initialMode, isOpen]);
+    }, [initialMode, isOpen, hasPublicWebControl]);
 
     if (!isOpen) return null;
 
@@ -263,34 +273,36 @@ const PublishOptionsModal = ({ isOpen, onClose, onPublish, initialSettings, isCo
                         </div>
 
                         {/* Option 2: Publish to Web */}
-                        <div
-                            onClick={() => setPublishMode('public')}
-                            className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between h-44 relative overflow-hidden group ${
-                                publishMode === 'public'
-                                    ? 'border-emerald-600 bg-emerald-50/10 shadow-md ring-2 ring-emerald-500/10'
-                                    : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm'
-                            }`}
-                        >
-                            <div>
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all mb-4 ${
+                        {hasPublicWebControl && (
+                            <div
+                                onClick={() => setPublishMode('public')}
+                                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between h-44 relative overflow-hidden group ${
                                     publishMode === 'public'
-                                        ? 'bg-emerald-600 border-emerald-700 text-white'
-                                        : 'bg-emerald-50 border-emerald-100 text-emerald-600 group-hover:scale-105'
-                                }`}>
-                                    <Globe size={20} />
+                                        ? 'border-emerald-600 bg-emerald-50/10 shadow-md ring-2 ring-emerald-500/10'
+                                        : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm'
+                                }`}
+                            >
+                                <div>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all mb-4 ${
+                                        publishMode === 'public'
+                                            ? 'bg-emerald-600 border-emerald-700 text-white'
+                                            : 'bg-emerald-50 border-emerald-100 text-emerald-600 group-hover:scale-105'
+                                    }`}>
+                                        <Globe size={20} />
+                                    </div>
+                                    <h3 className="font-extrabold text-slate-800 text-base">Publish to Web</h3>
+                                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">
+                                        Generate a unique public link that anyone can attempt without requiring an LMS account.
+                                    </p>
                                 </div>
-                                <h3 className="font-extrabold text-slate-800 text-base">Publish to Web</h3>
-                                <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                                    Generate a unique public link that anyone can attempt without requiring an LMS account.
-                                </p>
-                            </div>
 
-                            {publishMode === 'public' && (
-                                <div className="absolute top-4 right-4 text-emerald-600">
-                                    <CheckCircle2 size={20} fill="currentColor" className="text-white fill-emerald-600" />
-                                </div>
-                            )}
-                        </div>
+                                {publishMode === 'public' && (
+                                    <div className="absolute top-4 right-4 text-emerald-600">
+                                        <CheckCircle2 size={20} fill="currentColor" className="text-white fill-emerald-600" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Mode-Specific Detailed Settings */}

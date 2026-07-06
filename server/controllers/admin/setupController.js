@@ -165,7 +165,10 @@ const updateInstitute = asyncHandler(async (req, res) => {
         if (admissionOpen !== undefined) institute.admissionOpen = admissionOpen;
         if (teacherHiring !== undefined) institute.teacherHiring = teacherHiring;
         if (editorHiring !== undefined) institute.editorHiring = editorHiring;
-        if (controls !== undefined) institute.controls = controls;
+        if (controls !== undefined) {
+            institute.controls = controls;
+            institute.markModified('controls');
+        }
 
         const updatedInstitute = await institute.save();
 

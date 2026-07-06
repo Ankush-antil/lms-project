@@ -2021,17 +2021,6 @@ const TestBuilder = () => {
     const { openProfile } = useUserProfile();
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-    const handleCloseBuilder = () => {
-        const fallbackPath = user?.role === 'Editor'
-            ? '/editor'
-            : user?.role === 'Teacher'
-                ? '/teacher/activities'
-                : user?.role === 'Institute'
-                    ? '/institute/activities'
-                    : '/admin/activities';
-        navigate(fallbackPath);
-    };
-
     const savedAccounts = (() => {
         try {
             const listStr = localStorage.getItem('lmsSavedAccounts');
@@ -2044,6 +2033,17 @@ const TestBuilder = () => {
 
     const [activeTab, setActiveTab] = useState('Edit');
     const [sidebarTab, setSidebarTab] = useState('Elements & Addons');
+
+    useEffect(() => {
+        if (user) {
+            const hasElements = hasActivityControl('elementsControl');
+            const hasAddons = hasActivityControl('addons');
+            if (!hasElements && hasAddons) {
+                setSidebarTab('Elements/Addons');
+            }
+        }
+    }, [user]);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [formElements, setFormElements] = useState([]);
     const [isInputExpanded, setIsInputExpanded] = useState(true);
@@ -2201,7 +2201,7 @@ const TestBuilder = () => {
         const newElements = questionsList.map(q => {
             let label = 'Short Answer';
             let defaultOptions = [];
-            
+
             if (q.options && q.options.length > 0) {
                 label = 'Multiple Choice';
                 defaultOptions = q.options.map(opt => ({
@@ -2493,13 +2493,13 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     if (errJson.message) {
                         detailMsg = errJson.message;
                     }
-                } catch (_) {}
+                } catch (_) { }
                 throw new Error(detailMsg);
             }
 
             const data = await response.json();
             const responseText = data.text;
-            
+
             if (!responseText) {
                 throw new Error("No response returned from AI");
             }
@@ -2515,7 +2515,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             const parsed = JSON.parse(cleanText);
             const replyMessage = parsed.message || "Here is the response.";
             const questionsList = parsed.questions || [];
-            
+
             let videosList = parsed.videos || [];
             if (parsed.video && videosList.length === 0) {
                 videosList = [parsed.video];
@@ -2832,14 +2832,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     setLoading(false);
                 } catch (error) {
                     console.error("Error fetching test for edit:", error);
-                    const fallbackPath = user?.role === 'Editor'
-                        ? '/editor'
-                        : user?.role === 'Teacher'
-                            ? '/teacher/activities'
-                            : user?.role === 'Institute'
-                                ? '/institute/activities'
-                                : '/admin/tools';
-                    navigate(fallbackPath);
+                    handleCloseBuilder();
                 }
             };
             fetchTest();
@@ -3605,25 +3598,31 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
 
                 {/* Center Tabs */}
                 <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-                    <button
-                        onClick={() => {
-                            setIsConnectModalOpen(true);
-                        }}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isConnected
-                            ? 'bg-white/10 text-white border border-white/20'
-                            : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            }`}
-                        title="Configure form details"
-                    >
-                        <span>Connect it</span>
-                        {isConnected ? (
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        ) : (
-                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                        )}
-                    </button>
+                    {hasActivityControl('connectIt') !== false && (
+                        <button
+                            onClick={() => {
+                                setIsConnectModalOpen(true);
+                            }}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isConnected
+                                ? 'bg-white/10 text-white border border-white/20'
+                                : 'text-slate-300 hover:text-white hover:bg-white/10'
+                                }`}
+                            title="Configure form details"
+                        >
+                            <span>Connect it</span>
+                            {isConnected ? (
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            ) : (
+                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                            )}
+                        </button>
+                    )}
 
-                    {['Edit', 'Responses', 'History', 'Collaborate', 'Preview'].map((tab) => (
+                    {['Edit', 'Responses', 'History', 'Collaborate', 'Preview'].filter((tab) => {
+                        if (tab === 'Responses') return hasActivityControl('responses') !== false;
+                        if (tab === 'Collaborate') return hasActivityControl('collaborate') !== false;
+                        return true;
+                    }).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => {
@@ -3655,21 +3654,23 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         <span>Publish</span>
                     </button>
 
-                    <button
-                        onClick={() => {
-                            sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
-                            window.location.href = '/more-setting/more-settings.html';
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 hover:bg-white/5 text-slate-300 hover:text-white rounded-xl text-sm font-bold active:scale-95 transition-all focus:outline-none"
-                    >
-                        <Settings size={15} />
-                        <span>More Setting</span>
-                    </button>
+                    {hasActivityControl('moreSettings') !== false && (
+                        <button
+                            onClick={() => {
+                                sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
+                                window.location.href = '/more-setting/more-settings.html';
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 hover:bg-white/5 text-slate-300 hover:text-white rounded-xl text-sm font-bold active:scale-95 transition-all focus:outline-none"
+                        >
+                            <Settings size={15} />
+                            <span>More Setting</span>
+                        </button>
+                    )}
 
                     {/* User profile avatar to verify account and open settings dropdown */}
                     {user && (
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                                 className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-md overflow-hidden ring-2 ring-slate-805 hover:scale-105 active:scale-95 transition-all cursor-pointer focus:outline-none flex-shrink-0"
                                 title={`Logged in as: ${user.name} (${user.role})`}
@@ -3684,11 +3685,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             {isProfileDropdownOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsProfileDropdownOpen(false)} />
-                                    <div 
+                                    <div
                                         onClick={(e) => e.stopPropagation()}
                                         className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-1.5 text-white text-left animate-fade-in"
                                     >
-                                        <div 
+                                        <div
                                             onClick={() => {
                                                 openProfile(user?._id || user?.id);
                                                 setIsProfileDropdownOpen(false);
@@ -3699,7 +3700,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                             <p className="text-xs font-bold text-slate-200 truncate">{user?.email}</p>
                                             <span className="inline-block mt-1.5 text-[8px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-widest">{user?.role}</span>
                                         </div>
-                                        
+
                                         <button
                                             onClick={() => {
                                                 openProfile(user?._id || user?.id);
@@ -3710,19 +3711,21 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                             <User size={16} />
                                             <span>My Profile Settings</span>
                                         </button>
-                                        
-                                        <button
-                                            onClick={() => {
-                                                sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
-                                                setIsProfileDropdownOpen(false);
-                                                window.location.href = '/more-setting/settings.html';
-                                            }}
-                                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
-                                        >
-                                            <Settings size={16} />
-                                            <span>Settings</span>
-                                        </button>
-                                        
+
+                                        {hasActivityControl('profileUnderSettings') !== false && (
+                                            <button
+                                                onClick={() => {
+                                                    sessionStorage.setItem('lastTestBuilderUrl', window.location.pathname + window.location.search);
+                                                    setIsProfileDropdownOpen(false);
+                                                    window.location.href = '/more-setting/settings.html';
+                                                }}
+                                                className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold text-left"
+                                            >
+                                                <Settings size={16} />
+                                                <span>Settings</span>
+                                            </button>
+                                        )}
+
                                         {/* Saved Accounts Switcher */}
                                         {savedAccounts.length > 0 && (
                                             <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
@@ -3774,9 +3777,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                             <UserPlus size={16} />
                                             <span>Add More Account</span>
                                         </button>
-                                        
+
                                         <hr className="my-0.5 border-slate-800" />
-                                        
+
                                         <button
                                             onClick={() => {
                                                 setIsProfileDropdownOpen(false);
@@ -3800,7 +3803,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             <div className="flex h-screen overflow-hidden">
 
                 {/* Left Sidebar (Only visible when in Edit tab) */}
-                {activeTab === 'Edit' && (
+                {activeTab === 'Edit' && (hasActivityControl('elementsControl') !== false || hasActivityControl('addons') !== false) && (
                     <aside className="w-64 bg-[#0b1329] border-r border-slate-800/80 flex flex-col h-full z-20 shadow-md text-white">
                         {/* Sidebar Header */}
                         <div className="p-4 border-b border-slate-800 space-y-4">
@@ -3809,26 +3812,28 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             </div>
 
                             {/* Sidebar Tab Selector */}
-                            <div className="flex gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/60">
-                                <button
-                                    onClick={() => setSidebarTab('Elements & Addons')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements & Addons'
-                                        ? 'bg-white text-[#0b1329] shadow-sm'
-                                        : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Elements
-                                </button>
-                                <button
-                                    onClick={() => setSidebarTab('Elements/Addons')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements/Addons'
-                                        ? 'bg-white text-[#0b1329] shadow-sm'
-                                        : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    Addons
-                                </button>
-                            </div>
+                            {hasActivityControl('elementsControl') !== false && hasActivityControl('addons') !== false && (
+                                <div className="flex gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/60">
+                                    <button
+                                        onClick={() => setSidebarTab('Elements & Addons')}
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements & Addons'
+                                            ? 'bg-white text-[#0b1329] shadow-sm'
+                                            : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        Elements
+                                    </button>
+                                    <button
+                                        onClick={() => setSidebarTab('Elements/Addons')}
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTab === 'Elements/Addons'
+                                            ? 'bg-white text-[#0b1329] shadow-sm'
+                                            : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        Addons
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Search Box */}
                             <div className="relative">
@@ -3848,116 +3853,166 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             {sidebarTab === 'Elements & Addons' ? (
                                 <div className="space-y-4 animate-fade-in">
                                     {/* 1. Input Elements */}
-                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsInputExpanded(!isInputExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <span>📝</span>
-                                                <span>Input Elements (1-8)</span>
-                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
-                                                    {filteredElements.filter(el => el.category === 'Input Elements').length}
-                                                </span>
-                                            </div>
-                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isInputExpanded ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {isInputExpanded && (
-                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
-                                                {filteredElements.filter(el => el.category === 'Input Elements').map((el) => {
-                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
-                                                    return (
-                                                        <div
-                                                            key={el.label}
-                                                            draggable
-                                                            onDragStart={(e) => handleDragStart(e, el)}
-                                                            onClick={() => handleAddElement(el)}
-                                                            className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
-                                                            title="Drag onto canvas or click to append"
-                                                        >
-                                                            <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
-                                                                <el.icon size={16} />
+                                    {hasActivityControl('inputElements') !== false && (
+                                        <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsInputExpanded(!isInputExpanded)}
+                                                className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
+                                            >
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>📝</span>
+                                                    <span>Input Elements (1-8)</span>
+                                                    <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                        {filteredElements.filter(el => el.category === 'Input Elements').length}
+                                                    </span>
+                                                </div>
+                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isInputExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isInputExpanded && (
+                                                <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
+                                                    {filteredElements.filter(el => el.category === 'Input Elements').map((el) => {
+                                                        const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                        return (
+                                                            <div
+                                                                key={el.label}
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, el)}
+                                                                onClick={() => handleAddElement(el)}
+                                                                className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                                title="Drag onto canvas or click to append"
+                                                            >
+                                                                <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                    <el.icon size={16} />
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
+                                                                    {absoluteIndex}. {el.label}
+                                                                </span>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
-                                                                {absoluteIndex}. {el.label}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {filteredElements.filter(el => el.category === 'Input Elements').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                                        );
+                                                    })}
+                                                    {filteredElements.filter(el => el.category === 'Input Elements').length === 0 && (
+                                                        <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* 2. Displaying Elements */}
-                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsDisplayExpanded(!isDisplayExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <span>📺</span>
-                                                <span>Displaying Elements (9-16)</span>
-                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
-                                                    {filteredElements.filter(el => el.category === 'Displaying Elements').length}
-                                                </span>
-                                            </div>
-                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isDisplayExpanded ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {isDisplayExpanded && (
-                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
-                                                {filteredElements.filter(el => el.category === 'Displaying Elements').map((el) => {
-                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
-                                                    return (
-                                                        <div
-                                                            key={el.label}
-                                                            draggable
-                                                            onDragStart={(e) => handleDragStart(e, el)}
-                                                            onClick={() => handleAddElement(el)}
-                                                            className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
-                                                            title="Drag onto canvas or click to append"
-                                                        >
-                                                            <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
-                                                                <el.icon size={16} />
+                                    {hasActivityControl('displayingElements') !== false && (
+                                        <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsDisplayExpanded(!isDisplayExpanded)}
+                                                className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
+                                            >
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>📺</span>
+                                                    <span>Displaying Elements (9-16)</span>
+                                                    <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                        {filteredElements.filter(el => el.category === 'Displaying Elements').length}
+                                                    </span>
+                                                </div>
+                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isDisplayExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isDisplayExpanded && (
+                                                <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
+                                                    {filteredElements.filter(el => el.category === 'Displaying Elements').map((el) => {
+                                                        const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                        return (
+                                                            <div
+                                                                key={el.label}
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, el)}
+                                                                onClick={() => handleAddElement(el)}
+                                                                className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                                title="Drag onto canvas or click to append"
+                                                            >
+                                                                <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                    <el.icon size={16} />
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
+                                                                    {absoluteIndex}. {el.label}
+                                                                </span>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
-                                                                {absoluteIndex}. {el.label}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {filteredElements.filter(el => el.category === 'Displaying Elements').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                                        );
+                                                    })}
+                                                    {filteredElements.filter(el => el.category === 'Displaying Elements').length === 0 && (
+                                                        <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* 3. Recording & AI Agents */}
-                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsRecordingExpanded(!isRecordingExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <span>🎙️</span>
-                                                <span>Recording & AI (17-24)</span>
-                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
-                                                    {filteredElements.filter(el => el.category === 'Recording & AI Agents').length}
-                                                </span>
-                                            </div>
-                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isRecordingExpanded ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {isRecordingExpanded && (
-                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
-                                                {filteredElements.filter(el => el.category === 'Recording & AI Agents').map((el) => {
-                                                    const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
-                                                    return (
+                                    {hasActivityControl('recordingElements') !== false && (
+                                        <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRecordingExpanded(!isRecordingExpanded)}
+                                                className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
+                                            >
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>🎙️</span>
+                                                    <span>Recording & AI (17-24)</span>
+                                                    <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                        {filteredElements.filter(el => el.category === 'Recording & AI Agents').length}
+                                                    </span>
+                                                </div>
+                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isRecordingExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isRecordingExpanded && (
+                                                <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
+                                                    {filteredElements.filter(el => el.category === 'Recording & AI Agents').map((el) => {
+                                                        const absoluteIndex = sidebarElements.findIndex(s => s.label === el.label) + 1;
+                                                        return (
+                                                            <div
+                                                                key={el.label}
+                                                                draggable
+                                                                onDragStart={(e) => handleDragStart(e, el)}
+                                                                onClick={() => handleAddElement(el)}
+                                                                className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
+                                                                title="Drag onto canvas or click to append"
+                                                            >
+                                                                <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
+                                                                    <el.icon size={16} />
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
+                                                                    {absoluteIndex}. {el.label}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {filteredElements.filter(el => el.category === 'Recording & AI Agents').length === 0 && (
+                                                        <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* 4. Advanced Fields */}
+                                    {hasActivityControl('advanceElements') !== false && (
+                                        <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
+                                                className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
+                                            >
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>⚡</span>
+                                                    <span>Advanced Fields</span>
+                                                    <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
+                                                        {filteredElements.filter(el => el.category === 'Advanced Fields').length}
+                                                    </span>
+                                                </div>
+                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isAdvancedExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isAdvancedExpanded && (
+                                                <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
+                                                    {filteredElements.filter(el => el.category === 'Advanced Fields').map((el) => (
                                                         <div
                                                             key={el.label}
                                                             draggable
@@ -3970,59 +4025,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                 <el.icon size={16} />
                                                             </div>
                                                             <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
-                                                                {absoluteIndex}. {el.label}
+                                                                {el.label}
                                                             </span>
                                                         </div>
-                                                    );
-                                                })}
-                                                {filteredElements.filter(el => el.category === 'Recording & AI Agents').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* 4. Advanced Fields */}
-                                    <div className="border border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-[#0b1329]">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 text-slate-200 hover:bg-slate-900/60 transition-all font-bold text-xs"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <span>⚡</span>
-                                                <span>Advanced Fields</span>
-                                                <span className="text-[10px] bg-white/10 text-slate-200 px-2 py-0.5 rounded-full font-extrabold ml-1">
-                                                    {filteredElements.filter(el => el.category === 'Advanced Fields').length}
-                                                </span>
-                                            </div>
-                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isAdvancedExpanded ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {isAdvancedExpanded && (
-                                            <div className="p-2.5 bg-[#0b1329] grid grid-cols-2 gap-2 animate-fade-in">
-                                                {filteredElements.filter(el => el.category === 'Advanced Fields').map((el) => (
-                                                    <div
-                                                        key={el.label}
-                                                        draggable
-                                                        onDragStart={(e) => handleDragStart(e, el)}
-                                                        onClick={() => handleAddElement(el)}
-                                                        className="flex flex-col items-center justify-center p-2.5 bg-[#0e1936] border border-slate-800 rounded-2xl hover:border-white/40 hover:bg-white/5 transition-all group cursor-grab active:cursor-grabbing text-center"
-                                                        title="Drag onto canvas or click to append"
-                                                    >
-                                                        <div className="p-2 bg-white/10 text-white rounded-xl mb-1.5 group-hover:scale-110 transition-transform duration-300">
-                                                            <el.icon size={16} />
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-slate-300 group-hover:text-white transition-colors leading-tight">
-                                                            {el.label}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                                {filteredElements.filter(el => el.category === 'Advanced Fields').length === 0 && (
-                                                    <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                                    ))}
+                                                    {filteredElements.filter(el => el.category === 'Advanced Fields').length === 0 && (
+                                                        <div className="col-span-2 text-center py-4 text-xs text-slate-500 font-medium">No matches</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 // Addons Tab Render
@@ -4075,61 +4088,74 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 )}
                 <div className="flex-1 flex flex-col">
                     {/* Secondary Toolbar */}
-                    <div className="h-12 bg-blue-100 border-b text-black border-slate-200 px-6 flex items-center justify-center">         <div className="flex items-center gap-6">
-                        <button
-                            onClick={() => toast("Purple Accent Theme active. More templates coming soon!", { icon: '🎨' })}
-                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
-                        >
-                            <Palette size={14} className="text-[#0b1329]" />
-                            <span>Theme</span>
-                        </button>
+                    <div className="h-12 bg-blue-100 border-b text-black border-slate-200 px-6 flex items-center justify-center">
+                        <div className="flex items-center gap-6">
+                            {hasActivityControl('theme') !== false && (
+                                <button
+                                    onClick={() => toast("Purple Accent Theme active. More templates coming soon!", { icon: '🎨' })}
+                                    className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                                >
+                                    <Palette size={14} className="text-[#0b1329]" />
+                                    <span>Theme</span>
+                                </button>
+                            )}
 
-                        <button
-                            onClick={handleAiGenerateForm}
-                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
-                        >
-                            <Bot size={14} className="text-[#0b1329]" />
-                            <span>Create with AI</span>
-                        </button>
+                            {hasActivityControl('createWithAi') !== false && (
+                                <button
+                                    onClick={handleAiGenerateForm}
+                                    className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                                >
+                                    <Bot size={14} className="text-[#0b1329]" />
+                                    <span>Create with AI</span>
+                                </button>
+                            )}
 
-                        <button
-                            onClick={() => toast("Integration settings opened: copy link or embed iframe script.", { icon: '🔗' })}
-                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
-                        >
-                            <Link size={14} className="text-[#0b1329]" />
-                            <span>Integrate</span>
-                        </button>
+                            {hasActivityControl('integrate') !== false && (
+                                <button
+                                    onClick={() => toast("Integration settings opened: copy link or embed iframe script.", { icon: '🔗' })}
+                                    className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                                >
+                                    <Link size={14} className="text-[#0b1329]" />
+                                    <span>Integrate</span>
+                                </button>
+                            )}
 
-                        <input
-                            type="file"
-                            ref={importFileInputRef}
-                            onChange={handleImportForm}
-                            accept=".json"
-                            style={{ display: 'none' }}
-                        />
-                        <button
-                            onClick={() => importFileInputRef.current?.click()}
-                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
-                        >
-                            <FolderUp size={14} className="text-[#0b1329]" />
-                            <span>Import</span>
-                        </button>
+                            {hasActivityControl('import') !== false && (
+                                <>
+                                    <input
+                                        type="file"
+                                        ref={importFileInputRef}
+                                        onChange={handleImportForm}
+                                        accept=".json"
+                                        style={{ display: 'none' }}
+                                    />
+                                    <button
+                                        onClick={() => importFileInputRef.current?.click()}
+                                        className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                                    >
+                                        <FolderUp size={14} className="text-[#0b1329]" />
+                                        <span>Import</span>
+                                    </button>
+                                </>
+                            )}
 
-                        <button
-                            onClick={() => {
-                                setTemplateMeta({
-                                    name: connectData?.name || 'Untitled Template',
-                                    type: 'form',
-                                    target: 'site'
-                                });
-                                setIsSaveTemplateModalOpen(true);
-                            }}
-                            className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
-                        >
-                            <Save size={14} className="text-[#0b1329]" />
-                            <span>Save as Template</span>
-                        </button>
-                    </div>
+                            {hasActivityControl('saveAsTemplate') !== false && (
+                                <button
+                                    onClick={() => {
+                                        setTemplateMeta({
+                                            name: connectData?.name || 'Untitled Template',
+                                            type: 'form',
+                                            target: 'site'
+                                        });
+                                        setIsSaveTemplateModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-1.5 text-xs font-bold hover:text-[#0b1329] transition-colors uppercase tracking-wider"
+                                >
+                                    <Save size={14} className="text-[#0b1329]" />
+                                    <span>Save as Template</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Main Content Area */}
@@ -4234,9 +4260,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                     defaultType = 'Fill in the Blanks';
                                                                 }
                                                                 setAiChatMessages([
-                                                                    { 
-                                                                        sender: 'ai', 
-                                                                        text: `Hello! I am your Gemini AI Assistant. I see you want to generate questions near a "${defaultType}" question. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!` 
+                                                                    {
+                                                                        sender: 'ai',
+                                                                        text: `Hello! I am your Gemini AI Assistant. I see you want to generate questions near a "${defaultType}" question. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!`
                                                                     }
                                                                 ]);
                                                                 setIsAiGeneratorOpen(true);
@@ -4399,7 +4425,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                         )}
 
                                                         {(el.label === 'Video' || el.label === 'Video Displaying') && (
-                                                            <div 
+                                                            <div
                                                                 className="mt-2 relative mx-auto group/video rounded-2xl border border-slate-800 bg-black flex items-center justify-center transition-shadow hover:shadow-lg"
                                                                 style={{ width: `${el.videoWidth || 500}px`, maxWidth: '100%' }}
                                                             >
@@ -4410,24 +4436,24 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                     loop={!!el.loop}
                                                                     className="w-full rounded-2xl object-contain bg-black pointer-events-auto"
                                                                 />
-                                                                
+
                                                                 {/* Resize handles at four corners */}
-                                                                <div 
+                                                                <div
                                                                     onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-left')}
                                                                     className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                     title="Resize video"
                                                                 />
-                                                                <div 
+                                                                <div
                                                                     onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-right')}
                                                                     className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                     title="Resize video"
                                                                 />
-                                                                <div 
+                                                                <div
                                                                     onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-left')}
                                                                     className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                     title="Resize video"
                                                                 />
-                                                                <div 
+                                                                <div
                                                                     onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-right')}
                                                                     className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                     title="Resize video"
@@ -4458,7 +4484,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                         )}
 
                                                         {(el.label === 'YouTube' || el.label === 'Embedded Video Displaying') && (
-                                                            <div 
+                                                            <div
                                                                 className="mt-2 relative mx-auto group/video rounded-2xl border border-slate-200 shadow-md aspect-video bg-black flex items-center justify-center transition-shadow hover:shadow-lg"
                                                                 style={{ width: `${el.videoWidth || 500}px`, maxWidth: '100%' }}
                                                             >
@@ -4473,22 +4499,22 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                         ></iframe>
 
                                                                         {/* Resize handles at four corners */}
-                                                                        <div 
+                                                                        <div
                                                                             onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-left')}
                                                                             className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                             title="Resize video"
                                                                         />
-                                                                        <div 
+                                                                        <div
                                                                             onMouseDown={(e) => handleVideoResizeStart(e, index, 'top-right')}
                                                                             className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                             title="Resize video"
                                                                         />
-                                                                        <div 
+                                                                        <div
                                                                             onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-left')}
                                                                             className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                             title="Resize video"
                                                                         />
-                                                                        <div 
+                                                                        <div
                                                                             onMouseDown={(e) => handleVideoResizeStart(e, index, 'bottom-right')}
                                                                             className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md opacity-0 group-hover/video:opacity-100 transition-opacity z-20 hover:scale-125 pointer-events-auto"
                                                                             title="Resize video"
@@ -4936,16 +4962,18 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         {/* Page/Logic Footer Bar (Only shown in Edit tab) */}
                         {activeTab === 'Edit' && (
                             <div className="h-12 bg-white border-t border-slate-200 flex items-center justify-center px-6 w-full z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.01)] shrink-0 relative">
-                                <div className="absolute left-6 flex items-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsDiscussionModalOpen(true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl shadow-sm transition-all whitespace-nowrap"
-                                    >
-                                        <MessageSquare size={14} className="text-[#0b1329]" />
-                                        <span>Decide Activity</span>
-                                    </button>
-                                </div>
+                                {hasActivityControl('decideActivity') !== false && (
+                                    <div className="absolute left-6 flex items-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDiscussionModalOpen(true)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl shadow-sm transition-all whitespace-nowrap"
+                                        >
+                                            <MessageSquare size={14} className="text-[#0b1329]" />
+                                            <span>Decide Activity</span>
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
@@ -4959,73 +4987,83 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                             <Settings size={12} className="text-[#0b1329]" />
                                             <span>Page 1</span>
                                         </button>
-                                        <button
-                                            onClick={() => toast("Conditional Logic: configure rules to jump to pages.")}
-                                            className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
-                                        >
-                                            <Hash size={12} />
-                                            <span>Logic Rules</span>
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setBrowseTab('site');
-                                                setIsTemplatesBrowseOpen(true);
-                                            }}
-                                            className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
-                                        >
-                                            <Layout size={12} />
-                                            <span>Templates</span>
-                                        </button>
+                                        {hasActivityControl('logicRules') !== false && (
+                                            <button
+                                                onClick={() => toast("Conditional Logic: configure rules to jump to pages.")}
+                                                className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
+                                            >
+                                                <Hash size={12} />
+                                                <span>Logic Rules</span>
+                                            </button>
+                                        )}
+                                        {hasActivityControl('templates') !== false && (
+                                            <button
+                                                onClick={() => {
+                                                    setBrowseTab('site');
+                                                    setIsTemplatesBrowseOpen(true);
+                                                }}
+                                                className="px-3.5 py-1.5 text-slate-500 text-xs font-bold hover:text-slate-800 flex items-center gap-1.5 rounded-lg transition-all whitespace-nowrap"
+                                            >
+                                                <Layout size={12} />
+                                                <span>Templates</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Right Side: Location Locked + Monitoring */}
                                 <div className="absolute right-6 flex items-center gap-2">
                                     {/* Location Locked Button + Toggle */}
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
-                                        <MapPin size={13} className={locationLockedEnabled ? 'text-rose-500 animate-pulse' : 'text-slate-400'} />
-                                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Location Locked</span>
-                                        {/* Toggle Switch */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setLocationLockedEnabled(prev => !prev);
-                                                toast(locationLockedEnabled ? 'Location Lock disabled' : 'Location Lock enabled — students must be at the designated location.');
-                                            }}
-                                            className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
-                                            style={{ backgroundColor: locationLockedEnabled ? '#f43f5e' : '#cbd5e1' }}
-                                            title={locationLockedEnabled ? 'Location Lock ON' : 'Location Lock OFF'}
-                                        >
-                                            <div
-                                                className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
-                                                style={{ transform: locationLockedEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
-                                            />
-                                        </button>
-                                    </div>
+                                    {hasActivityControl('locationLocked') !== false && (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
+                                            <MapPin size={13} className={locationLockedEnabled ? 'text-rose-500 animate-pulse' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Location Locked</span>
+                                            {/* Toggle Switch */}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setLocationLockedEnabled(prev => !prev);
+                                                    toast(locationLockedEnabled ? 'Location Lock disabled' : 'Location Lock enabled — students must be at the designated location.');
+                                                }}
+                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
+                                                style={{ backgroundColor: locationLockedEnabled ? '#f43f5e' : '#cbd5e1' }}
+                                                title={locationLockedEnabled ? 'Location Lock ON' : 'Location Lock OFF'}
+                                            >
+                                                <div
+                                                    className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                                                    style={{ transform: locationLockedEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
 
-                                    <div className="w-px h-4 bg-slate-200" />
+                                    {hasActivityControl('locationLocked') !== false && hasActivityControl('monitoring') !== false && (
+                                        <div className="w-px h-4 bg-slate-200" />
+                                    )}
 
                                     {/* Monitoring Button + Toggle */}
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
-                                        <Shield size={13} className={monitoringEnabled ? 'text-emerald-500' : 'text-slate-400'} />
-                                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Monitoring</span>
-                                        {/* Toggle Switch */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setMonitoringEnabled(prev => !prev);
-                                                toast(monitoringEnabled ? 'Monitoring disabled' : 'Monitoring enabled — student activity will be tracked.');
-                                            }}
-                                            className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
-                                            style={{ backgroundColor: monitoringEnabled ? '#10b981' : '#cbd5e1' }}
-                                            title={monitoringEnabled ? 'Monitoring ON' : 'Monitoring OFF'}
-                                        >
-                                            <div
-                                                className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
-                                                style={{ transform: monitoringEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
-                                            />
-                                        </button>
-                                    </div>
+                                    {hasActivityControl('monitoring') !== false && (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl shadow-sm transition-all">
+                                            <Shield size={13} className={monitoringEnabled ? 'text-emerald-500' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Monitoring</span>
+                                            {/* Toggle Switch */}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setMonitoringEnabled(prev => !prev);
+                                                    toast(monitoringEnabled ? 'Monitoring disabled' : 'Monitoring enabled — student activity will be tracked.');
+                                                }}
+                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center focus:outline-none"
+                                                style={{ backgroundColor: monitoringEnabled ? '#10b981' : '#cbd5e1' }}
+                                                title={monitoringEnabled ? 'Monitoring ON' : 'Monitoring OFF'}
+                                            >
+                                                <div
+                                                    className="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                                                    style={{ transform: monitoringEnabled ? 'translateX(16px)' : 'translateX(0px)' }}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -5247,8 +5285,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         <button
                                             type="button"
                                             onClick={() => setTemplateMeta(prev => ({ ...prev, target: 'site' }))}
-                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'site' 
-                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600' 
+                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'site'
+                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600'
                                                 : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
                                         >
                                             <span className="text-xs font-bold">Save as Site</span>
@@ -5257,8 +5295,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         <button
                                             type="button"
                                             onClick={() => setTemplateMeta(prev => ({ ...prev, target: 'cloud' }))}
-                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'cloud' 
-                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600' 
+                                            className={`p-3 border rounded-xl flex flex-col items-center gap-1.5 transition-all text-center ${templateMeta.target === 'cloud'
+                                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 font-extrabold ring-1 ring-indigo-600'
                                                 : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
                                         >
                                             <span className="text-xs font-bold">Save as Cloud</span>
@@ -5310,8 +5348,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 <button
                                     type="button"
                                     onClick={() => setActiveLibraryHeaderTab('Section')}
-                                    className={`${activeLibraryHeaderTab === 'Section' 
-                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                    className={`${activeLibraryHeaderTab === 'Section'
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1'
                                         : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
                                 >
                                     Section
@@ -5319,8 +5357,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 <button
                                     type="button"
                                     onClick={() => setActiveLibraryHeaderTab('Form')}
-                                    className={`${activeLibraryHeaderTab === 'Form' 
-                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                    className={`${activeLibraryHeaderTab === 'Form'
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1'
                                         : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
                                 >
                                     Form
@@ -5328,8 +5366,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 <button
                                     type="button"
                                     onClick={() => setActiveLibraryHeaderTab('Templates')}
-                                    className={`${activeLibraryHeaderTab === 'Templates' 
-                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1' 
+                                    className={`${activeLibraryHeaderTab === 'Templates'
+                                        ? 'text-indigo-650 font-black border-b-2 border-indigo-650 pb-2 px-1'
                                         : 'text-slate-400 font-extrabold pb-2 px-1 hover:text-slate-650'} text-xs focus:outline-none transition-all`}
                                 >
                                     Templates
@@ -5391,7 +5429,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         // 1. Tab filter
                                         if (activeLibraryHeaderTab === 'Form' && tpl.type !== 'Form') return false;
                                         if (activeLibraryHeaderTab === 'Section' && tpl.type !== 'Section') return false;
-                                        
+
                                         // 2. Search query filter
                                         if (templateSearchQuery.trim()) {
                                             const query = templateSearchQuery.toLowerCase().trim();
@@ -5410,8 +5448,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                     <span>No matching results found for "{templateSearchQuery}".</span>
                                                 ) : (
                                                     <span>
-                                                        {browseTab === 'site' 
-                                                            ? `No ${activeLibraryHeaderTab.toLowerCase()} templates saved yet in your profile.` 
+                                                        {browseTab === 'site'
+                                                            ? `No ${activeLibraryHeaderTab.toLowerCase()} templates saved yet in your profile.`
                                                             : `No public cloud ${activeLibraryHeaderTab.toLowerCase()} templates available.`}
                                                     </span>
                                                 )}
@@ -5458,7 +5496,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                         <Eye size={12} />
                                                                         <span>Preview</span>
                                                                     </button>
-                                                                    
+
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => handleSelectTemplate(tpl)}
@@ -5511,7 +5549,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 {isAiGeneratorOpen && (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
                         <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg h-[600px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
-                            
+
                             {/* Modal Header */}
                             <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
                                 <div className="flex items-center gap-2">
@@ -5545,13 +5583,12 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 custom-scrollbar">
                                 {aiChatMessages.map((msg, idx) => (
                                     <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                                        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs font-semibold shadow-sm leading-relaxed ${
-                                            msg.sender === 'user' 
-                                                ? 'bg-indigo-600 text-white rounded-tr-none' 
+                                        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs font-semibold shadow-sm leading-relaxed ${msg.sender === 'user'
+                                                ? 'bg-indigo-600 text-white rounded-tr-none'
                                                 : 'bg-white text-slate-800 border border-slate-200/60 rounded-tl-none'
-                                        }`}>
+                                            }`}>
                                             <p className="whitespace-pre-wrap">{msg.text}</p>
-                                            
+
                                             {/* YouTube Embedded Cards */}
                                             {msg.videos && msg.videos.length > 0 && (
                                                 <div className="mt-3 space-y-3">
@@ -5573,12 +5610,12 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                                 ></iframe>
                                                                             </div>
                                                                         ) : (
-                                                                            <div 
+                                                                            <div
                                                                                 onClick={() => setActiveVideoId(videoId)}
                                                                                 className="relative aspect-video w-full cursor-pointer overflow-hidden group bg-black"
                                                                             >
-                                                                                <img 
-                                                                                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} 
+                                                                                <img
+                                                                                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
                                                                                     alt={vid.title}
                                                                                     className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all duration-300"
                                                                                 />
@@ -5600,9 +5637,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                         <p className="text-[9px] text-slate-400 font-medium line-clamp-2">{vid.description}</p>
                                                                     )}
                                                                     <div className="flex items-center justify-between gap-2 pt-2">
-                                                                        <a 
-                                                                            href={vid.url} 
-                                                                            target="_blank" 
+                                                                        <a
+                                                                            href={vid.url}
+                                                                            target="_blank"
                                                                             rel="noopener noreferrer"
                                                                             className="inline-flex items-center gap-1 text-[9px] font-bold text-rose-500 hover:underline"
                                                                         >
@@ -5613,11 +5650,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                             type="button"
                                                                             disabled={isAdded}
                                                                             onClick={() => handleInsertEmbeddedVideo(vid, idx)}
-                                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
-                                                                                isAdded 
-                                                                                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed' 
+                                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${isAdded
+                                                                                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
                                                                                     : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
-                                                                            }`}
+                                                                                }`}
                                                                         >
                                                                             {isAdded ? (
                                                                                 <>
@@ -5651,11 +5687,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                             type="button"
                                                             disabled={msg.added}
                                                             onClick={() => handleInsertGeneratedQuestions(msg.questions, idx)}
-                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
-                                                                msg.added 
-                                                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${msg.added
+                                                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                                                                     : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {msg.added ? (
                                                                 <>
@@ -5670,7 +5705,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                             )}
                                                         </button>
                                                     </div>
-                                                    
+
                                                     {/* Questions Mini Preview */}
                                                     <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 text-[10px] text-slate-500 font-medium custom-scrollbar">
                                                         {msg.questions.map((q, qIdx) => (

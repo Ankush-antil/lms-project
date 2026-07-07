@@ -49,7 +49,7 @@ async function main() {
     console.log("Reading sheet rows...");
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!A1:Z300`
+        range: `${sheetName}!A:Z`
     });
 
     const rows = res.data.values || [];

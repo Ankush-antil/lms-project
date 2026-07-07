@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Users, CreditCard, Clock, Receipt, BarChart3,
     Search, Filter, ChevronDown, X, IndianRupee, Calendar, TrendingUp,
     CheckCircle, AlertCircle, Loader2, RefreshCw, Plus, Eye, Phone,
-    MessageSquare, Printer, Download, ArrowUpRight, Wallet, FileText,
+    MessageSquare, Printer, Download, Upload, ArrowUpRight, Wallet, FileText,
     Settings as SettingsIcon, UserCheck, AlertTriangle, Trash2
 } from 'lucide-react';
 import {
@@ -37,6 +37,143 @@ const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Bank', 'Card', 'Cheque'];
 
 
+
+/* ─── Skeleton Loader Component ─── */
+const SkeletonLoader = () => {
+    return (
+        <div className="space-y-6 animate-pulse">
+            {/* Top Stats Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                    <div key={i} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3 shadow-sm">
+                        <div className="h-4 w-1/2 bg-slate-200 rounded-md" />
+                        <div className="h-8 w-2/3 bg-slate-200 rounded-md" />
+                        <div className="h-3 w-3/4 bg-slate-200 rounded-md" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Middle Section (2 columns for pending and charts) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* List Skeleton */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="h-5 w-1/3 bg-slate-200 rounded-md" />
+                        <div className="h-5 w-1/4 bg-slate-200 rounded-md" />
+                    </div>
+                    <div className="space-y-3">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                                <div className="h-9 w-9 bg-slate-200 rounded-full" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-4 w-1/3 bg-slate-200 rounded-md" />
+                                    <div className="h-3 w-1/2 bg-slate-200 rounded-md" />
+                                </div>
+                                <div className="h-5 w-16 bg-slate-200 rounded-md" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Chart Skeleton */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="h-5 w-1/3 bg-slate-200 rounded-md" />
+                    <div className="h-48 w-full bg-slate-50 rounded-xl flex items-end p-4 gap-3">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="flex-1 bg-slate-200 rounded-t-lg" style={{ height: `${20 + Math.random() * 60}%` }} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom Table Skeleton */}
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <div className="h-5 w-1/4 bg-slate-200 rounded-md" />
+                    <div className="h-8 w-1/3 bg-slate-200 rounded-md" />
+                </div>
+                <div className="space-y-3">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-100">
+                            <div className="h-4 w-16 bg-slate-200 rounded-md" />
+                            <div className="h-4 w-32 bg-slate-200 rounded-md" />
+                            <div className="h-4 w-24 bg-slate-200 rounded-md" />
+                            <div className="h-4 w-20 bg-slate-200 rounded-md" />
+                            <div className="h-4 w-16 bg-slate-200 rounded-md" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ─── Table Pagination Helper ─── */
+const TablePagination = ({ currentPage, totalPages, totalItems, startIndex, itemsPerPage, onPageChange }) => {
+    if (totalItems <= 0) return null;
+    return (
+        <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+            <div className="text-sm font-semibold text-slate-500">
+                Showing <span className="text-slate-700">{totalItems > 0 ? startIndex + 1 : 0}</span> to{' '}
+                <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, totalItems)}</span> of{' '}
+                <span className="text-slate-700">{totalItems}</span> entries
+            </div>
+            <div className="flex items-center gap-1">
+                <button
+                    disabled={currentPage === 1}
+                    onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+                    className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                    Previous
+                </button>
+                <div className="flex gap-1">
+                    {(() => {
+                        const pages = [];
+                        const maxVisible = 5;
+                        if (totalPages <= maxVisible) {
+                            for (let i = 1; i <= totalPages; i++) pages.push(i);
+                        } else {
+                            pages.push(1);
+                            let start = Math.max(2, currentPage - 1);
+                            let end = Math.min(totalPages - 1, currentPage + 1);
+                            if (currentPage <= 2) {
+                                end = 4;
+                            } else if (currentPage >= totalPages - 1) {
+                                start = totalPages - 3;
+                            }
+                            if (start > 2) pages.push('...');
+                            for (let i = start; i <= end; i++) pages.push(i);
+                            if (end < totalPages - 1) pages.push('...');
+                            pages.push(totalPages);
+                        }
+                        return pages.map((p, idx) => (
+                            <button
+                                key={idx}
+                                disabled={p === '...'}
+                                onClick={() => p !== '...' && onPageChange(p)}
+                                className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
+                                    ? 'text-slate-400 cursor-default bg-transparent'
+                                    : currentPage === p
+                                        ? 'bg-[#0b1329] text-white shadow-md'
+                                        : 'text-slate-600 hover:bg-slate-100 bg-transparent'
+                                    }`}
+                            >
+                                {p}
+                            </button>
+                        ));
+                    })()}
+                </div>
+                <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+                    className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+    );
+};
 
 /* ─── Avatar ─── */
 const Avatar = ({ name = '', size = 36, className = '' }) => {
@@ -854,6 +991,20 @@ export default function AdminFeePortal() {
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
+
+    // Pagination states
+    const [studentsPage, setStudentsPage] = useState(1);
+    const [pendingPage, setPendingPage] = useState(1);
+    const [receiptsPage, setReceiptsPage] = useState(1);
+    const itemsPerPage = 10;
+
+    useEffect(() => {
+        setStudentsPage(1);
+    }, [search, statusFilter, courseFilter]);
+
+    useEffect(() => {
+        setReceiptsPage(1);
+    }, [recSearch]);
     // Settings state
     const [settings, setSettings] = useState({ instituteName: 'Institute Fee Portal', contact: '', address: '', monthlyTarget: '' });
     const [settingsSaved, setSettingsSaved] = useState(false);
@@ -864,19 +1015,16 @@ export default function AdminFeePortal() {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [statsR, studentsR, pendingR, receiptsR, reportsR, configR] = await Promise.all([
-                axios.get(`/api/fees/admin/stats`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/all`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/pending-dues`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/receipts`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/reports`, { withCredentials: true }),
+            const [mergedR, configR] = await Promise.all([
+                axios.get(`/api/fees/admin/dashboard-data`, { withCredentials: true }),
                 axios.get(`/api/sync/config`, { withCredentials: true }).catch(() => ({ data: null }))
             ]);
-            setStats(statsR.data);
-            setStudents(studentsR.data);
-            setPendingDues(pendingR.data);
-            setReceipts(receiptsR.data);
-            setReports(reportsR.data);
+            const { stats, students, pendingDues, receipts, reports } = mergedR.data;
+            setStats(stats);
+            setStudents(students);
+            setPendingDues(pendingDues);
+            setReceipts(receipts);
+            setReports(reports);
             if (configR && configR.data) {
                 setSyncConfig(configR.data);
                 setSpreadsheetIdInput(configR.data.spreadsheetId || '');
@@ -1142,81 +1290,51 @@ export default function AdminFeePortal() {
             ? `https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`
             : null;
 
+        const totalStudentsPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
+        const studentsStartIndex = (studentsPage - 1) * itemsPerPage;
+        const paginatedStudents = filteredStudents.slice(studentsStartIndex, studentsStartIndex + itemsPerPage);
+
         return (
             <div className="space-y-4">
                 {/* Filters */}
-                <div className="flex flex-wrap gap-3">
-                    <div className="relative flex-1 min-w-48">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
-                            className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                    </div>
-                    <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
-                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                        <option value="All" className="bg-white">All Courses</option>
-                        {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
-                    </select>
-                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
-                        {['All', 'Paid', 'Partial', 'Pending'].map(s => (
-                            <option key={s} value={s} className="bg-white">{s}</option>
-                        ))}
-                    </select>
-                    <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
-                </div>
-
-                {/* Google Sheets Integration Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
-                                📊 Google Sheets Integration
-                            </h3>
-                            <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                <div className="flex flex-wrap gap-3 items-center justify-between">
+                    <div className="flex flex-wrap gap-3 items-center flex-1">
+                        <div className="relative flex-1 min-w-48 max-w-xs">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
+                                className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
                         </div>
-                        {sheetUrl && (
-                            <a 
-                                href={sheetUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
-                            >
-                                <FileText size={12} /> Open Sheet ↗
-                            </a>
-                        )}
+                        <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="All" className="bg-white">All Courses</option>
+                            {courses.map(c => <option key={c} value={c} className="bg-white">{c}</option>)}
+                        </select>
+                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            {['All', 'Paid', 'Partial', 'Pending'].map(s => (
+                                <option key={s} value={s} className="bg-white">{s}</option>
+                            ))}
+                        </select>
+                        <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
-                            <div className="flex gap-2">
-                                <input
-                                    value={spreadsheetIdInput}
-                                    onChange={e => setSpreadsheetIdInput(e.target.value)}
-                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                                    placeholder="Paste Google Spreadsheet ID here"
-                                />
-                                <button
-                                    onClick={saveAllSettings}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
-                                >
-                                    {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[10px] text-slate-500 leading-relaxed">
-                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
-                            <ol className="list-decimal pl-4 space-y-0.5">
-                                <li>Create a new Google Sheet in your account.</li>
-                                <li>
-                                    Share it with editor permissions to email: 
-                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
-                                </li>
-                                <li>Paste the Spreadsheet ID from the URL and click Save.</li>
-                            </ol>
-                        </div>
-                    </div>
+                    {syncConfig?.spreadsheetId ? (
+                        <a 
+                            href={sheetUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold transition-colors shadow-sm"
+                        >
+                            <FileText size={12} /> Open Sheet ↗
+                        </a>
+                    ) : (
+                        <button
+                            onClick={() => setActiveTab('settings')}
+                            className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold transition-colors shadow-sm"
+                        >
+                            <FileText size={12} /> Link to Google Sheet
+                        </button>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -1237,14 +1355,14 @@ export default function AdminFeePortal() {
                                 <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Balance</th>
                                 <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Months</th>
                                 <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Status</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Action</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredStudents.length === 0 && (
+                            {paginatedStudents.length === 0 && (
                                 <tr><td colSpan={13} className="text-center py-10 text-slate-500">No records found</td></tr>
                             )}
-                            {filteredStudents.map(r => {
+                            {paginatedStudents.map(r => {
                                 const totalExtra = (r.extraCharges || []).reduce((s, ec) => s + (ec.amount || 0), 0);
                                 const joiningDate = r.student?.studentProfile?.enrollmentDate
                                     ? new Date(r.student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
@@ -1313,7 +1431,7 @@ export default function AdminFeePortal() {
                                             <span className={`text-xs px-2 py-1 rounded-lg font-bold ${STATUS_COLORS[r.status]}`}>{r.status}</span>
                                         </td>
                                         {/* Action */}
-                                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                                        <td className="px-4 py-3 text-center whitespace-nowrap sticky right-0 bg-white hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
                                             <div className="flex items-center justify-center gap-1.5">
                                                 {r.student?._id && (
                                                     <button 
@@ -1345,6 +1463,14 @@ export default function AdminFeePortal() {
                         </tbody>
                     </table>
                 </div>
+                <TablePagination 
+                    currentPage={studentsPage}
+                    totalPages={totalStudentsPages}
+                    totalItems={filteredStudents.length}
+                    startIndex={studentsStartIndex}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setStudentsPage}
+                />
             </div>
         </div>
         );
@@ -1368,62 +1494,76 @@ export default function AdminFeePortal() {
     };
 
     /* ─── Pending Dues Tab ─── */
-    const renderPending = () => (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="text-slate-800 font-black">Pending Dues ({pendingDues.length})</h3>
-                <p className="text-xs text-slate-500">Sorted by most overdue first</p>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-slate-200">
-                            <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-5 py-3">Student</th>
-                            <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Course</th>
-                            <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Mobile</th>
-                            <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Due Amount</th>
-                            <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Due Date</th>
-                            <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Aging</th>
-                            <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {pendingDues.length === 0 && (
-                            <tr><td colSpan={7} className="text-center py-10 text-slate-500">No pending dues! 🎉</td></tr>
-                        )}
-                        {pendingDues.map(r => (
-                            <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                <td className="px-5 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar name={r.student?.name || ''} size={32} />
-                                        <div>
-                                            <p className="text-slate-800 text-sm font-bold">{r.student?.name || '—'}</p>
-                                            <p className="text-slate-500 text-xs">{r.student?.mobileNumber || ''}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3 text-slate-700 text-sm">{r.course}</td>
-                                <td className="px-4 py-3 text-slate-500 text-sm">{r.student?.mobileNumber || '—'}</td>
-                                <td className="px-4 py-3 text-right text-red-400 font-black text-sm">{fmt(r.pendingAmount)}</td>
-                                <td className="px-4 py-3 text-slate-400 text-xs">{fmtDate(r.nextDueDate)}</td>
-                                <td className="px-4 py-3 text-center">
-                                    <span className={`text-xs px-2 py-1 rounded-lg font-bold ${AGING_COLORS[r.aging] || 'bg-slate-500/20 text-slate-400'}`}>
-                                        {r.aging}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    <button onClick={() => openCollect(r.student?._id)}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
-                                        Collect
-                                    </button>
-                                </td>
+    const renderPending = () => {
+        const totalPendingPages = Math.ceil(pendingDues.length / itemsPerPage) || 1;
+        const pendingStartIndex = (pendingPage - 1) * itemsPerPage;
+        const paginatedPending = pendingDues.slice(pendingStartIndex, pendingStartIndex + itemsPerPage);
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-slate-800 font-black">Pending Dues ({pendingDues.length})</h3>
+                    <p className="text-xs text-slate-500">Sorted by most overdue first</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-slate-200">
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-5 py-3">Student</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Course</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Mobile</th>
+                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Due Amount</th>
+                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Due Date</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Aging</th>
+                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Action</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {paginatedPending.length === 0 && (
+                                <tr><td colSpan={7} className="text-center py-10 text-slate-500">No pending dues! 🎉</td></tr>
+                            )}
+                            {paginatedPending.map(r => (
+                                <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <td className="px-5 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar name={r.student?.name || ''} size={32} />
+                                            <div>
+                                                <p className="text-slate-800 text-sm font-bold">{r.student?.name || '—'}</p>
+                                                <p className="text-slate-500 text-xs">{r.student?.mobileNumber || ''}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-700 text-sm">{r.course}</td>
+                                    <td className="px-4 py-3 text-slate-500 text-sm">{r.student?.mobileNumber || '—'}</td>
+                                    <td className="px-4 py-3 text-right text-red-400 font-black text-sm">{fmt(r.pendingAmount)}</td>
+                                    <td className="px-4 py-3 text-slate-400 text-xs">{fmtDate(r.nextDueDate)}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        <span className={`text-xs px-2 py-1 rounded-lg font-bold ${AGING_COLORS[r.aging] || 'bg-slate-500/20 text-slate-400'}`}>
+                                            {r.aging}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        <button onClick={() => openCollect(r.student?._id)}
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
+                                            Collect
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <TablePagination 
+                    currentPage={pendingPage}
+                    totalPages={totalPendingPages}
+                    totalItems={pendingDues.length}
+                    startIndex={pendingStartIndex}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setPendingPage}
+                />
             </div>
-        </div>
-    );
+        );
+    };
 
     /* ─── Receipts Tab ─── */
     const renderReceipts = () => {
@@ -1431,6 +1571,11 @@ export default function AdminFeePortal() {
             !recSearch || r.receiptNo?.toLowerCase().includes(recSearch.toLowerCase()) ||
             r.studentName?.toLowerCase().includes(recSearch.toLowerCase())
         );
+
+        const totalReceiptsPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+        const receiptsStartIndex = (receiptsPage - 1) * itemsPerPage;
+        const paginatedReceipts = filtered.slice(receiptsStartIndex, receiptsStartIndex + itemsPerPage);
+
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -1455,10 +1600,10 @@ export default function AdminFeePortal() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.length === 0 && (
+                            {paginatedReceipts.length === 0 && (
                                 <tr><td colSpan={7} className="text-center py-10 text-slate-500">No receipts found</td></tr>
                             )}
-                            {filtered.map(r => (
+                            {paginatedReceipts.map(r => (
                                 <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                     <td className="px-5 py-3 text-indigo-400 text-xs font-bold">{r.receiptNo}</td>
                                     <td className="px-4 py-3">
@@ -1483,6 +1628,14 @@ export default function AdminFeePortal() {
                         </tbody>
                     </table>
                 </div>
+                <TablePagination 
+                    currentPage={receiptsPage}
+                    totalPages={totalReceiptsPages}
+                    totalItems={filtered.length}
+                    startIndex={receiptsStartIndex}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setReceiptsPage}
+                />
             </div>
         );
     };
@@ -1691,6 +1844,80 @@ export default function AdminFeePortal() {
                         </button>
                     </div>
                 </div>
+
+                {/* Google Sheets Integration Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
+                                📊 Google Sheets Integration
+                            </h3>
+                            <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                        </div>
+                        {syncConfig?.spreadsheetId && (
+                            <a 
+                                href={`https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
+                            >
+                                <FileText size={12} /> Open Sheet ↗
+                            </a>
+                        )}
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={spreadsheetIdInput}
+                                    onChange={e => setSpreadsheetIdInput(e.target.value)}
+                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                    placeholder="Paste Google Spreadsheet ID here"
+                                />
+                                <button
+                                    onClick={saveAllSettings}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
+                                >
+                                    {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Import & Export Action Buttons */}
+                        <div className="flex flex-wrap gap-3 pt-2">
+                            <button
+                                onClick={handleImport}
+                                disabled={syncLoading}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                            >
+                                <RefreshCw size={12} className={syncLoading ? 'animate-spin' : ''} />
+                                Sync & Import from Sheet
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                disabled={syncLoading}
+                                className="bg-slate-700 hover:bg-slate-800 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                            >
+                                <Upload size={12} className={syncLoading ? 'animate-spin' : ''} />
+                                Export to Sheet
+                            </button>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">
+                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
+                            <ol className="list-decimal pl-4 space-y-1">
+                                <li>Create a new Google Sheet in your account.</li>
+                                <li>
+                                    Share it with editor permissions to email: 
+                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
+                                </li>
+                                <li>Paste the Spreadsheet ID from the URL and click Save.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     };
@@ -1776,9 +2003,7 @@ export default function AdminFeePortal() {
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                     {loading && !stats ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 size={32} className="animate-spin text-indigo-400" />
-                        </div>
+                        <SkeletonLoader />
                     ) : (
                         <>
                             {activeTab === 'dashboard' && renderDashboard()}

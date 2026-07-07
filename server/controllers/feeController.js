@@ -290,6 +290,124 @@ const deleteFeeRecord = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'Fee record removed' });
 });
 
+// @desc    Get all dashboard data in a single query (combines stats, all records, pending, receipts, reports)
+// @route   GET /api/fees/admin/dashboard-data
+const getMergedDashboardData = asyncHandler(async (req, res) => {
+    // 1. Fetch all records and populate student details in a single query
+    const allRecords = await FeeRecord.find({})
+        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
+        .sort({ updatedAt: -1 });
+
+    // 2. Compute Stats
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    let todayCollection = 0;
+    let monthlyCollection = 0;
+    let totalPending = 0;
+
+    // Reports maps
+    const modeMap = {};
+    const monthMap = {};
+    const courseMap = {};
+    const receiptsList = [];
+    const pendingList = [];
+
+    const now = new Date();
+
+    allRecords.forEach(r => {
+        // Stats & Reports
+        if (!courseMap[r.course]) courseMap[r.course] = { totalFee: 0, paid: 0, pending: 0 };
+        courseMap[r.course].totalFee += r.totalFee;
+        courseMap[r.course].paid += r.paidAmount;
+        courseMap[r.course].pending += r.pendingAmount;
+
+        r.transactions.forEach(t => {
+            const tDate = new Date(t.date);
+            if (tDate >= today) todayCollection += t.amount;
+            if (tDate >= monthStart) monthlyCollection += t.amount;
+
+            // Mode split
+            modeMap[t.paymentMode] = (modeMap[t.paymentMode] || 0) + t.amount;
+            // Monthly trend
+            const m = new Date(t.date).toLocaleString('default', { month: 'short', year: 'numeric' });
+            monthMap[m] = (monthMap[m] || 0) + t.amount;
+
+            // Receipts list
+            receiptsList.push({
+                _id: t._id,
+                feeRecordId: r._id,
+                receiptNo: t.receiptNo,
+                studentName: r.student?.name,
+                studentId: r.student?._id,
+                avatar: r.student?.avatar,
+                course: r.course,
+                batch: r.batch,
+                amount: t.amount,
+                paymentMode: t.paymentMode,
+                referenceNo: t.referenceNo,
+                remark: t.remark,
+                collectedBy: t.collectedBy,
+                date: t.date
+            });
+        });
+
+        totalPending += r.pendingAmount;
+
+        // Pending dues list
+        if (r.status === 'Pending' || r.status === 'Partial') {
+            const dueDays = r.nextDueDate ? Math.floor((now - new Date(r.nextDueDate)) / (1000 * 60 * 60 * 24)) : null;
+            let aging = 'Current';
+            if (dueDays !== null) {
+                if (dueDays >= 60) aging = '60+ days';
+                else if (dueDays >= 31) aging = '31-60 days';
+                else if (dueDays >= 1) aging = '1-30 days';
+            }
+            pendingList.push({ ...r.toObject(), dueDays, aging });
+        }
+    });
+
+    // Sort receipts and pending
+    receiptsList.sort((a, b) => new Date(b.date) - new Date(a.date));
+    pendingList.sort((a, b) => new Date(a.nextDueDate) - new Date(b.nextDueDate));
+
+    // Top pending (limit 5)
+    const topPending = allRecords
+        .filter(r => r.pendingAmount > 0)
+        .sort((a, b) => b.pendingAmount - a.pendingAmount)
+        .slice(0, 5)
+        .map(r => ({
+            _id: r._id,
+            student: r.student,
+            course: r.course,
+            batch: r.batch,
+            pendingAmount: r.pendingAmount,
+            nextDueDate: r.nextDueDate
+        }));
+
+    res.json({
+        stats: {
+            todayCollection,
+            monthlyCollection,
+            totalPending,
+            totalStudents: allRecords.length,
+            paidCount: allRecords.filter(r => r.status === 'Paid').length,
+            pendingCount: allRecords.filter(r => r.status === 'Pending').length,
+            partialCount: allRecords.filter(r => r.status === 'Partial').length,
+            topPending
+        },
+        students: allRecords,
+        pendingDues: pendingList,
+        receipts: receiptsList,
+        reports: {
+            courseWise: Object.entries(courseMap).map(([course, v]) => ({ course, ...v })),
+            paymentModes: Object.entries(modeMap).map(([mode, amount]) => ({ mode, amount })),
+            monthlyTrend: Object.entries(monthMap).map(([month, amount]) => ({ month, amount })).slice(-12)
+        }
+    });
+});
+
 module.exports = {
     getAllFeeRecords,
     getDashboardStats,
@@ -301,5 +419,6 @@ module.exports = {
     getMyFees,
     getReports,
     deleteTransaction,
-    deleteFeeRecord
+    deleteFeeRecord,
+    getMergedDashboardData
 };

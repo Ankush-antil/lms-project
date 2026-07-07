@@ -56,7 +56,7 @@ async function main() {
     console.log(`📥 Fetching data from spreadsheet: ${spreadsheetId}...`);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!A1:M200`,
+        range: `${sheetName}!A:Z`,
     });
 
     const rows = res.data.values || [];
@@ -79,6 +79,7 @@ async function main() {
 
             // Map column offsets
             const admissionNo = row[0] ? row[0].toString().trim() : '';
+            const ledgerNo = row[1] ? row[1].toString().trim() : '';
             const mobile1 = row[2] ? row[2].toString().trim() : '';
             const mobile2 = row[3] ? row[3].toString().trim() : '';
             const dateOfJoiningStr = row[4] ? row[4].toString().trim() : '';
@@ -94,13 +95,16 @@ async function main() {
                 continue;
             }
 
-            // Try to find existing student by admissionNo or name
+            // Try to find existing student by ledgerNo or compound fields
             let student = null;
-            if (admissionNo) {
-                student = await User.findOne({ admissionNo, role: 'Student' });
+            if (ledgerNo) {
+                student = await User.findOne({ "studentProfile.ledgerNo": ledgerNo, role: 'Student' });
             }
             if (!student) {
-                student = await User.findOne({ name, role: 'Student' });
+                const query = { name, role: 'Student' };
+                if (fatherName) query.fatherName = fatherName;
+                if (admissionNo) query.admissionNo = admissionNo;
+                student = await User.findOne(query);
             }
 
             const enrollmentDate = parseDate(dateOfJoiningStr);
@@ -111,11 +115,37 @@ async function main() {
 
             let courseDoc = null;
             if (courseName) {
-                courseDoc = await Course.findOne({ name: { $regex: new RegExp("^" + courseName.trim() + "$", "i") } });
+                const courseCode = courseName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+                // 1. Try to find by name (case-insensitive exact match)
+                courseDoc = await Course.findOne({ 
+                    institute: instId, 
+                    name: { $regex: new RegExp("^" + courseName.trim() + "$", "i") } 
+                });
+
+                // 2. If not found, try to find by name prefix (e.g. "CDA" matches "CDA (1 year)")
+                if (!courseDoc) {
+                    courseDoc = await Course.findOne({
+                        institute: instId,
+                        $or: [
+                            { name: { $regex: new RegExp("^" + courseName.trim(), "i") } },
+                            { name: { $regex: new RegExp(courseName.trim() + ".*", "i") } }
+                        ]
+                    });
+                }
+
+                // 3. If still not found, try to find by course code (e.g. "CDA" matches code "CDA")
+                if (!courseDoc && courseCode) {
+                    courseDoc = await Course.findOne({ 
+                        institute: instId, 
+                        code: courseCode 
+                    });
+                }
+
+                // 4. If still not found, create a new course
                 if (!courseDoc) {
                     if (instId) {
                         console.log(`[Import] Course ${courseName} not found. Creating it...`);
-                        const courseCode = courseName.toUpperCase().replace(/[^A-Z0-9]/g, '');
                         courseDoc = new Course({
                             name: courseName,
                             code: courseCode || 'TEMP',
@@ -132,8 +162,18 @@ async function main() {
             // Generate unique email if student is new
             if (!student) {
                 const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '.');
-                const suffix = admissionNo ? admissionNo : Math.floor(1000 + Math.random() * 9000);
-                const email = `${cleanName}.${suffix}@lms.com`;
+                let suffix = ledgerNo || Math.floor(10000 + Math.random() * 90000);
+                let email = `${cleanName}.${suffix}@lms.com`;
+                
+                // Verify uniqueness to prevent duplicate key errors
+                let emailExists = await User.findOne({ email });
+                let attempts = 0;
+                while (emailExists && attempts < 10) {
+                    suffix = `${ledgerNo || 'rand'}-${Math.floor(1000 + Math.random() * 9000)}`;
+                    email = `${cleanName}.${suffix}@lms.com`;
+                    emailExists = await User.findOne({ email });
+                    attempts++;
+                }
                 const password = 'password123';
 
                 console.log(`👤 Creating new Student: ${name} (Email: ${email})`);
@@ -148,6 +188,7 @@ async function main() {
                     mobile2: mobile2 || '',
                     institute: instId,
                     studentProfile: {
+                        ledgerNo: ledgerNo || '',
                         course: courseDoc ? courseDoc._id : undefined,
                         batch: 'Batch-A',
                         section: 'A',
@@ -164,6 +205,7 @@ async function main() {
                 student.mobile2 = mobile2 || student.mobile2 || '';
                 student.institute = instId || student.institute;
                 if (!student.studentProfile) student.studentProfile = {};
+                student.studentProfile.ledgerNo = ledgerNo || student.studentProfile.ledgerNo || '';
                 student.studentProfile.enrollmentDate = enrollmentDate;
                 if (courseDoc) {
                     student.studentProfile.course = courseDoc._id;

@@ -54,6 +54,7 @@ const userSchema = new mongoose.Schema({
     },
     // Role specific fields
     studentProfile: {
+        ledgerNo: { type: String, default: '' },
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
         subject: { type: String, default: '' },   // ← new: subject assigned by admin
         batch: { type: String },

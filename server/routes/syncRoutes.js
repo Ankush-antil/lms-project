@@ -8,6 +8,18 @@ const { setSyncDisabled } = require('../utils/googleSheets');
 const { notifyFeeRecordUpdate } = require('../socket');
 
 
+router.get('/debug-courses', async (req, res) => {
+    try {
+        const Course = require('../models/Course');
+        const User = require('../models/User');
+        const courses = await Course.find({});
+        const users = await User.find({ name: { $regex: /Saniya|Payal|Nitin|Khushi/i } });
+        res.json({ success: true, courses, users });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/sync/sheets
 // Receives updates from Google Sheets Apps Script trigger
 router.post('/sheets', async (req, res) => {
@@ -59,23 +71,47 @@ router.post('/sheets', async (req, res) => {
 
         let courseDoc = null;
         if (course) {
-            courseDoc = await Course.findOne({ name: { $regex: new RegExp("^" + course.trim() + "$", "i") } });
+            const defaultInst = await Institute.findOne({});
+            const instId = defaultInst ? defaultInst._id : null;
+            const courseCode = course.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+            // 1. Try to find by name (case-insensitive exact match)
+            courseDoc = await Course.findOne({ 
+                institute: instId, 
+                name: { $regex: new RegExp("^" + course.trim() + "$", "i") } 
+            });
+
+            // 2. If not found, try to find by name prefix (e.g. "CDA" matches "CDA (1 year)")
             if (!courseDoc) {
-                const defaultInst = await Institute.findOne({});
-                const instId = defaultInst ? defaultInst._id : null;
-                if (instId) {
-                    console.log(`[Webhook Sync] Course ${course} not found. Creating it...`);
-                    const courseCode = course.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    courseDoc = new Course({
-                        name: course,
-                        code: courseCode || 'TEMP',
-                        institute: instId
-                    });
-                    await courseDoc.save().catch(err => {
-                        console.log(`⚠️ Failed to create course: ${err.message}`);
-                        courseDoc = null;
-                    });
-                }
+                courseDoc = await Course.findOne({
+                    institute: instId,
+                    $or: [
+                        { name: { $regex: new RegExp("^" + course.trim(), "i") } },
+                        { name: { $regex: new RegExp(course.trim() + ".*", "i") } }
+                    ]
+                });
+            }
+
+            // 3. If still not found, try to find by course code (e.g. "CDA" matches code "CDA")
+            if (!courseDoc && courseCode) {
+                courseDoc = await Course.findOne({ 
+                    institute: instId, 
+                    code: courseCode 
+                });
+            }
+
+            // 4. If still not found, create a new course
+            if (!courseDoc && instId) {
+                console.log(`[Webhook Sync] Course ${course} not found. Creating it...`);
+                courseDoc = new Course({
+                    name: course,
+                    code: courseCode || 'TEMP',
+                    institute: instId
+                });
+                await courseDoc.save().catch(err => {
+                    console.log(`⚠️ Failed to create course: ${err.message}`);
+                    courseDoc = null;
+                });
             }
         }
 
@@ -236,6 +272,7 @@ router.post('/config', protect, adminOrEditor, (req, res) => {
     }
 });
 
+
 // POST /api/sync/import
 // Trigger full manual import from Google Sheets to MongoDB
 router.post('/import', protect, adminOrEditor, async (req, res) => {
@@ -259,3 +296,4 @@ router.post('/export', protect, adminOrEditor, async (req, res) => {
 });
 
 module.exports = router;
+// Trigger restart 5678

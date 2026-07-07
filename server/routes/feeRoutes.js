@@ -12,10 +12,12 @@ const {
     getMyFees,
     getReports,
     deleteTransaction,
-    deleteFeeRecord
+    deleteFeeRecord,
+    getMergedDashboardData
 } = require('../controllers/feeController');
 
 // Admin routes
+router.get('/admin/dashboard-data', protect, adminOrEditor, getMergedDashboardData);
 router.get('/admin/all', protect, adminOrEditor, getAllFeeRecords);
 router.get('/admin/stats', protect, adminOrEditor, getDashboardStats);
 router.get('/admin/pending-dues', protect, adminOrEditor, getPendingDues);

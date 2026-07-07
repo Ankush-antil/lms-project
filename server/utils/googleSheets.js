@@ -42,44 +42,40 @@ function getSheetsClient() {
 }
 
 /**
- * Sheet column layout (A through M — 13 columns):
- * A: FeeRecord ID
- * B: Admission No.
- * C: Name
- * D: Father Name
- * E: Mobile No. 1
- * F: Mobile No. 2
- * G: Date of Joining
+ * Custom layout (A to L - 12 columns):
+ * A: Adm. no.
+ * B: Ledger  No.
+ * C: Mobile no.
+ * D: Mobile1
+ * E: Date of Joining 
+ * F: Name 
+ * G: Father name
  * H: Course Name
- * I: Course Fee
- * J: Extra Charges
- * K: Balance (Pending)
- * L: Months
- * M: Status
+ * I: Course fees
+ * J: fine
+ * K: Balance
+ * L: Mode
  */
-const SHEET_RANGE = 'A:M';
-const SHEET_LAST_COL = 'M';
+const SHEET_RANGE = 'A:L';
+const SHEET_LAST_COL = 'L';
 
 const SHEET_HEADER = [
-    'FeeRecord ID',
-    'Admission No.',
-    'Name',
-    'Father Name',
-    'Mobile No. 1',
-    'Mobile No. 2',
-    'Date of Joining',
+    'Adm. no.',
+    'Ledger  No.',
+    'Mobile no.',
+    'Mobile1',
+    'Date of Joining ',
+    'Name ',
+    'Father name',
     'Course Name',
-    'Course Fee',
-    'Extra Charges',
+    'Course fees',
+    'fine',
     'Balance',
-    'Months',
-    'Status'
+    'Mode'
 ];
 
 /**
  * Format a fee record document into a row array matching the column layout.
- * Requires `record.student` to be populated with:
- *   name, email, mobileNumber, mobile2, fatherName, admissionNo, studentProfile
  */
 function formatRow(record) {
     const student = record.student || {};
@@ -89,24 +85,27 @@ function formatRow(record) {
         : '';
 
     const totalExtraCharges = (record.extraCharges || []).reduce((sum, ec) => sum + (ec.amount || 0), 0);
-    const extraChargesDetail = (record.extraCharges || [])
-        .map(ec => `${ec.label || 'Extra'}: ₹${ec.amount}`)
-        .join(', ') || '0';
+    const courseName = student.studentProfile?.course?.name || record.course || '';
+    
+    // Find payment mode from transactions
+    let mode = 'Cash';
+    if (record.transactions && record.transactions.length > 0) {
+        mode = record.transactions[record.transactions.length - 1].paymentMode || 'Cash';
+    }
 
     return [
-        record._id.toString(),                          // A: FeeRecord ID
-        student.admissionNo || '',                      // B: Admission No.
-        student.name || '',                             // C: Name
-        student.fatherName || '',                       // D: Father Name
-        student.mobileNumber || '',                     // E: Mobile No. 1
-        student.mobile2 || '',                          // F: Mobile No. 2
-        enrollmentDate,                                 // G: Date of Joining
-        record.course || '',                            // H: Course Name
+        student.admissionNo || '',                      // A: Adm. no.
+        student.studentProfile?.ledgerNo || '',         // B: Ledger No.
+        student.mobileNumber || '',                     // C: Mobile no.
+        student.mobile2 || '',                          // D: Mobile1
+        enrollmentDate,                                 // E: Date of Joining
+        student.name || '',                             // F: Name
+        student.fatherName || '',                       // G: Father name
+        courseName,                                     // H: Course Name
         record.totalFee || 0,                           // I: Course Fee
-        extraChargesDetail,                             // J: Extra Charges
+        totalExtraCharges || 0,                         // J: fine
         record.pendingAmount || 0,                      // K: Balance
-        record.months || 0,                             // L: Months
-        record.status || 'Pending'                      // M: Status
+        mode                                            // L: Mode
     ];
 }
 
@@ -127,18 +126,16 @@ async function syncToSheets(record) {
 
     try {
         // Ensure student relation is populated with all needed fields
-        if (!record.populated('student') && record.student && typeof record.student === 'object' && !record.student.name) {
-            await record.populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile');
+        if (record.student) {
+            await record.populate({
+                path: 'student',
+                select: 'name email mobileNumber mobile2 fatherName admissionNo studentProfile',
+                populate: { path: 'studentProfile.course', select: 'name' }
+            });
         }
 
         const student = record.student || {};
         console.log(`[Google Sheets Sync] Syncing FeeRecord ${recordId} for ${student.name || 'unknown'}...`);
-
-        const enrollmentDate = student.studentProfile?.enrollmentDate
-            ? new Date(student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            : '';
-
-        const totalExtraCharges = (record.extraCharges || []).reduce((sum, ec) => sum + (ec.amount || 0), 0);
 
         // Read all values from Column A to Z to find the student
         const res = await sheets.spreadsheets.values.get({
@@ -166,57 +163,33 @@ async function syncToSheets(record) {
             }
         }
 
+        const updatedRow = formatRow(record);
+
         if (rowIndex !== -1 && matchedRow) {
-            // Update existing row (preserve Ledger No. and Month Payments columns)
             console.log(`[Google Sheets Sync] Updating existing row ${rowIndex} in Sheet...`);
-            
-            // Pad array to ensure at least 12 elements
-            while (matchedRow.length < 12) {
-                matchedRow.push('');
+            // Preserve Ledger No from the sheet if not set in DB
+            if (matchedRow[1] && !updatedRow[1]) {
+                updatedRow[1] = matchedRow[1];
             }
-            
-            matchedRow[0] = student.admissionNo || '';
-            matchedRow[2] = student.mobileNumber || '';
-            matchedRow[3] = student.mobile2 || '';
-            matchedRow[4] = enrollmentDate;
-            matchedRow[5] = student.name || '';
-            matchedRow[6] = student.fatherName || '';
-            matchedRow[7] = record.course || '';
-            matchedRow[8] = record.totalFee || 0;
-            matchedRow[9] = totalExtraCharges || 0;
-            matchedRow[10] = record.pendingAmount || 0;
-            matchedRow[11] = matchedRow[11] || 'Cash'; // Default payment mode to "Cash"
+            // Preserve Mode from sheet if default in DB
+            if (matchedRow[11] && updatedRow[11] === 'Cash') {
+                updatedRow[11] = matchedRow[11];
+            }
 
             await sheets.spreadsheets.values.update({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:Z${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:L${rowIndex}`,
                 valueInputOption: 'USER_ENTERED',
-                resource: { values: [matchedRow] }
+                resource: { values: [updatedRow] }
             });
         } else {
-            // Append new row matching the new layout
             console.log(`[Google Sheets Sync] Appending new row to Sheet...`);
-            const newRow = [
-                student.admissionNo || '',
-                '', // Ledger No.
-                student.mobileNumber || '',
-                student.mobile2 || '',
-                enrollmentDate,
-                student.name || '',
-                student.fatherName || '',
-                record.course || '',
-                record.totalFee || 0,
-                totalExtraCharges || 0,
-                record.pendingAmount || 0,
-                'Cash' // Default Mode to Cash
-            ];
-
             await sheets.spreadsheets.values.append({
                 spreadsheetId,
                 range: `${sheetName}!A1:L`,
                 valueInputOption: 'USER_ENTERED',
                 insertDataOption: 'INSERT_ROWS',
-                resource: { values: [newRow] }
+                resource: { values: [updatedRow] }
             });
         }
         console.log('✅ [Google Sheets Sync] Successfully synced to Sheets.');
@@ -266,7 +239,7 @@ async function deleteFromSheets(recordId, admissionNo, studentName) {
             console.log(`[Google Sheets Sync] Clearing row ${rowIndex} in Sheet...`);
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:Z${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:L${rowIndex}`,
             });
             console.log('✅ [Google Sheets Sync] Successfully cleared row from Sheets.');
         } else {
@@ -279,7 +252,6 @@ async function deleteFromSheets(recordId, admissionNo, studentName) {
 
 /**
  * Import all data from Google Sheets into MongoDB
- * Note: Import reads columns B(email-replaced by name), H(course), I(totalFee), L(months) for update
  */
 async function importFromSheets() {
     const client = getSheetsClient();
@@ -288,130 +260,234 @@ async function importFromSheets() {
     const { sheets, spreadsheetId, sheetName } = client;
     const User = require('../models/User');
     const FeeRecord = require('../models/FeeRecord');
+    const Course = require('../models/Course');
+    const Institute = require('../models/Institute');
 
+    // Robust date parser helper
+    const parseDate = (dateStr) => {
+        if (!dateStr) return new Date();
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d;
+        const parts = dateStr.split(/[-/]/);
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            const parsedD = new Date(year, month, day);
+            if (!isNaN(parsedD.getTime())) return parsedD;
+        }
+        return new Date();
+    };
+
+    console.log(`[Google Sheets Import] Fetching range A:L from: ${spreadsheetId}...`);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!${SHEET_RANGE}`,
+        range: `${sheetName}!A:Z`,
     });
 
     const rows = res.data.values || [];
-    if (rows.length <= 1) {
-        return { importedCount: 0, message: 'No rows to import' };
+    if (rows.length <= 2) {
+        return { importedCount: 0, message: 'No student rows found' };
     }
 
     let importedCount = 0;
     const updatedRows = [];
-    updatedRows.push(rows[0]); // Keep header
+    updatedRows.push(rows[0]); // Metadata row
+    updatedRows.push(rows[1]); // Header row
 
     isSyncDisabled = true;
 
     try {
-        for (let i = 1; i < rows.length; i++) {
+        // Start from Row 3 (index 2)
+        for (let i = 2; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.length === 0) {
                 updatedRows.push([]);
                 continue;
             }
 
-            // Map columns
-            const id           = row[0]  ? row[0].toString().trim()  : '';  // A
-            const admissionNo  = row[1]  ? row[1].toString().trim()  : '';  // B
-            const name         = row[2]  ? row[2].toString().trim()  : '';  // C
-            const fatherName   = row[3]  ? row[3].toString().trim()  : '';  // D
-            const mobile1      = row[4]  ? row[4].toString().trim()  : '';  // E
-            const mobile2      = row[5]  ? row[5].toString().trim()  : '';  // F
-            // G: date of joining — read-only for import
-            const courseName   = row[7]  ? row[7].toString().trim()  : '';  // H
-            const totalFee     = row[8]  ? parseFloat(row[8])        : 0;   // I
-            // J: extra charges — read-only for import (complex format)
-            // K: balance — computed field
-            const months       = row[11] ? parseInt(row[11])         : 0;   // L
-            // M: status — computed
+            // Map custom columns:
+            const admissionNo  = row[0] ? row[0].toString().trim() : '';  // A: Adm. no.
+            const ledgerNo     = row[1] ? row[1].toString().trim() : '';  // B: Ledger No.
+            const mobile1      = row[2] ? row[2].toString().trim() : '';  // C: Mobile no.
+            const mobile2      = row[3] ? row[3].toString().trim() : '';  // D: Mobile1
+            const joiningStr   = row[4] ? row[4].toString().trim() : '';  // E: Date of Joining
+            const name         = row[5] ? row[5].toString().trim() : '';  // F: Name
+            const fatherName   = row[6] ? row[6].toString().trim() : '';  // G: Father name
+            const courseName   = row[7] ? row[7].toString().trim() : '';  // H: Course Name
+            const totalFee     = row[8] ? parseFloat(row[8]) : 0;   // I: Course fees
+            const fine         = row[9] ? parseFloat(row[9]) : 0;   // J: fine
+            const balance      = row[10] ? parseFloat(row[10]) : 0;  // K: Balance
+            const mode         = row[11] ? row[11].toString().trim() : 'Cash'; // L: Mode
 
-            if (!name && !id) {
+            if (!name) {
                 updatedRows.push(row);
                 continue;
             }
 
-            // Find student by admission no or name
+            // Try to find existing student by ledgerNo or compound fields
             let student = null;
-            if (id) {
-                try {
-                    const feeRec = await FeeRecord.findById(id).populate('student');
-                    if (feeRec?.student) student = feeRec.student;
-                } catch (_) {}
+            if (ledgerNo) {
+                student = await User.findOne({ "studentProfile.ledgerNo": ledgerNo, role: 'Student' });
             }
-
-            if (!student && admissionNo) {
-                student = await User.findOne({ admissionNo, role: 'Student' });
-            }
-
             if (!student) {
-                if (name) {
-                    console.log(`[Import] Student not found. Creating new Student User for name: ${name}...`);
-                    const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '.');
-                    const suffix = admissionNo ? admissionNo : Math.floor(1000 + Math.random() * 9000);
-                    const email = `${cleanName}.${suffix}@lms.com`;
-                    const password = 'password123';
-                    
-                    student = new User({
-                        name,
-                        email,
-                        password,
-                        role: 'Student',
-                        admissionNo: admissionNo || '',
-                        fatherName: fatherName || '',
-                        mobileNumber: mobile1 || '',
-                        mobile2: mobile2 || '',
-                        studentProfile: {
-                            batch: '',
-                            section: 'A',
-                            enrollmentDate: new Date()
-                        }
+                const query = { name, role: 'Student' };
+                if (fatherName) query.fatherName = fatherName;
+                if (admissionNo) query.admissionNo = admissionNo;
+                student = await User.findOne(query);
+            }
+
+            const enrollmentDate = parseDate(joiningStr);
+            const defaultInst = await Institute.findOne({ name: /hartron/i }) || await Institute.findOne({});
+            const instId = defaultInst ? defaultInst._id : null;
+
+            // Generate unique email if student is new
+            if (!student) {
+                console.log(`[Import] Creating new Student: ${name}`);
+                const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '.');
+                let suffix = ledgerNo || Math.floor(10000 + Math.random() * 90000);
+                let email = `${cleanName}.${suffix}@lms.com`;
+                let emailExists = await User.findOne({ email });
+                let attempts = 0;
+                while (emailExists && attempts < 10) {
+                    suffix = `${ledgerNo || 'rand'}-${Math.floor(1000 + Math.random() * 9000)}`;
+                    email = `${cleanName}.${suffix}@lms.com`;
+                    emailExists = await User.findOne({ email });
+                    attempts++;
+                }
+
+                student = new User({
+                    name,
+                    email,
+                    password: 'password123',
+                    role: 'Student',
+                    admissionNo: admissionNo || '',
+                    fatherName: fatherName || '',
+                    mobileNumber: mobile1 || '',
+                    mobile2: mobile2 || '',
+                    institute: instId,
+                    studentProfile: {
+                        ledgerNo: ledgerNo || '',
+                        batch: 'Batch-A',
+                        section: 'A',
+                        enrollmentDate: enrollmentDate
+                    }
+                });
+                await student.save();
+            } else {
+                // Update existing student details
+                student.admissionNo = admissionNo || student.admissionNo || '';
+                student.fatherName = fatherName || student.fatherName || '';
+                student.mobileNumber = mobile1 || student.mobileNumber || '';
+                student.mobile2 = mobile2 || student.mobile2 || '';
+                student.institute = instId || student.institute;
+                if (!student.studentProfile) student.studentProfile = {};
+                student.studentProfile.ledgerNo = ledgerNo || student.studentProfile.ledgerNo || '';
+                student.studentProfile.enrollmentDate = enrollmentDate;
+            }
+
+            // Link Course
+            let courseDoc = null;
+            if (courseName) {
+                const courseCode = courseName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+                const escapedCourseName = courseName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                courseDoc = await Course.findOne({ 
+                    institute: instId, 
+                    name: { $regex: new RegExp("^" + escapedCourseName + "$", "i") } 
+                });
+
+                if (!courseDoc) {
+                    courseDoc = await Course.findOne({
+                        institute: instId,
+                        $or: [
+                            { name: { $regex: new RegExp("^" + escapedCourseName, "i") } },
+                            { name: { $regex: new RegExp(escapedCourseName + ".*", "i") } }
+                        ]
                     });
-                    await student.save();
-                } else {
-                    console.log(`[Import] Skipping row ${i + 1} — no name or admission No provided`);
-                    updatedRows.push(row);
-                    continue;
+                }
+
+                if (!courseDoc && courseCode) {
+                    courseDoc = await Course.findOne({ 
+                        institute: instId, 
+                        code: courseCode 
+                    });
+                }
+
+                if (!courseDoc && instId) {
+                    console.log(`[Import] Course ${courseName} not found. Creating it...`);
+                    courseDoc = new Course({
+                        name: courseName,
+                        code: courseCode || 'TEMP',
+                        institute: instId
+                    });
+                    await courseDoc.save().catch(err => {
+                        console.log(`⚠️ Failed to create course: ${err.message}`);
+                        courseDoc = null;
+                    });
+                }
+
+                if (courseDoc) {
+                    if (!student.studentProfile) student.studentProfile = {};
+                    student.studentProfile.course = courseDoc._id;
                 }
             }
 
-            // Update student fields
-            if (fatherName) student.fatherName = fatherName;
-            if (admissionNo) student.admissionNo = admissionNo;
-            if (mobile1) student.mobileNumber = mobile1;
-            if (mobile2) student.mobile2 = mobile2;
             await student.save();
 
             // Find or create FeeRecord
-            let record = null;
-            if (id) {
-                try { record = await FeeRecord.findById(id); } catch (_) {}
-            }
-            if (!record) {
-                record = await FeeRecord.findOne({ student: student._id });
-            }
+            let record = await FeeRecord.findOne({ student: student._id });
             if (!record) {
                 record = new FeeRecord({ student: student._id });
             }
 
             record.course = courseName || record.course || '';
-            record.totalFee = Number(totalFee);
-            if (months) record.months = Number(months);
+            record.totalFee = isNaN(totalFee) ? 0 : totalFee;
+            if (courseDoc && courseDoc.duration) {
+                record.months = courseDoc.duration;
+            }
+
+            // Handle extra charges / fine
+            if (!isNaN(fine) && fine > 0) {
+                record.extraCharges = [{
+                    label: 'Fine',
+                    amount: fine,
+                    remark: 'Imported Fine'
+                }];
+                record.totalFee += fine;
+            }
 
             await record.save();
-            importedCount++;
 
+            // Update balance
+            if (!isNaN(balance)) {
+                record.pendingAmount = balance;
+                record.paidAmount = Math.max(0, record.totalFee - balance);
+                if (record.pendingAmount === 0) record.status = 'Paid';
+                else if (record.paidAmount > 0) record.status = 'Partial';
+                else record.status = 'Pending';
+                
+                await FeeRecord.updateOne({ _id: record._id }, {
+                    $set: {
+                        pendingAmount: record.pendingAmount,
+                        paidAmount: record.paidAmount,
+                        status: record.status
+                    }
+                });
+            }
+
+            importedCount++;
+            
             // Build updated row for write-back
             const updatedRow = formatRow({ ...record.toObject(), student });
             updatedRows.push(updatedRow);
         }
 
-        // Overwrite Sheet with updated data
+        // Overwrite Sheet with updated layout data
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheetName}!A1:${SHEET_LAST_COL}${updatedRows.length}`,
+            range: `${sheetName}!A1:L${updatedRows.length}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: updatedRows }
         });
@@ -433,8 +509,11 @@ async function exportToSheets() {
     const FeeRecord = require('../models/FeeRecord');
 
     const records = await FeeRecord.find({})
-        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
-        .lean();
+        .populate({
+            path: 'student',
+            select: 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar',
+            populate: { path: 'studentProfile.course', select: 'name' }
+        });
 
     const rows = [SHEET_HEADER];
     records.forEach(record => {

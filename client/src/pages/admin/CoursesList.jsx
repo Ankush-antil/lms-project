@@ -144,14 +144,14 @@ const CoursesList = () => {
 
                                         {/* Subjects */}
                                         <td className="p-4 whitespace-nowrap text-xs">
-                                            <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                            <div className="flex items-center gap-1.5 whitespace-nowrap">
                                                 {course.subjects?.slice(0, 3).map((sub, idx) => (
-                                                    <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                                    <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                                         {sub}
                                                     </span>
                                                 ))}
                                                 {course.subjects?.length > 3 && (
-                                                    <span className="px-2 py-0.5 bg-slate-100 text-[#0b1329] rounded-lg text-[10px] font-bold">
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-[#0b1329] rounded-lg text-[10px] font-bold whitespace-nowrap">
                                                         +{course.subjects.length - 3} More
                                                     </span>
                                                 )}

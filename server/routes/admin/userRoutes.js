@@ -12,7 +12,10 @@ const {
     getInboxConfigs,
     saveInboxConfig,
     getActivityConfigs,
-    saveActivityConfig
+    saveActivityConfig,
+    getDeletedUsers,
+    restoreUser,
+    permanentlyDeleteUser
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -29,6 +32,11 @@ router.post('/inbox-configs', protect, saveInboxConfig);
 router.get('/activity-configs', protect, getActivityConfigs);
 router.get('/activity-configs/:studentId', protect, getActivityConfigs);
 router.post('/activity-configs', protect, saveActivityConfig);
+
+// Trash routes
+router.get('/trash', protect, adminOrEditor, getDeletedUsers);
+router.put('/:id/restore', protect, adminOrEditor, restoreUser);
+router.delete('/:id/permanent', protect, adminOrEditor, permanentlyDeleteUser);
 
 // Specific routes
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);

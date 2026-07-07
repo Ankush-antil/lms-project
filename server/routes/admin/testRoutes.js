@@ -7,7 +7,10 @@ const {
     updateTest, 
     deleteTest,
     getInstituteEditors,
-    updateTestCollaborators
+    updateTestCollaborators,
+    getDeletedTests,
+    restoreTest,
+    permanentlyDeleteTest
 } = require('../../controllers/admin/testController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 
@@ -15,8 +18,17 @@ router.route('/')
     .get(protect, getTests)
     .post(protect, adminOrEditor, createTest);
 
+router.route('/trash')
+    .get(protect, getDeletedTests);
+
 router.route('/editors')
     .get(protect, adminOrEditor, getInstituteEditors);
+
+router.route('/:id/restore')
+    .put(protect, restoreTest);
+
+router.route('/:id/permanent')
+    .delete(protect, permanentlyDeleteTest);
 
 router.route('/:id')
     .get(protect, getTestById)

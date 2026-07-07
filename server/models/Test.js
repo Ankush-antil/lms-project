@@ -212,6 +212,10 @@ const testSchema = new mongoose.Schema({
     isAssigned: {
         type: Boolean,
         default: false
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

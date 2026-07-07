@@ -7,6 +7,7 @@ import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Ey
 import AddCourseModal from '../../components/AddCourseModal';
 import CourseDetailsModal from '../../components/CourseDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const CoursesList = () => {
     const { user } = useAuth();
@@ -18,6 +19,7 @@ const CoursesList = () => {
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -70,17 +72,26 @@ const CoursesList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Courses Management</h1>
                     <p className="text-slate-500">Organize curriculum and academic programs.</p>
                 </div>
-                {user?.role !== 'Admin' && user?.institute?.controls?.course?.addCourse !== false && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => {
-                            setSelectedCourse(null);
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95"
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
                     >
-                        <Plus size={20} /> Add New Course
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                    {user?.role !== 'Admin' && user?.institute?.controls?.course?.addCourse !== false && (
+                        <button
+                            onClick={() => {
+                                setSelectedCourse(null);
+                                setIsModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Plus size={20} /> Add New Course
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Search */}
@@ -303,6 +314,17 @@ const CoursesList = () => {
                     setSelectedCourse(null);
                 }}
                 course={selectedCourse}
+            />
+
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Courses Recycle Bin"
+                trashUrl="/api/setup/courses/trash"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/setup/courses/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/setup/courses/${id}/permanent`}
+                renderItemDetail={(item) => `Code: ${item.code} | Subjects: ${item.subjects?.join(', ') || 'N/A'}`}
             />
         </DashboardLayout>
     );

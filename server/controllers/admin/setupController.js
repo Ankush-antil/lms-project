@@ -14,6 +14,9 @@ const getInstitutes = asyncHandler(async (req, res) => {
     // Get all institutes and their course counts
     const institutes = await Institute.aggregate([
         {
+            $match: { isDeleted: { $ne: true } }
+        },
+        {
             $lookup: {
                 from: 'courses',
                 localField: '_id',
@@ -292,7 +295,8 @@ const createInstitute = asyncHandler(async (req, res) => {
 // @access  Public
 const getCourses = asyncHandler(async (req, res) => {
     const { instituteId, status } = req.query;
-    const query = instituteId ? { institute: instituteId } : {};
+    const query = { isDeleted: { $ne: true } };
+    if (instituteId) query.institute = instituteId;
 
     if (status !== 'all') {
         query.status = status || 'active';
@@ -441,16 +445,17 @@ const deleteInstitute = asyncHandler(async (req, res) => {
     const institute = await Institute.findById(req.params.id);
 
     if (institute) {
-        await institute.deleteOne();
+        institute.isDeleted = true;
+        await institute.save();
 
         await Activity.create({
             type: 'INSTITUTE_DELETED',
-            message: 'Institute removed',
+            message: 'Institute moved to Recycle Bin',
             detail: `${institute.name} (${institute.code})`,
             user: req.user._id
         });
 
-        res.json({ message: 'Institute removed' });
+        res.json({ message: 'Institute moved to Recycle Bin' });
     } else {
         res.status(404);
         throw new Error('Institute not found');
@@ -469,16 +474,17 @@ const deleteCourse = asyncHandler(async (req, res) => {
             res.status(403);
             throw new Error('Not authorized to delete courses of other institutes');
         }
-        await course.deleteOne();
+        course.isDeleted = true;
+        await course.save();
 
         await Activity.create({
             type: 'COURSE_DELETED',
-            message: 'Course removed',
+            message: 'Course moved to Recycle Bin',
             detail: `${course.name} (${course.code})`,
             user: req.user._id
         });
 
-        res.json({ message: 'Course removed' });
+        res.json({ message: 'Course moved to Recycle Bin' });
     } else {
         res.status(404);
         throw new Error('Course not found');
@@ -920,6 +926,90 @@ const getSectionPreview = asyncHandler(async (req, res) => {
     res.json({ section, currentCount: count, capacity });
 });
 
+// @desc    Get deleted courses
+// @route   GET /api/setup/courses/trash
+// @access  Private/Admin or Editor
+const getDeletedCourses = asyncHandler(async (req, res) => {
+    const query = { isDeleted: true };
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        query.institute = req.user.institute;
+    }
+    const courses = await Course.find(query)
+        .populate('institute')
+        .populate('createdBy', 'name email role');
+    res.json(courses);
+});
+
+// @desc    Restore a deleted course
+// @route   PUT /api/setup/courses/:id/restore
+// @access  Private/Admin or Editor
+const restoreCourse = asyncHandler(async (req, res) => {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && course.institute.toString() !== req.user.institute.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to restore courses of other institutes');
+    }
+    course.isDeleted = false;
+    await course.save();
+    res.json({ message: 'Course restored successfully', course });
+});
+
+// @desc    Permanently delete a course
+// @route   DELETE /api/setup/courses/:id/permanent
+// @access  Private/Admin or Editor
+const permanentlyDeleteCourse = asyncHandler(async (req, res) => {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && course.institute.toString() !== req.user.institute.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete courses of other institutes');
+    }
+    await course.deleteOne();
+    res.json({ message: 'Course permanently deleted' });
+});
+
+// @desc    Get deleted institutes
+// @route   GET /api/setup/institutes/trash
+// @access  Private/Admin
+const getDeletedInstitutes = asyncHandler(async (req, res) => {
+    const institutes = await Institute.find({ isDeleted: true });
+    res.json(institutes);
+});
+
+// @desc    Restore a deleted institute
+// @route   PUT /api/setup/institutes/:id/restore
+// @access  Private/Admin
+const restoreInstitute = asyncHandler(async (req, res) => {
+    const institute = await Institute.findById(req.params.id);
+    if (!institute) {
+        res.status(404);
+        throw new Error('Institute not found');
+    }
+    institute.isDeleted = false;
+    await institute.save();
+    res.json({ message: 'Institute restored successfully', institute });
+});
+
+// @desc    Permanently delete an institute
+// @route   DELETE /api/setup/institutes/:id/permanent
+// @access  Private/Admin
+const permanentlyDeleteInstitute = asyncHandler(async (req, res) => {
+    const institute = await Institute.findById(req.params.id);
+    if (!institute) {
+        res.status(404);
+        throw new Error('Institute not found');
+    }
+    await institute.deleteOne();
+    res.json({ message: 'Institute permanently deleted' });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -944,5 +1034,11 @@ module.exports = {
     getSubjects,
     deleteApplication,
     toggleInstituteFlag,
-    getSectionPreview
+    getSectionPreview,
+    getDeletedCourses,
+    restoreCourse,
+    permanentlyDeleteCourse,
+    getDeletedInstitutes,
+    restoreInstitute,
+    permanentlyDeleteInstitute
 };

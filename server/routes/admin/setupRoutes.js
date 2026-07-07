@@ -22,7 +22,13 @@ const {
     registerStudent,
     getSubjects,
     deleteApplication,
-    getSectionPreview
+    getSectionPreview,
+    getDeletedCourses,
+    restoreCourse,
+    permanentlyDeleteCourse,
+    getDeletedInstitutes,
+    restoreInstitute,
+    permanentlyDeleteInstitute
 } = require('../../controllers/admin/setupController');
 const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
@@ -38,6 +44,15 @@ router.route('/institutes/upload-image')
 // Institute document upload (must be before /institutes/:id to avoid conflict)
 router.route('/institutes/upload-document')
     .post(protect, admin, uploadInstituteDocumentController);
+
+router.route('/institutes/trash')
+    .get(protect, admin, getDeletedInstitutes);
+
+router.route('/institutes/:id/restore')
+    .put(protect, admin, restoreInstitute);
+
+router.route('/institutes/:id/permanent')
+    .delete(protect, admin, permanentlyDeleteInstitute);
 
 router.route('/institutes/:id')
     .get(protect, adminOrInstitute, getInstituteDetails)
@@ -58,6 +73,15 @@ router.route('/subjects')
 // Syllabus upload (must be before /courses/:id)
 router.route('/courses/upload-syllabus')
     .post(protect, adminOrInstitute, uploadSyllabusController);
+
+router.route('/courses/trash')
+    .get(protect, adminOrEditor, getDeletedCourses);
+
+router.route('/courses/:id/restore')
+    .put(protect, adminOrEditor, restoreCourse);
+
+router.route('/courses/:id/permanent')
+    .delete(protect, adminOrEditor, permanentlyDeleteCourse);
 
 router.route('/courses/:id')
     .put(protect, adminOrEditor, updateCourse)

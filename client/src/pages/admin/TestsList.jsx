@@ -1,6 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -51,6 +52,7 @@ const TestsList = () => {
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [riTest, setRiTest] = useState(null);
     const [showRiModal, setShowRiModal] = useState(false);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     // Google Forms Style Responses States
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'responses'
@@ -1916,12 +1918,21 @@ const TestsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Assessment Dashboard</h1>
                     <p className="text-slate-500 text-sm">Manage LMS tests and configure public testing web links.</p>
                 </div>
-                <button
-                    onClick={() => navigate(`${basePath}/activities-builder`)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95"
-                >
-                    <Plus size={20} /> Create New Assessment
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-xl text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
+                    <button
+                        onClick={() => navigate(`${basePath}/activities-builder`)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                    >
+                        <Plus size={20} /> Create New Assessment
+                    </button>
+                </div>
             </div>
 
             {/* Tab Selectors & Folder Explorer Trigger */}
@@ -2985,6 +2996,17 @@ const TestsList = () => {
                 </div>,
                 document.body
             )}
+
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Assessment Recycle Bin"
+                trashUrl="/api/tests/trash"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/tests/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/tests/${id}/permanent`}
+                renderItemDetail={(item) => `Course: ${item.course} | Subject: ${item.subject}`}
+            />
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }

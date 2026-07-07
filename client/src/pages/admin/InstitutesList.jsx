@@ -9,6 +9,7 @@ import AddInstituteModal from '../../components/AddInstituteModal';
 import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const InstitutesList = () => {
     const { user } = useAuth();
@@ -30,6 +31,7 @@ const InstitutesList = () => {
     const [controlsPanel, setControlsPanel] = useState(null); // { inst } or null
     const [controlsData, setControlsData] = useState(null);
     const [savingControls, setSavingControls] = useState(false);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     const defaultControls = {
         dashboard: { show: true, application: true, staffRequest: true },
@@ -195,12 +197,21 @@ const InstitutesList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Institutes Management</h1>
                     <p className="text-slate-500">Manage partner institutions and campuses.</p>
                 </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95"
-                >
-                    <Plus size={20} /> Add New Institute
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                    >
+                        <Plus size={20} /> Add New Institute
+                    </button>
+                </div>
             </div>
 
             {/* Tabs switcher */}
@@ -810,6 +821,16 @@ const InstitutesList = () => {
                 </div>,
                 document.body
             )}
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Institutes Recycle Bin"
+                trashUrl="/api/setup/institutes/trash"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/setup/institutes/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/setup/institutes/${id}/permanent`}
+                renderItemDetail={(item) => `Code: ${item.code} | Email: ${item.contactEmail}`}
+            />
         </DashboardLayout>
     );
 };

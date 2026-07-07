@@ -9,6 +9,7 @@ import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const StudentsList = () => {
     const { user } = useAuth();
@@ -29,6 +30,7 @@ const StudentsList = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -142,14 +144,23 @@ const StudentsList = () => {
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && user?.institute?.controls?.student?.addStudent !== false && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="btn-primary flex items-center gap-2"
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
                     >
-                        <Plus size={20} /> Add New Student
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                    {user?.role !== 'Admin' && user?.institute?.controls?.student?.addStudent !== false && (
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} /> Add New Student
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
@@ -407,6 +418,16 @@ const StudentsList = () => {
                 }}
                 user={selectedUser}
                 onSuccess={fetchData}
+            />
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Students Recycle Bin"
+                trashUrl="/api/users/trash?role=Student"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email} | Course: ${item.studentProfile?.course?.name || 'N/A'}`}
             />
         </DashboardLayout>
     );

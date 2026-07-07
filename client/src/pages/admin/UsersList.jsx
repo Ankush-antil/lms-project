@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Trash2, Calendar } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
@@ -19,6 +20,7 @@ const UsersList = () => {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -144,6 +146,15 @@ const UsersList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">System Users Directory</h1>
                     <p className="text-slate-500">View all registered user accounts and their created date/time, role, and details.</p>
                 </div>
+                {viewTab === 'registered' && (
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
+                )}
             </div>
 
             {/* View Tabs */}
@@ -484,6 +495,16 @@ const UsersList = () => {
                     </div>
                 )}
             </div>
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="System Users Recycle Bin"
+                trashUrl="/api/users/trash"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email} | Role: ${item.role}`}
+            />
         </DashboardLayout>
     );
 };

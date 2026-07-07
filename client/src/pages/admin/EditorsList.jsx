@@ -9,6 +9,7 @@ import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const EditorsList = () => {
     const { user } = useAuth();
@@ -25,6 +26,7 @@ const EditorsList = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -115,14 +117,23 @@ const EditorsList = () => {
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2"
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
                     >
-                        <Plus size={20} /> Add New Editor
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                    {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <Plus size={20} /> Add New Editor
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
@@ -316,6 +327,16 @@ const EditorsList = () => {
                 }}
                 user={selectedUser}
                 onSuccess={fetchData}
+            />
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Editors Recycle Bin"
+                trashUrl="/api/users/trash?role=Editor"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email}`}
             />
         </DashboardLayout>
     );

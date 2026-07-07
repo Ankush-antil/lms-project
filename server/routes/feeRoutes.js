@@ -10,7 +10,9 @@ const {
     setupFeeRecord,
     getStudentFeeRecord,
     getMyFees,
-    getReports
+    getReports,
+    deleteTransaction,
+    deleteFeeRecord
 } = require('../controllers/feeController');
 
 // Admin routes
@@ -22,6 +24,8 @@ router.get('/admin/reports', protect, adminOrEditor, getReports);
 router.post('/admin/collect', protect, adminOrEditor, collectFee);
 router.post('/admin/setup', protect, adminOrEditor, setupFeeRecord);
 router.get('/admin/student/:id', protect, adminOrEditor, getStudentFeeRecord);
+router.delete('/admin/transaction/:id', protect, adminOrEditor, deleteTransaction);
+router.delete('/admin/record/:id', protect, adminOrEditor, deleteFeeRecord);
 
 // Student routes
 router.get('/student/my-fees', protect, getMyFees);

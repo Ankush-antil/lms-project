@@ -4,6 +4,8 @@ const Activity = require('../../models/Activity');
 const Course = require('../../models/Course');
 const StudentInboxConfig = require('../../models/StudentInboxConfig');
 const StudentActivityConfig = require('../../models/StudentActivityConfig');
+const FeeRecord = require('../../models/FeeRecord');
+const { deleteFromSheets } = require('../../utils/googleSheets');
 
 // Helper: compute section letter for a student
 const computeSection = async (courseId) => {
@@ -184,9 +186,17 @@ const deleteUser = asyncHandler(async (req, res) => {
             throw new Error('Not authorized to delete users belonging to other institutes');
         }
 
-        user.isDeleted = true;
-        await user.save();
-        res.json({ message: 'User moved to Recycle Bin' });
+        // If student, delete their FeeRecord and sync Google Sheets
+        if (user.role === 'Student') {
+            const record = await FeeRecord.findOne({ student: user._id });
+            if (record) {
+                await deleteFromSheets(record._id, user.admissionNo, user.name);
+                await record.deleteOne();
+            }
+        }
+
+        await user.deleteOne();
+        res.json({ message: 'User removed' });
     } else {
         res.status(404);
         throw new Error('User not found');

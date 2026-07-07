@@ -131,45 +131,92 @@ async function syncToSheets(record) {
             await record.populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile');
         }
 
-        console.log(`[Google Sheets Sync] Syncing FeeRecord ${recordId} for ${record.student?.name || 'unknown'}...`);
+        const student = record.student || {};
+        console.log(`[Google Sheets Sync] Syncing FeeRecord ${recordId} for ${student.name || 'unknown'}...`);
 
-        // Read all values from Column A (FeeRecord ID) to find if the record exists
+        const enrollmentDate = student.studentProfile?.enrollmentDate
+            ? new Date(student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '';
+
+        const totalExtraCharges = (record.extraCharges || []).reduce((sum, ec) => sum + (ec.amount || 0), 0);
+
+        // Read all values from Column A to Z to find the student
         const res = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A:A`,
+            range: `${sheetName}!A1:Z300`,
         });
 
         const rows = res.data.values || [];
         let rowIndex = -1;
+        let matchedRow = null;
 
-        // Search for the ID in Column A (skip header at index 0)
-        for (let i = 1; i < rows.length; i++) {
-            if (rows[i][0] === recordId) {
+        // Search for student row by Admission No. or Name
+        for (let i = 2; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row) continue;
+            const rowAdmNo = row[0] ? row[0].toString().trim() : '';
+            const rowName = row[5] ? row[5].toString().trim().toLowerCase() : '';
+            const targetAdmNo = student.admissionNo ? student.admissionNo.toString().trim() : '';
+            const targetName = student.name ? student.name.toString().trim().toLowerCase() : '';
+
+            if ((targetAdmNo && rowAdmNo === targetAdmNo) || (targetName && rowName === targetName)) {
                 rowIndex = i + 1; // 1-indexed row number
+                matchedRow = row;
                 break;
             }
         }
 
-        const rowData = formatRow(record);
+        if (rowIndex !== -1 && matchedRow) {
+            // Update existing row (preserve Ledger No. and Month Payments columns)
+            console.log(`[Google Sheets Sync] Updating existing row ${rowIndex} in Sheet...`);
+            
+            // Pad array to ensure at least 12 elements
+            while (matchedRow.length < 12) {
+                matchedRow.push('');
+            }
+            
+            matchedRow[0] = student.admissionNo || '';
+            matchedRow[2] = student.mobileNumber || '';
+            matchedRow[3] = student.mobile2 || '';
+            matchedRow[4] = enrollmentDate;
+            matchedRow[5] = student.name || '';
+            matchedRow[6] = student.fatherName || '';
+            matchedRow[7] = record.course || '';
+            matchedRow[8] = record.totalFee || 0;
+            matchedRow[9] = totalExtraCharges || 0;
+            matchedRow[10] = record.pendingAmount || 0;
+            matchedRow[11] = matchedRow[11] || 'Cash'; // Default payment mode to "Cash"
 
-        if (rowIndex !== -1) {
-            // Update existing row
-            console.log(`[Google Sheets Sync] Updating row ${rowIndex} in Sheet...`);
             await sheets.spreadsheets.values.update({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:${SHEET_LAST_COL}${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:Z${rowIndex}`,
                 valueInputOption: 'USER_ENTERED',
-                resource: { values: [rowData] }
+                resource: { values: [matchedRow] }
             });
         } else {
-            // Append new row
+            // Append new row matching the new layout
             console.log(`[Google Sheets Sync] Appending new row to Sheet...`);
+            const newRow = [
+                student.admissionNo || '',
+                '', // Ledger No.
+                student.mobileNumber || '',
+                student.mobile2 || '',
+                enrollmentDate,
+                student.name || '',
+                student.fatherName || '',
+                record.course || '',
+                record.totalFee || 0,
+                totalExtraCharges || 0,
+                record.pendingAmount || 0,
+                'Cash' // Default Mode to Cash
+            ];
+
             await sheets.spreadsheets.values.append({
                 spreadsheetId,
-                range: `${sheetName}!${SHEET_RANGE}`,
+                range: `${sheetName}!A1:L`,
                 valueInputOption: 'USER_ENTERED',
                 insertDataOption: 'INSERT_ROWS',
-                resource: { values: [rowData] }
+                resource: { values: [newRow] }
             });
         }
         console.log('✅ [Google Sheets Sync] Successfully synced to Sheets.');
@@ -181,7 +228,7 @@ async function syncToSheets(record) {
 /**
  * Remove/Clear a FeeRecord from Google Sheets
  */
-async function deleteFromSheets(recordId) {
+async function deleteFromSheets(recordId, admissionNo, studentName) {
     if (isSyncDisabled) return;
 
     const client = getSheetsClient();
@@ -190,20 +237,27 @@ async function deleteFromSheets(recordId) {
     const { sheets, spreadsheetId, sheetName } = client;
 
     try {
-        console.log(`[Google Sheets Sync] Deleting FeeRecord ${recordId} from Sheet...`);
+        console.log(`[Google Sheets Sync] Deleting student from Sheet: AdmNo=${admissionNo}, Name=${studentName}...`);
 
-        // Read Column A to find the row
         const res = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A:A`,
+            range: `${sheetName}!A1:Z300`,
         });
 
         const rows = res.data.values || [];
         let rowIndex = -1;
 
-        for (let i = 1; i < rows.length; i++) {
-            if (rows[i][0] === recordId.toString()) {
-                rowIndex = i + 1;
+        // Search for student row by Admission No. or Name
+        for (let i = 2; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row) continue;
+            const rowAdmNo = row[0] ? row[0].toString().trim() : '';
+            const rowName = row[5] ? row[5].toString().trim().toLowerCase() : '';
+            const targetAdmNo = admissionNo ? admissionNo.toString().trim() : '';
+            const targetName = studentName ? studentName.toString().trim().toLowerCase() : '';
+
+            if ((targetAdmNo && rowAdmNo === targetAdmNo) || (targetName && rowName === targetName)) {
+                rowIndex = i + 1; // 1-indexed row number
                 break;
             }
         }
@@ -212,11 +266,11 @@ async function deleteFromSheets(recordId) {
             console.log(`[Google Sheets Sync] Clearing row ${rowIndex} in Sheet...`);
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:${SHEET_LAST_COL}${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:Z${rowIndex}`,
             });
             console.log('✅ [Google Sheets Sync] Successfully cleared row from Sheets.');
         } else {
-            console.log(`[Google Sheets Sync] FeeRecord ${recordId} not found in Sheet. Nothing to delete.`);
+            console.log(`[Google Sheets Sync] Student not found in Sheet. Nothing to delete.`);
         }
     } catch (err) {
         console.error('❌ [Google Sheets Sync] Error deleting from Sheets:', err.message);
@@ -293,9 +347,34 @@ async function importFromSheets() {
             }
 
             if (!student) {
-                console.log(`[Import] Skipping row ${i + 1} — cannot identify student`);
-                updatedRows.push(row);
-                continue;
+                if (name) {
+                    console.log(`[Import] Student not found. Creating new Student User for name: ${name}...`);
+                    const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '.');
+                    const suffix = admissionNo ? admissionNo : Math.floor(1000 + Math.random() * 9000);
+                    const email = `${cleanName}.${suffix}@lms.com`;
+                    const password = 'password123';
+                    
+                    student = new User({
+                        name,
+                        email,
+                        password,
+                        role: 'Student',
+                        admissionNo: admissionNo || '',
+                        fatherName: fatherName || '',
+                        mobileNumber: mobile1 || '',
+                        mobile2: mobile2 || '',
+                        studentProfile: {
+                            batch: '',
+                            section: 'A',
+                            enrollmentDate: new Date()
+                        }
+                    });
+                    await student.save();
+                } else {
+                    console.log(`[Import] Skipping row ${i + 1} — no name or admission No provided`);
+                    updatedRows.push(row);
+                    continue;
+                }
             }
 
             // Update student fields

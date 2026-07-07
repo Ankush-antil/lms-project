@@ -1,0 +1,26 @@
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0* Host 5d9c9a80e7ba50.lhr.life:443 was resolved.
+* IPv6: 64:ff9b::36ac:e103, 64:ff9b::3d0:2ef4, 64:ff9b::3ea:12c0
+* IPv4: 3.234.18.192, 3.208.46.244, 54.172.225.3
+*   Trying [64:ff9b::36ac:e103]:443...
+*   Trying 3.234.18.192:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server did not agree on a protocol. Uses default.
+* Established connection to 5d9c9a80e7ba50.lhr.life (64:ff9b::36ac:e103 port 443) from 2409:40d6:1198:a1ca:583:610d:481f:2705 port 51784 
+* using HTTP/1.x
+> GET /api/health HTTP/1.1
+> Host: 5d9c9a80e7ba50.lhr.life
+> User-Agent: curl/8.19.0
+> Accept: */*
+> 
+* Request completely sent off
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+  0      0   0      0   0      0      0      0           00:01              0  0      0   0      0   0      0      0      0           00:02              0* schannel: server close notification received (close_notify)
+  0      0   0      0   0      0      0      0           00:03              0  0      0   0      0   0      0      0      0           00:03              0* Empty reply from server
+  0      0   0      0   0      0      0      0           00:03              0
+* shutting down connection #0
+curl: (52) Empty reply from server

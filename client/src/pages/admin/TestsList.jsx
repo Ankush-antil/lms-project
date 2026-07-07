@@ -1980,7 +1980,7 @@ const TestsList = () => {
 
             {/* Filters (Search Box & Subject Select) */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div className="relative w-full md:w-96">
+                <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
                         type="text"
@@ -1995,7 +1995,7 @@ const TestsList = () => {
                     <div className="flex flex-wrap gap-3 w-full md:w-auto">
                         {/* Institute Filter */}
                         {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
-                            <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                            <div className="relative min-w-[130px] flex-1 sm:flex-initial">
                                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <select
                                     value={filterInstitute}
@@ -2014,7 +2014,7 @@ const TestsList = () => {
                         )}
 
                         {/* Course Filter */}
-                        <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                        <div className="relative min-w-[130px] flex-1 sm:flex-initial">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <select
                                 value={filterCourse}
@@ -2031,7 +2031,7 @@ const TestsList = () => {
                         </div>
 
                         {/* Subject Filter */}
-                        <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+                        <div className="relative min-w-[130px] flex-1 sm:flex-initial">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <select
                                 value={filterSubject}

@@ -6,7 +6,7 @@ import {
     Search, Filter, ChevronDown, X, IndianRupee, Calendar, TrendingUp,
     CheckCircle, AlertCircle, Loader2, RefreshCw, Plus, Eye, Phone,
     MessageSquare, Printer, Download, ArrowUpRight, Wallet, FileText,
-    Settings as SettingsIcon, UserCheck, AlertTriangle
+    Settings as SettingsIcon, UserCheck, AlertTriangle, Trash2
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 
 /* ─── Helpers ─── */
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -235,7 +236,7 @@ const ReceiptModal = ({ receipt, onClose }) => {
 };
 
 /* ─── Student Details Modal ─── */
-const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt }) => {
+const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt, onDelete, onDeleteTransaction }) => {
     if (!record) return null;
 
     const student = record.student || {};
@@ -371,6 +372,15 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                 >
                                     <MessageSquare size={14} /> Send Reminder
                                 </button>
+                                <button
+                                    onClick={() => {
+                                        if (onDelete) onDelete(student._id);
+                                    }}
+                                    className="px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                    title="Delete Student"
+                                >
+                                    <Trash2 size={14} /> Delete
+                                </button>
                             </div>
                         </div>
 
@@ -389,7 +399,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                         <th className="px-4 py-2">Date</th>
                                         <th className="px-4 py-2">Amount</th>
                                         <th className="px-4 py-2">Mode</th>
-                                        <th className="px-4 py-2 text-center">View</th>
+                                        <th className="px-4 py-2 text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -407,12 +417,24 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                                     <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">{rec.paymentMode}</span>
                                                 </td>
                                                 <td className="px-4 py-2.5 text-center">
-                                                    <button 
-                                                        onClick={() => onOpenReceipt(rec)} 
-                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 transition-colors"
-                                                    >
-                                                        <Eye size={13} />
-                                                    </button>
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        <button 
+                                                            onClick={() => onOpenReceipt(rec)} 
+                                                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                                                            title="View Receipt"
+                                                        >
+                                                            <Eye size={13} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (onDeleteTransaction) onDeleteTransaction(rec._id, student._id);
+                                                            }} 
+                                                            className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                                                            title="Delete Payment"
+                                                        >
+                                                            <Trash2 size={13} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -439,6 +461,54 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     const [remark, setRemark] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingRecord, setLoadingRecord] = useState(false);
+
+    const [filterCourse, setFilterCourse] = useState('');
+    const [filterSection, setFilterSection] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    // Extract unique courses and sections from students prop
+    const uniqueCourses = Array.from(new Set(students.map(s => s.course).filter(Boolean))).sort();
+    const uniqueSections = Array.from(new Set(students.map(s => s.student?.studentProfile?.section).filter(Boolean))).sort();
+
+    useEffect(() => {
+        if (selectedId) {
+            const found = students.find(s => (s.student?._id || s._id) === selectedId);
+            if (found) {
+                setSearchQuery(found.student?.name || found.name || '');
+            }
+        } else {
+            setSearchQuery('');
+        }
+    }, [selectedId, students]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            const container = document.getElementById('student-search-container');
+            if (container && !container.contains(e.target)) {
+                setShowDropdown(false);
+            }
+        };
+        window.addEventListener('click', handleClickOutside);
+        return () => window.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    const filteredStudents = students.filter(s => {
+        const matchesCourse = !filterCourse || s.course === filterCourse;
+        const matchesSection = !filterSection || s.student?.studentProfile?.section === filterSection;
+        
+        const name = (s.student?.name || s.name || '').toLowerCase();
+        const email = (s.student?.email || s.email || '').toLowerCase();
+        const admissionNo = (s.student?.admissionNo || s.admissionNo || '').toLowerCase();
+        
+        const q = searchQuery.toLowerCase();
+        const matchesQuery = !searchQuery || 
+            name.includes(q) || 
+            email.includes(q) || 
+            admissionNo.includes(q);
+            
+        return matchesCourse && matchesSection && matchesQuery;
+    });
 
     useEffect(() => {
         if (selectedId) {
@@ -481,21 +551,126 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
         <div className="flex flex-col md:flex-row gap-6 text-slate-800">
             {/* Left: Form */}
             <div className="flex-1 space-y-4">
-                {/* Student Select */}
-                <div>
+                {/* Filters */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Filter Course</label>
+                        <select
+                            value={filterCourse}
+                            onChange={e => {
+                                setFilterCourse(e.target.value);
+                                setSelectedId('');
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                        >
+                            <option value="">All Courses</option>
+                            {uniqueCourses.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Filter Section</label>
+                        <select
+                            value={filterSection}
+                            onChange={e => {
+                                setFilterSection(e.target.value);
+                                setSelectedId('');
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                        >
+                            <option value="">All Sections</option>
+                            {uniqueSections.map(sec => (
+                                <option key={sec} value={sec}>Section {sec}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Student Select with Search */}
+                <div className="relative" id="student-search-container">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Search Student</label>
-                    <select
-                        value={selectedId}
-                        onChange={e => setSelectedId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                    >
-                        <option value="">— Select Student —</option>
-                        {students.map(s => (
-                            <option key={s._id} value={s.student?._id || s._id} className="bg-white">
-                                {s.student?.name || s.name} — {s.course} — Due: {fmt(s.pendingAmount)}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Type student name or admission no..."
+                            value={searchQuery}
+                            onChange={e => {
+                                setSearchQuery(e.target.value);
+                                setSelectedId('');
+                                setShowDropdown(true);
+                            }}
+                            onFocus={() => setShowDropdown(true)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                        />
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                            <Search size={16} />
+                        </div>
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedId('');
+                                    setShowDropdown(true);
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {showDropdown && (
+                        <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-60 overflow-y-auto" style={{ background: '#ffffff', border: '1px solid #e2e8f0' }}>
+                            {filteredStudents.length === 0 ? (
+                                <div className="p-3 text-xs italic text-center" style={{ color: '#94a3b8' }}>No students found</div>
+                            ) : (
+                                filteredStudents.map(s => {
+                                    const studentName = s.student?.name || s.name;
+                                    const studentCourse = s.course;
+                                    const sectionName = s.student?.studentProfile?.section;
+                                    const dueText = fmt(s.pendingAmount);
+                                    const isSelected = (s.student?._id || s._id) === selectedId;
+                                    return (
+                                        <button
+                                            key={s._id}
+                                            type="button"
+                                            onClick={() => {
+                                                const id = s.student?._id || s._id;
+                                                setSelectedId(id);
+                                                setSearchQuery(studentName);
+                                                setShowDropdown(false);
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '10px 16px',
+                                                borderBottom: '1px solid #f1f5f9',
+                                                fontSize: '12px',
+                                                background: isSelected ? '#eef2ff' : '#ffffff',
+                                                cursor: 'pointer',
+                                                transition: 'background 0.15s'
+                                            }}
+                                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = '#ffffff'; }}
+                                        >
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>{studentName}</span>
+                                                <span style={{ color: '#94a3b8', fontSize: '11px' }}>
+                                                    Course: {studentCourse} {sectionName ? `| Section: ${sectionName}` : ''}
+                                                </span>
+                                            </div>
+                                            <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '12px' }}>{dueText} due</span>
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Fee Info */}
@@ -657,6 +832,7 @@ const NAV_ITEMS = [
 
 export default function AdminFeePortal() {
     const { user } = useAuth();
+    const { socket } = useSocket();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [loading, setLoading] = useState(false);
 
@@ -730,6 +906,71 @@ export default function AdminFeePortal() {
 
     useEffect(() => { fetchAll(); }, []);
 
+    useEffect(() => {
+        if (!socket) return;
+        const handleFeeRecordUpdated = () => {
+            console.log('Fee record updated via socket, refreshing...');
+            fetchAll();
+        };
+        socket.on('fee-record-updated', handleFeeRecordUpdated);
+        return () => socket.off('fee-record-updated', handleFeeRecordUpdated);
+    }, [socket]);
+
+    const handleDeleteFeeRecord = async (recordId, studentId) => {
+        if (!window.confirm("Are you sure you want to delete this fee record?")) return;
+        try {
+            if (studentId) {
+                // If student exists, delete the User (which also deletes the FeeRecord in the backend)
+                await axios.delete(`/api/users/${studentId}`, { withCredentials: true });
+            } else {
+                // If student is null (orphaned), delete the FeeRecord directly
+                await axios.delete(`/api/fees/admin/record/${recordId}`, { withCredentials: true });
+            }
+            toast.success("Record deleted successfully");
+            fetchAll();
+            setSelectedStudentForDetails(null);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to delete record");
+        }
+    };
+
+    const handleDeleteTransaction = async (transactionId, studentId) => {
+        if (!window.confirm("Are you sure you want to delete this payment transaction?")) return;
+        try {
+            await axios.delete(`/api/fees/admin/transaction/${transactionId}`, { withCredentials: true });
+            toast.success("Transaction deleted successfully");
+            
+            // Re-fetch all data to refresh statistics
+            setLoading(true);
+            const [statsR, studentsR, pendingR, receiptsR, reportsR] = await Promise.all([
+                axios.get(`/api/fees/admin/stats`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/all`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/pending-dues`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/receipts`, { withCredentials: true }),
+                axios.get(`/api/fees/admin/reports`, { withCredentials: true })
+            ]);
+            setStats(statsR.data);
+            setStudents(studentsR.data);
+            setPendingDues(pendingR.data);
+            setReceipts(receiptsR.data);
+            setReports(reportsR.data);
+            setLoading(false);
+            
+            // Update the modal details
+            if (studentId) {
+                const updatedStudent = studentsR.data.find(s => s.student?._id === studentId);
+                if (updatedStudent) {
+                    setSelectedStudentForDetails(updatedStudent);
+                } else {
+                    setSelectedStudentForDetails(null);
+                }
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to delete transaction");
+            setLoading(false);
+        }
+    };
+
     const openCollect = (studentId = '') => {
         setCollectPreselect(studentId);
         setShowCollectModal(true);
@@ -797,7 +1038,7 @@ export default function AdminFeePortal() {
                             <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-slate-50 transition-colors">
                                 <Avatar name={p.student?.name || ''} size={36} />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-white text-sm font-bold truncate">{p.student?.name}</p>
+                                    <p className="text-slate-800 text-sm font-bold truncate">{p.student?.name}</p>
                                     <p className="text-slate-500 text-xs">{p.course} · Due {fmtDate(p.nextDueDate)}</p>
                                 </div>
                                 <div className="text-right">
@@ -1083,12 +1324,19 @@ export default function AdminFeePortal() {
                                                         <Eye size={15} />
                                                     </button>
                                                 )}
-                                                {r.status !== 'Paid' && (
+                                                {r.status !== 'Paid' && r.student?._id && (
                                                     <button onClick={() => openCollect(r.student?._id)}
                                                         className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
                                                         Collect
                                                     </button>
                                                 )}
+                                                <button 
+                                                    onClick={() => handleDeleteFeeRecord(r._id, r.student?._id)}
+                                                    className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                                                    title="Delete Record"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1149,7 +1397,7 @@ export default function AdminFeePortal() {
                                     <div className="flex items-center gap-3">
                                         <Avatar name={r.student?.name || ''} size={32} />
                                         <div>
-                                            <p className="text-white text-sm font-bold">{r.student?.name || '—'}</p>
+                                            <p className="text-slate-800 text-sm font-bold">{r.student?.name || '—'}</p>
                                             <p className="text-slate-500 text-xs">{r.student?.mobileNumber || ''}</p>
                                         </div>
                                     </div>
@@ -1216,7 +1464,7 @@ export default function AdminFeePortal() {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
                                             <Avatar name={r.studentName || ''} size={28} />
-                                            <span className="text-white text-sm">{r.studentName}</span>
+                                            <span className="text-slate-800 text-sm font-bold">{r.studentName}</span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-slate-500 text-sm">{r.course}</td>
@@ -1554,6 +1802,8 @@ export default function AdminFeePortal() {
                     onClose={() => setSelectedStudentForDetails(null)}
                     onCollect={openCollect}
                     onOpenReceipt={(rec) => setSelectedReceipt(rec)}
+                    onDelete={(studentId) => handleDeleteFeeRecord(selectedStudentForDetails._id, studentId)}
+                    onDeleteTransaction={handleDeleteTransaction}
                 />
             )}
             {showCollectModal && (

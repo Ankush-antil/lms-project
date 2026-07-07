@@ -45,10 +45,16 @@ feeRecordSchema.post('save', function (doc) {
     syncToSheets(doc).catch(err => console.error('Error in FeeRecord post-save hook:', err.message));
 });
 
-feeRecordSchema.post('findOneAndDelete', function (doc) {
+feeRecordSchema.post('findOneAndDelete', async function (doc) {
     if (doc) {
-        const { deleteFromSheets } = require('../utils/googleSheets');
-        deleteFromSheets(doc._id).catch(err => console.error('Error in FeeRecord post-delete hook:', err.message));
+        try {
+            const User = mongoose.model('User');
+            const student = await User.findById(doc.student);
+            const { deleteFromSheets } = require('../utils/googleSheets');
+            await deleteFromSheets(doc._id, student?.admissionNo, student?.name);
+        } catch (err) {
+            console.error('Error in FeeRecord post-delete hook:', err.message);
+        }
     }
 });
 

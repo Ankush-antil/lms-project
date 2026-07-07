@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const SubjectsList = () => {
     const { user: currentUser } = useAuth();
@@ -139,20 +140,22 @@ const SubjectsList = () => {
                                                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
                                                     <BookOpen size={16} />
                                                 </div>
-                                                <span className="font-semibold text-slate-850">{s.name}</span>
+                                                <span className="font-semibold text-slate-850">
+                                                    <TruncatedCell text={s.name} maxLength={20} />
+                                                </span>
                                             </div>
                                         </td>
 
                                         {/* Course */}
                                         <td className="p-4 whitespace-nowrap text-sm text-slate-700">
                                             <span className="px-3 py-1 bg-slate-50 text-slate-700 rounded-full text-xs font-semibold border border-slate-100">
-                                                {s.course?.name || 'N/A'}
+                                                <TruncatedCell text={s.course?.name || 'N/A'} maxLength={20} />
                                             </span>
                                         </td>
 
                                         {/* Institute */}
                                         <td className="p-4 whitespace-nowrap text-sm text-slate-700">
-                                            {s.institute?.name || 'N/A'}
+                                            <TruncatedCell text={s.institute?.name || 'N/A'} maxLength={20} />
                                         </td>
 
                                         {/* Teachers */}

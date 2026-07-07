@@ -8,6 +8,7 @@ import { Search, Filter, Plus, GraduationCap, Trash2, Edit, ChevronDown } from '
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const TeachersList = () => {
     const { user } = useAuth();
@@ -211,7 +212,7 @@ const TeachersList = () => {
                                                     className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                                     onClick={() => openProfile(teacher._id)}
                                                 >
-                                                    {teacher.name}
+                                                    <TruncatedCell text={teacher.name} maxLength={20} />
                                                 </span>
                                             </div>
                                         </td>
@@ -235,7 +236,9 @@ const TeachersList = () => {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{teacher.institute?.name || teacher.institute || 'N/A'}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={teacher.institute?.name || teacher.institute || 'N/A'} maxLength={20} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             {(() => {
                                                 const courses = teacher.teacherProfile?.assignedCourses || [];
@@ -257,7 +260,9 @@ const TeachersList = () => {
                                             })()}
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{teacher.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{teacher.email}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={teacher.email} maxLength={25} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 onClick={() => handleToggleStatus(teacher._id, teacher.isActive)}

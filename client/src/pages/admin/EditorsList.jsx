@@ -8,6 +8,7 @@ import { Search, Plus, Trash2, Edit } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const EditorsList = () => {
     const { user } = useAuth();
@@ -182,14 +183,18 @@ const EditorsList = () => {
                                                     className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                                     onClick={() => openProfile(editor._id)}
                                                 >
-                                                    {editor.name}
+                                                    <TruncatedCell text={editor.name} maxLength={20} />
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{editor._id.slice(-6)}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{editor.institute?.name || editor.institute || 'N/A'}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={editor.institute?.name || editor.institute || 'N/A'} maxLength={20} />
+                                        </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{editor.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{editor.email}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={editor.email} maxLength={25} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${editor.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                                                 {editor.isActive !== false ? 'Active' : 'Inactive'}

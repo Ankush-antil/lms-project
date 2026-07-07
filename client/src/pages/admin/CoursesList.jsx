@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye } from 'lucide-react';
 import AddCourseModal from '../../components/AddCourseModal';
 import CourseDetailsModal from '../../components/CourseDetailsModal';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const CoursesList = () => {
     const { user } = useAuth();
@@ -133,7 +134,9 @@ const CoursesList = () => {
                                                 <div className="w-9 h-9 rounded-xl bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0">
                                                     <BookOpen size={18} />
                                                 </div>
-                                                <span className="font-bold text-slate-800 text-sm">{course.name}</span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    <TruncatedCell text={course.name} maxLength={20} />
+                                                </span>
                                             </div>
                                         </td>
 
@@ -165,12 +168,14 @@ const CoursesList = () => {
                                         {user?.role === 'Admin' && (
                                             <>
                                                 <td className="p-4 whitespace-nowrap text-sm text-slate-600 font-medium">
-                                                    {course.institute?.name || 'N/A'}
+                                                    <TruncatedCell text={course.institute?.name || 'N/A'} maxLength={20} />
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-xs text-slate-500">
                                                     {course.createdBy ? (
                                                         <div>
-                                                            <span className="font-semibold text-slate-700">{course.createdBy.name}</span>
+                                                            <span className="font-semibold text-slate-700">
+                                                                <TruncatedCell text={course.createdBy.name} maxLength={20} />
+                                                            </span>
                                                             <span className="text-[10px] ml-1 px-1 bg-slate-100 rounded text-slate-500 capitalize">{course.createdBy.role}</span>
                                                         </div>
                                                     ) : 'N/A'}

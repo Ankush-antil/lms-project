@@ -8,6 +8,7 @@ import { Search, Filter, Plus, Trash2, Edit, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const StudentsList = () => {
     const { user } = useAuth();
@@ -250,15 +251,17 @@ const StudentsList = () => {
                                                     className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                                     onClick={() => openProfile(student._id)}
                                                 >
-                                                    {student.name}
+                                                    <TruncatedCell text={student.name} maxLength={20} />
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{student._id.slice(-6)}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{student.institute?.name || student.institute || 'N/A'}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={student.institute?.name || student.institute || 'N/A'} maxLength={20} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
-                                                {student.studentProfile?.course?.name || student.studentProfile?.course || 'N/A'}
+                                                <TruncatedCell text={student.studentProfile?.course?.name || student.studentProfile?.course || 'N/A'} maxLength={20} />
                                             </span>
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
@@ -272,11 +275,13 @@ const StudentsList = () => {
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold">
-                                                {student.studentProfile?.subject || 'N/A'}
+                                                <TruncatedCell text={student.studentProfile?.subject || 'N/A'} maxLength={20} />
                                             </span>
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{student.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{student.email}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={student.email} maxLength={25} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 onClick={() => handleToggleStatus(student._id, student.isActive)}

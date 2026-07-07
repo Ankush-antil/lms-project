@@ -8,6 +8,7 @@ import { Search, Plus, Trash2, Edit, Building, MapPin, Hash, Eye, BookOpen, Chev
 import AddInstituteModal from '../../components/AddInstituteModal';
 import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const InstitutesList = () => {
     const { user } = useAuth();
@@ -293,9 +294,11 @@ const InstitutesList = () => {
                                                                     setIsDetailsModalOpen(true);
                                                                 }}
                                                             >
-                                                                {inst.name}
+                                                                <TruncatedCell text={inst.name} maxLength={20} />
                                                             </div>
-                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{inst.contactEmail || 'No Email Listed'}</div>
+                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                                <TruncatedCell text={inst.contactEmail || 'No Email Listed'} maxLength={25} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -313,7 +316,7 @@ const InstitutesList = () => {
                                                 <td className="p-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-1 text-slate-500 text-xs font-semibold">
                                                         <MapPin size={14} className="text-slate-400" />
-                                                        <span>{inst.address || 'Not specified'}</span>
+                                                        <span><TruncatedCell text={inst.address || 'Not specified'} maxLength={20} /></span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-right sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] z-10">

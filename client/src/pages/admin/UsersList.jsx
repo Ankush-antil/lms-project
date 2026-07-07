@@ -5,6 +5,7 @@ import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Trash2, Calendar } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
@@ -298,10 +299,10 @@ const UsersList = () => {
                                                         }`}
                                                         onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                     >
-                                                        {viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name}
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name} maxLength={20} />
                                                     </span>
                                                     <span className="text-xs text-slate-400">
-                                                        {viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : u.email}
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : u.email} maxLength={25} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -330,14 +331,18 @@ const UsersList = () => {
                                         {/* Course/Institute/Test details */}
                                         <td className="p-4 text-slate-600 whitespace-nowrap text-sm">
                                             {viewTab === 'registered' ? (
-                                                u.institute?.name || u.institute || 'N/A'
+                                                <TruncatedCell text={u.institute?.name || u.institute || 'N/A'} maxLength={20} />
                                             ) : viewTab === 'guest' ? (
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700">{u.course?.name || 'N/A'}</span>
-                                                    <span className="text-[10px] text-slate-400">{u.institute?.name || 'N/A'}</span>
+                                                    <span className="font-bold text-slate-700">
+                                                        <TruncatedCell text={u.course?.name || 'N/A'} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400">
+                                                        <TruncatedCell text={u.institute?.name || 'N/A'} maxLength={20} />
+                                                    </span>
                                                 </div>
                                             ) : (
-                                                u.test?.title || 'Public Test'
+                                                <TruncatedCell text={u.test?.title || 'Public Test'} maxLength={20} />
                                             )}
                                         </td>
 

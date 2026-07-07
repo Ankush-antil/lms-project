@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2 } from 'lucide-react';
 import TruncatedCell from '../../components/common/TruncatedCell';
 
 const SubjectsList = () => {
@@ -19,6 +19,134 @@ const SubjectsList = () => {
     // Details Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSubject, setSelectedSubject] = useState(null);
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editSubjectName, setEditSubjectName] = useState('');
+    const [editSubjectDuration, setEditSubjectDuration] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+
+    // Add Modal State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [courses, setCourses] = useState([]);
+    const [newSubjectName, setNewSubjectName] = useState('');
+    const [selectedCourseId, setSelectedCourseId] = useState('');
+    const [newSubjectDuration, setNewSubjectDuration] = useState('');
+    const [savingAdd, setSavingAdd] = useState(false);
+
+    // Selective Student Assignment State
+    const [assignToAll, setAssignToAll] = useState(true);
+    const [courseStudents, setCourseStudents] = useState([]);
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+    const [loadingStudents, setLoadingStudents] = useState(false);
+
+    useEffect(() => {
+        if (selectedCourseId && isAddModalOpen) {
+            const fetchCourseStudents = async () => {
+                try {
+                    setLoadingStudents(true);
+                    const res = await axios.get(`/api/setup/courses/${selectedCourseId}/students`);
+                    setCourseStudents(res.data || []);
+                    setSelectedStudentIds([]);
+                } catch (error) {
+                    console.error("Error fetching course students:", error);
+                    setCourseStudents([]);
+                } finally {
+                    setLoadingStudents(false);
+                }
+            };
+            fetchCourseStudents();
+        } else {
+            setCourseStudents([]);
+            setSelectedStudentIds([]);
+        }
+    }, [selectedCourseId, isAddModalOpen]);
+
+    const openEditModal = (subject) => {
+        setSelectedSubject(subject);
+        setEditSubjectName(subject.name);
+        setEditSubjectDuration(subject.duration || 0);
+        setIsEditModalOpen(true);
+    };
+
+    const openAddModal = async () => {
+        setIsAddModalOpen(true);
+        setNewSubjectName('');
+        setSelectedCourseId('');
+        setNewSubjectDuration('');
+        setAssignToAll(true);
+        setSelectedStudentIds([]);
+        try {
+            const res = await axios.get('/api/setup/courses');
+            setCourses(res.data || []);
+            if (res.data && res.data.length > 0) {
+                setSelectedCourseId(res.data[0]._id);
+            }
+        } catch (error) {
+            console.error("Error fetching courses for select:", error);
+        }
+    };
+
+    const handleSaveSubjectDetails = async () => {
+        if (!editSubjectName.trim()) {
+            toast.error("Subject name cannot be empty");
+            return;
+        }
+        try {
+            setSavingEdit(true);
+            const res = await axios.put('/api/setup/subjects/update', {
+                courseId: selectedSubject.course?._id,
+                oldSubjectName: selectedSubject.name,
+                newSubjectName: editSubjectName.trim(),
+                duration: Number(editSubjectDuration) || 0
+            });
+            if (res.data.success) {
+                toast.success("Subject details updated successfully!");
+                setIsEditModalOpen(false);
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Error updating subject details:", err);
+            toast.error(err.response?.data?.message || "Failed to update subject details");
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    const handleCreateSubject = async () => {
+        if (!newSubjectName.trim()) {
+            toast.error("Subject name is required");
+            return;
+        }
+        if (!selectedCourseId) {
+            toast.error("Please select a course");
+            return;
+        }
+        if (!assignToAll && selectedStudentIds.length === 0) {
+            toast.error("Please select at least one student or check 'All Enrolled Students'");
+            return;
+        }
+        try {
+            setSavingAdd(true);
+            const res = await axios.post('/api/setup/subjects', {
+                courseId: selectedCourseId,
+                subjectName: newSubjectName.trim(),
+                duration: Number(newSubjectDuration) || 0,
+                assignToAll: assignToAll,
+                assignedStudentIds: selectedStudentIds
+            });
+            if (res.data.success) {
+                toast.success("Subject added successfully!");
+                setIsAddModalOpen(false);
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Error creating subject:", err);
+            toast.error(err.response?.data?.message || "Failed to add subject");
+        } finally {
+            setSavingAdd(false);
+        }
+    };
 
     useEffect(() => {
         setCurrentPage(1);
@@ -74,6 +202,15 @@ const SubjectsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Subjects Directory</h1>
                     <p className="text-slate-500">Manage all subjects, courses, institutes, and check assigned teachers and tests details.</p>
                 </div>
+                {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute' || currentUser?.role === 'Editor') && (
+                    <button
+                        onClick={openAddModal}
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-650/15 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                        <Plus size={16} />
+                        <span>Add Subject</span>
+                    </button>
+                )}
             </div>
 
             {/* Filters */}
@@ -184,14 +321,23 @@ const SubjectsList = () => {
                                         </td>
 
                                         {/* Actions */}
-                                        <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">
+                                        <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] flex items-center justify-end gap-1.5">
                                             <button
                                                 onClick={() => openDetailsModal(s)}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                                 title="View Detailed Info"
                                             >
                                                 <Eye size={18} />
                                             </button>
+                                            {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute' || currentUser?.role === 'Editor') && (
+                                                <button
+                                                    onClick={() => openEditModal(s)}
+                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="Edit Subject & Duration"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -295,23 +441,34 @@ const SubjectsList = () => {
                         {/* Modal Body */}
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
                             {/* Stats boxes */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                                        <HelpCircle size={20} />
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-center gap-2">
+                                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                        <HelpCircle size={18} />
                                     </div>
                                     <div>
-                                        <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Total Tests</span>
-                                        <span className="text-lg font-black text-slate-800">{selectedSubject.testCount || 0}</span>
+                                        <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Total Tests</span>
+                                        <span className="text-base font-black text-slate-800">{selectedSubject.testCount || 0}</span>
                                     </div>
                                 </div>
-                                <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
-                                        <FileText size={20} />
+                                <div className="p-3 bg-purple-50/50 border border-purple-100 rounded-2xl flex items-center gap-2">
+                                    <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                                        <FileText size={18} />
                                     </div>
                                     <div>
-                                        <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Assignments</span>
-                                        <span className="text-lg font-black text-slate-800">{selectedSubject.assignmentCount || 0}</span>
+                                        <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Assignments</span>
+                                        <span className="text-base font-black text-slate-800">{selectedSubject.assignmentCount || 0}</span>
+                                    </div>
+                                </div>
+                                <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center gap-2">
+                                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <Calendar size={18} />
+                                    </div>
+                                    <div>
+                                        <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Allocated Time</span>
+                                        <span className="text-base font-black text-slate-800">
+                                            {selectedSubject.duration || 0} <span className="text-[10px] text-slate-400 font-medium">/ {selectedSubject.course?.duration || 0} days</span>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -372,6 +529,208 @@ const SubjectsList = () => {
                                 className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors active:scale-95 shadow-md"
                             >
                                 Done
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Subject Edit Modal */}
+            {isEditModalOpen && selectedSubject && createPortal(
+                <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col animate-slide-up">
+                        <div className="p-6 bg-gradient-to-r from-emerald-500 to-teal-600 text-white relative">
+                            <h3 className="text-lg font-bold tracking-tight">
+                                Edit Subject Details
+                            </h3>
+                            <p className="text-emerald-50 text-xs mt-0.5">
+                                Course: {selectedSubject.course?.name}
+                            </p>
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Subject Name</label>
+                                <input
+                                    type="text"
+                                    value={editSubjectName}
+                                    onChange={(e) => setEditSubjectName(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Allocated Duration (Days)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={editSubjectDuration}
+                                    onChange={(e) => setEditSubjectDuration(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                    placeholder="Enter number of days"
+                                />
+                                <span className="text-[10px] text-slate-400 font-semibold block mt-1">
+                                    Total Course Duration: {selectedSubject.course?.duration || 0} days
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border-t border-slate-150 flex justify-end gap-2.5">
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSubjectDetails}
+                                disabled={savingEdit}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer"
+                            >
+                                {savingEdit && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                <span>Save Changes</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Add Subject Modal */}
+            {isAddModalOpen && createPortal(
+                <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col animate-slide-up">
+                        <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-650 text-white relative">
+                            <h3 className="text-lg font-bold tracking-tight">
+                                Add New Subject
+                            </h3>
+                            <p className="text-indigo-50 text-xs mt-0.5">
+                                Add a new subject to a specific course timeline
+                            </p>
+                            <button
+                                onClick={() => setIsAddModalOpen(false)}
+                                className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Target Course</label>
+                                <select
+                                    value={selectedCourseId}
+                                    onChange={(e) => setSelectedCourseId(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-750 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                                >
+                                    <option value="" disabled>Select a Course</option>
+                                    {courses.map(c => (
+                                        <option key={c._id} value={c._id}>
+                                            {c.name} ({c.duration ? `${c.duration} days` : 'No duration set'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Subject Name</label>
+                                <input
+                                    type="text"
+                                    value={newSubjectName}
+                                    onChange={(e) => setNewSubjectName(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                    placeholder="e.g. Computer Fundamentals"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Allocated Duration (Days)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={newSubjectDuration}
+                                    onChange={(e) => setNewSubjectDuration(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                    placeholder="e.g. 30"
+                                />
+                            </div>
+
+                            <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Assign to Students</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] text-slate-500 font-bold">All Enrolled Students</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={assignToAll}
+                                            onChange={(e) => setAssignToAll(e.target.checked)}
+                                            className="w-4 h-4 text-indigo-650 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+
+                                {!assignToAll && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 max-h-[160px] overflow-y-auto space-y-2 custom-scrollbar">
+                                        {loadingStudents ? (
+                                            <div className="text-xs text-slate-400 italic text-center py-2 flex items-center justify-center gap-1.5">
+                                                <div className="w-3.5 h-3.5 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+                                                <span>Loading course students...</span>
+                                            </div>
+                                        ) : courseStudents.length > 0 ? (
+                                            courseStudents.map(student => {
+                                                const isSelected = selectedStudentIds.includes(student._id);
+                                                return (
+                                                    <label key={student._id} className="flex items-center justify-between p-2 bg-white border border-slate-100 hover:border-slate-200 rounded-xl cursor-pointer transition-all select-none">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-semibold text-slate-750">{student.name}</span>
+                                                            <span className="text-[10px] text-slate-400">{student.email}</span>
+                                                        </div>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedStudentIds(prev => prev.filter(id => id !== student._id));
+                                                                } else {
+                                                                    setSelectedStudentIds(prev => [...prev, student._id]);
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 text-indigo-650 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                                                        />
+                                                    </label>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-xs text-slate-400 italic text-center py-2">
+                                                No students are enrolled in this course yet.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border-t border-slate-150 flex justify-end gap-2.5">
+                            <button
+                                onClick={() => setIsAddModalOpen(false)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateSubject}
+                                disabled={savingAdd}
+                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer"
+                            >
+                                {savingAdd && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                <span>Add Subject</span>
                             </button>
                         </div>
                     </div>

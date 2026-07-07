@@ -21,6 +21,9 @@ const {
     updateApplicationStatus,
     registerStudent,
     getSubjects,
+    createSubject,
+    updateSubjectDetails,
+    getCourseStudents,
     deleteApplication,
     getSectionPreview,
     getDeletedCourses,
@@ -68,7 +71,11 @@ router.route('/courses')
     .post(protect, adminOrEditor, createCourse);
 
 router.route('/subjects')
-    .get(protect, adminOrEditor, getSubjects);
+    .get(protect, adminOrEditor, getSubjects)
+    .post(protect, adminOrEditor, createSubject);
+
+router.route('/subjects/update')
+    .put(protect, adminOrEditor, updateSubjectDetails);
 
 // Syllabus upload (must be before /courses/:id)
 router.route('/courses/upload-syllabus')
@@ -79,6 +86,9 @@ router.route('/courses/trash')
 
 router.route('/courses/:id/restore')
     .put(protect, adminOrEditor, restoreCourse);
+
+router.route('/courses/:id/students')
+    .get(protect, adminOrEditor, getCourseStudents);
 
 router.route('/courses/:id/permanent')
     .delete(protect, adminOrEditor, permanentlyDeleteCourse);

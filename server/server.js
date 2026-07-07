@@ -21,7 +21,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiter: limit each IP to 500 requests per 15 minutes
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 500,
+    max: 1500,
     message: { message: 'Too many requests from this IP, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false

@@ -17,7 +17,7 @@ const UsersList = () => {
     const [limitedUsers, setLimitedUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -97,9 +97,10 @@ const UsersList = () => {
     };
 
     const filteredItems = getFilteredItems();
-    const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
+    const limit = typeof itemsPerPage === 'number' && itemsPerPage >= 5 ? itemsPerPage : 10;
+    const totalPages = Math.ceil(filteredItems.length / limit);
+    const startIndex = (currentPage - 1) * limit;
+    const paginatedItems = filteredItems.slice(startIndex, startIndex + limit);
 
     const getRoleBadgeClass = (role) => {
         switch (role) {
@@ -191,9 +192,31 @@ const UsersList = () => {
                     />
                 </div>
 
-                {viewTab === 'registered' && (
-                    <div className="flex gap-4 w-full md:w-auto">
-                        <div className="relative min-w-[180px] w-full md:w-auto">
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    {/* Entries selector */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                        <input
+                            type="number"
+                            min={5}
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                setItemsPerPage(isNaN(val) ? '' : val);
+                            }}
+                            onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 5) {
+                                    setItemsPerPage(10);
+                                }
+                            }}
+                            className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                    </div>
+
+                    {viewTab === 'registered' && (
+                        <div className="relative min-w-[180px]">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <select
                                 value={filterRole}
@@ -208,8 +231,8 @@ const UsersList = () => {
                                 <option value="Student">Student</option>
                             </select>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Table */}
@@ -396,7 +419,7 @@ const UsersList = () => {
                     <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
                         <div className="text-sm font-semibold text-slate-500">
                             Showing <span className="text-slate-700">{startIndex + 1}</span> to{' '}
-                            <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, filteredItems.length)}</span> of{' '}
+                            <span className="text-slate-700">{Math.min(startIndex + limit, filteredItems.length)}</span> of{' '}
                             <span className="text-slate-700">{filteredItems.length}</span> entries
                         </div>
                         <div className="flex items-center gap-1">

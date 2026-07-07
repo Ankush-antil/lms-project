@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import TeacherVideoReview from '../../components/teacher/TeacherVideoReview';
 import TestFolderStructure from './TestFolderStructure';
+import TruncatedCell from '../../components/common/TruncatedCell';
 const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -2056,21 +2057,17 @@ const TestsList = () => {
                                     {paginatedTests.map((test) => (
                                         <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="p-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 font-semibold text-slate-800">
                                                     <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
                                                         <FileText size={16} />
                                                     </div>
-                                                    <div className="max-w-[200px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden font-semibold text-slate-800 cursor-help" title={test.title || 'Untitled'}>
-                                                        {test.title || 'Untitled'}
-                                                    </div>
+                                                    <TruncatedCell text={test.title || 'Untitled'} maxLength={20} />
                                                 </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
-                                                <div className="max-w-[120px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" title={test.course || 'N/A'}>
-                                                    <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
-                                                        {test.course || 'N/A'}
-                                                    </span>
-                                                </div>
+                                                <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
+                                                    <TruncatedCell text={test.course || 'N/A'} maxLength={20} />
+                                                </span>
                                             </td>
                                             <td className="p-4 whitespace-nowrap text-center">
                                                 <button
@@ -2084,7 +2081,7 @@ const TestsList = () => {
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
                                                 <span className="px-2.5 py-0.5 bg-amber-50 text-amber-705 rounded-full text-xs font-semibold">
-                                                    {test.subject || 'N/A'}
+                                                    <TruncatedCell text={test.subject || 'N/A'} maxLength={20} />
                                                 </span>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">

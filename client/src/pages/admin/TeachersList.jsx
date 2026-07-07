@@ -217,47 +217,22 @@ const TeachersList = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{teacher._id.slice(-6)}</td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            {(() => {
-                                                const subjects = teacher.teacherProfile?.subjects || [];
-                                                return (
-                                                    <div className="flex items-center gap-1">
-                                                        {subjects.length > 0 ? (
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                                {subjects[0]}
-                                                            </span>
-                                                        ) : <span className="text-slate-400 text-xs">N/A</span>}
-                                                        {subjects.length > 1 && (
-                                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded text-xs font-bold">
-                                                                +{subjects.length - 1}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {teacher.teacherProfile?.subjects?.length > 0 ? (
+                                                <TruncatedCell text={teacher.teacherProfile.subjects.join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
                                         </td>
                                         <td className="p-4 text-slate-600 whitespace-nowrap">
                                             <TruncatedCell text={teacher.institute?.name || teacher.institute || 'N/A'} maxLength={20} />
                                         </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            {(() => {
-                                                const courses = teacher.teacherProfile?.assignedCourses || [];
-                                                const names = courses.map(c => c.name || c);
-                                                return (
-                                                    <div className="flex items-center gap-1">
-                                                        {names.length > 0 ? (
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                                {names[0]}
-                                                            </span>
-                                                        ) : <span className="text-slate-400 text-xs">N/A</span>}
-                                                        {names.length > 1 && (
-                                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded text-xs font-bold">
-                                                                +{names.length - 1}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {teacher.teacherProfile?.assignedCourses?.length > 0 ? (
+                                                <TruncatedCell text={teacher.teacherProfile.assignedCourses.map(c => c.name || c).join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{teacher.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 text-slate-600 whitespace-nowrap">

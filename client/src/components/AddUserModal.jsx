@@ -1462,13 +1462,68 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         return unique.length > 0 ? unique : ['A', 'B', 'C'];
     }, [courseStudents]);
 
+    const handleNextTab = (e) => {
+        if (e) e.preventDefault();
+        
+        // Validate name
+        if (!formData.name || !formData.name.trim()) {
+            toast.error("Please enter full name");
+            return;
+        }
+
+        // Validate institute (if Admin is adding)
+        if (user?.role === 'Admin' && !formData.institute) {
+            toast.error("Please select institute");
+            return;
+        }
+
+        // Validate email
+        if (!formData.email || !formData.email.trim()) {
+            toast.error("Please enter email address");
+            return;
+        }
+
+        // Validate email format basic regex
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+            toast.error("Please enter a valid email address");
+            return;
+        }
+
+        // Validate course & subjects for student
+        if (role === 'Student') {
+            if (!formData.course) {
+                toast.error("Please select a course");
+                return;
+            }
+            if (!formData.subject || !formData.subject.trim()) {
+                toast.error("Please specify subjects");
+                return;
+            }
+        }
+
+        // Validate assigned course for teacher
+        if (role === 'Teacher') {
+            if (!formData.course) {
+                toast.error("Please select an assigned course");
+                return;
+            }
+            if (!formData.subjects || !formData.subjects.trim()) {
+                toast.error("Please select at least one teaching subject");
+                return;
+            }
+        }
+
+        setActiveTab('controls');
+    };
+
     if (!isOpen) return null;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className={`${role === 'Student' ? 'bg-[#0b1329]' : 'h-20 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
+                <div className={`${role === 'Student' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xl font-medium font-black text-white tracking-tight">
                             {createdUser ? 'Success!' : `Add New ${role}`}
@@ -1488,7 +1543,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                 className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all ${
                                     activeTab === 'basic'
                                         ? 'bg-white text-[#0b1329]'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/10'
+                                        : 'text-white/70 hover:text-white hover:bg-white/10'
                                 }`}
                             >
                                 Basic Info
@@ -1499,7 +1554,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                 className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all ${
                                     activeTab === 'controls'
                                         ? 'bg-white text-[#0b1329]'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/10'
+                                        : 'text-white/70 hover:text-white hover:bg-white/10'
                                 }`}
                             >
                                 Feature Controls
@@ -1841,14 +1896,24 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                 </div>
                             )}
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                                {loading ? 'Creating Account...' : `Create ${role}`}
-                            </button>
+                            {activeTab === 'basic' && (role === 'Student' || role === 'Teacher') ? (
+                                <button
+                                    type="button"
+                                    onClick={handleNextTab}
+                                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-indigo-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    Next
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                                    {loading ? 'Creating Account...' : `Create ${role}`}
+                                </button>
+                            )}
                         </form>
                     ) : (
                         <div className="space-y-6 text-center animate-fade-in">

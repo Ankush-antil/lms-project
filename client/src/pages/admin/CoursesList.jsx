@@ -146,22 +146,12 @@ const CoursesList = () => {
                                         </td>
 
                                         {/* Subjects */}
-                                        <td className="p-4 whitespace-nowrap text-xs">
-                                            <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                                {course.subjects?.slice(0, 3).map((sub, idx) => (
-                                                    <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-                                                        {sub}
-                                                    </span>
-                                                ))}
-                                                {course.subjects?.length > 3 && (
-                                                    <span className="px-2 py-0.5 bg-slate-100 text-[#0b1329] rounded-lg text-[10px] font-bold whitespace-nowrap">
-                                                        +{course.subjects.length - 3} More
-                                                    </span>
-                                                )}
-                                                {(!course.subjects || course.subjects.length === 0) && (
-                                                    <span className="text-slate-400 italic">No subjects</span>
-                                                )}
-                                            </div>
+                                        <td className="p-4 whitespace-nowrap text-xs text-slate-600 font-medium">
+                                            {course.subjects && course.subjects.length > 0 ? (
+                                                <TruncatedCell text={course.subjects.join(', ')} maxLength={25} />
+                                            ) : (
+                                                <span className="text-slate-400 italic">No subjects</span>
+                                            )}
                                         </td>
 
                                         {/* Admin specific columns */}

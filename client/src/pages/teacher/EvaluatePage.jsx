@@ -623,6 +623,25 @@ const EvaluatePage = () => {
         </div>
     );
 
+    const controls = user?.teacherProfile?.controls;
+
+    if (controls?.evaluate?.enabled === false) {
+        return (
+            <DashboardLayout role="Teacher" collapsed={false}>
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-white/60 backdrop-blur-xl border border-slate-100 rounded-[32px] text-center shadow-xl shadow-slate-100/50 max-w-2xl mx-auto my-12 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
+                    <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <AlertCircle size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Feature Deactivated</h2>
+                    <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
+                        {controls.evaluate.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     if (loading) return (
         <DashboardLayout role={role} fullWidth={true}>
             <div className="flex items-center gap-4 mb-6">

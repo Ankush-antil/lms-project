@@ -146,6 +146,11 @@ const StudentFeePortal = () => {
                 <p className="text-xs text-slate-400 max-w-sm mt-1">
                     The fee portal has been disabled by your administrator.
                 </p>
+                {feePortalCtrl?.note && (
+                    <div className="mt-3 text-xs text-red-400 bg-red-950/30 border border-red-900/30 rounded-2xl px-4 py-2 font-bold max-w-sm">
+                        Reason: {feePortalCtrl.note}
+                    </div>
+                )}
             </div>
         );
     }
@@ -153,10 +158,13 @@ const StudentFeePortal = () => {
     if (!record) return (
         <div className="relative">
             {isFeePortalDisabled && (
-                <div className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto">
+                <div 
+                    title={feePortalCtrl?.note || 'Fee Portal is Disabled'}
+                    className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto cursor-not-allowed"
+                >
                     <div className="bg-[#0f1621] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-slide-up">
                         <Lock size={16} className="text-amber-500" />
-                        <span className="text-xs font-bold">Fee Portal is Disabled</span>
+                        <span className="text-xs font-bold">Fee Portal is Disabled{feePortalCtrl?.note ? ` - ${feePortalCtrl.note}` : ''}</span>
                     </div>
                 </div>
             )}
@@ -177,10 +185,13 @@ const StudentFeePortal = () => {
     return (
         <div className="relative">
             {isFeePortalDisabled && (
-                <div className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto">
+                <div 
+                    title={feePortalCtrl?.note || 'Fee Portal is Disabled'}
+                    className="absolute inset-0 bg-[#070b12]/50 backdrop-blur-[0.5px] z-[9999] flex items-center justify-center pointer-events-auto cursor-not-allowed"
+                >
                     <div className="bg-[#0f1621] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-slide-up">
                         <Lock size={16} className="text-amber-500" />
-                        <span className="text-xs font-bold">Fee Portal is Disabled</span>
+                        <span className="text-xs font-bold">Fee Portal is Disabled{feePortalCtrl?.note ? ` - ${feePortalCtrl.note}` : ''}</span>
                     </div>
                 </div>
             )}

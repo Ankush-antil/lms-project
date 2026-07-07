@@ -239,6 +239,41 @@ const TeacherActivities = () => {
     const [bulkSelectedStudents, setBulkSelectedStudents] = useState([]);
     const [bulkSaving, setBulkSaving] = useState(false);
 
+    const controls = user?.teacherProfile?.controls;
+
+    const isSaDisabled = (subKey) => {
+        if (!controls || !controls.studentActivities) return false;
+        if (controls.studentActivities.enabled === false) return true;
+        return controls.studentActivities[subKey] === false;
+    };
+
+    const saNote = (subKey) => {
+        if (!controls || !controls.studentActivities) return '';
+        const sa = controls.studentActivities;
+        if (sa.subNotes && sa.subNotes[subKey]) return sa.subNotes[subKey];
+        return sa.note || '';
+    };
+
+    const saMode = () => {
+        return controls?.studentActivities?.mode || 'hide';
+    };
+
+    const isInboxCardDisabled = (cardKey) => {
+        if (!controls || !controls.studentActivities) return false;
+        if (controls.studentActivities.enabled === false) return true;
+        if (controls.studentActivities.inbox === false) return true;
+        const details = controls.studentActivities.inboxDetails;
+        if (!details) return false;
+        return details[cardKey] === false;
+    };
+
+    const inboxCardNote = (cardKey) => {
+        if (!controls || !controls.studentActivities) return '';
+        const sa = controls.studentActivities;
+        if (sa.subNotes && sa.subNotes[cardKey]) return sa.subNotes[cardKey];
+        return sa.note || '';
+    };
+
     const handleTeacherTabsScroll = (direction) => {
         if (teacherTabsRef.current) {
             const { scrollLeft } = teacherTabsRef.current;
@@ -1234,29 +1269,60 @@ const TeacherActivities = () => {
         return 'bg-[#3E3ADD]';
     };
 
+    if (controls?.studentActivities?.enabled === false) {
+        return (
+            <DashboardLayout role="Teacher" collapsed={false}>
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-white/60 backdrop-blur-xl border border-slate-100 rounded-[32px] text-center shadow-xl shadow-slate-100/50 max-w-2xl mx-auto my-12 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
+                    <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <AlertCircle size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Feature Deactivated</h2>
+                    <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
+                        {controls.studentActivities.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 {/* --- Left Sidebar: Activities Inbox --- */}
-                <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white">
-                    {studentTab === 'tests' ? (
-                        <>
-                            <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
-                                <div className="flex items-center justify-between mb-2.5">
-                                    <div className="flex items-center gap-2">
-                                        <BookOpen className="text-slate-700" size={18} />
-                                        <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
+                {(!isSaDisabled('inbox') || saMode() === 'disable') && (
+                    <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white relative">
+                        {isSaDisabled('inbox') ? (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center">
+                                <Lock size={32} className="text-red-500 mb-3 animate-bounce" />
+                                <h3 className="font-extrabold text-slate-800 text-sm mb-1">Inbox View Locked</h3>
+                                <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                                    {saNote('inbox') || 'This list has been deactivated by your administrator.'}
+                                </p>
+                            </div>
+                        ) : null}
+                        {studentTab === 'tests' ? (
+                            <>
+                                <div className="p-4 border-b border-slate-150 shrink-0 bg-white">
+                                    <div className="flex items-center justify-between mb-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <BookOpen className="text-slate-700" size={18} />
+                                            <h2 className="font-extrabold text-slate-800 text-[15px] leading-tight">Activities Inbox</h2>
+                                        </div>
+                                        {selectedStudent && (!isSaDisabled('student') || saMode() === 'disable') && (
+                                            <button
+                                                onClick={isSaDisabled('student') ? () => toast.error(saNote('student') || 'Feature Restricted') : () => setShowStudentList(prev => !prev)}
+                                                className={`p-1.5 rounded-full border shadow-sm transition-all ${
+                                                    isSaDisabled('student')
+                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-250'
+                                                        : 'bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 border-slate-200 cursor-pointer'
+                                                }`}
+                                                title={isSaDisabled('student') ? (saNote('student') || 'Feature Restricted') : "Toggle Student List"}
+                                            >
+                                                <Menu size={14} />
+                                            </button>
+                                        )}
                                     </div>
-                                    {selectedStudent && (
-                                        <button
-                                            onClick={() => setShowStudentList(prev => !prev)}
-                                            className="p-1.5 bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-full border border-slate-200 shadow-sm transition-all"
-                                            title="Toggle Student List"
-                                        >
-                                            <Menu size={14} />
-                                        </button>
-                                    )}
-                                </div>
 
                                 {selectedStudent ? (
                                     <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-3 text-white shadow-lg shadow-indigo-500/10 mb-2.5 border border-white/20 relative overflow-hidden group">
@@ -1556,6 +1622,7 @@ const TeacherActivities = () => {
                         </>
                     )}
                 </aside>
+            )}
 
                 {/* --- Center: Main Content --- */}
                 <main className="flex-1 bg-white flex flex-col overflow-hidden text-left">
@@ -1636,31 +1703,41 @@ const TeacherActivities = () => {
                                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                     >
                                         {[
-                                            { id: 'assign', label: `Assign (${assignCount})`, icon: Plus, activeClass: 'bg-indigo-600 text-white shadow-md' },
-                                            { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                            { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                            { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
-                                            { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md' },
-                                            { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-600 text-white shadow-md' },
-                                            { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md' },
-                                            { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                            { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
-                                        ].map(tab => {
+                                            { id: 'assign', label: `Assign (${assignCount})`, icon: Plus, activeClass: 'bg-indigo-600 text-white shadow-md', key: 'assign' },
+                                            { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Hourglass, activeClass: 'bg-[#EF4444] text-white shadow-md', key: 'upcoming' },
+                                            { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md', key: 'submitted' },
+                                            { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md', key: 'returned' },
+                                            { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle2, activeClass: 'bg-emerald-600 text-white shadow-md', key: 'evaluated' },
+                                            { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-600 text-white shadow-md', key: 'expired' },
+                                            { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-[#3E3ADD] text-white shadow-md', key: 'studyMaterial' },
+                                            { id: 'tools', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md', key: 'tools' },
+                                            { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md', key: 'analytics' }
+                                        ].filter(tab => {
+                                            const isDisabled = isInboxCardDisabled(tab.key);
+                                            const mode = saMode();
+                                            return !isDisabled || mode === 'disable';
+                                        }).map(tab => {
                                             const isActive = viewMode === tab.id;
                                             const TabIcon = tab.icon;
+                                            const isDisabled = isInboxCardDisabled(tab.key);
                                             return (
                                                 <button
                                                     key={tab.id}
-                                                    onClick={() => {
+                                                    disabled={isDisabled}
+                                                    onClick={isDisabled ? () => toast.error(inboxCardNote(tab.key) || 'Feature Restricted') : () => {
                                                         setViewMode(tab.id);
                                                         setSelectedCategory(null);
                                                     }}
-                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${isActive
-                                                        ? tab.activeClass
-                                                        : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
-                                                        }`}
+                                                    title={isDisabled ? (inboxCardNote(tab.key) || 'Feature Restricted') : tab.label}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                                                        isDisabled
+                                                            ? 'bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed border border-slate-200/60'
+                                                            : isActive
+                                                                ? tab.activeClass
+                                                                : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                    }`}
                                                 >
-                                                    <TabIcon size={12} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                                    <TabIcon size={12} className={isDisabled ? 'text-slate-400' : (isActive ? 'text-white' : 'text-slate-400')} />
                                                     <span>{tab.label}</span>
                                                 </button>
                                             );
@@ -2703,8 +2780,17 @@ const TeacherActivities = () => {
                 </main>
 
                 {/* --- Right Sidebar: Students Selecting --- */}
-                {showStudentList && (
-                    <aside className="w-64 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white animate-slide-in-right">
+                {showStudentList && (!isSaDisabled('student') || saMode() === 'disable') && (
+                    <aside className="w-64 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white animate-slide-in-right relative">
+                        {isSaDisabled('student') ? (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center">
+                                <Lock size={32} className="text-red-500 mb-3 animate-bounce" />
+                                <h3 className="font-extrabold text-slate-800 text-sm mb-1">Student List Locked</h3>
+                                <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                                    {saNote('student') || 'This list has been deactivated by your administrator.'}
+                                </p>
+                            </div>
+                        ) : null}
                         <div className="p-4 border-b border-slate-150 bg-white">
                             <div className="flex items-center justify-between mb-3">
                                 <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">Student List</h2>

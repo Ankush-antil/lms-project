@@ -547,7 +547,26 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 if (controlKey) {
                     const ctrl = controls[controlKey];
                     if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true };
+                        return { ...item, disabled: true, note: ctrl.note };
+                    }
+                }
+            }
+        } else if (user?.role === 'Teacher') {
+            const controls = user.teacherProfile?.controls;
+            if (controls) {
+                const name = item.name.toLowerCase();
+                let controlKey = '';
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student activities') controlKey = 'studentActivities';
+                else if (name === 'evaluate') controlKey = 'evaluate';
+                else if (name === 'snapshots') controlKey = 'snapshots';
+                else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+                else if (name === 'chat') controlKey = 'chat';
+
+                if (controlKey) {
+                    const ctrl = controls[controlKey];
+                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                        return { ...item, disabled: true, note: ctrl.note };
                     }
                 }
             }
@@ -569,6 +588,28 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
             else if (name === 'fee portal') controlKey = 'feePortal';
             else if (name === 'tools') controlKey = 'tools';
+            else if (name === 'chat') controlKey = 'chat';
+
+            if (controlKey) {
+                const ctrl = controls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (user?.role === 'Teacher') {
+            const controls = user.teacherProfile?.controls;
+            if (!controls) return true;
+
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (name === 'dashboard') controlKey = 'dashboard';
+            else if (name === 'student activities') controlKey = 'studentActivities';
+            else if (name === 'evaluate') controlKey = 'evaluate';
+            else if (name === 'snapshots') controlKey = 'snapshots';
+            else if (name === 'activities builder') controlKey = 'activitiesBuilder';
             else if (name === 'chat') controlKey = 'chat';
 
             if (controlKey) {
@@ -639,8 +680,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                             <button
                                 key={item.name}
                                 onClick={() => !item.disabled && navigate(item.path)}
-                                title={collapsed ? item.name : undefined}
-                                disabled={item.disabled}
+                                title={item.disabled ? (item.note || 'Feature Restricted') : (collapsed ? item.name : undefined)}
                                 className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
                                     ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
                                     ${active
@@ -684,7 +724,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                 <button
                                     key={item.name}
                                     onClick={() => !item.disabled && navigate(item.path)}
-                                    disabled={item.disabled}
+                                    title={item.disabled ? (item.note || 'Feature Restricted') : undefined}
                                     className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold 
                                         ${active
                                             ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'

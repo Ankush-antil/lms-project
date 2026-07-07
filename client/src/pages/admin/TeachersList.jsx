@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Plus, GraduationCap, Trash2, Edit } from 'lucide-react';
+import { Search, Filter, Plus, GraduationCap, Trash2, Edit, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -144,31 +144,32 @@ const TeachersList = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full animate-fade-in">
+                <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
                         placeholder="Search by Name or ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="input-field pl-10"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
                     />
                 </div>
 
-                <div className="flex gap-4 w-full md:w-auto">
-                    <div className="relative min-w-[150px]">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                    <div className="relative w-[150px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         <select
                             value={filterCourse}
                             onChange={(e) => setFilterCourse(e.target.value)}
-                            className="input-field pl-10 appearance-none cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
                         >
                             <option value="All">All Courses</option>
                             {courses.map(course => (
                                 <option key={course._id} value={course.name}>{course.name}</option>
                             ))}
                         </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                     </div>
                 </div>
             </div>

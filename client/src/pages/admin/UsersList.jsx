@@ -250,7 +250,12 @@ const UsersList = () => {
                                         {/* Details column */}
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden shadow-sm flex-shrink-0">
+                                                <div 
+                                                    className={`w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden shadow-sm flex-shrink-0 ${
+                                                        viewTab === 'registered' ? 'cursor-pointer hover:scale-110 transition-transform' : ''
+                                                    }`}
+                                                    onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
+                                                >
                                                     {viewTab === 'registered' ? (
                                                         u.avatar ? (
                                                             <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
@@ -264,7 +269,12 @@ const UsersList = () => {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="font-semibold text-slate-800">
+                                                    <span 
+                                                        className={`font-semibold text-slate-800 ${
+                                                            viewTab === 'registered' ? 'cursor-pointer hover:text-indigo-600 transition-colors' : ''
+                                                        }`}
+                                                        onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
+                                                    >
                                                         {viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name}
                                                     </span>
                                                     <span className="text-xs text-slate-400">

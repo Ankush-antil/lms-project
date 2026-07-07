@@ -272,7 +272,13 @@ const InstitutesList = () => {
                                             <tr key={inst._id} className="hover:bg-slate-50 transition-colors group">
                                                 <td className="p-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-lg bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm overflow-hidden">
+                                                        <div 
+                                                            className="w-10 h-10 rounded-lg bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold flex-shrink-0 transition-all shadow-sm overflow-hidden cursor-pointer hover:scale-110"
+                                                            onClick={() => {
+                                                                setSelectedInstitute(inst);
+                                                                setIsDetailsModalOpen(true);
+                                                            }}
+                                                        >
                                                             {inst.imageUrl ? (
                                                                 <img src={inst.imageUrl} alt={inst.name} className="w-full h-full object-cover" />
                                                             ) : (
@@ -280,7 +286,15 @@ const InstitutesList = () => {
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <div className="font-extrabold text-slate-800 text-sm">{inst.name}</div>
+                                                            <div 
+                                                                className="font-extrabold text-slate-800 text-sm cursor-pointer hover:text-indigo-600 transition-colors"
+                                                                onClick={() => {
+                                                                    setSelectedInstitute(inst);
+                                                                    setIsDetailsModalOpen(true);
+                                                                }}
+                                                            >
+                                                                {inst.name}
+                                                            </div>
                                                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{inst.contactEmail || 'No Email Listed'}</div>
                                                         </div>
                                                     </div>

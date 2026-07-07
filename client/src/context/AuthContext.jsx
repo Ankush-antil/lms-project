@@ -85,7 +85,20 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('authToken', token);
         setUser(userInfo);
         toast.success(`Switched to ${userInfo.name || userInfo.email}`);
-        window.location.href = '/';
+        
+        if (userInfo.role === 'Student') {
+            window.location.href = '/student/tests';
+        } else if (userInfo.role === 'Admin') {
+            window.location.href = '/admin';
+        } else if (userInfo.role === 'Teacher') {
+            window.location.href = '/teacher';
+        } else if (userInfo.role === 'Editor') {
+            window.location.href = '/editor';
+        } else if (userInfo.role === 'Institute') {
+            window.location.href = '/institute';
+        } else {
+            window.location.href = '/';
+        }
     };
 
     const removeAccount = (email) => {
@@ -130,7 +143,20 @@ export const AuthProvider = ({ children }) => {
                     // If another account is saved, auto switch to it
                     if (accounts.length > 0) {
                         localStorage.setItem('authToken', accounts[0].token);
-                        window.location.href = '/';
+                        const nextUser = accounts[0].user;
+                        if (nextUser && nextUser.role === 'Student') {
+                            window.location.href = '/student/tests';
+                        } else if (nextUser && nextUser.role === 'Admin') {
+                            window.location.href = '/admin';
+                        } else if (nextUser && nextUser.role === 'Teacher') {
+                            window.location.href = '/teacher';
+                        } else if (nextUser && nextUser.role === 'Editor') {
+                            window.location.href = '/editor';
+                        } else if (nextUser && nextUser.role === 'Institute') {
+                            window.location.href = '/institute';
+                        } else {
+                            window.location.href = '/';
+                        }
                         return;
                     }
                 }

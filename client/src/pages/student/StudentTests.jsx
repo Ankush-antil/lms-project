@@ -147,7 +147,7 @@ const StudentTests = () => {
         
         const myActivityCtrl = user.studentProfile.controls.myActivity;
         if (myActivityCtrl.enabled === false) {
-            return { enabled: false, mode: myActivityCtrl.mode };
+            return { enabled: false, mode: myActivityCtrl.mode, note: myActivityCtrl.note };
         }
 
         const inbox = myActivityCtrl.inbox;
@@ -160,7 +160,8 @@ const StudentTests = () => {
         else inboxKey = tabId;
 
         const isEnabled = inbox[inboxKey] !== false;
-        return { enabled: isEnabled, mode: myActivityCtrl.mode };
+        const note = myActivityCtrl.subNotes?.[inboxKey] || myActivityCtrl.note;
+        return { enabled: isEnabled, mode: myActivityCtrl.mode, note: note };
     };
 
     const [tests, setTests] = useState([]);
@@ -762,8 +763,17 @@ const StudentTests = () => {
                     </div>
                     <h2 className="text-lg font-black text-slate-800">Feature Restricted</h2>
                     <p className="text-xs text-slate-500 max-w-sm mt-1">
-                        My Activities has been disabled by your administrator. Please contact your institute for details.
+                        My Activities has been disabled by your administrator.
                     </p>
+                    {user?.studentProfile?.controls?.myActivity?.note ? (
+                        <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2 font-bold max-w-sm">
+                            Reason: {user.studentProfile.controls.myActivity.note}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-slate-500 max-w-sm mt-1">
+                            Please contact your institute for details.
+                        </p>
+                    )}
                 </div>
             </DashboardLayout>
         );
@@ -952,11 +962,14 @@ const StudentTests = () => {
                                             <button
                                                 key={tab.id}
                                                 onClick={() => {
-                                                    if (isDisabled) return;
+                                                    if (isDisabled) {
+                                                        toast.error(ctrl.note || "This tab is disabled by your administrator.");
+                                                        return;
+                                                    }
                                                     setViewMode(tab.id);
                                                     setSelectedCategory(null);
                                                 }}
-                                                disabled={isDisabled}
+                                                title={isDisabled ? (ctrl.note || 'Restricted') : undefined}
                                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap 
                                                     ${isDisabled 
                                                         ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-100/50' 
@@ -965,7 +978,7 @@ const StudentTests = () => {
                                                             : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
                                                     }`}
                                             >
-                                                <TabIcon size={12} className={isDisabled ? 'text-slate-450' : isActive ? 'text-white' : 'text-slate-400'} />
+                                                <TabIcon size={12} className={isDisabled ? 'text-slate-455' : isActive ? 'text-white' : 'text-slate-400'} />
                                                 <span>{tab.label}</span>
                                             </button>
                                         );

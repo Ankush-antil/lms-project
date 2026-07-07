@@ -131,6 +131,25 @@ const TeacherDashboard = () => {
         }
     };
 
+    const controls = user?.teacherProfile?.controls;
+
+    const resolveSubNote = (subKey) => {
+        if (!controls || !controls.dashboard) return '';
+        const db = controls.dashboard;
+        if (db.subNotes && db.subNotes[subKey]) return db.subNotes[subKey];
+        return db.note || '';
+    };
+
+    const isSubDisabled = (subKey) => {
+        if (!controls || !controls.dashboard) return false;
+        if (controls.dashboard.enabled === false) return true;
+        return controls.dashboard[subKey] === false;
+    };
+
+    const getSubMode = () => {
+        return controls?.dashboard?.mode || 'hide';
+    };
+
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
@@ -170,6 +189,23 @@ const TeacherDashboard = () => {
         </DashboardLayout>
     );
 
+    if (controls?.dashboard?.enabled === false) {
+        return (
+            <DashboardLayout role="Teacher" fullWidth={true}>
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-white/60 backdrop-blur-xl border border-slate-100 rounded-[32px] text-center shadow-xl shadow-slate-100/50 max-w-2xl mx-auto my-12 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
+                    <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <AlertCircle size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Feature Deactivated</h2>
+                    <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
+                        {controls.dashboard.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="mb-8 space-y-4">
@@ -178,45 +214,76 @@ const TeacherDashboard = () => {
                     <p className="text-slate-500 mt-1 text-sm md:text-base">Manage your courses, students, and evaluate tests in real-time.</p>
                 </div>
                 <div className="flex flex-wrap sm:flex-row items-center gap-3">
-                    <button
-                        onClick={handleToggleCall}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${callEnabled
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100/50'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 shadow-sm border border-slate-200'
+                    {(!isSubDisabled('receivingCalls') || getSubMode() === 'disable') && (
+                        <button
+                            disabled={isSubDisabled('receivingCalls')}
+                            onClick={isSubDisabled('receivingCalls') ? () => toast.error(resolveSubNote('receivingCalls') || 'Feature Restricted') : handleToggleCall}
+                            title={isSubDisabled('receivingCalls') ? (resolveSubNote('receivingCalls') || 'Feature Restricted') : undefined}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                                isSubDisabled('receivingCalls')
+                                    ? 'bg-slate-100 border border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                    : callEnabled
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100/50 cursor-pointer'
+                                        : 'bg-white hover:bg-slate-50 text-slate-700 shadow-sm border border-slate-200 cursor-pointer'
                             }`}
-                    >
-                        <Phone size={16} />
-                        <span>Receiving Calls: {callEnabled ? 'ON' : 'OFF'}</span>
-                    </button>
-                    <button
-                        onClick={() => navigate('/teacher/activities')}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-100/50 transition-all flex items-center gap-2"
-                    >
-                        <FileText size={16} />
-                        <span>Take Action</span>
-                    </button>
-                    <button
-                        onClick={() => navigate('/teacher/attendance')}
-                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-md shadow-rose-100/50 transition-all flex items-center gap-2"
-                    >
-                        <QrCode size={16} />
-                        <span>QR Attendance</span>
-                    </button>
-                    <button
-                        onClick={() => setShowContactModal(true)}
-                        className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md shadow-slate-200/50 transition-all flex items-center gap-2"
-                    >
-                        <Phone size={16} />
-                        <span>Contact Students</span>
-                    </button>
+                        >
+                            <Phone size={16} />
+                            <span>Receiving Calls: {callEnabled ? 'ON' : 'OFF'}</span>
+                        </button>
+                    )}
+                    {(!isSubDisabled('takeAction') || getSubMode() === 'disable') && (
+                        <button
+                            disabled={isSubDisabled('takeAction')}
+                            onClick={isSubDisabled('takeAction') ? () => toast.error(resolveSubNote('takeAction') || 'Feature Restricted') : () => navigate('/teacher/activities')}
+                            title={isSubDisabled('takeAction') ? (resolveSubNote('takeAction') || 'Feature Restricted') : undefined}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                                isSubDisabled('takeAction')
+                                    ? 'bg-slate-100 border border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100/50 cursor-pointer'
+                            }`}
+                        >
+                            <FileText size={16} />
+                            <span>Take Action</span>
+                        </button>
+                    )}
+                    {(!isSubDisabled('attendance') || getSubMode() === 'disable') && (
+                        <button
+                            disabled={isSubDisabled('attendance')}
+                            onClick={isSubDisabled('attendance') ? () => toast.error(resolveSubNote('attendance') || 'Feature Restricted') : () => navigate('/teacher/attendance')}
+                            title={isSubDisabled('attendance') ? (resolveSubNote('attendance') || 'Feature Restricted') : undefined}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                                isSubDisabled('attendance')
+                                    ? 'bg-slate-100 border border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                    : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-100/50 cursor-pointer'
+                            }`}
+                        >
+                            <QrCode size={16} />
+                            <span>QR Attendance</span>
+                        </button>
+                    )}
+                    {(!isSubDisabled('contactStudents') || getSubMode() === 'disable') && (
+                        <button
+                            disabled={isSubDisabled('contactStudents')}
+                            onClick={isSubDisabled('contactStudents') ? () => toast.error(resolveSubNote('contactStudents') || 'Feature Restricted') : () => setShowContactModal(true)}
+                            title={isSubDisabled('contactStudents') ? (resolveSubNote('contactStudents') || 'Feature Restricted') : undefined}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                                isSubDisabled('contactStudents')
+                                    ? 'bg-slate-100 border border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                    : 'bg-slate-950 hover:bg-slate-800 text-white rounded-xl cursor-pointer'
+                            }`}
+                        >
+                            <Phone size={16} />
+                            <span>Contact Students</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard title="My Students" value={stats.totalStudents} icon={Users} color="bg-indigo-600" onClick={() => navigate('/teacher/activities')} />
-                <StatCard title="Pending Tests" value={stats.pending} icon={Clock} color="bg-orange-500" onClick={() => navigate('/teacher/activities')} />
-                <StatCard title="Evaluated" value={stats.completed} icon={CheckCircle} color="bg-emerald-500" onClick={() => navigate('/teacher/activities')} />
+                <StatCard title="My Students" value={stats.totalStudents} icon={Users} color="bg-indigo-600" onClick={() => !isSubDisabled('takeAction') ? navigate('/teacher/activities') : toast.error(resolveSubNote('takeAction') || 'Feature Restricted')} />
+                <StatCard title="Pending Tests" value={stats.pending} icon={Clock} color="bg-orange-500" onClick={() => !isSubDisabled('takeAction') ? navigate('/teacher/activities') : toast.error(resolveSubNote('takeAction') || 'Feature Restricted')} />
+                <StatCard title="Evaluated" value={stats.completed} icon={CheckCircle} color="bg-emerald-500" onClick={() => !isSubDisabled('takeAction') ? navigate('/teacher/activities') : toast.error(resolveSubNote('takeAction') || 'Feature Restricted')} />
                 <StatCard title="Courses taught" value={stats.courses} icon={BookOpen} color="bg-purple-600" onClick={() => { }} />
             </div>
 

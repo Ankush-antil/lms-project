@@ -103,6 +103,11 @@ const StudentDashboard = () => {
                     <p className="text-xs text-slate-500 max-w-sm mt-1">
                         Your dashboard has been disabled by your administrator.
                     </p>
+                    {profile?.studentProfile?.controls?.dashboard?.note && (
+                        <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2 font-bold max-w-sm">
+                            Reason: {profile.studentProfile.controls.dashboard.note}
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
         );
@@ -112,10 +117,15 @@ const StudentDashboard = () => {
         <DashboardLayout role="Student" fullWidth={true}>
             <div className={`relative ${isDashboardDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                 {isDashboardDisabled && (
-                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-start justify-center pt-12 pointer-events-auto">
+                    <div 
+                        title={profile?.studentProfile?.controls?.dashboard?.note || 'Dashboard is Disabled'}
+                        className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-start justify-center pt-12 pointer-events-auto cursor-not-allowed"
+                    >
                         <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
                             <Lock size={16} className="text-amber-500" />
-                            <span className="text-xs font-bold">Dashboard is Disabled (View-Only Mode)</span>
+                            <span className="text-xs font-bold">
+                                Dashboard is Disabled (View-Only Mode){profile?.studentProfile?.controls?.dashboard?.note ? ` - ${profile.studentProfile.controls.dashboard.note}` : ''}
+                            </span>
                         </div>
                     </div>
                 )}

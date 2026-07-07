@@ -979,21 +979,46 @@ const ChatPage = () => {
     }, [customLists]);
 
     const isContactAllowed = (contact) => {
-        if (!user || user.role !== 'Student') return true;
-        const chatCtrl = user.studentProfile?.controls?.chat;
-        if (!chatCtrl) return true;
-        if (chatCtrl.enabled === false) return false;
+        if (!user) return true;
+        
+        // Student controls
+        if (user.role === 'Student') {
+            const chatCtrl = user.studentProfile?.controls?.chat;
+            if (!chatCtrl) return true;
+            if (chatCtrl.enabled === false) return false;
 
-        const role = contact.role;
-        if (role === 'Teacher') {
-            return chatCtrl.chatWithTeacher !== false;
+            const role = contact.role;
+            if (role === 'Teacher') {
+                return chatCtrl.chatWithTeacher !== false;
+            }
+            if (role === 'Admin' || role === 'Institute') {
+                return chatCtrl.chatWithAdmin !== false;
+            }
+            if (role === 'Editor') {
+                return chatCtrl.chatWithEditor !== false;
+            }
+            return true;
         }
-        if (role === 'Admin' || role === 'Institute') {
-            return chatCtrl.chatWithAdmin !== false;
+
+        // Teacher controls
+        if (user.role === 'Teacher') {
+            const chatCtrl = user.teacherProfile?.controls?.chat;
+            if (!chatCtrl) return true;
+            if (chatCtrl.enabled === false) return false;
+
+            const role = contact.role;
+            if (role === 'Student') {
+                return chatCtrl.chatStudent !== false;
+            }
+            if (role === 'Editor') {
+                return chatCtrl.chatEditor !== false;
+            }
+            if (role === 'Admin' || role === 'Institute' || role === 'Teacher') {
+                return chatCtrl.chatInstitute !== false;
+            }
+            return true;
         }
-        if (role === 'Editor') {
-            return chatCtrl.chatWithEditor !== false;
-        }
+
         return true;
     };
 
@@ -1009,7 +1034,7 @@ const ChatPage = () => {
                 });
             }
         });
-        if (user?.role === 'Student') {
+        if (user?.role === 'Student' || user?.role === 'Teacher') {
             list = list.filter(isContactAllowed);
         }
         return list;
@@ -1116,8 +1141,10 @@ const ChatPage = () => {
     // So we ALSO need to check per-test via the new endpoint in the grid view
     // We use a helper that fetches doubt counts per test lazily (done inside the grid render)
 
-    const chatCtrl = user?.studentProfile?.controls?.chat;
-    const isChatDisabled = user?.role === 'Student' && chatCtrl?.enabled === false;
+    const chatCtrl = user?.role === 'Student' 
+        ? user?.studentProfile?.controls?.chat 
+        : (user?.role === 'Teacher' ? user?.teacherProfile?.controls?.chat : null);
+    const isChatDisabled = (user?.role === 'Student' || user?.role === 'Teacher') && chatCtrl?.enabled === false;
     const chatMode = chatCtrl?.mode || 'hide';
 
     if (isChatDisabled && chatMode === 'hide') {
@@ -1131,6 +1158,11 @@ const ChatPage = () => {
                     <p className="text-xs text-slate-500 max-w-sm mt-1">
                         Chat features have been disabled by your administrator.
                     </p>
+                    {chatCtrl?.note && (
+                        <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2 font-bold max-w-sm">
+                            Reason: {chatCtrl.note}
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
         );
@@ -1140,10 +1172,13 @@ const ChatPage = () => {
         <DashboardLayout role={user?.role} fullWidth={true}>
             <div className={`relative flex bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-140px)] min-h-[500px] ${isChatDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                 {isChatDisabled && (
-                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto">
+                    <div 
+                        title={chatCtrl?.note || 'Chat features are Disabled'}
+                        className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto cursor-not-allowed"
+                    >
                         <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
                             <Lock size={16} className="text-amber-500" />
-                            <span className="text-xs font-bold">Chat features are Disabled</span>
+                            <span className="text-xs font-bold">Chat features are Disabled{chatCtrl?.note ? ` - ${chatCtrl.note}` : ''}</span>
                         </div>
                     </div>
                 )}
@@ -1424,42 +1459,46 @@ const ChatPage = () => {
                                         <Search size={16} />
                                     </button>
                                     {/* Audio Call Button */}
-                                    {(!user || user.role !== 'Student' || user.studentProfile?.controls?.chat?.audioCall !== false || user.studentProfile?.controls?.chat?.mode === 'disable') && (
+                                    {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
                                             onClick={() => {
-                                                if (user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false) {
-                                                    toast.error("Audio calling is disabled by your administrator.");
+                                                if (chatCtrl && chatCtrl.audioCall === false) {
+                                                    toast.error(chatCtrl.subNotes?.audioCall || chatCtrl.note || "Audio calling is disabled by your administrator.");
                                                     return;
                                                 }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false) 
+                                                ${(chatCtrl && chatCtrl.audioCall === false) 
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
                                                     : 'text-slate-550 hover:bg-slate-50'}`}
-                                            title="Voice Call"
-                                            disabled={user?.role === 'Student' && user.studentProfile?.controls?.chat?.audioCall === false}
+                                            title={chatCtrl && chatCtrl.audioCall === false
+                                                ? (chatCtrl.subNotes?.audioCall || chatCtrl.note || "Voice call is disabled")
+                                                : "Voice Call"
+                                            }
                                         >
                                             <Phone size={16} />
                                         </button>
                                     )}
 
                                     {/* Video Call Button */}
-                                    {(!user || user.role !== 'Student' || user.studentProfile?.controls?.chat?.videoCall !== false || user.studentProfile?.controls?.chat?.mode === 'disable') && (
+                                    {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.videoCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
                                             onClick={() => {
-                                                if (user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false) {
-                                                    toast.error("Video calling is disabled by your administrator.");
+                                                if (chatCtrl && chatCtrl.videoCall === false) {
+                                                    toast.error(chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video calling is disabled by your administrator.");
                                                     return;
                                                 }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'video');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false) 
+                                                ${(chatCtrl && chatCtrl.videoCall === false) 
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
                                                     : 'text-slate-550 hover:bg-slate-50'}`}
-                                            title="Video Call"
-                                            disabled={user?.role === 'Student' && user.studentProfile?.controls?.chat?.videoCall === false}
+                                            title={chatCtrl && chatCtrl.videoCall === false
+                                                ? (chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video call is disabled")
+                                                : "Video Call"
+                                            }
                                         >
                                             <Video size={16} />
                                         </button>

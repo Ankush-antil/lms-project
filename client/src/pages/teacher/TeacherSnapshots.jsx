@@ -350,11 +350,47 @@ const TeacherSnapshots = () => {
         }
     };
 
+    const controls = user?.teacherProfile?.controls;
+
+    const resolveSubNote = (subKey) => {
+        if (!controls || !controls.snapshots) return '';
+        const sn = controls.snapshots;
+        if (sn.subNotes && sn.subNotes[subKey]) return sn.subNotes[subKey];
+        return sn.note || '';
+    };
+
+    const isSubDisabled = (subKey) => {
+        if (!controls || !controls.snapshots) return false;
+        if (controls.snapshots.enabled === false) return true;
+        return controls.snapshots[subKey] === false;
+    };
+
+    const getSubMode = () => {
+        return controls?.snapshots?.mode || 'hide';
+    };
+
     if (loading) return (
         <DashboardLayout role="Teacher" fullWidth={true}>
             <LoadingPlaceholder type="dashboard" />
         </DashboardLayout>
     );
+
+    if (controls?.snapshots?.enabled === false) {
+        return (
+            <DashboardLayout role="Teacher" collapsed={false}>
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-white/60 backdrop-blur-xl border border-slate-100 rounded-[32px] text-center shadow-xl shadow-slate-100/50 max-w-2xl mx-auto my-12 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
+                    <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <XCircle size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Feature Deactivated</h2>
+                    <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
+                        {controls.snapshots.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout role="Teacher" fullWidth={true}>
@@ -370,13 +406,21 @@ const TeacherSnapshots = () => {
                         <p className="text-slate-400 text-sm mt-0.5">Mark daily attendance for all students in your class</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                        <button
-                            onClick={() => navigate('/teacher/attendance')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-sm font-black transition shadow-md shadow-emerald-100 cursor-pointer"
-                        >
-                            <QrCode size={15} />
-                            QR Attendance
-                        </button>
+                        {(!isSubDisabled('qrAttendance') || getSubMode() === 'disable') && (
+                            <button
+                                disabled={isSubDisabled('qrAttendance')}
+                                onClick={isSubDisabled('qrAttendance') ? () => toast.error(resolveSubNote('qrAttendance') || 'Feature Restricted') : () => navigate('/teacher/attendance')}
+                                title={isSubDisabled('qrAttendance') ? (resolveSubNote('qrAttendance') || 'Feature Restricted') : undefined}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-black transition shadow-md ${
+                                    isSubDisabled('qrAttendance')
+                                        ? 'bg-slate-100 border border-slate-200 text-slate-400 opacity-60 cursor-not-allowed shadow-none'
+                                        : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-100 cursor-pointer'
+                                }`}
+                            >
+                                <QrCode size={15} />
+                                QR Attendance
+                            </button>
+                        )}
                         <button
                             onClick={handleSave}
                             disabled={submitting}

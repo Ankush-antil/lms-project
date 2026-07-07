@@ -94,13 +94,56 @@ const createUser = asyncHandler(async (req, res) => {
             subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             studentAssignmentMode: studentAssignmentMode || 'all',
             assignedSections: assignedSections || [],
-            assignedStudents: assignedStudents || []
+            assignedStudents: assignedStudents || [],
+            controls: req.body.controls
         };
     }
 
     const user = await User.create(userFields);
 
     if (user) {
+        // Propagate controls if scope is not 'single'
+        const scope = req.body.controlsScope || 'single';
+        if (role === 'Student' && req.body.controls !== undefined && scope !== 'single') {
+            const query = { role: 'Student', _id: { $ne: user._id } };
+
+            // Enforce creator's institute
+            if (user.institute) {
+                query.institute = user.institute;
+            }
+
+            if (scope === 'course') {
+                query['studentProfile.course'] = user.studentProfile.course;
+            } else if (scope === 'selected') {
+                const selectedIds = req.body.selectedPropagationStudents || [];
+                query._id = { $in: selectedIds };
+            }
+
+            if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                await User.updateMany(query, {
+                    $set: { 'studentProfile.controls': req.body.controls }
+                });
+            }
+        } else if (role === 'Teacher' && req.body.controls !== undefined && scope !== 'single') {
+            const query = { role: 'Teacher', _id: { $ne: user._id } };
+
+            // Enforce creator's institute
+            if (user.institute) {
+                query.institute = user.institute;
+            }
+
+            if (scope === 'selected') {
+                const selectedIds = req.body.selectedPropagationStudents || [];
+                query._id = { $in: selectedIds };
+            }
+
+            if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                await User.updateMany(query, {
+                    $set: { 'teacherProfile.controls': req.body.controls }
+                });
+            }
+        }
+
         res.status(201).json({
             _id: user._id,
             name: user.name,
@@ -191,6 +234,31 @@ const updateUser = asyncHandler(async (req, res) => {
             if (req.body.controls !== undefined) {
                 user.studentProfile.controls = req.body.controls;
                 user.markModified('studentProfile.controls');
+
+                // Propagate controls if scope is not 'single'
+                const scope = req.body.controlsScope || 'single';
+                if (scope !== 'single') {
+                    const query = { role: 'Student', _id: { $ne: user._id } };
+
+                    // Enforce institute isolation
+                    if (user.institute) {
+                        query.institute = user.institute;
+                    }
+
+                    if (scope === 'course') {
+                        query['studentProfile.course'] = user.studentProfile.course;
+                    } else if (scope === 'selected') {
+                        const selectedIds = req.body.selectedPropagationStudents || [];
+                        query._id = { $in: selectedIds };
+                    }
+
+                    // Update controls for other matching students
+                    if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                        await User.updateMany(query, {
+                            $set: { 'studentProfile.controls': req.body.controls }
+                        });
+                    }
+                }
             }
         } else if (user.role === 'Teacher') {
             if (!user.teacherProfile) user.teacherProfile = {};
@@ -199,6 +267,33 @@ const updateUser = asyncHandler(async (req, res) => {
             user.teacherProfile.studentAssignmentMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile.studentAssignmentMode;
             user.teacherProfile.assignedSections = req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile.assignedSections;
             user.teacherProfile.assignedStudents = req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile.assignedStudents;
+
+            if (req.body.controls !== undefined) {
+                user.teacherProfile.controls = req.body.controls;
+                user.markModified('teacherProfile.controls');
+
+                // Propagate controls if scope is not 'single'
+                const scope = req.body.controlsScope || 'single';
+                if (scope !== 'single') {
+                    const query = { role: 'Teacher', _id: { $ne: user._id } };
+
+                    // Enforce institute isolation
+                    if (user.institute) {
+                        query.institute = user.institute;
+                    }
+
+                    if (scope === 'selected') {
+                        const selectedIds = req.body.selectedPropagationStudents || [];
+                        query._id = { $in: selectedIds };
+                    }
+
+                    if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                        await User.updateMany(query, {
+                            $set: { 'teacherProfile.controls': req.body.controls }
+                        });
+                    }
+                }
+            }
         }
 
         const updatedUser = await user.save();

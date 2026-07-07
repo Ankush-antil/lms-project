@@ -8,6 +8,7 @@ const DEFAULT_STUDENT_CONTROLS = {
     myActivity: {
         enabled: true,
         mode: 'hide',
+        note: '',
         inbox: {
             upcoming: true,
             submitted: true,
@@ -21,15 +22,18 @@ const DEFAULT_STUDENT_CONTROLS = {
     },
     dashboard: {
         enabled: true,
-        mode: 'hide'
+        mode: 'hide',
+        note: ''
     },
     feePortal: {
         enabled: true,
-        mode: 'hide'
+        mode: 'hide',
+        note: ''
     },
     tools: {
         enabled: true,
         mode: 'hide',
+        note: '',
         voiceRecorder: true,
         videoRecorder: true,
         fileUploader: true,
@@ -41,12 +45,136 @@ const DEFAULT_STUDENT_CONTROLS = {
     chat: {
         enabled: true,
         mode: 'hide',
+        note: '',
         audioCall: true,
         videoCall: true,
         chatWithTeacher: true,
         chatWithAdmin: true,
         chatWithEditor: true
     }
+};
+
+const DEFAULT_TEACHER_CONTROLS = {
+    dashboard: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        receivingCalls: true,
+        takeAction: true,
+        attendance: true,
+        contactStudents: true
+    },
+    studentActivities: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        student: true,
+        inbox: true,
+        inboxDetails: {
+            assign: true,
+            upcoming: true,
+            submitted: true,
+            returned: true,
+            evaluated: true,
+            expired: true,
+            studyMaterial: true,
+            tools: true,
+            analytics: true
+        }
+    },
+    evaluate: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {}
+    },
+    snapshots: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        qrAttendance: true
+    },
+    activitiesBuilder: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        elementsControl: true,
+        inputElements: true,
+        displayingElements: true,
+        recordingElements: true,
+        advanceElements: true,
+        addons: true,
+        theme: true,
+        createWithAi: true,
+        integrate: true,
+        import: true,
+        saveAsTemplate: true,
+        decideActivity: true,
+        templates: true,
+        locationLocked: true,
+        logicRules: true,
+        monitoring: true,
+        connectIt: true,
+        profileUnderSettings: true,
+        moreSettings: true,
+        responses: true,
+        collaborate: true,
+        manageAccess: true,
+        publicToWeb: true
+    },
+    chat: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        audioCall: true,
+        videoCall: true,
+        chatStudent: true,
+        chatEditor: true,
+        chatInstitute: true
+    }
+};
+
+const getInboxTabLabel = (key) => {
+    const labels = {
+        upcoming: 'Upcoming',
+        submitted: 'Submitted',
+        returned: 'Returned',
+        evaluated: 'Evaluated',
+        expired: 'Expired',
+        studyMaterial: 'Study Material',
+        tools: 'Tools',
+        analytics: 'Analytics'
+    };
+    return labels[key] || key;
+};
+
+const getToolLabel = (key) => {
+    const labels = {
+        voiceRecorder: 'Voice Recorder',
+        videoRecorder: 'Video Recorder',
+        fileUploader: 'File Uploader',
+        notesWriting: 'Notes Writing',
+        screenshotTool: 'Screenshot Tool',
+        screenRecorder: 'Screen Recorder',
+        webCalling: 'Web Calling'
+    };
+    return labels[key] || key;
+};
+
+const getChatLabel = (key) => {
+    const labels = {
+        audioCall: 'Audio Call',
+        videoCall: 'Video Call',
+        chatWithTeacher: 'Teacher Chat',
+        chatWithAdmin: 'Admin Chat',
+        chatWithEditor: 'Editor Chat'
+    };
+    return labels[key] || key;
 };
 
 const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
@@ -74,13 +202,20 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const [error, setError] = useState('');
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('basic');
+    const [controlsScope, setControlsScope] = useState('single');
+    const [selectedPropagationStudents, setSelectedPropagationStudents] = useState([]);
 
     const [courseStudents, setCourseStudents] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
+    const [instituteTeachers, setInstituteTeachers] = useState([]);
+    const [loadingTeachers, setLoadingTeachers] = useState(false);
+    const [instituteDetails, setInstituteDetails] = useState(null);
 
     useEffect(() => {
         if (isOpen && user) {
             setSubjectDropdownOpen(false);
+            setControlsScope('single');
+            setSelectedPropagationStudents([]);
             setFormData({
                 name: user.name || '',
                 email: user.email || '',
@@ -98,19 +233,28 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 studentAssignmentMode: user.role === 'Teacher' ? (user.teacherProfile?.studentAssignmentMode || 'all') : 'all',
                 assignedSections: user.role === 'Teacher' ? (user.teacherProfile?.assignedSections || []) : [],
                 assignedStudents: user.role === 'Teacher' ? (user.teacherProfile?.assignedStudents?.map(s => s._id || s) || []) : [],
-                controls: user.role === 'Student' && user.studentProfile?.controls ? user.studentProfile.controls : DEFAULT_STUDENT_CONTROLS
+                controls: user.role === 'Student'
+                    ? { ...DEFAULT_STUDENT_CONTROLS, ...(user.studentProfile?.controls || {}) }
+                    : (user.role === 'Teacher'
+                        ? { ...DEFAULT_TEACHER_CONTROLS, ...(user.teacherProfile?.controls || {}) }
+                        : DEFAULT_STUDENT_CONTROLS)
             });
             setError('');
             setActiveTab('basic');
 
             const fetchData = async () => {
                 try {
+                    const instId = user.institute?._id || user.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : '');
                     const [instRes, courseRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
-                        axios.get('/api/setup/courses')
+                        axios.get('/api/setup/courses'),
+                        instId ? axios.get(`/api/setup/institutes/${instId}`) : Promise.resolve({ data: null })
                     ]);
                     setInstitutes(instRes.data);
                     setCourses(courseRes.data);
+                    if (instRes.data) {
+                        setInstituteDetails(instRes.data.find(i => i._id === instId) || instRes.data[0]);
+                    }
                 } catch (error) {
                     console.error("Error fetching setup data:", error);
                 }
@@ -137,6 +281,28 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             setCourseStudents([]);
         }
     }, [formData.course, user]);
+
+    useEffect(() => {
+        if (isOpen && user && user.role === 'Teacher') {
+            const fetchTeachers = async () => {
+                try {
+                    setLoadingTeachers(true);
+                    const instId = user.institute?._id || user.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : '');
+                    if (instId) {
+                        const { data } = await axios.get(`/api/users?role=Teacher`);
+                        setInstituteTeachers(data.filter(t => t._id !== user._id && (t.institute?._id === instId || t.institute === instId)));
+                    }
+                } catch (error) {
+                    console.error("Error fetching institute teachers:", error);
+                } finally {
+                    setLoadingTeachers(false);
+                }
+            };
+            fetchTeachers();
+        } else {
+            setInstituteTeachers([]);
+        }
+    }, [isOpen, user]);
 
     const renderStudentControls = () => {
         const updateControl = (section, field, value) => {
@@ -165,6 +331,19 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             });
         };
 
+        const updateSubNote = (section, key, value) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls[section]) newControls[section] = {};
+                if (!newControls[section].subNotes) newControls[section].subNotes = {};
+                newControls[section].subNotes = {
+                    ...newControls[section].subNotes,
+                    [key]: value
+                };
+                return { ...prev, controls: newControls };
+            });
+        };
+
         const controls = formData.controls || DEFAULT_STUDENT_CONTROLS;
 
         return (
@@ -182,17 +361,27 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             />
                             <label htmlFor="ctrl_myActivity" className="text-sm font-black text-slate-800 cursor-pointer select-none">1. My Activity</label>
                         </div>
-                        {controls.myActivity?.enabled !== false && (
-                            <select
-                                value={controls.myActivity?.mode || 'hide'}
-                                onChange={e => updateControl('myActivity', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                            >
-                                <option value="hide">Hide</option>
-                                <option value="disable">Disable</option>
-                            </select>
-                        )}
+                        <select
+                            value={controls.myActivity?.mode || 'hide'}
+                            onChange={e => updateControl('myActivity', 'mode', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
+                        >
+                            <option value="hide">Hide</option>
+                            <option value="disable">Disable</option>
+                        </select>
                     </div>
+                    {controls.myActivity?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.myActivity?.note || ''}
+                                onChange={e => updateControl('myActivity', 'note', e.target.value)}
+                                placeholder="Enter reason (e.g. Please clear your dues to activate)"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
                     {controls.myActivity?.enabled !== false && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Inbox Tabs Visible</span>
@@ -212,29 +401,55 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             type="checkbox"
                                             checked={controls.myActivity?.inbox?.[item.id] !== false}
                                             onChange={e => updateControl('myActivity', 'inbox', { [item.id]: e.target.checked })}
-                                            className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
                                         />
                                         <span className="text-xs font-semibold text-slate-700">{item.label}</span>
                                     </label>
                                 ))}
                             </div>
+                            {/* Sub-tab Notes */}
+                            {Object.entries(controls.myActivity?.inbox || {}).some(([k, v]) => v === false) && (
+                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-tab Deactivation Reasons</span>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                        {Object.entries(controls.myActivity?.inbox || {}).map(([key, isEnabled]) => {
+                                            if (isEnabled === false) {
+                                                const label = getInboxTabLabel(key);
+                                                return (
+                                                    <div key={key} className="flex items-center gap-3">
+                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
+                                                        <input
+                                                            type="text"
+                                                            value={controls.myActivity?.subNotes?.[key] || ''}
+                                                            onChange={e => updateSubNote('myActivity', key, e.target.value)}
+                                                            placeholder={`Reason for hiding ${label}`}
+                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* 2. Dashboard */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="ctrl_dashboard"
-                            checked={controls.dashboard?.enabled !== false}
-                            onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
-                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                        />
-                        <label htmlFor="ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer select-none">2. Dashboard</label>
-                    </div>
-                    {controls.dashboard?.enabled !== false && (
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="ctrl_dashboard"
+                                checked={controls.dashboard?.enabled !== false}
+                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer select-none">2. Dashboard</label>
+                        </div>
                         <select
                             value={controls.dashboard?.mode || 'hide'}
                             onChange={e => updateControl('dashboard', 'mode', e.target.value)}
@@ -243,22 +458,34 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             <option value="hide">Hide</option>
                             <option value="disable">Disable</option>
                         </select>
+                    </div>
+                    {controls.dashboard?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.dashboard?.note || ''}
+                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
+                                placeholder="Enter reason (e.g. Dashboard access restricted)"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
                     )}
                 </div>
 
                 {/* 3. Fee Portal */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="ctrl_feePortal"
-                            checked={controls.feePortal?.enabled !== false}
-                            onChange={e => updateControl('feePortal', 'enabled', e.target.checked)}
-                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                        />
-                        <label htmlFor="ctrl_feePortal" className="text-sm font-black text-slate-800 cursor-pointer select-none">3. Fee Portal</label>
-                    </div>
-                    {controls.feePortal?.enabled !== false && (
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="ctrl_feePortal"
+                                checked={controls.feePortal?.enabled !== false}
+                                onChange={e => updateControl('feePortal', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="ctrl_feePortal" className="text-sm font-black text-slate-800 cursor-pointer select-none">3. Fee Portal</label>
+                        </div>
                         <select
                             value={controls.feePortal?.mode || 'hide'}
                             onChange={e => updateControl('feePortal', 'mode', e.target.value)}
@@ -267,6 +494,18 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             <option value="hide">Hide</option>
                             <option value="disable">Disable</option>
                         </select>
+                    </div>
+                    {controls.feePortal?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.feePortal?.note || ''}
+                                onChange={e => updateControl('feePortal', 'note', e.target.value)}
+                                placeholder="Enter reason (e.g. Fees pending - contact accounts)"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
                     )}
                 </div>
 
@@ -283,17 +522,27 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             />
                             <label htmlFor="ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer select-none">4. Tools</label>
                         </div>
-                        {controls.tools?.enabled !== false && (
-                            <select
-                                value={controls.tools?.mode || 'hide'}
-                                onChange={e => updateControl('tools', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                            >
-                                <option value="hide">Hide</option>
-                                <option value="disable">Disable</option>
-                            </select>
-                        )}
+                        <select
+                            value={controls.tools?.mode || 'hide'}
+                            onChange={e => updateControl('tools', 'mode', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
+                        >
+                            <option value="hide">Hide</option>
+                            <option value="disable">Disable</option>
+                        </select>
                     </div>
+                    {controls.tools?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.tools?.note || ''}
+                                onChange={e => updateControl('tools', 'note', e.target.value)}
+                                placeholder="Enter reason (e.g. Tools restricted)"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
                     {controls.tools?.enabled !== false && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Available Tools</span>
@@ -318,6 +567,33 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                     </label>
                                 ))}
                             </div>
+                            {/* Sub-tool Notes */}
+                            {Object.entries(controls.tools || {}).some(([k, v]) => ['voiceRecorder', 'videoRecorder', 'fileUploader', 'notesWriting', 'screenshotTool', 'screenRecorder', 'webCalling'].includes(k) && v === false) && (
+                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-tool Deactivation Reasons</span>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                        {['voiceRecorder', 'videoRecorder', 'fileUploader', 'notesWriting', 'screenshotTool', 'screenRecorder', 'webCalling'].map(key => {
+                                            const isEnabled = controls.tools?.[key] !== false;
+                                            if (isEnabled === false) {
+                                                const label = getToolLabel(key);
+                                                return (
+                                                    <div key={key} className="flex items-center gap-3">
+                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
+                                                        <input
+                                                            type="text"
+                                                            value={controls.tools?.subNotes?.[key] || ''}
+                                                            onChange={e => updateSubNote('tools', key, e.target.value)}
+                                                            placeholder={`Reason for hiding/disabling ${label}`}
+                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -335,17 +611,27 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             />
                             <label htmlFor="ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer select-none">5. Chat</label>
                         </div>
-                        {controls.chat?.enabled !== false && (
-                            <select
-                                value={controls.chat?.mode || 'hide'}
-                                onChange={e => updateControl('chat', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                            >
-                                <option value="hide">Hide</option>
-                                <option value="disable">Disable</option>
-                            </select>
-                        )}
+                        <select
+                            value={controls.chat?.mode || 'hide'}
+                            onChange={e => updateControl('chat', 'mode', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
+                        >
+                            <option value="hide">Hide</option>
+                            <option value="disable">Disable</option>
+                        </select>
                     </div>
+                    {controls.chat?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.chat?.note || ''}
+                                onChange={e => updateControl('chat', 'note', e.target.value)}
+                                placeholder="Enter reason (e.g. Chat restricted)"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
                     {controls.chat?.enabled !== false && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-4">
                             <div>
@@ -391,6 +677,725 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                     ))}
                                 </div>
                             </div>
+                            {/* Sub-chat Notes */}
+                            {['audioCall', 'videoCall', 'chatWithTeacher', 'chatWithAdmin', 'chatWithEditor'].some(k => controls.chat?.[k] === false) && (
+                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-chat Deactivation Reasons</span>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                        {['audioCall', 'videoCall', 'chatWithTeacher', 'chatWithAdmin', 'chatWithEditor'].map(key => {
+                                            const isEnabled = controls.chat?.[key] !== false;
+                                            if (isEnabled === false) {
+                                                const label = getChatLabel(key);
+                                                return (
+                                                    <div key={key} className="flex items-center gap-3">
+                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
+                                                        <input
+                                                            type="text"
+                                                            value={controls.chat?.subNotes?.[key] || ''}
+                                                            onChange={e => updateSubNote('chat', key, e.target.value)}
+                                                            placeholder={`Reason for hiding/disabling ${label}`}
+                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                {/* Propagation Scope Selection */}
+                <div className="bg-slate-100/70 p-5 rounded-3xl border border-slate-200/60 mt-6 space-y-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply These Settings To</span>
+                        <p className="text-[10px] text-slate-450 font-semibold leading-normal">Propagate these feature control and note settings to other students in the system.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                        {[
+                            { value: 'single', label: 'This Student Only' },
+                            { value: 'course', label: 'All Students of Course' },
+                            { value: 'selected', label: 'Selected Students' },
+                            { value: 'all', label: 'All Students of this Institute' }
+                        ].map(opt => (
+                            <label key={opt.value} className={`flex items-center gap-3 bg-white border rounded-2xl p-3 cursor-pointer select-none transition-all hover:bg-slate-50/50 ${controlsScope === opt.value ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200'}`}>
+                                <input
+                                    type="radio"
+                                    name="controlsScope"
+                                    value={opt.value}
+                                    checked={controlsScope === opt.value}
+                                    onChange={() => setControlsScope(opt.value)}
+                                    className="rounded-full border-slate-350 text-[#3E3ADD] focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                />
+                                <span className="text-xs font-bold text-slate-750">{opt.label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    {controlsScope === 'selected' && (
+                        <div className="bg-white border border-slate-200 rounded-3xl p-4 mt-3 space-y-3 max-h-60 overflow-y-auto animate-fade-in">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span className="text-xs font-bold text-slate-700">Select Students to Apply Settings</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPropagationStudents(courseStudents.filter(s => s._id !== user._id).map(s => s._id))}
+                                        className="text-[10px] font-bold text-[#3E3ADD] hover:underline cursor-pointer"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-slate-350 text-[10px]">|</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPropagationStudents([])}
+                                        className="text-[10px] font-bold text-slate-400 hover:underline cursor-pointer"
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            {loadingStudents ? (
+                                <div className="text-xs text-slate-450 text-center py-4">Loading students...</div>
+                            ) : courseStudents.filter(s => s._id !== user._id).length === 0 ? (
+                                <div className="text-xs text-slate-450 text-center py-4">No other students in this course.</div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {courseStudents.filter(s => s._id !== user._id).map(student => {
+                                        const isChecked = selectedPropagationStudents.includes(student._id);
+                                        return (
+                                            <label key={student._id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50/50 border-slate-150'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (isChecked) {
+                                                            setSelectedPropagationStudents(prev => prev.filter(id => id !== student._id));
+                                                        } else {
+                                                            setSelectedPropagationStudents(prev => [...prev, student._id]);
+                                                        }
+                                                    }}
+                                                    className="rounded border-slate-300 text-[#3E3ADD] focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold text-slate-700 truncate">{student.name}</span>
+                                                    <span className="text-[9px] font-semibold text-slate-450">{student.admissionNo || 'No ID'}</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderTeacherControls = () => {
+        const updateControl = (section, field, value) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (field === 'inboxDetails') {
+                    newControls.studentActivities = {
+                        ...newControls.studentActivities,
+                        inboxDetails: {
+                            ...newControls.studentActivities.inboxDetails,
+                            ...value
+                        }
+                    };
+                } else {
+                    newControls[section] = {
+                        ...newControls[section],
+                        [field]: value
+                    };
+                }
+                return { ...prev, controls: newControls };
+            });
+        };
+
+        const updateSubNote = (section, key, value) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls[section]) newControls[section] = {};
+                if (!newControls[section].subNotes) newControls[section].subNotes = {};
+                newControls[section].subNotes = {
+                    ...newControls[section].subNotes,
+                    [key]: value
+                };
+                return { ...prev, controls: newControls };
+            });
+        };
+
+        const controls = formData.controls || DEFAULT_TEACHER_CONTROLS;
+        const activitiesAllowed = instituteDetails?.controls?.activities || {};
+
+        return (
+            <div className="space-y-6 animate-fade-in pb-4">
+                {/* 1. Dashboard Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_dashboard"
+                                checked={controls.dashboard?.enabled !== false}
+                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer">Dashboard Page</label>
+                        </div>
+                        {controls.dashboard?.enabled === false && (
+                            <select
+                                value={controls.dashboard?.mode || 'hide'}
+                                onChange={e => updateControl('dashboard', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.dashboard?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled? (e.g. Under Maintenance)"
+                                value={controls.dashboard?.note || ''}
+                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    {controls.dashboard?.enabled !== false && (
+                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Dashboard Sub-activities</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'receivingCalls', label: 'Receiving Calls' },
+                                        { id: 'takeAction', label: 'Take Action Button' },
+                                        { id: 'attendance', label: 'Attendance Management' },
+                                        { id: 'contactStudents', label: 'Contact Students Button' }
+                                    ].map(item => (
+                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={controls.dashboard?.[item.id] !== false}
+                                                onChange={e => updateControl('dashboard', item.id, e.target.checked)}
+                                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                            />
+                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Sub Notes */}
+                            {['receivingCalls', 'takeAction', 'attendance', 'contactStudents'].some(k => controls.dashboard?.[k] === false) && (
+                                <div className="border-t border-slate-100 pt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-dashboard Deactivation Reasons</span>
+                                    {['receivingCalls', 'takeAction', 'attendance', 'contactStudents'].map(k => {
+                                        if (controls.dashboard?.[k] === false) {
+                                            const label = k === 'receivingCalls' ? 'Receiving Calls' : k === 'takeAction' ? 'Take Action' : k === 'attendance' ? 'Attendance' : 'Contact Students';
+                                            return (
+                                                <div key={k} className="flex items-center gap-3">
+                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
+                                                    <input
+                                                        type="text"
+                                                        value={controls.dashboard?.subNotes?.[k] || ''}
+                                                        onChange={e => updateSubNote('dashboard', k, e.target.value)}
+                                                        placeholder={`Reason for hiding/disabling ${label}`}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                    />
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. Student Activities Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_studentActivities"
+                                checked={controls.studentActivities?.enabled !== false}
+                                onChange={e => updateControl('studentActivities', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_studentActivities" className="text-sm font-black text-slate-800 cursor-pointer">Student Activities Page</label>
+                        </div>
+                        {controls.studentActivities?.enabled === false && (
+                            <select
+                                value={controls.studentActivities?.mode || 'hide'}
+                                onChange={e => updateControl('studentActivities', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.studentActivities?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled?"
+                                value={controls.studentActivities?.note || ''}
+                                onChange={e => updateControl('studentActivities', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    {controls.studentActivities?.enabled !== false && (
+                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sections Control</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'student', label: 'Students View' },
+                                        { id: 'inbox', label: 'Inbox View' }
+                                    ].map(item => (
+                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={controls.studentActivities?.[item.id] !== false}
+                                                onChange={e => updateControl('studentActivities', item.id, e.target.checked)}
+                                                className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                            />
+                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {controls.studentActivities?.inbox !== false && (
+                                <div className="border-t border-slate-200/60 pt-3">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Inbox Cards Allowed</span>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[
+                                            { id: 'assign', label: 'Assign Test' },
+                                            { id: 'upcoming', label: 'Upcoming' },
+                                            { id: 'submitted', label: 'Submitted' },
+                                            { id: 'returned', label: 'Returned' },
+                                            { id: 'evaluated', label: 'Evaluated' },
+                                            { id: 'expired', label: 'Expired' },
+                                            { id: 'studyMaterial', label: 'Study Material' },
+                                            { id: 'tools', label: 'Practice Tools' },
+                                            { id: 'analytics', label: 'Analytics' }
+                                        ].map(item => (
+                                            <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={controls.studentActivities?.inboxDetails?.[item.id] !== false}
+                                                    onChange={e => updateControl('studentActivities', 'inboxDetails', { [item.id]: e.target.checked })}
+                                                    className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <span className="text-xs font-bold text-slate-700">{item.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Sub notes */}
+                            {['student', 'inbox'].some(k => controls.studentActivities?.[k] === false) && (
+                                <div className="border-t border-slate-100 pt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-activities Deactivation Reasons</span>
+                                    {['student', 'inbox'].map(k => {
+                                        if (controls.studentActivities?.[k] === false) {
+                                            const label = k === 'student' ? 'Students View' : 'Inbox View';
+                                            return (
+                                                <div key={k} className="flex items-center gap-3">
+                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
+                                                    <input
+                                                        type="text"
+                                                        value={controls.studentActivities?.subNotes?.[k] || ''}
+                                                        onChange={e => updateSubNote('studentActivities', k, e.target.value)}
+                                                        placeholder={`Reason for hiding/disabling ${label}`}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                    />
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. Evaluate Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_evaluate"
+                                checked={controls.evaluate?.enabled !== false}
+                                onChange={e => updateControl('evaluate', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_evaluate" className="text-sm font-black text-slate-800 cursor-pointer">Evaluate Page</label>
+                        </div>
+                        {controls.evaluate?.enabled === false && (
+                            <select
+                                value={controls.evaluate?.mode || 'hide'}
+                                onChange={e => updateControl('evaluate', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.evaluate?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled?"
+                                value={controls.evaluate?.note || ''}
+                                onChange={e => updateControl('evaluate', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* 4. Snapshots Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_snapshots"
+                                checked={controls.snapshots?.enabled !== false}
+                                onChange={e => updateControl('snapshots', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_snapshots" className="text-sm font-black text-slate-800 cursor-pointer">Snapshots Page</label>
+                        </div>
+                        {controls.snapshots?.enabled === false && (
+                            <select
+                                value={controls.snapshots?.mode || 'hide'}
+                                onChange={e => updateControl('snapshots', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.snapshots?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled?"
+                                value={controls.snapshots?.note || ''}
+                                onChange={e => updateControl('snapshots', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    {controls.snapshots?.enabled !== false && (
+                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Snapshots Sub-activities</span>
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={controls.snapshots?.qrAttendance !== false}
+                                        onChange={e => updateControl('snapshots', 'qrAttendance', e.target.checked)}
+                                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                    />
+                                    <span className="text-xs font-semibold text-slate-700">QR Attendance View</span>
+                                </label>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 5. Activities Builder Controls (Hierarchical checks from parent Institute) */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_activitiesBuilder"
+                                checked={controls.activitiesBuilder?.enabled !== false}
+                                onChange={e => updateControl('activitiesBuilder', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_activitiesBuilder" className="text-sm font-black text-slate-800 cursor-pointer">Activities Builder Page</label>
+                        </div>
+                        {controls.activitiesBuilder?.enabled === false && (
+                            <select
+                                value={controls.activitiesBuilder?.mode || 'hide'}
+                                onChange={e => updateControl('activitiesBuilder', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.activitiesBuilder?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled?"
+                                value={controls.activitiesBuilder?.note || ''}
+                                onChange={e => updateControl('activitiesBuilder', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    {controls.activitiesBuilder?.enabled !== false && (
+                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Activities Builder Sub-features (Inherited from Institute)</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'elementsControl', label: 'Elements Control' },
+                                        { id: 'inputElements', label: 'Input Elements' },
+                                        { id: 'displayingElements', label: 'Displaying Elements' },
+                                        { id: 'recordingElements', label: 'Recording Elements' },
+                                        { id: 'advanceElements', label: 'Advance Elements' },
+                                        { id: 'addons', label: 'Add-ons' },
+                                        { id: 'theme', label: 'Theme Styling' },
+                                        { id: 'createWithAi', label: 'Create with AI' },
+                                        { id: 'integrate', label: 'Integrate' },
+                                        { id: 'import', label: 'Import Options' },
+                                        { id: 'saveAsTemplate', label: 'Save As Template' },
+                                        { id: 'decideActivity', label: 'Decide Activity' },
+                                        { id: 'templates', label: 'Use Templates' },
+                                        { id: 'locationLocked', label: 'Location Lock' },
+                                        { id: 'logicRules', label: 'Logic Rules' },
+                                        { id: 'monitoring', label: 'Proctoring/Monitoring' },
+                                        { id: 'connectIt', label: 'Connect It' },
+                                        { id: 'profileUnderSettings', label: 'Settings Profile' },
+                                        { id: 'moreSettings', label: 'More Settings' },
+                                        { id: 'responses', label: 'View Responses' },
+                                        { id: 'collaborate', label: 'Collaborate' },
+                                        { id: 'manageAccess', label: 'Manage Access' },
+                                        { id: 'publicToWeb', label: 'Publish to Web' }
+                                    ].map(item => {
+                                        const isAllowedByInstitute = activitiesAllowed[item.id] !== false;
+                                        return (
+                                            <label key={item.id} className={`flex items-center gap-2 cursor-pointer select-none ${!isAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={!isAllowedByInstitute}
+                                                    checked={isAllowedByInstitute && controls.activitiesBuilder?.[item.id] !== false}
+                                                    onChange={e => updateControl('activitiesBuilder', item.id, e.target.checked)}
+                                                    className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <span className="text-xs font-semibold text-slate-700">
+                                                    {item.label} {!isAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider block leading-none mt-0.5">(Disabled by Admin)</span>}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 6. Chat Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="t_ctrl_chat"
+                                checked={controls.chat?.enabled !== false}
+                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="t_ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer">Chat Platform</label>
+                        </div>
+                        {controls.chat?.enabled === false && (
+                            <select
+                                value={controls.chat?.mode || 'hide'}
+                                onChange={e => updateControl('chat', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+
+                    {controls.chat?.enabled === false && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
+                            <input
+                                type="text"
+                                placeholder="Why is this page hidden/disabled?"
+                                value={controls.chat?.note || ''}
+                                onChange={e => updateControl('chat', 'note', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    {controls.chat?.enabled !== false && (
+                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Chat Options & Calling</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'audioCall', label: 'Audio Call' },
+                                        { id: 'videoCall', label: 'Video Call' },
+                                        { id: 'chatStudent', label: 'Chat with Students' },
+                                        { id: 'chatEditor', label: 'Chat with Editors' },
+                                        { id: 'chatInstitute', label: 'Chat with Institute' }
+                                    ].map(item => (
+                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={controls.chat?.[item.id] !== false}
+                                                onChange={e => updateControl('chat', item.id, e.target.checked)}
+                                                className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                            />
+                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Sub Notes */}
+                            {['audioCall', 'videoCall', 'chatStudent', 'chatEditor', 'chatInstitute'].some(k => controls.chat?.[k] === false) && (
+                                <div className="border-t border-slate-100 pt-3 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-chat Deactivation Reasons</span>
+                                    {['audioCall', 'videoCall', 'chatStudent', 'chatEditor', 'chatInstitute'].map(k => {
+                                        if (controls.chat?.[k] === false) {
+                                            const label = k === 'audioCall' ? 'Audio Call' : k === 'videoCall' ? 'Video Call' : k === 'chatStudent' ? 'Student Chat' : k === 'chatEditor' ? 'Editor Chat' : 'Institute Chat';
+                                            return (
+                                                <div key={k} className="flex items-center gap-3">
+                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
+                                                    <input
+                                                        type="text"
+                                                        value={controls.chat?.subNotes?.[k] || ''}
+                                                        onChange={e => updateSubNote('chat', k, e.target.value)}
+                                                        placeholder={`Reason for hiding/disabling ${label}`}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                    />
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Propagation Scope Selection */}
+                <div className="bg-slate-100/70 p-5 rounded-3xl border border-slate-200/60 mt-6 space-y-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply These Settings To</span>
+                        <p className="text-[10px] text-slate-450 font-semibold leading-normal">Propagate these feature control and deactivation note settings to other teachers in the system.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                        {[
+                            { value: 'single', label: 'This Teacher Only' },
+                            { value: 'selected', label: 'Selected Teachers' },
+                            { value: 'all', label: 'All Teachers of this Institute' }
+                        ].map(opt => (
+                            <label key={opt.value} className={`flex items-center gap-3 bg-white border rounded-2xl p-3 cursor-pointer select-none transition-all hover:bg-slate-50/50 ${controlsScope === opt.value ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200'}`}>
+                                <input
+                                    type="radio"
+                                    name="controlsScope"
+                                    value={opt.value}
+                                    checked={controlsScope === opt.value}
+                                    onChange={() => setControlsScope(opt.value)}
+                                    className="rounded-full border-slate-300 text-[#3E3ADD] focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                                />
+                                <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    {controlsScope === 'selected' && (
+                        <div className="bg-white border border-slate-200 rounded-3xl p-4 mt-3 space-y-3 max-h-60 overflow-y-auto animate-fade-in">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span className="text-xs font-bold text-slate-700">Select Teachers to Apply Settings</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPropagationStudents(instituteTeachers.map(t => t._id))}
+                                        className="text-[10px] font-bold text-[#3E3ADD] hover:underline cursor-pointer"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-slate-300 text-[10px]">|</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPropagationStudents([])}
+                                        className="text-[10px] font-bold text-slate-400 hover:underline cursor-pointer"
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            {loadingTeachers ? (
+                                <div className="text-xs text-slate-400 text-center py-4">Loading teachers...</div>
+                            ) : instituteTeachers.length === 0 ? (
+                                <div className="text-xs text-slate-400 text-center py-4">No other teachers in this institute.</div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {instituteTeachers.map(teacher => {
+                                        const isChecked = selectedPropagationStudents.includes(teacher._id);
+                                        return (
+                                            <label key={teacher._id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50/50 border-slate-150'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (isChecked) {
+                                                            setSelectedPropagationStudents(prev => prev.filter(id => id !== teacher._id));
+                                                        } else {
+                                                            setSelectedPropagationStudents(prev => [...prev, teacher._id]);
+                                                        }
+                                                    }}
+                                                    className="rounded border-slate-355 text-[#3E3ADD] focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold text-slate-700 truncate">{teacher.name}</span>
+                                                    <span className="text-[9px] font-semibold text-slate-450 truncate">{teacher.email}</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -403,9 +1408,6 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         setLoading(true);
         setError('');
         try {
-
-
-
             const payload = {
                 name: formData.name,
                 email: formData.email,
@@ -420,7 +1422,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 studentAssignmentMode: formData.studentAssignmentMode,
                 assignedSections: formData.assignedSections,
                 assignedStudents: formData.assignedStudents,
-                controls: formData.controls
+                controls: formData.controls,
+                controlsScope: controlsScope,
+                selectedPropagationStudents: selectedPropagationStudents
             };
 
             if (formData.password.trim()) {
@@ -469,7 +1473,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {user.role === 'Student' && (
+                    {(user.role === 'Student' || user.role === 'Teacher') && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -506,8 +1510,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             </div>
                         )}
 
-                        {user.role === 'Student' && activeTab === 'controls' ? (
-                            renderStudentControls()
+                        {activeTab === 'controls' ? (
+                            user.role === 'Student' ? renderStudentControls() : renderTeacherControls()
                         ) : (
                             <div className="grid grid-cols-1 gap-4">
                                 {currentUser?.role === 'Institute' || currentUser?.role === 'Editor' ? (

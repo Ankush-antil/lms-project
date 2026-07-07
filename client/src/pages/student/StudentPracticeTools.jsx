@@ -242,7 +242,7 @@ const StudentPracticeTools = () => {
 
         const toolsCtrl = user.studentProfile.controls.tools;
         if (toolsCtrl.enabled === false) {
-            return { enabled: false, mode: toolsCtrl.mode };
+            return { enabled: false, mode: toolsCtrl.mode, note: toolsCtrl.note };
         }
 
         let key = '';
@@ -255,7 +255,8 @@ const StudentPracticeTools = () => {
         else if (toolTitle === "Web-Calling Tool") key = 'webCalling';
 
         const isEnabled = toolsCtrl[key] !== false;
-        return { enabled: isEnabled, mode: toolsCtrl.mode };
+        const note = toolsCtrl.subNotes?.[key] || toolsCtrl.note;
+        return { enabled: isEnabled, mode: toolsCtrl.mode, note: note };
     };
 
     const handleLaunchTool = (path) => {
@@ -321,6 +322,11 @@ const StudentPracticeTools = () => {
                     <p className="text-xs text-slate-500 max-w-sm mt-1">
                         Workspace tools have been disabled by your administrator.
                     </p>
+                    {toolsCtrl?.note && (
+                        <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2 font-bold max-w-sm">
+                            Reason: {toolsCtrl.note}
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
         );
@@ -330,10 +336,13 @@ const StudentPracticeTools = () => {
         <DashboardLayout role="Student" fullWidth={true}>
             <div className={`flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden font-sans relative ${isToolsDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                 {isToolsDisabled && (
-                    <div className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto">
+                    <div 
+                        title={toolsCtrl?.note || 'Workspace Tools are Disabled'}
+                        className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto cursor-not-allowed"
+                    >
                         <div className="bg-[#0b1329] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-800 animate-slide-up">
                             <Lock size={16} className="text-amber-500" />
-                            <span className="text-xs font-bold">Workspace Tools are Disabled</span>
+                            <span className="text-xs font-bold">Workspace Tools are Disabled{toolsCtrl?.note ? ` - ${toolsCtrl.note}` : ''}</span>
                         </div>
                     </div>
                 )}
@@ -479,11 +488,12 @@ const StudentPracticeTools = () => {
                                             key={idx} 
                                             onClick={() => {
                                                 if (isDisabled) {
-                                                    toast.error(`${tool.title} has been disabled by your administrator.`);
+                                                    toast.error(tool.ctrl.note || `${tool.title} has been disabled by your administrator.`);
                                                     return;
                                                 }
                                                 handleLaunchTool(tool.path);
                                             }}
+                                            title={isDisabled && tool.ctrl.note ? tool.ctrl.note : undefined}
                                             className={`bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer h-20 
                                                 ${isDisabled ? 'opacity-40 cursor-not-allowed hover:-translate-y-0' : ''}`}
                                         >

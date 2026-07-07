@@ -21,7 +21,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiter: limit each IP to 300 requests per 15 minutes
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 500,
     message: { message: 'Too many requests from this IP, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
@@ -155,4 +155,4 @@ const startServer = async () => {
 };
 
 startServer();
-// Nodemon sync trigger comment restarted
+// Nodemon sync trigger comment restarted

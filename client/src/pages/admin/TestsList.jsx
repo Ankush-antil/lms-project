@@ -29,6 +29,12 @@ const TestsList = () => {
     const [filterCourse, setFilterCourse] = useState('All');
     const [filterInstitute, setFilterInstitute] = useState('All');
     const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
 
     // Folder Explorer state
     const [showFolderExplorer, setShowFolderExplorer] = useState(false);
@@ -671,6 +677,26 @@ const TestsList = () => {
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
         return titleMatch && subjectMatch && courseMatch && instituteMatch;
     });
+
+    const paginatedTests = filteredTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const paginatedPublicTests = filteredPublicTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    const getPageNumbers = (totalCount) => {
+        const totalPages = Math.ceil(totalCount / itemsPerPage);
+        const pages = [];
+        if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            if (currentPage <= 3) {
+                pages.push(1, 2, 3, 4, '...', totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+            } else {
+                pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+            }
+        }
+        return pages;
+    };
 
     // Dynamic Filter lists:
     const uniqueInstitutes = useMemo(() => {
@@ -2027,20 +2053,24 @@ const TestsList = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredTests.map((test) => (
+                                    {paginatedTests.map((test) => (
                                         <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="p-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
                                                     <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
                                                         <FileText size={16} />
                                                     </div>
-                                                    <span className="font-semibold text-slate-800">{test.title || 'Untitled'}</span>
+                                                    <div className="max-w-[200px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden font-semibold text-slate-800 cursor-help" title={test.title || 'Untitled'}>
+                                                        {test.title || 'Untitled'}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
-                                                <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
-                                                    {test.course || 'N/A'}
-                                                </span>
+                                                <div className="max-w-[120px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" title={test.course || 'N/A'}>
+                                                    <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
+                                                        {test.course || 'N/A'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap text-center">
                                                 <button
@@ -2137,6 +2167,45 @@ const TestsList = () => {
                                 </tbody>
                             </table>
                         </div>
+                        {/* Pagination */}
+                        {filteredTests.length > 0 && (
+                            <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50">
+                                <span className="text-xs font-semibold text-slate-500">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTests.length)} of {filteredTests.length} Assessments
+                                </span>
+                                <div className="flex gap-1.5">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    {getPageNumbers(filteredTests.length).map((p, idx) => (
+                                        <button
+                                            key={idx}
+                                            disabled={p === '...'}
+                                            onClick={() => p !== '...' && setCurrentPage(p)}
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all cursor-pointer ${p === '...'
+                                                ? 'text-slate-400 cursor-default bg-transparent'
+                                                : currentPage === p
+                                                    ? 'bg-[#0b1329] text-white shadow-md'
+                                                    : 'text-slate-655 hover:bg-slate-100 bg-transparent'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                    <button
+                                        disabled={currentPage === Math.ceil(filteredTests.length / itemsPerPage)}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTests.length / itemsPerPage)))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )
             ) : (
@@ -2167,7 +2236,7 @@ const TestsList = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredPublicTests.map((test) => {
+                                    {paginatedPublicTests.map((test) => {
                                         const isEnabled = test.status === 'active';
                                         return (
                                             <tr key={test._id} className="hover:bg-slate-50/50 transition-colors group">
@@ -2176,7 +2245,9 @@ const TestsList = () => {
                                                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg flex-shrink-0">
                                                             <Globe size={16} />
                                                         </div>
-                                                        <span className="font-semibold text-slate-800">{test.title || 'Untitled'}</span>
+                                                        <div className="max-w-[200px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden font-semibold text-slate-800 cursor-help" title={test.title || 'Untitled'}>
+                                                            {test.title || 'Untitled'}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-center">
@@ -2286,6 +2357,45 @@ const TestsList = () => {
                                 </tbody>
                             </table>
                         </div>
+                        {/* Pagination */}
+                        {filteredPublicTests.length > 0 && (
+                            <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50">
+                                <span className="text-xs font-semibold text-slate-500">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredPublicTests.length)} of {filteredPublicTests.length} Assessments
+                                </span>
+                                <div className="flex gap-1.5">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    {getPageNumbers(filteredPublicTests.length).map((p, idx) => (
+                                        <button
+                                            key={idx}
+                                            disabled={p === '...'}
+                                            onClick={() => p !== '...' && setCurrentPage(p)}
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all cursor-pointer ${p === '...'
+                                                ? 'text-slate-400 cursor-default bg-transparent'
+                                                : currentPage === p
+                                                    ? 'bg-[#0b1329] text-white shadow-md'
+                                                    : 'text-slate-655 hover:bg-slate-100 bg-transparent'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                    <button
+                                        disabled={currentPage === Math.ceil(filteredPublicTests.length / itemsPerPage)}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredPublicTests.length / itemsPerPage)))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )
             )}

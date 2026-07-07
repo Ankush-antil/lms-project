@@ -2034,7 +2034,20 @@ const TestBuilder = () => {
 
     const hasActivityControl = (controlName) => {
         if (user?.role === 'Admin') return true;
-        return user?.institute?.controls?.activities?.[controlName] !== false;
+        
+        // 1. Check parent institute allowed status
+        const instAllowed = user?.institute?.controls?.activities?.[controlName] !== false;
+        if (!instAllowed) return false;
+
+        // 2. If Teacher, check teacher profile controls
+        if (user?.role === 'Teacher') {
+            const builderControls = user?.teacherProfile?.controls?.activitiesBuilder;
+            if (builderControls) {
+                if (builderControls.enabled === false) return false;
+                if (builderControls[controlName] === false) return false;
+            }
+        }
+        return true;
     };
 
     const savedAccounts = (() => {
@@ -3477,6 +3490,30 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
                     <p className="text-slate-500 font-medium">Loading form builder details...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const builderControls = user?.teacherProfile?.controls?.activitiesBuilder;
+    if (user?.role === 'Teacher' && builderControls?.enabled === false) {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-slate-50 font-sans">
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-white/60 backdrop-blur-xl border border-slate-200 rounded-[32px] text-center shadow-xl shadow-slate-100/50 max-w-2xl mx-auto my-12 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
+                    <div className="w-20 h-20 bg-red-50 text-red-650 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <AlertCircle size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Activities Builder Locked</h2>
+                    <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
+                        {builderControls.note || 'The activities builder page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                    <button
+                        onClick={handleCloseBuilder}
+                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all cursor-pointer"
+                    >
+                        Go Back
+                    </button>
                 </div>
             </div>
         );

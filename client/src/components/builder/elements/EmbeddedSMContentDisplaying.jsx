@@ -95,7 +95,6 @@ const EmbeddedSMBuilder = ({ element, onUpdateField, handleUpdateNestedField }) 
                     </span>
                 </div>
             )}
-        </div>
 
             {/* Student Answer Box & Enable It Switch */}
             <div className="flex items-center justify-between bg-white px-3.5 py-3.5 border border-slate-200 rounded-xl shadow-sm">

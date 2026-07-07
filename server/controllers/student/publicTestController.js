@@ -372,11 +372,128 @@ const savePublicTestDraft = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get public submission details by ID (For candidates to view their response)
+// @route   GET /api/public-tests/submission/:id
+// @access  Public
+const getPublicSubmissionById = asyncHandler(async (req, res) => {
+    const submission = await PublicSubmission.findById(req.params.id).populate('test');
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+    res.json(submission);
+});
+
+// @desc    Check a specific answer with AI (Public/Guest accessible)
+// @route   POST /api/public-tests/submission/:id/check-ai
+// @access  Public
+const checkSubmissionAnswerWithAi = asyncHandler(async (req, res) => {
+    const { questionId } = req.body;
+    if (!questionId) {
+        return res.status(400).json({ message: 'Question ID is required' });
+    }
+
+    const submission = await PublicSubmission.findById(req.params.id).populate('test');
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    const ans = submission.answers?.find(a => a.questionId === questionId);
+    if (!ans) {
+        return res.status(404).json({ message: 'Answer not found for this question' });
+    }
+
+    // Get question details from test if available
+    const testQuestion = submission.test?.questions?.find(q => q.id === questionId || q._id?.toString() === questionId);
+    const questionText = testQuestion?.text || ans.questionText;
+    const questionType = testQuestion?.type || ans.questionType;
+    const totalQMarks = testQuestion?.marks || 1;
+    const studentAnswer = ans.textAnswer || '';
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+        return res.status(500).json({ message: 'AI grading key is not configured on the server' });
+    }
+
+    const prompt = `
+You are an expert AI teacher grading a student's answer for an assessment question.
+Evaluate the student's answer based on the question details.
+
+Question: "${questionText}"
+Question Type: "${questionType}"
+Student's Answer: "${studentAnswer}"
+Maximum Marks for Question: ${totalQMarks}
+
+Provide your feedback in a structured JSON object. The response must be a valid JSON object matching this schema:
+{
+    "isCorrect": true, // boolean, true if completely or mostly correct, false if incorrect or needs major correction
+    "suggestedMarks": 1, // number, suggested score out of the maximum marks
+    "feedback": "detailed explanation of why the answer is correct/incorrect, what was good, and how it could be improved"
+}
+
+Return only the raw JSON. Do not write markdown, code blocks, or conversational text.
+`;
+
+    try {
+        const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                response_format: {
+                    type: 'json_object'
+                },
+                temperature: 0.2
+            })
+        });
+
+        if (!response.ok) {
+            let errorDetail = `Groq API status ${response.status}`;
+            try {
+                const errJson = await response.json();
+                if (errJson.error?.message) {
+                    errorDetail = errJson.error.message;
+                }
+            } catch (_) {}
+            return res.status(response.status).json({ message: errorDetail });
+        }
+
+        const data = await response.json();
+        const responseText = data.choices?.[0]?.message?.content;
+        
+        if (!responseText) {
+            return res.status(500).json({ message: 'Empty response returned from AI service.' });
+        }
+
+        const parsed = JSON.parse(responseText);
+        res.json({
+            success: true,
+            isCorrect: parsed.isCorrect,
+            suggestedMarks: parsed.suggestedMarks,
+            feedback: parsed.feedback
+        });
+    } catch (err) {
+        console.error('[AI PUBLIC CHECK ERROR]', err.message);
+        res.status(500).json({ message: err.message || 'AI service execution failed' });
+    }
+});
+
 module.exports = {
     getPublicTestById,
     verifyPublicTestPassword,
     incrementPublicTestViews,
     submitPublicTest,
     checkPublicTestEmail,
-    savePublicTestDraft
+    savePublicTestDraft,
+    getPublicSubmissionById,
+    checkSubmissionAnswerWithAi
 };

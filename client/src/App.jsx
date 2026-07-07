@@ -34,6 +34,7 @@ import ChatPage from './pages/common/ChatPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TakeTestPage from './pages/student/TakeTestPage';
 import PublicTestPage from './pages/student/PublicTestPage';
+import PublicResponseViewPage from './pages/student/PublicResponseViewPage';
 import ScreenshotToolPage from './pages/student/tools/ScreenshotToolPage';
 import ScreenRecorderPage from './pages/student/tools/ScreenRecorderPage';
 import VoiceRecorderPage from './pages/student/tools/VoiceRecorderPage';
@@ -426,6 +427,7 @@ function App() {
                                 {/* Public: shared test link — handles auth internally */}
                                 <Route path="/take-test/:id" element={<TakeTestPage />} />
                                 <Route path="/public-test/:id" element={<PublicTestPage />} />
+                                <Route path="/public-test/response/:submissionId" element={<PublicResponseViewPage />} />
                                 <Route path="/shared/test-result/:id" element={<ViewTestResult isSharedView={true} />} />
 
                                 {/* 404 – catch all unmatched routes */}

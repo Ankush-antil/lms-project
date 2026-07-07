@@ -6,11 +6,15 @@ const {
     incrementPublicTestViews,
     submitPublicTest,
     savePublicTestDraft,
-    checkPublicTestEmail
+    checkPublicTestEmail,
+    getPublicSubmissionById,
+    checkSubmissionAnswerWithAi
 } = require('../../controllers/student/publicTestController');
 const { getAllTeachers } = require('../../controllers/teacher/callController');
 
 router.get('/teachers/all', getAllTeachers);
+router.get('/submission/:id', getPublicSubmissionById);
+router.post('/submission/:id/check-ai', checkSubmissionAnswerWithAi);
 router.get('/:id', getPublicTestById);
 router.post('/:id/verify-password', verifyPublicTestPassword);
 router.post('/:id/view', incrementPublicTestViews);

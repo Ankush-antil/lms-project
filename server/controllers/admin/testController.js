@@ -50,7 +50,20 @@ const createTest = asyncHandler(async (req, res) => {
 
     // Enforce institute name for Institute, Teacher and Editor roles
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
-        const userWithInst = await User.findById(req.user._id).populate('institute');
+        let userWithInst = await User.findById(req.user._id).populate('institute');
+        if (req.user.role === 'Teacher' && (!userWithInst || !userWithInst.institute)) {
+            const teacher = await User.findById(req.user._id);
+            const courses = teacher?.teacherProfile?.assignedCourses || [];
+            if (courses.length > 0) {
+                const Course = require('../../models/Course');
+                const firstCourse = await Course.findById(courses[0]).populate('institute');
+                if (firstCourse && firstCourse.institute) {
+                    teacher.institute = firstCourse.institute._id;
+                    await teacher.save();
+                    userWithInst = await User.findById(req.user._id).populate('institute');
+                }
+            }
+        }
         if (userWithInst && userWithInst.institute) {
             testDetails.institute = userWithInst.institute.name;
         }
@@ -80,12 +93,30 @@ const createTest = asyncHandler(async (req, res) => {
 const getTests = asyncHandler(async (req, res) => {
     let query = {};
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor' || req.user.role === 'Teacher')) {
-        const userWithInst = await User.findById(req.user._id).populate('institute');
+        let userWithInst = await User.findById(req.user._id).populate('institute');
+        if (req.user.role === 'Teacher' && (!userWithInst || !userWithInst.institute)) {
+            const teacher = await User.findById(req.user._id);
+            const courses = teacher?.teacherProfile?.assignedCourses || [];
+            if (courses.length > 0) {
+                const Course = require('../../models/Course');
+                const firstCourse = await Course.findById(courses[0]).populate('institute');
+                if (firstCourse && firstCourse.institute) {
+                    teacher.institute = firstCourse.institute._id;
+                    await teacher.save();
+                    userWithInst = await User.findById(req.user._id).populate('institute');
+                }
+            }
+        }
         if (userWithInst && userWithInst.institute) {
             const escapedName = userWithInst.institute.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            query.institute = { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') };
+            query = {
+                $or: [
+                    { institute: { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } },
+                    { createdBy: req.user._id }
+                ]
+            };
         } else {
-            query.institute = 'NON_EXISTENT_INSTITUTE';
+            query = { createdBy: req.user._id };
         }
     }
     const tests = await Test.find(query)
@@ -121,10 +152,25 @@ const updateTest = asyncHandler(async (req, res) => {
     if (test) {
         // Enforce institute ownership for Institute, Teacher and Editor roles
         if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
-            const userWithInst = await User.findById(req.user._id).populate('institute');
+            let userWithInst = await User.findById(req.user._id).populate('institute');
+            if (req.user.role === 'Teacher' && (!userWithInst || !userWithInst.institute)) {
+                const teacher = await User.findById(req.user._id);
+                const courses = teacher?.teacherProfile?.assignedCourses || [];
+                if (courses.length > 0) {
+                    const Course = require('../../models/Course');
+                    const firstCourse = await Course.findById(courses[0]).populate('institute');
+                    if (firstCourse && firstCourse.institute) {
+                        teacher.institute = firstCourse.institute._id;
+                        await teacher.save();
+                        userWithInst = await User.findById(req.user._id).populate('institute');
+                    }
+                }
+            }
             const instName = userWithInst?.institute?.name?.trim().toLowerCase();
             const testInstName = test.institute?.trim().toLowerCase();
-            if (!instName || instName !== testInstName) {
+            const isCreator = test.createdBy && test.createdBy.toString() === req.user._id.toString();
+
+            if (!isCreator && (!instName || instName !== testInstName)) {
                 res.status(403);
                 throw new Error('Not authorized to update tests of other institutes');
             }

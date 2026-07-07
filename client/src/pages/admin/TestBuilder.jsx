@@ -1044,12 +1044,21 @@ const QuestionBuilderCard = ({
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             ) : (
-                                <input
-                                    type="text"
+                                <textarea
                                     value={stripHtml(element.text || '')}
-                                    onChange={(e) => onUpdateText(e.target.value)}
+                                    onChange={(e) => {
+                                        onUpdateText(e.target.value);
+                                        // Auto-grow
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
+                                    onInput={(e) => {
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
                                     placeholder="Type your Text here"
-                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none font-sans"
+                                    rows={1}
+                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none font-sans resize-none overflow-hidden"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             )}

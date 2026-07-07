@@ -18,7 +18,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiter: limit each IP to 300 requests per 15 minutes
+// Rate limiter: limit each IP to 500 requests per 15 minutes
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 500,

@@ -3002,7 +3002,10 @@ const TestsList = () => {
                 onClose={() => setIsTrashOpen(false)}
                 title="Assessment Recycle Bin"
                 trashUrl="/api/tests/trash"
-                onRestoreSuccess={fetchData}
+                onRestoreSuccess={() => {
+                    fetchLmsTests();
+                    fetchPublicTests();
+                }}
                 restoreUrlPattern={(id) => `/api/tests/${id}/restore`}
                 permanentDeleteUrlPattern={(id) => `/api/tests/${id}/permanent`}
                 renderItemDetail={(item) => `Course: ${item.course} | Subject: ${item.subject}`}

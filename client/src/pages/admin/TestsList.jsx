@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
-    Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check,
+    Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check, QrCode,
     Globe, Copy, ExternalLink, Settings, BarChart2, ShieldCheck, Download, Mail, Lock,
     CheckCircle2, X, Eye, Loader2, EyeOff, Info, ChevronLeft, ChevronRight, Printer, ArrowLeft, Trash,
     Video, MessageSquare, AlertTriangle, Folder, FolderOpen, ChevronDown, School, Book, Layers, LayoutGrid
@@ -177,6 +177,8 @@ const TestsList = () => {
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [selectedPublicTest, setSelectedPublicTest] = useState(null);
     const [publicStats, setPublicStats] = useState(null);
+    const [qrCodeUrl, setQrCodeUrl] = useState(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
     const [publicSubmissions, setPublicSubmissions] = useState([]);
     const [loadingStats, setLoadingStats] = useState(false);
     const [savingSettings, setSavingSettings] = useState(false);
@@ -2426,9 +2428,21 @@ const TestsList = () => {
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="p-1.5 rounded-lg border text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800 flex items-center"
+                                                            title="Preview Live Test"
                                                         >
                                                             <ExternalLink size={13} />
                                                         </a>
+                                                        <button
+                                                            onClick={() => {
+                                                                const path = `/public-test/${test._id}`;
+                                                                setQrCodeUrl(`${window.location.origin}${path}`);
+                                                                setIsQrModalOpen(true);
+                                                            }}
+                                                            className="p-1.5 rounded-lg border text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800 flex items-center cursor-pointer"
+                                                            title="Show QR Code"
+                                                        >
+                                                            <QrCode size={13} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-center text-xs font-mono font-bold text-slate-700">
@@ -2990,6 +3004,59 @@ const TestsList = () => {
                                 className="px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-xs font-black shadow-md shadow-[#0b1329]/15 active:scale-95 transition-all"
                             >
                                 Close Info
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {isQrModalOpen && qrCodeUrl && createPortal(
+                <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4 font-sans">
+                    <div className="bg-white w-full max-w-sm rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up p-8 text-center space-y-6">
+                        <button
+                            onClick={() => {
+                                setIsQrModalOpen(false);
+                                setQrCodeUrl(null);
+                            }}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-655 hover:bg-slate-50 rounded-full transition-all cursor-pointer"
+                        >
+                            <X size={20} />
+                        </button>
+                        
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-bold text-slate-800">Test QR Code</h3>
+                            <p className="text-xs text-slate-400">Scan this code to take the test on your device</p>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col items-center justify-center">
+                            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrCodeUrl)}`}
+                                    alt="QR Code"
+                                    className="w-[160px] h-[160px] object-contain"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-2 flex gap-3">
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(qrCodeUrl);
+                                    toast.success("Link copied to clipboard!");
+                                }}
+                                className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all cursor-pointer"
+                            >
+                                Copy Link
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsQrModalOpen(false);
+                                    setQrCodeUrl(null);
+                                }}
+                                className="flex-1 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white font-extrabold rounded-xl text-xs transition-all cursor-pointer"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>

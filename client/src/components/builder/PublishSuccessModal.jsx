@@ -79,6 +79,20 @@ const PublishSuccessModal = ({ isOpen, onClose, testId, testTitle, publishMode }
                     </div>
                 </div>
 
+                {/* QR Code Card */}
+                <div className="bg-slate-50 border border-slate-150 rounded-[20px] p-4 flex flex-col items-center justify-center space-y-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">
+                        Scan QR Code to Take Test
+                    </span>
+                    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm transition-transform hover:scale-105 duration-200">
+                        <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`}
+                            alt="Scan to take test"
+                            className="w-[150px] h-[150px] object-contain"
+                        />
+                    </div>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <a

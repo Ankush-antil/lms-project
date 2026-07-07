@@ -848,11 +848,17 @@ const getSubjects = asyncHandler(async (req, res) => {
                 }
             });
 
+            // Find allocated duration in course.subjectDurations if exists
+            const durationEntry = course.subjectDurations?.find(sd => sd.subjectName?.toLowerCase() === subName.toLowerCase());
+            const allocatedDuration = durationEntry ? durationEntry.duration : 0;
+
             subjectsList.push({
                 name: subName,
+                duration: allocatedDuration,
                 course: {
                     _id: course._id,
-                    name: course.name
+                    name: course.name,
+                    duration: course.duration || 0
                 },
                 institute: course.institute ? {
                     _id: course.institute._id,
@@ -1010,6 +1016,171 @@ const permanentlyDeleteInstitute = asyncHandler(async (req, res) => {
     res.json({ message: 'Institute permanently deleted' });
 });
 
+// @desc    Get all students in a specific course
+// @route   GET /api/setup/courses/:id/students
+// @access  Private/Admin
+const getCourseStudents = asyncHandler(async (req, res) => {
+    const students = await User.find({
+        role: 'Student',
+        'studentProfile.course': req.params.id,
+        isDeleted: { $ne: true }
+    }).select('name email studentProfile.subject');
+    res.json(students);
+});
+
+// @desc    Add a new subject to a course
+// @route   POST /api/setup/subjects
+// @access  Private/Admin
+const createSubject = asyncHandler(async (req, res) => {
+    const { courseId, subjectName, duration, assignedStudentIds, assignToAll } = req.body;
+
+    if (!courseId || !subjectName) {
+        res.status(400);
+        throw new Error('Course ID and subject name are required');
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    // Check if subject already exists in this course
+    const exists = course.subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase());
+    if (exists) {
+        res.status(400);
+        throw new Error('Subject already exists in this course');
+    }
+
+    // Add subject name to subjects array
+    course.subjects.push(subjectName.trim());
+
+    // Add duration allocation
+    if (!course.subjectDurations) {
+        course.subjectDurations = [];
+    }
+    course.subjectDurations.push({
+        subjectName: subjectName.trim(),
+        duration: Number(duration) || 0
+    });
+
+    await course.save();
+
+    // Assign subject to students
+    if (assignToAll !== false) {
+        const studentsToUpdate = await User.find({ role: 'Student', 'studentProfile.course': courseId });
+        for (const student of studentsToUpdate) {
+            let subjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
+            if (!subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
+                subjects.push(subjectName.trim());
+                student.studentProfile.subject = subjects.join(', ');
+                await student.save();
+            }
+        }
+    } else if (assignedStudentIds && Array.isArray(assignedStudentIds)) {
+        const studentsToUpdate = await User.find({
+            _id: { $in: assignedStudentIds },
+            role: 'Student',
+            'studentProfile.course': courseId
+        });
+        for (const student of studentsToUpdate) {
+            let subjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
+            if (!subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
+                subjects.push(subjectName.trim());
+                student.studentProfile.subject = subjects.join(', ');
+                await student.save();
+            }
+        }
+    }
+
+    res.status(201).json({
+        success: true,
+        message: 'Subject added successfully',
+        course
+    });
+});
+
+// @desc    Update a subject's name and duration allocation in a course
+// @route   PUT /api/setup/subjects/update
+// @access  Private/Admin
+const updateSubjectDetails = asyncHandler(async (req, res) => {
+    const { courseId, oldSubjectName, newSubjectName, duration } = req.body;
+
+    if (!courseId || !oldSubjectName || !newSubjectName) {
+        res.status(400);
+        throw new Error('Course ID, old subject name, and new subject name are required');
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    // Update subject name in subjects array
+    const subIndex = course.subjects.findIndex(s => s.toLowerCase() === oldSubjectName.toLowerCase());
+    if (subIndex === -1) {
+        res.status(400);
+        throw new Error('Subject not found in this course');
+    }
+    course.subjects[subIndex] = newSubjectName;
+
+    // Manage subjectDurations array
+    if (!course.subjectDurations) {
+        course.subjectDurations = [];
+    }
+
+    // Remove old duration if exists
+    course.subjectDurations = course.subjectDurations.filter(sd => sd.subjectName?.toLowerCase() !== oldSubjectName.toLowerCase());
+
+    // Add new duration
+    course.subjectDurations.push({
+        subjectName: newSubjectName,
+        duration: Number(duration) || 0
+    });
+
+    await course.save();
+
+    // Update student subject names if renaming
+    if (oldSubjectName.toLowerCase() !== newSubjectName.toLowerCase()) {
+        const studentsToUpdateName = await User.find({ role: 'Student', 'studentProfile.course': courseId });
+        for (const student of studentsToUpdateName) {
+            if (student.studentProfile?.subject) {
+                let subjects = student.studentProfile.subject.split(',').map(s => s.trim());
+                let updated = false;
+                subjects = subjects.map(s => {
+                    if (s.toLowerCase() === oldSubjectName.toLowerCase()) {
+                        updated = true;
+                        return newSubjectName;
+                    }
+                    return s;
+                });
+                if (updated) {
+                    student.studentProfile.subject = subjects.join(', ');
+                    await student.save();
+                }
+            }
+        }
+    }
+
+    // Update subject name in tests associated with this course and old subject
+    const Test = require('../../models/Test');
+    try {
+        await Test.updateMany(
+            { course: course.name, subject: oldSubjectName },
+            { subject: newSubjectName }
+        );
+    } catch (err) {
+        console.error('Error updating test subjects:', err);
+    }
+
+    res.json({
+        success: true,
+        message: 'Subject details updated successfully',
+        course
+    });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -1040,5 +1211,8 @@ module.exports = {
     permanentlyDeleteCourse,
     getDeletedInstitutes,
     restoreInstitute,
-    permanentlyDeleteInstitute
+    permanentlyDeleteInstitute,
+    getCourseStudents,
+    createSubject,
+    updateSubjectDetails
 };

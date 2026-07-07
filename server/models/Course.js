@@ -16,6 +16,12 @@ const courseSchema = new mongoose.Schema({
         required: true
     },
     subjects: [String], // List of subjects in this course
+    subjectDurations: [
+        {
+            subjectName: { type: String, required: true },
+            duration: { type: Number, default: 0 }
+        }
+    ],
     status: {
         type: String,
         enum: ['active', 'pending', 'declined'],

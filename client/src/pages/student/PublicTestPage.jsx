@@ -991,7 +991,8 @@ const PublicTestPage = () => {
                     score: res.data.score,
                     total: test.questions.length,
                     showScore: res.data.showScore,
-                    answers: finalAnswers
+                    answers: finalAnswers,
+                    submissionId: res.data.submissionId
                 });
                 setViewState('success');
                 toast.success('Test submitted successfully!');
@@ -4259,12 +4260,23 @@ const PublicTestPage = () => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
-                    >
-                        Return to Homepage
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        {scoreInfo && scoreInfo.submissionId && (
+                            <button
+                                onClick={() => navigate(`/public-test/response/${scoreInfo.submissionId}`)}
+                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                            >
+                                <Eye size={15} />
+                                <span>See Your Response</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={() => navigate('/')}
+                            className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition-all cursor-pointer active:scale-95"
+                        >
+                            Return to Homepage
+                        </button>
+                    </div>
                 </div>
             </div>
         );

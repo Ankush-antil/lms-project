@@ -175,6 +175,7 @@ const TeacherActivities = () => {
     const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
+    const [subjectFilter, setSubjectFilter] = useState('All');
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [loading, setLoading] = useState(false);
     const [teacherInfo, setTeacherInfo] = useState(null);
@@ -909,10 +910,16 @@ const TeacherActivities = () => {
                 tests: testsInInbox,
                 visible: isVisible,
                 disabled: isInboxDisabled,
+                materials: materialsInInbox,
                 hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
             };
         });
     }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
+
+    // Reset filter when student changes
+    useEffect(() => {
+        setSubjectFilter('All');
+    }, [selectedStudent]);
 
     // Auto-select first group when student changes
     useEffect(() => {
@@ -1013,11 +1020,39 @@ const TeacherActivities = () => {
         return map;
     }, [activeTests]);
 
+    const uniqueSubjects = useMemo(() => {
+        if (!selectedStudent || !userInfo) return [];
+        const studentSubject = selectedStudent.studentProfile?.subject?.trim() || '';
+        if (!studentSubject) return [];
+        
+        const studentSubsOriginal = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
+        const uniqueOriginals = Array.from(new Set(studentSubsOriginal));
+
+        if (userInfo.role !== 'Teacher') {
+            return uniqueOriginals;
+        }
+
+        const studentSubs = studentSubject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const teacherSubs = userInfo.teacherProfile?.subjects?.map(s => s.trim().toLowerCase()) || [];
+        
+        // Intersect student subjects with teacher subjects
+        const commonSubs = studentSubs.filter(sub => teacherSubs.includes(sub));
+        return uniqueOriginals.filter(sub => commonSubs.includes(sub.toLowerCase()));
+    }, [selectedStudent, userInfo]);
+
     const filteredInboxItems = useMemo(() => {
-        return dynamicInboxItems.filter(item =>
-            getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
-        );
-    }, [dynamicInboxItems, inboxSearchQuery]);
+        return dynamicInboxItems.filter(item => {
+            const matchesSearch = getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
+            if (!matchesSearch) return false;
+            
+            if (subjectFilter === 'All') return true;
+            
+            const hasMatchingTest = item.tests?.some(t => t.subject?.trim().toLowerCase() === subjectFilter.toLowerCase());
+            const hasMatchingMaterial = item.materials?.some(m => m.subject?.trim().toLowerCase() === subjectFilter.toLowerCase());
+            
+            return hasMatchingTest || hasMatchingMaterial;
+        });
+    }, [dynamicInboxItems, inboxSearchQuery, subjectFilter]);
 
     // ── Student Practice Logs & Dates Memos ──
     const practiceDatesList = useMemo(() => {
@@ -1369,6 +1404,23 @@ const TeacherActivities = () => {
                                         className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400 text-slate-800 disabled:opacity-50"
                                     />
                                 </div>
+
+                                {selectedStudent && uniqueSubjects.length > 0 && (
+                                    <div className="mb-2">
+                                        <select
+                                            value={subjectFilter}
+                                            onChange={(e) => setSubjectFilter(e.target.value)}
+                                            className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-bold cursor-pointer"
+                                        >
+                                            <option value="All">All Subjects</option>
+                                            {uniqueSubjects.map(sub => (
+                                                <option key={sub} value={sub}>
+                                                    {sub}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/10 custom-scrollbar">

@@ -1,12 +1,14 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Trash2, Calendar } from 'lucide-react';
+import { Search, Filter, Trash2, Calendar, Eye } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
+import PublicResponseModal from '../../components/common/PublicResponseModal';
+import CandidateTestsModal from '../../components/common/CandidateTestsModal';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
@@ -21,6 +23,10 @@ const UsersList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [selectedSubmission, setSelectedSubmission] = useState(null);
+    const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
+    const [selectedCandidateGroup, setSelectedCandidateGroup] = useState(null);
+    const [isCandidateModalOpen, setIsCandidateModalOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -73,6 +79,44 @@ const UsersList = () => {
         }
     };
 
+    const handleDeleteIndividualSubmission = async (id) => {
+        try {
+            await axios.delete(`/api/public-tests/admin/submissions/${id}`);
+            setLimitedUsers(prev => prev.filter(s => s._id !== id));
+            toast.success('Submission removed successfully');
+            
+            setSelectedCandidateGroup(prev => {
+                if (!prev) return null;
+                const updatedSubs = prev.submissions.filter(s => s._id !== id);
+                if (updatedSubs.length === 0) {
+                    setIsCandidateModalOpen(false);
+                    return null;
+                }
+                return {
+                    ...prev,
+                    submissions: updatedSubs
+                };
+            });
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error deleting submission');
+        }
+    };
+
+    const handleDeleteCandidateGroup = async (candidateGroup) => {
+        if (window.confirm(`Are you sure you want to delete all ${candidateGroup.submissions.length} submissions for ${candidateGroup.name}?`)) {
+            try {
+                await Promise.all(candidateGroup.submissions.map(sub =>
+                    axios.delete(`/api/public-tests/admin/submissions/${sub._id}`)
+                ));
+                setLimitedUsers(prev => prev.filter(s => s.email?.toLowerCase() !== candidateGroup.email?.toLowerCase()));
+                toast.success('Candidate submissions deleted successfully');
+            } catch (error) {
+                console.error("Error deleting candidate submissions:", error);
+                toast.error('Error deleting some submissions');
+            }
+        }
+    };
+
     const filteredUsers = users.filter(user =>
         (filterRole === 'All' || user.role === filterRole) &&
         (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,7 +131,31 @@ const UsersList = () => {
         g.guestPhone.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredLimited = limitedUsers.filter(l =>
+    const groupedLimitedUsers = useMemo(() => {
+        const groups = {};
+        limitedUsers.forEach(sub => {
+            const email = (sub.email || '').toLowerCase().trim();
+            if (!groups[email]) {
+                groups[email] = {
+                    _id: email,
+                    name: sub.name || 'Candidate',
+                    email: sub.email || '',
+                    phone: sub.phone || 'N/A',
+                    submissions: [],
+                    latestSubmissionDate: sub.submittedAt,
+                    latestSubmissionId: sub._id
+                };
+            }
+            groups[email].submissions.push(sub);
+            if (new Date(sub.submittedAt) > new Date(groups[email].latestSubmissionDate)) {
+                groups[email].latestSubmissionDate = sub.submittedAt;
+                groups[email].latestSubmissionId = sub._id;
+            }
+        });
+        return Object.values(groups);
+    }, [limitedUsers]);
+
+    const filteredLimited = groupedLimitedUsers.filter(l =>
         l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.email && l.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (l.phone && l.phone.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -170,6 +238,16 @@ const UsersList = () => {
                     Registered Users ({users.length})
                 </button>
                 <button
+                    onClick={() => setViewTab('limited')}
+                    className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
+                        viewTab === 'limited'
+                            ? 'bg-white text-slate-900 shadow-md'
+                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                    }`}
+                >
+                    Limited Users ({groupedLimitedUsers.length})
+                </button>
+                <button
                     onClick={() => setViewTab('guest')}
                     className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
                         viewTab === 'guest'
@@ -178,16 +256,6 @@ const UsersList = () => {
                     }`}
                 >
                     Guest Users ({guests.length})
-                </button>
-                <button
-                    onClick={() => setViewTab('limited')}
-                    className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                        viewTab === 'limited'
-                            ? 'bg-white text-slate-900 shadow-md'
-                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                    }`}
-                >
-                    Limited Users ({limitedUsers.length})
                 </button>
             </div>
 
@@ -330,13 +398,13 @@ const UsersList = () => {
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">
                                             <div className="flex items-center gap-1.5 text-slate-600">
                                                 <Calendar size={14} className="text-slate-400" />
-                                                <span>{formatDate(viewTab === 'limited' ? u.submittedAt : u.createdAt)}</span>
+                                                <span>{formatDate(viewTab === 'limited' ? u.latestSubmissionDate : u.createdAt)}</span>
                                             </div>
                                         </td>
 
                                         {/* ID column */}
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">
-                                            {u._id.slice(-6)}
+                                            {viewTab === 'limited' ? u.latestSubmissionId.slice(-6) : u._id.slice(-6)}
                                         </td>
 
                                         {/* Course/Institute/Test details */}
@@ -353,7 +421,14 @@ const UsersList = () => {
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <TruncatedCell text={u.test?.title || 'Public Test'} maxLength={20} />
+                                                <TruncatedCell 
+                                                    text={
+                                                        u.submissions?.length === 1 
+                                                            ? (u.submissions[0].test?.title || 'Public Test')
+                                                            : `${u.submissions[0].test?.title || 'Public Test'} (+${u.submissions.length - 1} more)`
+                                                    } 
+                                                    maxLength={25} 
+                                                />
                                             )}
                                         </td>
 
@@ -385,9 +460,24 @@ const UsersList = () => {
                                                     {u.status}
                                                 </span>
                                             ) : (
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.completedStatus === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                                                    {u.completedStatus || 'Completed'} (Score: {u.score || 0})
-                                                </span>
+                                                (() => {
+                                                    if (u.submissions?.length === 1) {
+                                                        const singleSub = u.submissions[0];
+                                                        const isCompleted = singleSub.completedStatus === 'Completed' || !singleSub.completedStatus;
+                                                        return (
+                                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                                                {singleSub.completedStatus || 'Completed'} (Score: {singleSub.score || 0})
+                                                            </span>
+                                                        );
+                                                    } else {
+                                                        const completedCount = u.submissions?.filter(s => s.completedStatus === 'Completed' || !s.completedStatus).length || 0;
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-650 border border-indigo-100">
+                                                                {completedCount}/{u.submissions?.length} Completed
+                                                            </span>
+                                                        );
+                                                    }
+                                                })()
                                             )}
                                         </td>
 
@@ -406,13 +496,25 @@ const UsersList = () => {
                                                     <span className="text-xs text-slate-400 italic px-2">You (Current Admin)</span>
                                                 )
                                             ) : viewTab === 'limited' ? (
-                                                <button
-                                                    onClick={() => handleDeletePublicSubmission(u._id)}
-                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
-                                                    title="Delete Submission"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedCandidateGroup(u);
+                                                            setIsCandidateModalOpen(true);
+                                                        }}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                        title="View Submissions History"
+                                                    >
+                                                        <Eye size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteCandidateGroup(u)}
+                                                        className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-55/10 rounded-lg transition-colors"
+                                                        title="Delete All Submissions"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <span className="text-xs text-slate-400 italic px-3">-</span>
                                             )}
@@ -505,6 +607,31 @@ const UsersList = () => {
                 permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
                 renderItemDetail={(item) => `Email: ${item.email} | Role: ${item.role}`}
             />
+            {isCandidateModalOpen && selectedCandidateGroup && (
+                <CandidateTestsModal
+                    isOpen={isCandidateModalOpen}
+                    onClose={() => {
+                        setIsCandidateModalOpen(false);
+                        setSelectedCandidateGroup(null);
+                    }}
+                    candidate={selectedCandidateGroup}
+                    onViewResponse={(sub) => {
+                        setSelectedSubmission(sub);
+                        setIsResponseModalOpen(true);
+                    }}
+                    onDeleteSubmission={handleDeleteIndividualSubmission}
+                />
+            )}
+            {selectedSubmission && (
+                <PublicResponseModal
+                    isOpen={isResponseModalOpen}
+                    onClose={() => {
+                        setIsResponseModalOpen(false);
+                        setSelectedSubmission(null);
+                    }}
+                    submission={selectedSubmission}
+                />
+            )}
         </DashboardLayout>
     );
 };

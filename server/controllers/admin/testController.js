@@ -43,6 +43,35 @@ const validateWebpageQuestions = (questions = []) => {
     }
 };
 
+const validateInboxSubjectConflict = async (testId, testDetails, currentInstitute, res) => {
+    const index = testDetails?.index;
+    const subject = testDetails?.subject;
+    const course = testDetails?.course;
+    const institute = testDetails?.institute || currentInstitute;
+
+    if (index && index.trim() && subject && subject.trim() && course && course.trim() && institute) {
+        const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const Test = require('../../models/Test');
+        
+        const query = {
+            isDeleted: { $ne: true },
+            institute: { $regex: new RegExp(`^\\s*${escapeRegex(institute)}\\s*$`, 'i') },
+            course: { $regex: new RegExp(`^\\s*${escapeRegex(course)}\\s*$`, 'i') },
+            index: { $regex: new RegExp(`^\\s*${escapeRegex(index)}\\s*$`, 'i') }
+        };
+        
+        if (testId) {
+            query._id = { $ne: testId };
+        }
+        
+        const existingTest = await Test.findOne(query);
+        if (existingTest && existingTest.subject && existingTest.subject.trim().toLowerCase() !== subject.trim().toLowerCase()) {
+            if (res) res.status(400);
+            throw new Error(`This inbox (${index}) is already assigned to a different subject: "${existingTest.subject}". Only tests of the same subject can be added to this inbox.`);
+        }
+    }
+};
+
 const createTest = asyncHandler(async (req, res) => {
     const { testDetails, settings, questions } = req.body;
 
@@ -68,6 +97,8 @@ const createTest = asyncHandler(async (req, res) => {
             testDetails.institute = userWithInst.institute.name;
         }
     }
+
+    await validateInboxSubjectConflict(null, testDetails, testDetails.institute, res);
 
     const test = await Test.create({
         ...testDetails,
@@ -209,6 +240,17 @@ const updateTest = asyncHandler(async (req, res) => {
             if (testDetails && testDetails.institute !== undefined && userWithInst?.institute) {
                 testDetails.institute = userWithInst.institute.name;
             }
+        }
+
+        // Validate inbox subject conflict
+        if (testDetails) {
+            const mergedDetails = {
+                index: testDetails.index !== undefined ? testDetails.index : test.index,
+                subject: testDetails.subject !== undefined ? testDetails.subject : test.subject,
+                course: testDetails.course !== undefined ? testDetails.course : test.course,
+                institute: testDetails.institute !== undefined ? testDetails.institute : test.institute
+            };
+            await validateInboxSubjectConflict(test._id, mergedDetails, test.institute, res);
         }
 
         if (testDetails.title !== undefined) test.title = testDetails.title;

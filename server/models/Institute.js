@@ -82,6 +82,10 @@ const instituteSchema = new mongoose.Schema({
         chat: {
             show: { type: Boolean, default: true }
         }
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

@@ -8,6 +8,8 @@ import { Search, Plus, Trash2, Edit } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const EditorsList = () => {
     const { user } = useAuth();
@@ -24,6 +26,7 @@ const EditorsList = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -114,14 +117,23 @@ const EditorsList = () => {
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2"
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
                     >
-                        <Plus size={20} /> Add New Editor
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                    {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <Plus size={20} /> Add New Editor
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
@@ -182,14 +194,18 @@ const EditorsList = () => {
                                                     className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                                     onClick={() => openProfile(editor._id)}
                                                 >
-                                                    {editor.name}
+                                                    <TruncatedCell text={editor.name} maxLength={20} />
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{editor._id.slice(-6)}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{editor.institute?.name || editor.institute || 'N/A'}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={editor.institute?.name || editor.institute || 'N/A'} maxLength={20} />
+                                        </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{editor.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{editor.email}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={editor.email} maxLength={25} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${editor.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                                                 {editor.isActive !== false ? 'Active' : 'Inactive'}
@@ -311,6 +327,16 @@ const EditorsList = () => {
                 }}
                 user={selectedUser}
                 onSuccess={fetchData}
+            />
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Editors Recycle Bin"
+                trashUrl="/api/users/trash?role=Editor"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email}`}
             />
         </DashboardLayout>
     );

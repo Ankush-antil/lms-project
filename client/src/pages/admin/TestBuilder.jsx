@@ -1044,12 +1044,21 @@ const QuestionBuilderCard = ({
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             ) : (
-                                <input
-                                    type="text"
+                                <textarea
                                     value={stripHtml(element.text || '')}
-                                    onChange={(e) => onUpdateText(e.target.value)}
+                                    onChange={(e) => {
+                                        onUpdateText(e.target.value);
+                                        // Auto-grow
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
+                                    onInput={(e) => {
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
                                     placeholder="Type your Text here"
-                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none font-sans"
+                                    rows={1}
+                                    className="w-full font-bold text-slate-800 bg-transparent outline-none pr-12 placeholder:text-slate-400 border-none font-sans resize-none overflow-hidden"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
                                 />
                             )}
@@ -3324,6 +3333,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         setIsAiGeneratorOpen(true);
     };
 
+    const handleSaveAsDraft = () => {
+        handlePublish('draft', null);
+    };
+
     const handlePublish = async (mode = 'connected', settingsObj = null) => {
         if (mode === 'connected' && (!isConnected || !connectData)) {
             toast.error('Please configure the Form metadata first using the Relevant Information tab!');
@@ -3332,36 +3345,36 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         }
 
         if (formElements.length === 0) {
-            toast.error('Please add at least one form widget to publish!');
+            toast.error('Please add at least one form widget to save!');
             return;
         }
 
         try {
             setPublishing(true);
-            const titleVal = connectData?.name?.trim() || 'Untitled Public Test';
+            const titleVal = connectData?.name?.trim() || (mode === 'draft' ? 'Untitled Draft Test' : 'Untitled Public Test');
 
             const testData = {
                 testDetails: {
                     title: titleVal,
-                    institute: mode === 'connected'
-                        ? (connectData?.institute || 'Default Institute')
+                    institute: (mode === 'connected' || mode === 'draft')
+                        ? (connectData?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute'))
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.institute || 'Public Web') : 'Public Web'),
-                    course: mode === 'connected'
-                        ? (connectData?.course || 'Default Course')
+                    course: (mode === 'connected' || mode === 'draft')
+                        ? (connectData?.course || '')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.course || '') : 'Public Access'),
-                    subject: mode === 'connected'
-                        ? (connectData?.subject || 'Default Subject')
+                    subject: (mode === 'connected' || mode === 'draft')
+                        ? (connectData?.subject || '')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.subject || '') : 'General'),
                     date: connectData?.date || new Date().toISOString().split('T')[0],
-                    index: mode === 'connected' ? (connectData?.index || 'Index 1') : 'Public Index',
-                    activity: mode === 'connected' ? (connectData?.activity || 'Quiz') : 'Quiz',
+                    index: (mode === 'connected' || mode === 'draft') ? (connectData?.index || 'Index 1') : 'Public Index',
+                    activity: (mode === 'connected' || mode === 'draft') ? (connectData?.activity || 'Quiz') : 'Quiz',
                     publishMode: mode,
                     publicSettings: mode === 'public' ? (settingsObj || publicSettings) : {},
                     discussionActivity: discussionActivity,
                     assignmentType: (mode === 'connected' && settingsObj) ? settingsObj.assignmentType : 'all',
                     assignedStudents: (mode === 'connected' && settingsObj) ? settingsObj.assignedStudents : [],
                     allowTeacherEdit: (mode === 'connected' && settingsObj && settingsObj.allowTeacherEdit !== undefined) ? settingsObj.allowTeacherEdit : allowTeacherEdit,
-                    isAssigned: mode === 'connected' ? (connectData?.isAssigned || false) : false
+                    isAssigned: (mode === 'connected' || mode === 'draft') ? (connectData?.isAssigned || false) : false
                 },
                 questions: formElements.map((el, index) => ({
                     id: `q${index}`,
@@ -3441,15 +3454,31 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             if (id) {
                 const res = await axios.put(`/api/tests/${id}`, testData);
                 publishedTest = res.data;
-                toast.success('Form updated successfully!');
+                if (mode === 'draft') {
+                    toast.success('Draft updated successfully!');
+                } else {
+                    toast.success('Form updated successfully!');
+                }
             } else {
                 const res = await axios.post('/api/tests', testData);
                 publishedTest = res.data;
-                toast.success('Form published successfully!');
+                if (mode === 'draft') {
+                    toast.success('Draft saved successfully!');
+                } else {
+                    toast.success('Form published successfully!');
+                }
             }
 
             setPublishing(false);
             setIsPublishOptionsModalOpen(false);
+
+            if (mode === 'draft') {
+                const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
+                    ? '/teacher/activities'
+                    : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
+                navigate(redirectPath);
+                return;
+            }
 
             if (publishedTest && publishedTest._id) {
                 setPublishSuccessInfo({
@@ -3645,7 +3674,15 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             )}
                         </div>
 
-                        <span className="text-[10px] uppercase font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">Draft</span>
+                        <button
+                            onClick={handleSaveAsDraft}
+                            disabled={publishing}
+                            className="flex items-center gap-1 text-[10px] uppercase font-black text-white bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700/80 hover:border-slate-600 px-3 py-1.5 rounded-full shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Save all changes as Draft"
+                        >
+                            <Save size={10} className="text-slate-350" />
+                            <span>Save as Draft</span>
+                        </button>
                     </div>
                 </div>
 

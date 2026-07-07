@@ -23,7 +23,7 @@ const computeSection = async (courseId) => {
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
     const { role, course } = req.query;
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
     if (role) query.role = role;
     if (course) {
         if (role === 'Student') {
@@ -621,6 +621,66 @@ const saveActivityConfig = asyncHandler(async (req, res) => {
     res.json(config);
 });
 
+// @desc    Get all soft-deleted users
+// @route   GET /api/users/trash
+// @access  Private/Admin
+const getDeletedUsers = asyncHandler(async (req, res) => {
+    const { role } = req.query;
+    const query = { isDeleted: true };
+    if (role) query.role = role;
+
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        query.institute = req.user.institute;
+    }
+
+    const users = await User.find(query)
+        .select('-password')
+        .populate('institute', 'name')
+        .populate('studentProfile.course', 'name subjects')
+        .populate('teacherProfile.assignedCourses', 'name');
+
+    res.json(users);
+});
+
+// @desc    Restore a soft-deleted user
+// @route   PUT /api/users/:id/restore
+// @access  Private/Admin
+const restoreUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
+
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to restore users belonging to other institutes');
+    }
+
+    user.isDeleted = false;
+    await user.save();
+    res.json({ message: 'User restored successfully', user });
+});
+
+// @desc    Permanently delete a user
+// @route   DELETE /api/users/:id/permanent
+// @access  Private/Admin
+const permanentlyDeleteUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
+
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete users belonging to other institutes');
+    }
+
+    await user.deleteOne();
+    res.json({ message: 'User permanently deleted' });
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -633,5 +693,8 @@ module.exports = {
     getInboxConfigs,
     saveInboxConfig,
     getActivityConfigs,
-    saveActivityConfig
+    saveActivityConfig,
+    getDeletedUsers,
+    restoreUser,
+    permanentlyDeleteUser
 };

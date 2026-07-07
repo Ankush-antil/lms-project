@@ -5,6 +5,8 @@ import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Trash2, Calendar } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
@@ -17,7 +19,8 @@ const UsersList = () => {
     const [limitedUsers, setLimitedUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -97,9 +100,10 @@ const UsersList = () => {
     };
 
     const filteredItems = getFilteredItems();
-    const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
+    const limit = typeof itemsPerPage === 'number' && itemsPerPage >= 5 ? itemsPerPage : 10;
+    const totalPages = Math.ceil(filteredItems.length / limit);
+    const startIndex = (currentPage - 1) * limit;
+    const paginatedItems = filteredItems.slice(startIndex, startIndex + limit);
 
     const getRoleBadgeClass = (role) => {
         switch (role) {
@@ -142,6 +146,15 @@ const UsersList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">System Users Directory</h1>
                     <p className="text-slate-500">View all registered user accounts and their created date/time, role, and details.</p>
                 </div>
+                {viewTab === 'registered' && (
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
+                )}
             </div>
 
             {/* View Tabs */}
@@ -191,9 +204,31 @@ const UsersList = () => {
                     />
                 </div>
 
-                {viewTab === 'registered' && (
-                    <div className="flex gap-4 w-full md:w-auto">
-                        <div className="relative min-w-[180px] w-full md:w-auto">
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    {/* Entries selector */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                        <input
+                            type="number"
+                            min={5}
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                setItemsPerPage(isNaN(val) ? '' : val);
+                            }}
+                            onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 5) {
+                                    setItemsPerPage(10);
+                                }
+                            }}
+                            className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                    </div>
+
+                    {viewTab === 'registered' && (
+                        <div className="relative min-w-[180px]">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <select
                                 value={filterRole}
@@ -208,8 +243,8 @@ const UsersList = () => {
                                 <option value="Student">Student</option>
                             </select>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Table */}
@@ -275,10 +310,10 @@ const UsersList = () => {
                                                         }`}
                                                         onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                     >
-                                                        {viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name}
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name} maxLength={20} />
                                                     </span>
                                                     <span className="text-xs text-slate-400">
-                                                        {viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : u.email}
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : u.email} maxLength={25} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -307,14 +342,18 @@ const UsersList = () => {
                                         {/* Course/Institute/Test details */}
                                         <td className="p-4 text-slate-600 whitespace-nowrap text-sm">
                                             {viewTab === 'registered' ? (
-                                                u.institute?.name || u.institute || 'N/A'
+                                                <TruncatedCell text={u.institute?.name || u.institute || 'N/A'} maxLength={20} />
                                             ) : viewTab === 'guest' ? (
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700">{u.course?.name || 'N/A'}</span>
-                                                    <span className="text-[10px] text-slate-400">{u.institute?.name || 'N/A'}</span>
+                                                    <span className="font-bold text-slate-700">
+                                                        <TruncatedCell text={u.course?.name || 'N/A'} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400">
+                                                        <TruncatedCell text={u.institute?.name || 'N/A'} maxLength={20} />
+                                                    </span>
                                                 </div>
                                             ) : (
-                                                u.test?.title || 'Public Test'
+                                                <TruncatedCell text={u.test?.title || 'Public Test'} maxLength={20} />
                                             )}
                                         </td>
 
@@ -396,7 +435,7 @@ const UsersList = () => {
                     <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
                         <div className="text-sm font-semibold text-slate-500">
                             Showing <span className="text-slate-700">{startIndex + 1}</span> to{' '}
-                            <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, filteredItems.length)}</span> of{' '}
+                            <span className="text-slate-700">{Math.min(startIndex + limit, filteredItems.length)}</span> of{' '}
                             <span className="text-slate-700">{filteredItems.length}</span> entries
                         </div>
                         <div className="flex items-center gap-1">
@@ -456,6 +495,16 @@ const UsersList = () => {
                     </div>
                 )}
             </div>
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="System Users Recycle Bin"
+                trashUrl="/api/users/trash"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email} | Role: ${item.role}`}
+            />
         </DashboardLayout>
     );
 };

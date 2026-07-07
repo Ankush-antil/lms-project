@@ -143,7 +143,7 @@ const testSchema = new mongoose.Schema({
     },
     publishMode: {
         type: String,
-        enum: ['connected', 'public'],
+        enum: ['connected', 'public', 'draft'],
         default: 'connected'
     },
     publicViews: {
@@ -210,6 +210,10 @@ const testSchema = new mongoose.Schema({
         default: false
     },
     isAssigned: {
+        type: Boolean,
+        default: false
+    },
+    isDeleted: {
         type: Boolean,
         default: false
     }

@@ -8,6 +8,8 @@ import { Search, Filter, Plus, GraduationCap, Trash2, Edit, ChevronDown } from '
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const TeachersList = () => {
     const { user } = useAuth();
@@ -26,6 +28,7 @@ const TeachersList = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -133,14 +136,23 @@ const TeachersList = () => {
                         </div>
                     )}
                 </div>
-                {user?.role !== 'Admin' && user?.institute?.controls?.teacher?.addTeacher !== false && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="btn-primary flex items-center gap-2"
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
                     >
-                        <Plus size={20} /> Add New Teacher
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                    {user?.role !== 'Admin' && user?.institute?.controls?.teacher?.addTeacher !== false && (
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} /> Add New Teacher
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
@@ -211,53 +223,32 @@ const TeachersList = () => {
                                                     className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                                     onClick={() => openProfile(teacher._id)}
                                                 >
-                                                    {teacher.name}
+                                                    <TruncatedCell text={teacher.name} maxLength={20} />
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{teacher._id.slice(-6)}</td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            {(() => {
-                                                const subjects = teacher.teacherProfile?.subjects || [];
-                                                return (
-                                                    <div className="flex items-center gap-1">
-                                                        {subjects.length > 0 ? (
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                                {subjects[0]}
-                                                            </span>
-                                                        ) : <span className="text-slate-400 text-xs">N/A</span>}
-                                                        {subjects.length > 1 && (
-                                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded text-xs font-bold">
-                                                                +{subjects.length - 1}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {teacher.teacherProfile?.subjects?.length > 0 ? (
+                                                <TruncatedCell text={teacher.teacherProfile.subjects.join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
                                         </td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{teacher.institute?.name || teacher.institute || 'N/A'}</td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            {(() => {
-                                                const courses = teacher.teacherProfile?.assignedCourses || [];
-                                                const names = courses.map(c => c.name || c);
-                                                return (
-                                                    <div className="flex items-center gap-1">
-                                                        {names.length > 0 ? (
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                                                {names[0]}
-                                                            </span>
-                                                        ) : <span className="text-slate-400 text-xs">N/A</span>}
-                                                        {names.length > 1 && (
-                                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded text-xs font-bold">
-                                                                +{names.length - 1}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={teacher.institute?.name || teacher.institute || 'N/A'} maxLength={20} />
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {teacher.teacherProfile?.assignedCourses?.length > 0 ? (
+                                                <TruncatedCell text={teacher.teacherProfile.assignedCourses.map(c => c.name || c).join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{teacher.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">{teacher.email}</td>
+                                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                                            <TruncatedCell text={teacher.email} maxLength={25} />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 onClick={() => handleToggleStatus(teacher._id, teacher.isActive)}
@@ -387,6 +378,16 @@ const TeachersList = () => {
                 }}
                 user={selectedUser}
                 onSuccess={fetchData}
+            />
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                title="Teachers Recycle Bin"
+                trashUrl="/api/users/trash?role=Teacher"
+                onRestoreSuccess={fetchData}
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                renderItemDetail={(item) => `Email: ${item.email} | Courses: ${item.teacherProfile?.assignedCourses?.map(c => c.name).join(', ') || 'N/A'}`}
             />
         </DashboardLayout>
     );

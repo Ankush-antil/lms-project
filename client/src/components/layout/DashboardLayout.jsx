@@ -155,7 +155,6 @@ const menuItems = {
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Activities Builder', icon: PenTool, path: '/admin/activities-builder' },
-        { name: 'Fee Portal', icon: CreditCard, path: '/admin/fee-portal' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },

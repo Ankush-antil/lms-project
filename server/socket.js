@@ -275,7 +275,15 @@ const notifyStudentActivity = (payload) => {
     }
 };
 
+const notifyFeeRecordUpdate = (payload) => {
+    if (ioInstance) {
+        console.log(`[SOCKET] Broadcasting fee record update:`, payload);
+        ioInstance.emit('fee-record-updated', payload);
+    }
+};
+
 module.exports = {
     initSocket,
-    notifyStudentActivity
+    notifyStudentActivity,
+    notifyFeeRecordUpdate
 };

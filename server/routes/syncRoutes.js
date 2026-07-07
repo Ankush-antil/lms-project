@@ -2,7 +2,11 @@ const express = require('express');
 const router = express.Router();
 const FeeRecord = require('../models/FeeRecord');
 const User = require('../models/User');
+const Course = require('../models/Course');
+const Institute = require('../models/Institute');
 const { setSyncDisabled } = require('../utils/googleSheets');
+const { notifyFeeRecordUpdate } = require('../socket');
+
 
 // POST /api/sync/sheets
 // Receives updates from Google Sheets Apps Script trigger
@@ -21,7 +25,7 @@ router.post('/sheets', async (req, res) => {
         // Disable backend-to-sheets sync hooks to prevent loops
         setSyncDisabled(true);
 
-        const { id, email, name, course, batch, totalFee, nextDueDate } = data;
+        const { id, admissionNo, name, fatherName, mobile1, mobile2, course, totalFee, months } = data;
 
         if (action === 'delete') {
             if (id) {
@@ -34,30 +38,95 @@ router.post('/sheets', async (req, res) => {
 
         // Find or create FeeRecord
         let record = null;
+        let student = null;
+
         if (id) {
             try {
-                record = await FeeRecord.findById(id);
+                record = await FeeRecord.findById(id).populate('student');
+                if (record && record.student) student = record.student;
             } catch (err) {
-                // If invalid ID passed, treat as not found
                 record = null;
             }
         }
 
-        if (!record && email) {
-            // Find student by email
-            let student = await User.findOne({ email, role: 'Student' });
-            if (!student) {
-                console.log(`[Webhook Sync] Student user not found. Creating new user for ${email}...`);
+        if (!student && admissionNo) {
+            student = await User.findOne({ admissionNo, role: 'Student' });
+        }
+
+        if (!student && name) {
+            student = await User.findOne({ name, role: 'Student' });
+        }
+
+        let courseDoc = null;
+        if (course) {
+            courseDoc = await Course.findOne({ name: { $regex: new RegExp("^" + course.trim() + "$", "i") } });
+            if (!courseDoc) {
+                const defaultInst = await Institute.findOne({});
+                const instId = defaultInst ? defaultInst._id : null;
+                if (instId) {
+                    console.log(`[Webhook Sync] Course ${course} not found. Creating it...`);
+                    const courseCode = course.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    courseDoc = new Course({
+                        name: course,
+                        code: courseCode || 'TEMP',
+                        institute: instId
+                    });
+                    await courseDoc.save().catch(err => {
+                        console.log(`⚠️ Failed to create course: ${err.message}`);
+                        courseDoc = null;
+                    });
+                }
+            }
+        }
+
+        if (!student) {
+            if (name) {
+                console.log(`[Webhook Sync] Student not found. Creating new Student User for name: ${name}...`);
+                const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '.');
+                const suffix = admissionNo ? admissionNo : Math.floor(1000 + Math.random() * 9000);
+                const email = `${cleanName}.${suffix}@lms.com`;
+                const password = 'password123';
+
                 student = new User({
-                    name: name || email.split('@')[0],
+                    name,
                     email,
-                    password: '123456', // Hashed by pre-save hook in User model
-                    role: 'Student'
+                    password,
+                    role: 'Student',
+                    admissionNo: admissionNo || '',
+                    fatherName: fatherName || '',
+                    mobileNumber: mobile1 || '',
+                    mobile2: mobile2 || '',
+                    studentProfile: {
+                        course: courseDoc ? courseDoc._id : undefined,
+                        batch: '',
+                        section: 'A',
+                        enrollmentDate: new Date()
+                    }
                 });
                 await student.save();
+            } else {
+                return res.status(404).json({ message: 'Fee record or student not found and cannot be identified (name is empty)' });
             }
+        }
 
-            // Check if student already has a FeeRecord
+        // Update Student fields if they changed
+        let studentChanged = false;
+        if (fatherName !== undefined && student.fatherName !== fatherName) { student.fatherName = fatherName; studentChanged = true; }
+        if (admissionNo !== undefined && student.admissionNo !== admissionNo) { student.admissionNo = admissionNo; studentChanged = true; }
+        if (mobile1 !== undefined && student.mobileNumber !== mobile1) { student.mobileNumber = mobile1; studentChanged = true; }
+        if (mobile2 !== undefined && student.mobile2 !== mobile2) { student.mobile2 = mobile2; studentChanged = true; }
+        if (courseDoc && (!student.studentProfile || String(student.studentProfile.course) !== String(courseDoc._id))) {
+            if (!student.studentProfile) student.studentProfile = {};
+            student.studentProfile.course = courseDoc._id;
+            studentChanged = true;
+        }
+        
+        if (studentChanged) {
+            console.log(`[Webhook Sync] Saving updated Student ${student._id}...`);
+            await student.save();
+        }
+
+        if (!record) {
             record = await FeeRecord.findOne({ student: student._id });
             if (!record) {
                 console.log(`[Webhook Sync] Creating new FeeRecord for student ${student._id}...`);
@@ -65,48 +134,30 @@ router.post('/sheets', async (req, res) => {
                     student: student._id,
                     totalFee: totalFee !== undefined ? Number(totalFee) : 0,
                     course: course || '',
-                    batch: batch || '',
-                    nextDueDate: nextDueDate ? new Date(nextDueDate) : null
+                    months: months !== undefined ? Number(months) : 0
                 });
                 await record.save();
             }
         }
 
-        if (!record) {
-            return res.status(404).json({ message: 'Fee record or student not found' });
-        }
+        // Update FeeRecord fields if changed
+        let recordChanged = false;
+        if (course !== undefined && record.course !== course) { record.course = course; recordChanged = true; }
+        if (totalFee !== undefined && record.totalFee !== Number(totalFee)) { record.totalFee = Number(totalFee); recordChanged = true; }
+        if (months !== undefined && record.months !== Number(months)) { record.months = Number(months); recordChanged = true; }
 
-        // Update fields if changed
-        let hasChanges = false;
-
-        if (course !== undefined && record.course !== course) {
-            record.course = course;
-            hasChanges = true;
-        }
-        if (batch !== undefined && record.batch !== batch) {
-            record.batch = batch;
-            hasChanges = true;
-        }
-        if (totalFee !== undefined && record.totalFee !== Number(totalFee)) {
-            record.totalFee = Number(totalFee);
-            hasChanges = true;
-        }
-        if (nextDueDate !== undefined) {
-            const incomingDate = nextDueDate ? new Date(nextDueDate).toISOString().split('T')[0] : null;
-            const dbDate = record.nextDueDate ? new Date(record.nextDueDate).toISOString().split('T')[0] : null;
-            if (incomingDate !== dbDate) {
-                record.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
-                hasChanges = true;
-            }
-        }
-
-        if (hasChanges) {
+        if (recordChanged) {
             console.log(`[Webhook Sync] Saving updated FeeRecord ${record._id}...`);
             await record.save();
         }
 
         // Re-fetch populated info for returning back to Sheets
-        await record.populate('student', 'name email');
+        await record.populate('student', 'name email mobileNumber mobile2 fatherName admissionNo');
+
+        notifyFeeRecordUpdate({
+            recordId: record._id.toString(),
+            studentId: record.student?._id?.toString()
+        });
 
         res.json({
             success: true,

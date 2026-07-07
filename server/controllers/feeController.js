@@ -263,6 +263,33 @@ const getReports = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Delete a transaction from a fee record
+// @route   DELETE /api/fees/admin/transaction/:id
+const deleteTransaction = asyncHandler(async (req, res) => {
+    const transactionId = req.params.id;
+    const record = await FeeRecord.findOne({ 'transactions._id': transactionId });
+    if (!record) return res.status(404).json({ message: 'Transaction not found' });
+    
+    record.transactions.pull({ _id: transactionId });
+    await record.save();
+    
+    res.json({ success: true, record });
+});
+
+// @desc    Delete a fee record by its ID
+// @route   DELETE /api/fees/admin/record/:id
+const deleteFeeRecord = asyncHandler(async (req, res) => {
+    const { deleteFromSheets } = require('../utils/googleSheets');
+    const record = await FeeRecord.findById(req.params.id);
+    if (!record) return res.status(404).json({ message: 'Fee record not found' });
+    
+    await record.populate('student');
+    await deleteFromSheets(record._id, record.student?.admissionNo, record.student?.name);
+    await record.deleteOne();
+    
+    res.json({ success: true, message: 'Fee record removed' });
+});
+
 module.exports = {
     getAllFeeRecords,
     getDashboardStats,
@@ -272,5 +299,7 @@ module.exports = {
     setupFeeRecord,
     getStudentFeeRecord,
     getMyFees,
-    getReports
+    getReports,
+    deleteTransaction,
+    deleteFeeRecord
 };

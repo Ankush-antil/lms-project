@@ -143,7 +143,7 @@ const testSchema = new mongoose.Schema({
     },
     publishMode: {
         type: String,
-        enum: ['connected', 'public'],
+        enum: ['connected', 'public', 'draft'],
         default: 'connected'
     },
     publicViews: {

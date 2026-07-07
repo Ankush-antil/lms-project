@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -266,7 +267,7 @@ const TestsList = () => {
             return;
         }
 
-        if (activeTab === 'lms') {
+        if (activeTab === 'lms' || activeTab === 'draft') {
             fetchLmsTests();
         } else {
             fetchPublicTests();
@@ -287,7 +288,7 @@ const TestsList = () => {
         if (!window.confirm('Are you sure you want to delete this test?')) return;
         try {
             await axios.delete(`/api/tests/${id}`);
-            if (activeTab === 'lms') {
+            if (activeTab === 'lms' || activeTab === 'draft') {
                 setTests(tests.filter(t => t._id !== id));
             } else {
                 setPublicTests(publicTests.filter(t => t._id !== id));
@@ -656,6 +657,9 @@ const TestsList = () => {
 
     // Filter tests
     const filteredTests = tests.filter(test => {
+        const tabMatch = activeTab === 'draft' ? test.publishMode === 'draft' : test.publishMode === 'connected';
+        if (!tabMatch) return false;
+
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
         const courseMatch = filterCourse === 'All' || test.course === filterCourse;
@@ -669,7 +673,7 @@ const TestsList = () => {
         return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-    const currentTestsList = activeTab === 'lms' ? tests : publicTests;
+    const currentTestsList = (activeTab === 'lms' || activeTab === 'draft') ? tests : publicTests;
 
     const filteredPublicTests = publicTests.filter(test => {
         const titleMatch = (test.title || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -1941,6 +1945,15 @@ const TestsList = () => {
                     >
                         Public Web Tests
                     </button>
+                    <button
+                        onClick={() => setActiveTab('draft')}
+                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'draft'
+                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                            : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                    >
+                        Draft Tests
+                    </button>
                 </div>
 
                 {(activeTab === 'lms' || activeTab === 'public') && (
@@ -1967,7 +1980,7 @@ const TestsList = () => {
                     />
                 </div>
 
-                {(activeTab === 'lms' || activeTab === 'public') && (
+                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
                     <div className="flex flex-wrap gap-3 w-full md:w-auto">
                         {/* Institute Filter */}
                         {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
@@ -2049,6 +2062,7 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Test Index</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
                                         <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
                                     </tr>
@@ -2096,6 +2110,12 @@ const TestsList = () => {
                                                 ) : (
                                                     <span className="text-slate-400 italic text-xs">No Index</span>
                                                 )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-700 text-xs font-bold">{test.createdBy?.name || 'N/A'}</span>
+                                                    <span className="text-slate-400 text-[10px] font-semibold">{test.createdBy?.role || 'N/A'}</span>
+                                                </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap text-center">
                                                 <button
@@ -2205,6 +2225,136 @@ const TestsList = () => {
                         )}
                     </div>
                 )
+            ) : activeTab === 'draft' ? (
+                /* ── DRAFT TESTS TABLE ── */
+                loading ? (
+                    <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
+                    </div>
+                ) : filteredTests.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-250">
+                        <FileText className="mx-auto text-slate-350 mb-4" size={48} />
+                        <h3 className="text-lg font-bold text-slate-700">No draft tests found</h3>
+                        <p className="text-slate-500 text-xs">Create tests in the builder and click "Save as Draft".</p>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Draft Title</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
+                                        <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paginatedTests.map((test) => (
+                                        <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-slate-100 text-slate-500 rounded-lg flex-shrink-0">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <div className="max-w-[200px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden font-semibold text-slate-800 cursor-help" title={test.title || 'Untitled'}>
+                                                        {test.title || 'Untitled'}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="max-w-[120px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" title={test.course || 'N/A'}>
+                                                    <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
+                                                        {test.course || 'N/A'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-705 rounded-full text-xs font-semibold">
+                                                    {test.subject || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-slate-600 text-xs font-mono">
+                                                {test.questions?.length || 0} Qs
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-700 text-xs font-bold">{test.createdBy?.name || 'N/A'}</span>
+                                                    <span className="text-slate-400 text-[10px] font-semibold">{test.createdBy?.role || 'N/A'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
+                                                <button
+                                                    onClick={() => handlePreviewTest(test)}
+                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors"
+                                                    title="Preview Test"
+                                                >
+                                                    <Eye size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => navigate(getEditPath(test._id))}
+                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                    title="Edit Test"
+                                                >
+                                                    <Edit size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(test._id)}
+                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
+                                                    title="Delete Test"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        {filteredTests.length > itemsPerPage && (
+                            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                                <span className="text-xs text-slate-500 font-semibold">
+                                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTests.length)} of {filteredTests.length} drafts
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    {getPageNumbers(filteredTests.length).map((pg, i) => (
+                                        <button
+                                            key={i}
+                                            disabled={pg === '...'}
+                                            onClick={() => typeof pg === 'number' && setCurrentPage(pg)}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${pg === currentPage
+                                                ? 'bg-[#0b1329] text-white shadow-sm'
+                                                : pg === '...'
+                                                    ? 'text-slate-400 cursor-default'
+                                                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
+                                                }`}
+                                        >
+                                            {pg}
+                                        </button>
+                                    ))}
+                                    <button
+                                        disabled={currentPage === Math.ceil(filteredTests.length / itemsPerPage)}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTests.length / itemsPerPage)))}
+                                        className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
             ) : (
                 /* ── PUBLIC WEB TESTS TABLE ── */
                 loadingPublic ? (
@@ -2229,6 +2379,7 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Total Responses</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Completion Rate</th>
                                         <th className="p-4 font-extrabold text-center whitespace-nowrap">Status</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
                                     </tr>
                                 </thead>
@@ -2296,6 +2447,12 @@ const TestsList = () => {
                                                     >
                                                         {isEnabled ? 'Enabled' : 'Disabled'}
                                                     </button>
+                                                </td>
+                                                <td className="p-4 whitespace-nowrap">
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="text-slate-700 text-xs font-bold">{test.createdBy?.name || 'N/A'}</span>
+                                                        <span className="text-slate-400 text-[10px] font-semibold">{test.createdBy?.role || 'N/A'}</span>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                                     {userInfo?.role === 'Admin' ? (
@@ -2407,7 +2564,7 @@ const TestsList = () => {
             />
 
             {/* ── 1. PUBLIC TEST SETTINGS EDIT MODAL ────────────────── */}
-            {showSettingsModal && (
+            {showSettingsModal && createPortal(
                 <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
                     <form onSubmit={handleSaveSettings} className="bg-white w-full max-w-3xl max-h-[85vh] rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
@@ -2629,11 +2786,12 @@ const TestsList = () => {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ── 2. PUBLIC/CONNECTED TEST PREVIEW MODAL ────────────────── */}
-            {showPreviewModal && previewTest && (
+            {showPreviewModal && previewTest && createPortal(
                 <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
                     <div className="bg-white w-full max-w-4xl max-h-[85vh] rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                         {/* Header */}
@@ -2747,11 +2905,12 @@ const TestsList = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ── 3. RELEVANT INFORMATION (RI) MODAL ────────────────── */}
-            {showRiModal && riTest && (
+            {showRiModal && riTest && createPortal(
                 <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
                     <div className="bg-white w-full max-w-md rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                         {/* Header */}
@@ -2823,7 +2982,8 @@ const TestsList = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <style>{`

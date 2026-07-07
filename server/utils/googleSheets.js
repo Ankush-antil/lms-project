@@ -14,10 +14,27 @@ function getSyncDisabled() {
 /**
  * Get Google Sheets API client
  */
-function getSheetsClient() {
+async function getSheetsClient(instId = null) {
     const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     const key = process.env.GOOGLE_PRIVATE_KEY;
-    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    
+    let spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    let sheetName = process.env.GOOGLE_SHEET_NAME || 'Sheet1';
+
+    if (instId) {
+        try {
+            const Institute = require('../models/Institute');
+            const inst = await Institute.findById(instId);
+            if (inst && inst.googleSpreadsheetId) {
+                spreadsheetId = inst.googleSpreadsheetId;
+                if (inst.googleSheetName) {
+                    sheetName = inst.googleSheetName;
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching institute sheet configuration:', e.message);
+        }
+    }
 
     if (!email || !key || !spreadsheetId) {
         console.warn('⚠️ Google Sheets Sync is not fully configured. Please set GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_SPREADSHEET_ID in .env');
@@ -33,7 +50,7 @@ function getSheetsClient() {
         return {
             sheets: google.sheets({ version: 'v4', auth }),
             spreadsheetId,
-            sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1'
+            sheetName
         };
     } catch (err) {
         console.error('❌ Failed to initialize Google Sheets API client:', err.message);
@@ -118,7 +135,22 @@ async function syncToSheets(record) {
         return;
     }
 
-    const client = getSheetsClient();
+    let instId = null;
+    if (record.student) {
+        if (record.student.institute) {
+            instId = record.student.institute.toString();
+        } else {
+            try {
+                const User = require('../models/User');
+                const user = await User.findById(record.student).select('institute');
+                if (user && user.institute) {
+                    instId = user.institute.toString();
+                }
+            } catch (e) {}
+        }
+    }
+
+    const client = await getSheetsClient(instId);
     if (!client) return;
 
     const { sheets, spreadsheetId, sheetName } = client;
@@ -201,10 +233,10 @@ async function syncToSheets(record) {
 /**
  * Remove/Clear a FeeRecord from Google Sheets
  */
-async function deleteFromSheets(recordId, admissionNo, studentName) {
+async function deleteFromSheets(recordId, admissionNo, studentName, instId = null) {
     if (isSyncDisabled) return;
 
-    const client = getSheetsClient();
+    const client = await getSheetsClient(instId);
     if (!client) return;
 
     const { sheets, spreadsheetId, sheetName } = client;
@@ -253,15 +285,21 @@ async function deleteFromSheets(recordId, admissionNo, studentName) {
 /**
  * Import all data from Google Sheets into MongoDB
  */
-async function importFromSheets() {
-    const client = getSheetsClient();
-    if (!client) throw new Error('Google Sheets client not configured');
-
-    const { sheets, spreadsheetId, sheetName } = client;
+async function importFromSheets(instId = null) {
     const User = require('../models/User');
     const FeeRecord = require('../models/FeeRecord');
     const Course = require('../models/Course');
     const Institute = require('../models/Institute');
+
+    if (!instId) {
+        const defaultInst = await Institute.findOne({ name: /hartron/i }) || await Institute.findOne({});
+        instId = defaultInst ? defaultInst._id : null;
+    }
+
+    const client = await getSheetsClient(instId);
+    if (!client) throw new Error('Google Sheets client not configured');
+
+    const { sheets, spreadsheetId, sheetName } = client;
 
     // Robust date parser helper
     const parseDate = (dateStr) => {
@@ -327,19 +365,17 @@ async function importFromSheets() {
 
             // Try to find existing student by ledgerNo or compound fields
             let student = null;
-            if (ledgerNo) {
-                student = await User.findOne({ "studentProfile.ledgerNo": ledgerNo, role: 'Student' });
+            if (ledgerNo && instId) {
+                student = await User.findOne({ "studentProfile.ledgerNo": ledgerNo, institute: instId, role: 'Student' });
             }
-            if (!student) {
-                const query = { name, role: 'Student' };
+            if (!student && instId) {
+                const query = { name, institute: instId, role: 'Student' };
                 if (fatherName) query.fatherName = fatherName;
                 if (admissionNo) query.admissionNo = admissionNo;
                 student = await User.findOne(query);
             }
 
             const enrollmentDate = parseDate(joiningStr);
-            const defaultInst = await Institute.findOne({ name: /hartron/i }) || await Institute.findOne({});
-            const instId = defaultInst ? defaultInst._id : null;
 
             // Generate unique email if student is new
             if (!student) {
@@ -501,14 +537,21 @@ async function importFromSheets() {
 /**
  * Export all data from MongoDB into Google Sheets
  */
-async function exportToSheets() {
-    const client = getSheetsClient();
+async function exportToSheets(instId = null) {
+    const client = await getSheetsClient(instId);
     if (!client) throw new Error('Google Sheets client not configured');
 
     const { sheets, spreadsheetId, sheetName } = client;
     const FeeRecord = require('../models/FeeRecord');
+    const User = require('../models/User');
 
-    const records = await FeeRecord.find({})
+    let query = {};
+    if (instId) {
+        const studentIds = await User.find({ institute: instId, role: 'Student' }).distinct('_id');
+        query = { student: { $in: studentIds } };
+    }
+
+    const records = await FeeRecord.find(query)
         .populate({
             path: 'student',
             select: 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar',

@@ -9,12 +9,11 @@ const generateReceiptNo = () => {
     return `RCPT-${year}-${rand}`;
 };
 
-// @desc    Get all fee records (admin)
-// @route   GET /api/fees/admin/all
 const getAllFeeRecords = asyncHandler(async (req, res) => {
     const { search, status, course } = req.query;
 
-    let feeRecords = await FeeRecord.find({})
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    let feeRecords = await FeeRecord.find({ student: { $in: studentIds } })
         .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
         .sort({ updatedAt: -1 });
 
@@ -39,7 +38,8 @@ const getAllFeeRecords = asyncHandler(async (req, res) => {
 // @desc    Get dashboard stats (admin)
 // @route   GET /api/fees/admin/stats
 const getDashboardStats = asyncHandler(async (req, res) => {
-    const allRecords = await FeeRecord.find({}).populate('student', 'name studentProfile avatar');
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    const allRecords = await FeeRecord.find({ student: { $in: studentIds } }).populate('student', 'name studentProfile avatar');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -88,7 +88,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 // @desc    Get pending dues list (admin)
 // @route   GET /api/fees/admin/pending-dues
 const getPendingDues = asyncHandler(async (req, res) => {
-    const records = await FeeRecord.find({ status: { $in: ['Pending', 'Partial'] } })
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    const records = await FeeRecord.find({ student: { $in: studentIds }, status: { $in: ['Pending', 'Partial'] } })
         .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
         .sort({ nextDueDate: 1 });
 
@@ -111,7 +112,8 @@ const getPendingDues = asyncHandler(async (req, res) => {
 // @route   GET /api/fees/admin/receipts
 const getAllReceipts = asyncHandler(async (req, res) => {
     const { search } = req.query;
-    let records = await FeeRecord.find({})
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    let records = await FeeRecord.find({ student: { $in: studentIds } })
         .populate('student', 'name email studentProfile avatar')
         .sort({ updatedAt: -1 });
 
@@ -153,6 +155,11 @@ const collectFee = asyncHandler(async (req, res) => {
     const { studentId, amount, paymentMode, referenceNo, remark } = req.body;
     if (!studentId || !amount) return res.status(400).json({ message: 'Student and amount required' });
 
+    const studentDoc = await User.findById(studentId);
+    if (!studentDoc || String(studentDoc.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: Student does not belong to your institute' });
+    }
+
     let record = await FeeRecord.findOne({ student: studentId });
     if (!record) {
         // Create a default record
@@ -185,6 +192,11 @@ const setupFeeRecord = asyncHandler(async (req, res) => {
     const { studentId, totalFee, course, batch, nextDueDate, months, extraCharge } = req.body;
     if (!studentId) return res.status(400).json({ message: 'studentId required' });
 
+    const studentDoc = await User.findById(studentId);
+    if (!studentDoc || String(studentDoc.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: Student does not belong to your institute' });
+    }
+
     let record = await FeeRecord.findOne({ student: studentId });
     if (!record) {
         record = new FeeRecord({ student: studentId });
@@ -215,8 +227,11 @@ const setupFeeRecord = asyncHandler(async (req, res) => {
 // @route   GET /api/fees/admin/student/:id
 const getStudentFeeRecord = asyncHandler(async (req, res) => {
     const record = await FeeRecord.findOne({ student: req.params.id })
-        .populate('student', 'name email mobileNumber studentProfile avatar');
+        .populate('student', 'name email mobileNumber studentProfile avatar institute');
     if (!record) return res.status(404).json({ message: 'No fee record found' });
+    if (record.student && String(record.student.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: student belongs to another institute' });
+    }
     res.json(record);
 });
 
@@ -232,7 +247,8 @@ const getMyFees = asyncHandler(async (req, res) => {
 // @desc    Get reports data
 // @route   GET /api/fees/admin/reports
 const getReports = asyncHandler(async (req, res) => {
-    const records = await FeeRecord.find({}).populate('student', 'name studentProfile');
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    const records = await FeeRecord.find({ student: { $in: studentIds } }).populate('student', 'name studentProfile');
 
     // Payment mode distribution
     const modeMap = {};
@@ -267,8 +283,12 @@ const getReports = asyncHandler(async (req, res) => {
 // @route   DELETE /api/fees/admin/transaction/:id
 const deleteTransaction = asyncHandler(async (req, res) => {
     const transactionId = req.params.id;
-    const record = await FeeRecord.findOne({ 'transactions._id': transactionId });
+    const record = await FeeRecord.findOne({ 'transactions._id': transactionId }).populate('student');
     if (!record) return res.status(404).json({ message: 'Transaction not found' });
+    
+    if (record.student && String(record.student.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: Transaction belongs to another institute' });
+    }
     
     record.transactions.pull({ _id: transactionId });
     await record.save();
@@ -280,10 +300,12 @@ const deleteTransaction = asyncHandler(async (req, res) => {
 // @route   DELETE /api/fees/admin/record/:id
 const deleteFeeRecord = asyncHandler(async (req, res) => {
     const { deleteFromSheets } = require('../utils/googleSheets');
-    const record = await FeeRecord.findById(req.params.id);
+    const record = await FeeRecord.findById(req.params.id).populate('student');
     if (!record) return res.status(404).json({ message: 'Fee record not found' });
     
-    await record.populate('student');
+    if (record.student && String(record.student.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: Record belongs to another institute' });
+    }
     await deleteFromSheets(record._id, record.student?.admissionNo, record.student?.name);
     await record.deleteOne();
     
@@ -294,8 +316,9 @@ const deleteFeeRecord = asyncHandler(async (req, res) => {
 // @route   GET /api/fees/admin/dashboard-data
 const getMergedDashboardData = asyncHandler(async (req, res) => {
     // 1. Fetch all records and populate student details in a single query
-    const allRecords = await FeeRecord.find({})
-        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar')
+    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    const allRecords = await FeeRecord.find({ student: { $in: studentIds } })
+        .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar institute')
         .sort({ updatedAt: -1 });
 
     // 2. Compute Stats

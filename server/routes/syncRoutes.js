@@ -37,7 +37,7 @@ router.post('/sheets', async (req, res) => {
         // Disable backend-to-sheets sync hooks to prevent loops
         setSyncDisabled(true);
 
-        const { id, admissionNo, name, fatherName, mobile1, mobile2, course, totalFee, months } = data;
+        const { id, spreadsheetId, admissionNo, name, fatherName, mobile1, mobile2, course, totalFee, months } = data;
 
         if (action === 'delete') {
             if (id) {
@@ -61,18 +61,30 @@ router.post('/sheets', async (req, res) => {
             }
         }
 
-        if (!student && admissionNo) {
-            student = await User.findOne({ admissionNo, role: 'Student' });
+        // Resolve Institute
+        let instId = null;
+        if (student && student.institute) {
+            instId = student.institute;
+        } else if (spreadsheetId) {
+            const inst = await Institute.findOne({ googleSpreadsheetId: spreadsheetId });
+            if (inst) instId = inst._id;
         }
 
-        if (!student && name) {
-            student = await User.findOne({ name, role: 'Student' });
+        if (!instId) {
+            const defaultInst = await Institute.findOne({ name: /hartron/i }) || await Institute.findOne({});
+            instId = defaultInst ? defaultInst._id : null;
+        }
+
+        if (!student && admissionNo && instId) {
+            student = await User.findOne({ admissionNo, institute: instId, role: 'Student' });
+        }
+
+        if (!student && name && instId) {
+            student = await User.findOne({ name, institute: instId, role: 'Student' });
         }
 
         let courseDoc = null;
         if (course) {
-            const defaultInst = await Institute.findOne({});
-            const instId = defaultInst ? defaultInst._id : null;
             const courseCode = course.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
             // 1. Try to find by name (case-insensitive exact match)
@@ -128,6 +140,7 @@ router.post('/sheets', async (req, res) => {
                     email,
                     password,
                     role: 'Student',
+                    institute: instId,
                     admissionNo: admissionNo || '',
                     fatherName: fatherName || '',
                     mobileNumber: mobile1 || '',
@@ -218,52 +231,33 @@ router.post('/sheets', async (req, res) => {
 const { protect, adminOrEditor } = require('../middleware/authMiddleware');
 const { importFromSheets, exportToSheets } = require('../utils/googleSheets');
 
-router.get('/config', protect, adminOrEditor, (req, res) => {
-    res.json({
-        spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || '',
-        sheetName: process.env.GOOGLE_SHEET_NAME || 'Sheet1'
-    });
-});
 
-const fs = require('fs');
-const path = require('path');
+router.get('/config', protect, adminOrEditor, async (req, res) => {
+    try {
+        const inst = await Institute.findById(req.user.institute);
+        const isHartron = inst && /hartron/i.test(inst.name);
+        res.json({
+            spreadsheetId: inst?.googleSpreadsheetId || (isHartron ? process.env.GOOGLE_SPREADSHEET_ID : '') || '',
+            sheetName: inst?.googleSheetName || (isHartron ? process.env.GOOGLE_SHEET_NAME : '') || 'Sheet1'
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 // POST /api/sync/config
 // Allows updating spreadsheet ID from UI settings page
-router.post('/config', protect, adminOrEditor, (req, res) => {
+router.post('/config', protect, adminOrEditor, async (req, res) => {
     const { spreadsheetId, sheetName } = req.body;
     if (!spreadsheetId) {
         return res.status(400).json({ message: 'spreadsheetId is required' });
     }
 
     try {
-        const envPath = path.join(__dirname, '../.env');
-        if (fs.existsSync(envPath)) {
-            let content = fs.readFileSync(envPath, 'utf8');
-            
-            const spIdRegex = /^GOOGLE_SPREADSHEET_ID=.*$/m;
-            if (spIdRegex.test(content)) {
-                content = content.replace(spIdRegex, `GOOGLE_SPREADSHEET_ID=${spreadsheetId}`);
-            } else {
-                content += `\nGOOGLE_SPREADSHEET_ID=${spreadsheetId}`;
-            }
-
-            if (sheetName) {
-                const sheetNameRegex = /^GOOGLE_SHEET_NAME=.*$/m;
-                if (sheetNameRegex.test(content)) {
-                    content = content.replace(sheetNameRegex, `GOOGLE_SHEET_NAME=${sheetName}`);
-                } else {
-                    content += `\nGOOGLE_SHEET_NAME=${sheetName}`;
-                }
-            }
-
-            fs.writeFileSync(envPath, content, 'utf8');
-        }
-
-        process.env.GOOGLE_SPREADSHEET_ID = spreadsheetId;
-        if (sheetName) process.env.GOOGLE_SHEET_NAME = sheetName;
-
-        console.log(`[Config Sync] Updated GOOGLE_SPREADSHEET_ID to ${spreadsheetId}`);
+        await Institute.findByIdAndUpdate(req.user.institute, {
+            googleSpreadsheetId: spreadsheetId,
+            googleSheetName: sheetName || 'Sheet1'
+        });
 
         res.json({ success: true, spreadsheetId, sheetName: sheetName || 'Sheet1' });
     } catch (err) {
@@ -272,12 +266,11 @@ router.post('/config', protect, adminOrEditor, (req, res) => {
     }
 });
 
-
 // POST /api/sync/import
 // Trigger full manual import from Google Sheets to MongoDB
 router.post('/import', protect, adminOrEditor, async (req, res) => {
     try {
-        const result = await importFromSheets();
+        const result = await importFromSheets(req.user.institute);
         res.json(result);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -288,7 +281,7 @@ router.post('/import', protect, adminOrEditor, async (req, res) => {
 // Trigger full manual export from MongoDB to Google Sheets
 router.post('/export', protect, adminOrEditor, async (req, res) => {
     try {
-        const result = await exportToSheets();
+        const result = await exportToSheets(req.user.institute);
         res.json(result);
     } catch (err) {
         res.status(500).json({ message: err.message });

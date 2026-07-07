@@ -6,7 +6,7 @@ import {
     Search, Filter, ChevronDown, X, IndianRupee, Calendar, TrendingUp,
     CheckCircle, AlertCircle, Loader2, RefreshCw, Plus, Eye, Phone,
     MessageSquare, Printer, Download, Upload, ArrowUpRight, Wallet, FileText,
-    Settings as SettingsIcon, UserCheck, AlertTriangle, Trash2
+    Settings as SettingsIcon, UserCheck, AlertTriangle, Trash2, Edit
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -15,6 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import EditUserModal from '../../components/EditUserModal';
 
 /* ─── Helpers ─── */
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -988,6 +989,8 @@ export default function AdminFeePortal() {
     const [reportTab, setReportTab] = useState('course');
     const [selectedReceipt, setSelectedReceipt] = useState(null);
     const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedStudentForEdit, setSelectedStudentForEdit] = useState(null);
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
@@ -1442,6 +1445,18 @@ export default function AdminFeePortal() {
                                                         <Eye size={15} />
                                                     </button>
                                                 )}
+                                                {r.student?._id && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setSelectedStudentForEdit(r.student);
+                                                            setIsEditModalOpen(true);
+                                                        }}
+                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                        title="Edit Student"
+                                                    >
+                                                        <Edit size={15} />
+                                                    </button>
+                                                )}
                                                 {r.status !== 'Paid' && r.student?._id && (
                                                     <button onClick={() => openCollect(r.student?._id)}
                                                         className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-colors">
@@ -1785,6 +1800,111 @@ export default function AdminFeePortal() {
         }
     };
 
+    const downloadCSV = () => {
+        if (!students || students.length === 0) {
+            toast.error('No records to download');
+            return;
+        }
+
+        const headers = [
+            'Adm. no.', 'Ledger No.', 'Name', 'Father Name', 'Mobile no.', 'Mobile1',
+            'Date of Joining', 'Course', 'Total Fee', 'Paid Amount', 'Balance', 'Months', 'Status'
+        ];
+
+        const rows = students.map(r => {
+            const student = r.student || {};
+            const joiningDate = student.studentProfile?.enrollmentDate 
+                ? new Date(student.studentProfile.enrollmentDate).toLocaleDateString('en-GB')
+                : '';
+            return [
+                student.admissionNo || '',
+                student.studentProfile?.ledgerNo || '',
+                student.name || '',
+                student.fatherName || '',
+                student.mobileNumber || '',
+                student.mobile2 || '',
+                joiningDate,
+                r.course || '',
+                r.totalFee || 0,
+                r.paidAmount || 0,
+                r.pendingAmount || 0,
+                r.months || 0,
+                r.status || 'Pending'
+            ];
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+            + [headers.join(','), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Fee_Records_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('CSV downloaded successfully!');
+    };
+
+    const downloadExcel = () => {
+        if (!students || students.length === 0) {
+            toast.error('No records to download');
+            return;
+        }
+
+        const headers = [
+            'Adm. no.', 'Ledger No.', 'Name', 'Father Name', 'Mobile no.', 'Mobile1',
+            'Date of Joining', 'Course', 'Total Fee', 'Paid Amount', 'Balance', 'Months', 'Status'
+        ];
+
+        let xml = '<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40"><Worksheet ss:Name="Fee Records"><Table>';
+        
+        xml += '<Row>';
+        headers.forEach(h => {
+            xml += `<Cell><Data ss:Type="String">${h}</Data></Cell>`;
+        });
+        xml += '</Row>';
+
+        students.forEach(r => {
+            const student = r.student || {};
+            const joiningDate = student.studentProfile?.enrollmentDate 
+                ? new Date(student.studentProfile.enrollmentDate).toLocaleDateString('en-GB')
+                : '';
+            const rowData = [
+                student.admissionNo || '',
+                student.studentProfile?.ledgerNo || '',
+                student.name || '',
+                student.fatherName || '',
+                student.mobileNumber || '',
+                student.mobile2 || '',
+                joiningDate,
+                r.course || '',
+                r.totalFee || 0,
+                r.paidAmount || 0,
+                r.pendingAmount || 0,
+                r.months || 0,
+                r.status || 'Pending'
+            ];
+            xml += '<Row>';
+            rowData.forEach(val => {
+                const type = typeof val === 'number' ? 'Number' : 'String';
+                xml += `<Cell><Data ss:Type="${type}">${val}</Data></Cell>`;
+            });
+            xml += '</Row>';
+        });
+
+        xml += '</Table></Worksheet></Workbook>';
+
+        const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Fee_Records_${new Date().toISOString().slice(0,10)}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Excel downloaded successfully!');
+    };
+
     /* ─── Settings Tab ─── */
     const renderSettings = () => {
         return (
@@ -1886,22 +2006,28 @@ export default function AdminFeePortal() {
                         </div>
 
                         {/* Import & Export Action Buttons */}
-                        <div className="flex flex-wrap gap-3 pt-2">
+                        <div className="flex items-center gap-3 pt-2">
                             <button
                                 onClick={handleImport}
                                 disabled={syncLoading}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                             >
                                 <RefreshCw size={12} className={syncLoading ? 'animate-spin' : ''} />
                                 Sync & Import from Sheet
                             </button>
                             <button
-                                onClick={handleExport}
-                                disabled={syncLoading}
-                                className="bg-slate-700 hover:bg-slate-800 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                                onClick={downloadExcel}
+                                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
                             >
-                                <Upload size={12} className={syncLoading ? 'animate-spin' : ''} />
-                                Export to Sheet
+                                <Download size={12} />
+                                Download Excel (.xls)
+                            </button>
+                            <button
+                                onClick={downloadCSV}
+                                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                            >
+                                <Download size={12} />
+                                Download CSV
                             </button>
                         </div>
 
@@ -1952,7 +2078,7 @@ export default function AdminFeePortal() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl px-3 py-1.5 text-xs text-white font-bold transition-colors"
                         >
-                            <FileText size={12} /> Google Sheet
+                            <FileText size={12} /> Google Sheets Integration
                         </a>
                     )}
                     <button onClick={fetchAll} disabled={loading} className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-slate-300 transition-colors">
@@ -2037,6 +2163,21 @@ export default function AdminFeePortal() {
                     preselectedId={collectPreselect}
                     onClose={() => setShowCollectModal(false)}
                     onSuccess={fetchAll}
+                />
+            )}
+            {isEditModalOpen && (
+                <EditUserModal
+                    isOpen={isEditModalOpen}
+                    user={selectedStudentForEdit}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedStudentForEdit(null);
+                    }}
+                    onSuccess={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedStudentForEdit(null);
+                        fetchAll();
+                    }}
                 />
             )}
         </div>

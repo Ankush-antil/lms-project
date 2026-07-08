@@ -13,7 +13,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
         syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
-        duration: 5
+        duration: 5, fee: 0
     });
     const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
     const [syllabusFile, setSyllabusFile] = useState(null);
@@ -68,7 +68,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusUrl: course.syllabusUrl || '',
                     syllabusType: course.syllabusType || 'link',
                     maxStudentsPerSection: course.maxStudentsPerSection || 30,
-                    duration: course.duration || 5
+                    duration: course.duration || 5,
+                    fee: course.fee || 0
                 });
                 setSyllabusMode(course.syllabusType || 'link');
             } else {
@@ -83,7 +84,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusUrl: '',
                     syllabusType: 'link',
                     maxStudentsPerSection: 30,
-                    duration: 5
+                    duration: 5,
+                    fee: 0
                 });
                 setSyllabusMode('link');
             }
@@ -139,7 +141,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             const payload = {
                 ...formData,
                 maxStudentsPerSection: sectionVal,
-                duration: durationVal
+                duration: durationVal,
+                fee: parseFloat(formData.fee) || 0
             };
             if (course) {
                 await axios.put(`/api/setup/courses/${course._id}`, payload);
@@ -251,13 +254,12 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                             </div>
                         </div>
 
-                        {/* Max Students Per Section */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
-                                👥 Max Students Per Section
-                                <span className="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded-full font-semibold uppercase ml-1">Auto-Sections</span>
-                            </label>
-                            <div className="flex items-center gap-3">
+                        {/* Course Settings: Max Students, Duration & Fee */}
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-0.5 truncate" title="Max Students Per Section">
+                                    👥 Max Students
+                                </label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -271,31 +273,47 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                     placeholder="30"
                                 />
                             </div>
+                            <div>
+                                <label className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-0.5 truncate" title="Course Duration (Days)">
+                                    📅 Duration (Days)
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                    required
+                                    value={formData.duration}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setIsDurationManuallyEdited(true);
+                                        setFormData({ ...formData, duration: val });
+                                    }}
+                                    placeholder="e.g. 5"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-0.5 truncate" title="Course Fee (₹)">
+                                    💰 Course Fee (₹)
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                    required
+                                    value={formData.fee}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setFormData({ ...formData, fee: val });
+                                    }}
+                                    placeholder="e.g. 15000"
+                                />
+                            </div>
                         </div>
-
-                        {/* Course Duration */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-1">
-                                📅 Course Duration (In Days)
-                            </label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
-                                required
-                                value={formData.duration}
-                                onChange={e => {
-                                    const val = e.target.value.replace(/[^0-9]/g, '');
-                                    setIsDurationManuallyEdited(true);
-                                    setFormData({ ...formData, duration: val });
-                                }}
-                                placeholder="e.g. 5"
-                            />
-                            <p className="text-[10px] text-slate-400 font-medium mt-1.5 leading-snug">
-                                This will generate the corresponding number of day inboxes (1 to {formData.duration || 5}) for students and teachers.
-                            </p>
-                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium mt-1.5 leading-snug">
+                            Max Students controls auto-sections. Duration generates day inboxes (1 to {formData.duration || 5}). Fee sets default student fee.
+                        </p>
 
                         {/* Description */}
                         <div>

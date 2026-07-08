@@ -9,7 +9,54 @@ const generateReceiptNo = () => {
     return `RCPT-${year}-${rand}`;
 };
 
+const ensureFeeRecordsExist = async (instituteId) => {
+    try {
+        const studentsList = await User.find({ institute: instituteId, role: 'Student', isDeleted: { $ne: true } })
+            .populate('studentProfile.course');
+        const studentIds = studentsList.map(s => s._id);
+
+        const existingRecords = await FeeRecord.find({ student: { $in: studentIds } });
+        const existingStudentIds = new Set(existingRecords.map(r => r.student.toString()));
+
+        const missingStudents = studentsList.filter(s => !existingStudentIds.has(s._id.toString()));
+        if (missingStudents.length > 0) {
+            console.log(`[Fee Record Auto-Init] Creating missing FeeRecords for ${missingStudents.length} students...`);
+            const recordsToInsert = missingStudents.map(student => {
+                const defaultFee = student.studentProfile?.course?.fee || 0;
+                return {
+                    student: student._id,
+                    totalFee: defaultFee,
+                    course: student.studentProfile?.course?.name || '',
+                    batch: student.studentProfile?.batch || 'Batch-A',
+                    paidAmount: 0,
+                    pendingAmount: defaultFee,
+                    status: 'Pending'
+                };
+            });
+            await FeeRecord.insertMany(recordsToInsert);
+        }
+
+        // Self-healing: If student has totalFee === 0, no transactions, but course fee is set > 0, update it.
+        for (const record of existingRecords) {
+            const student = studentsList.find(s => s._id.toString() === record.student.toString());
+            if (student && student.studentProfile?.course) {
+                const courseFee = student.studentProfile.course.fee || 0;
+                if (record.totalFee === 0 && courseFee > 0 && (!record.transactions || record.transactions.length === 0)) {
+                    console.log(`[Fee Record Auto-Fix] Setting totalFee to course fee (${courseFee}) for student ${student.name}`);
+                    record.totalFee = courseFee;
+                    record.pendingAmount = courseFee;
+                    record.course = student.studentProfile.course.name || record.course;
+                    await record.save();
+                }
+            }
+        }
+    } catch (err) {
+        console.error('❌ [Fee Record Auto-Init] Error initializing missing records:', err.message);
+    }
+};
+
 const getAllFeeRecords = asyncHandler(async (req, res) => {
+    await ensureFeeRecordsExist(req.user.institute);
     const { search, status, course } = req.query;
 
     const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
@@ -38,23 +85,27 @@ const getAllFeeRecords = asyncHandler(async (req, res) => {
 // @desc    Get dashboard stats (admin)
 // @route   GET /api/fees/admin/stats
 const getDashboardStats = asyncHandler(async (req, res) => {
+    await ensureFeeRecordsExist(req.user.institute);
     const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
     const allRecords = await FeeRecord.find({ student: { $in: studentIds } }).populate('student', 'name studentProfile avatar');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const monthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
 
     let todayCollection = 0;
     let monthlyCollection = 0;
     let totalPending = 0;
 
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
     allRecords.forEach(r => {
         r.transactions.forEach(t => {
             const tDate = new Date(t.date);
-            if (tDate >= today) todayCollection += t.amount;
-            if (tDate >= monthStart) monthlyCollection += t.amount;
+            if (tDate >= todayStart && tDate < todayEnd) todayCollection += t.amount;
+            if (tDate >= monthStart && tDate < monthEnd) monthlyCollection += t.amount;
         });
         totalPending += r.pendingAmount;
     });
@@ -408,6 +459,7 @@ const deleteFeeRecord = asyncHandler(async (req, res) => {
 // @desc    Get all dashboard data in a single query (combines stats, all records, pending, receipts, reports)
 // @route   GET /api/fees/admin/dashboard-data
 const getMergedDashboardData = asyncHandler(async (req, res) => {
+    await ensureFeeRecordsExist(req.user.institute);
     // 1. Fetch all records and populate student details in a single query
     const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
     const allRecords = await FeeRecord.find({ student: { $in: studentIds } })
@@ -415,9 +467,13 @@ const getMergedDashboardData = asyncHandler(async (req, res) => {
         .sort({ updatedAt: -1 });
 
     // 2. Compute Stats
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const monthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
 
     let todayCollection = 0;
     let monthlyCollection = 0;
@@ -441,8 +497,8 @@ const getMergedDashboardData = asyncHandler(async (req, res) => {
 
         r.transactions.forEach(t => {
             const tDate = new Date(t.date);
-            if (tDate >= today) todayCollection += t.amount;
-            if (tDate >= monthStart) monthlyCollection += t.amount;
+            if (tDate >= todayStart && tDate < todayEnd) todayCollection += t.amount;
+            if (tDate >= monthStart && tDate < monthEnd) monthlyCollection += t.amount;
 
             // Mode split
             modeMap[t.paymentMode] = (modeMap[t.paymentMode] || 0) + t.amount;

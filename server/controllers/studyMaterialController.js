@@ -20,7 +20,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to upload study material');
     }
 
-    const { title, inboxId, fileUrl } = req.body;
+    const { title, inboxId, fileUrl, isPrivate } = req.body;
 
     if (!req.file && !fileUrl) {
         res.status(400);
@@ -60,7 +60,8 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         fileUrl: finalFileUrl,
         inboxId,
         institute: instituteName,
-        uploadedBy: req.user._id
+        uploadedBy: req.user._id,
+        isPrivate: isPrivate === 'true' || isPrivate === true
     });
 
     res.status(201).json(material);
@@ -70,7 +71,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
 // @route   GET /api/study-materials
 // @access  Private
 const getStudyMaterials = asyncHandler(async (req, res) => {
-    const { inboxId } = req.query;
+    const { inboxId, isPrivate } = req.query;
 
     const user = await User.findById(req.user._id).populate('institute');
     const instituteName = user.institute?.name || '';
@@ -85,6 +86,18 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
 
     if (inboxId) {
         query.inboxId = inboxId;
+    }
+
+    // Role-based privacy filtering
+    if (req.user.role === 'Student') {
+        query.isPrivate = { $ne: true };
+    } else {
+        if (isPrivate === 'true' || isPrivate === true) {
+            query.uploadedBy = req.user._id;
+            query.isPrivate = true;
+        } else {
+            query.isPrivate = { $ne: true };
+        }
     }
 
     const materials = await StudyMaterial.find(query)

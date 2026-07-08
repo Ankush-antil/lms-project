@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     const switchAccount = (token, userInfo) => {
         if (!token) return;
         localStorage.setItem('authToken', token);
-        setUser(userInfo);
+        // Do not call setUser here to prevent intermediate client-side redirects before full page reload
         toast.success(`Switched to ${userInfo.name || userInfo.email}`);
         
         if (userInfo.role === 'Student') {

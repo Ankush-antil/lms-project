@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
-    BarChart3, UserPlus, Trash2, Wallet, CreditCard
+    BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -171,6 +171,7 @@ const menuItems = {
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
         { name: 'Student Activities', icon: FileText, path: '/teacher/activities' },
+        { name: 'Drive', icon: HardDrive, path: '/teacher/drive' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
         { name: 'Snapshots', icon: ClipboardCheck, path: '/teacher/snapshots' },
         { name: 'Activities Builder', icon: ClipboardCheck, path: '/teacher/activities-builder' },

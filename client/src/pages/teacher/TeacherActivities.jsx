@@ -1064,8 +1064,8 @@ const TeacherActivities = () => {
                 if (!matchesSearch) return null;
 
                 const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());
-                const cleanDisplayName = config && config.displayName ? config.displayName : `Day ${day.dayNum}`;
-                const titleWithIndex = `${cleanDisplayName} (Index ${day.indexNum})`;
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Inbox ${day.dayNum}`;
+                const titleWithIndex = cleanDisplayName;
 
                 return {
                     ...inboxItem,
@@ -1100,6 +1100,28 @@ const TeacherActivities = () => {
     }, [selectedStudent, dynamicInboxItems]);
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
+
+    const activeDayDetails = useMemo(() => {
+        if (!selectedInboxId || subjectDaysMapping.length === 0) return null;
+        for (const group of subjectDaysMapping) {
+            const foundDay = group.days.find(d => d.id === selectedInboxId);
+            if (foundDay) {
+                return {
+                    dayNum: foundDay.dayNum,
+                    subjectName: group.subjectName
+                };
+            }
+        }
+        return null;
+    }, [selectedInboxId, subjectDaysMapping]);
+
+    const headerTitle = useMemo(() => {
+        if (!selectedInboxId) return 'Select an Inbox';
+        const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedInboxId.trim().toLowerCase());
+        if (config && config.displayName) return config.displayName;
+        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
+        return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
+    }, [selectedInboxId, activeDayDetails, inboxConfigs, selectedGroup]);
 
     const assignCount = useMemo(() => {
         if (!selectedGroup) return 0;
@@ -1937,7 +1959,7 @@ const TeacherActivities = () => {
                                 </div>
                                 <div>
                                     <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                        {selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Select an Inbox'}
+                                        {headerTitle}
                                     </h1>
                                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                                         Your activities for this inbox

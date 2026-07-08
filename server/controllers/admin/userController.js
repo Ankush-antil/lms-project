@@ -99,6 +99,10 @@ const createUser = asyncHandler(async (req, res) => {
             assignedStudents: assignedStudents || [],
             controls: req.body.controls
         };
+    } else if (role === 'Editor') {
+        userFields.editorProfile = {
+            controls: req.body.controls
+        };
     }
 
     const user = await User.create(userFields);
@@ -142,6 +146,24 @@ const createUser = asyncHandler(async (req, res) => {
             if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
                 await User.updateMany(query, {
                     $set: { 'teacherProfile.controls': req.body.controls }
+                });
+            }
+        } else if (role === 'Editor' && req.body.controls !== undefined && scope !== 'single') {
+            const query = { role: 'Editor', _id: { $ne: user._id } };
+
+            // Enforce creator's institute
+            if (user.institute) {
+                query.institute = user.institute;
+            }
+
+            if (scope === 'selected') {
+                const selectedIds = req.body.selectedPropagationStudents || [];
+                query._id = { $in: selectedIds };
+            }
+
+            if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                await User.updateMany(query, {
+                    $set: { 'editorProfile.controls': req.body.controls }
                 });
             }
         }
@@ -301,6 +323,35 @@ const updateUser = asyncHandler(async (req, res) => {
                     if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
                         await User.updateMany(query, {
                             $set: { 'teacherProfile.controls': req.body.controls }
+                        });
+                    }
+                }
+            }
+        } else if (user.role === 'Editor') {
+            if (!user.editorProfile) user.editorProfile = {};
+
+            if (req.body.controls !== undefined) {
+                user.editorProfile.controls = req.body.controls;
+                user.markModified('editorProfile.controls');
+
+                // Propagate controls if scope is not 'single'
+                const scope = req.body.controlsScope || 'single';
+                if (scope !== 'single') {
+                    const query = { role: 'Editor', _id: { $ne: user._id } };
+
+                    // Enforce institute isolation
+                    if (user.institute) {
+                        query.institute = user.institute;
+                    }
+
+                    if (scope === 'selected') {
+                        const selectedIds = req.body.selectedPropagationStudents || [];
+                        query._id = { $in: selectedIds };
+                    }
+
+                    if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
+                        await User.updateMany(query, {
+                            $set: { 'editorProfile.controls': req.body.controls }
                         });
                     }
                 }

@@ -138,6 +138,62 @@ const DEFAULT_TEACHER_CONTROLS = {
         chatInstitute: true
     }
 };
+const DEFAULT_EDITOR_CONTROLS = {
+    dashboard: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        createCourse: true,
+        launchTestBuilder: true
+    },
+    teachers: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        addNewTeacher: true
+    },
+    courses: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        addNewCourses: true
+    },
+    subjects: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        addSubject: true
+    },
+    activities: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        createNewAssessment: true,
+        lmsConnectedTests: true,
+        publicWebTests: true,
+        draftTests: true
+    },
+    activitiesBuilder: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {}
+    },
+    chat: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        teacher: true,
+        editor: true,
+        students: true
+    }
+};
 
 const getInboxTabLabel = (key) => {
     const labels = {
@@ -237,7 +293,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                     ? { ...DEFAULT_STUDENT_CONTROLS, ...(user.studentProfile?.controls || {}) }
                     : (user.role === 'Teacher'
                         ? { ...DEFAULT_TEACHER_CONTROLS, ...(user.teacherProfile?.controls || {}) }
-                        : DEFAULT_STUDENT_CONTROLS)
+                        : (user.role === 'Editor'
+                            ? { ...DEFAULT_EDITOR_CONTROLS, ...(user.editorProfile?.controls || {}) }
+                            : DEFAULT_STUDENT_CONTROLS))
             });
             setError('');
             setActiveTab('basic');
@@ -1403,6 +1461,417 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         );
     };
 
+    const renderEditorControls = () => {
+        const updateControl = (section, field, value) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                newControls[section] = {
+                    ...newControls[section],
+                    [field]: value
+                };
+                return { ...prev, controls: newControls };
+            });
+        };
+
+        const controls = formData.controls || DEFAULT_EDITOR_CONTROLS;
+
+        return (
+            <div className="space-y-6 animate-fade-in pb-4">
+                {/* 1. Dashboard Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_dashboard"
+                                checked={controls.dashboard?.enabled !== false}
+                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer select-none">Dashboard Page</label>
+                        </div>
+                        {controls.dashboard?.enabled === false && (
+                            <select
+                                value={controls.dashboard?.mode || 'hide'}
+                                onChange={e => updateControl('dashboard', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.dashboard?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.dashboard?.note || ''}
+                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.dashboard?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'createCourse', label: 'Create Course' },
+                                    { id: 'launchTestBuilder', label: 'Launch Test Builder' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.dashboard?.[item.id] !== false}
+                                            onChange={e => updateControl('dashboard', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. Teachers Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_teachers"
+                                checked={controls.teachers?.enabled !== false}
+                                onChange={e => updateControl('teachers', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_teachers" className="text-sm font-black text-slate-800 cursor-pointer select-none">Teachers Page</label>
+                        </div>
+                        {controls.teachers?.enabled === false && (
+                            <select
+                                value={controls.teachers?.mode || 'hide'}
+                                onChange={e => updateControl('teachers', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.teachers?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.teachers?.note || ''}
+                                onChange={e => updateControl('teachers', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.teachers?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'addNewTeacher', label: 'Add New Teacher' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.teachers?.[item.id] !== false}
+                                            onChange={e => updateControl('teachers', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. Courses Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_courses"
+                                checked={controls.courses?.enabled !== false}
+                                onChange={e => updateControl('courses', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_courses" className="text-sm font-black text-slate-800 cursor-pointer select-none">Courses Page</label>
+                        </div>
+                        {controls.courses?.enabled === false && (
+                            <select
+                                value={controls.courses?.mode || 'hide'}
+                                onChange={e => updateControl('courses', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.courses?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.courses?.note || ''}
+                                onChange={e => updateControl('courses', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.courses?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'addNewCourses', label: 'Add New Courses' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.courses?.[item.id] !== false}
+                                            onChange={e => updateControl('courses', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 4. Subjects Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_subjects"
+                                checked={controls.subjects?.enabled !== false}
+                                onChange={e => updateControl('subjects', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_subjects" className="text-sm font-black text-slate-800 cursor-pointer select-none">Subjects Page</label>
+                        </div>
+                        {controls.subjects?.enabled === false && (
+                            <select
+                                value={controls.subjects?.mode || 'hide'}
+                                onChange={e => updateControl('subjects', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.subjects?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.subjects?.note || ''}
+                                onChange={e => updateControl('subjects', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.subjects?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'addSubject', label: 'Add Subject' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.subjects?.[item.id] !== false}
+                                            onChange={e => updateControl('subjects', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 5. Activities Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_activities"
+                                checked={controls.activities?.enabled !== false}
+                                onChange={e => updateControl('activities', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_activities" className="text-sm font-black text-slate-800 cursor-pointer select-none">Activities Page</label>
+                        </div>
+                        {controls.activities?.enabled === false && (
+                            <select
+                                value={controls.activities?.mode || 'hide'}
+                                onChange={e => updateControl('activities', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.activities?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.activities?.note || ''}
+                                onChange={e => updateControl('activities', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.activities?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'createNewAssessment', label: 'Create New Assessment' },
+                                    { id: 'lmsConnectedTests', label: 'LMS Connected Tests' },
+                                    { id: 'publicWebTests', label: 'Public Web Tests' },
+                                    { id: 'draftTests', label: 'Draft Tests' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.activities?.[item.id] !== false}
+                                            onChange={e => updateControl('activities', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 6. Activities Builder Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_activitiesBuilder"
+                                checked={controls.activitiesBuilder?.enabled !== false}
+                                onChange={e => updateControl('activitiesBuilder', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_activitiesBuilder" className="text-sm font-black text-slate-800 cursor-pointer select-none">Activities Builder Page</label>
+                        </div>
+                        {controls.activitiesBuilder?.enabled === false && (
+                            <select
+                                value={controls.activitiesBuilder?.mode || 'hide'}
+                                onChange={e => updateControl('activitiesBuilder', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.activitiesBuilder?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.activitiesBuilder?.note || ''}
+                                onChange={e => updateControl('activitiesBuilder', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* 7. Chat Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_chat"
+                                checked={controls.chat?.enabled !== false}
+                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer select-none">Chat Page</label>
+                        </div>
+                        {controls.chat?.enabled === false && (
+                            <select
+                                value={controls.chat?.mode || 'hide'}
+                                onChange={e => updateControl('chat', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                    {controls.chat?.enabled === false && (
+                        <div className="w-full animate-fade-in">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                            <input
+                                type="text"
+                                value={controls.chat?.note || ''}
+                                onChange={e => updateControl('chat', 'note', e.target.value)}
+                                placeholder="Enter reason"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+                    )}
+                    {controls.chat?.enabled !== false && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { id: 'teacher', label: 'Teacher Chat' },
+                                    { id: 'editor', label: 'Editor Chat' },
+                                    { id: 'students', label: 'Student Chat' }
+                                ].map(item => (
+                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={controls.chat?.[item.id] !== false}
+                                            onChange={e => updateControl('chat', item.id, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -1528,7 +1997,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {(user.role === 'Student' || user.role === 'Teacher') && (
+                    {(user.role === 'Student' || user.role === 'Teacher' || user.role === 'Editor') && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -1566,7 +2035,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                         )}
 
                         {activeTab === 'controls' ? (
-                            user.role === 'Student' ? renderStudentControls() : renderTeacherControls()
+                            user.role === 'Student' ? renderStudentControls() : (user.role === 'Teacher' ? renderTeacherControls() : renderEditorControls())
                         ) : (
                             <div className="grid grid-cols-1 gap-4">
                                 {currentUser?.role === 'Institute' || currentUser?.role === 'Editor' ? (
@@ -1922,7 +2391,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             </div>
                         )}
 
-                        {activeTab === 'basic' && (user.role === 'Student' || user.role === 'Teacher') ? (
+                        {activeTab === 'basic' && (user.role === 'Student' || user.role === 'Teacher' || user.role === 'Editor') ? (
                             <button
                                 type="button"
                                 onClick={handleNextTab}

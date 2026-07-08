@@ -570,6 +570,26 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                     }
                 }
             }
+        } else if (user?.role === 'Editor') {
+            const controls = user.editorProfile?.controls;
+            if (controls) {
+                const name = item.name.toLowerCase();
+                let controlKey = '';
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'teachers') controlKey = 'teachers';
+                else if (name === 'courses') controlKey = 'courses';
+                else if (name === 'subjects') controlKey = 'subjects';
+                else if (name === 'activities') controlKey = 'activities';
+                else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+                else if (name === 'chat') controlKey = 'chat';
+
+                if (controlKey) {
+                    const ctrl = controls[controlKey];
+                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                        return { ...item, disabled: true, note: ctrl.note };
+                    }
+                }
+            }
         }
         return item;
     });
@@ -609,6 +629,29 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'student activities') controlKey = 'studentActivities';
             else if (name === 'evaluate') controlKey = 'evaluate';
             else if (name === 'snapshots') controlKey = 'snapshots';
+            else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+            else if (name === 'chat') controlKey = 'chat';
+
+            if (controlKey) {
+                const ctrl = controls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (user?.role === 'Editor') {
+            const controls = user.editorProfile?.controls;
+            if (!controls) return true;
+
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (name === 'dashboard') controlKey = 'dashboard';
+            else if (name === 'teachers') controlKey = 'teachers';
+            else if (name === 'courses') controlKey = 'courses';
+            else if (name === 'subjects') controlKey = 'subjects';
+            else if (name === 'activities') controlKey = 'activities';
             else if (name === 'activities builder') controlKey = 'activitiesBuilder';
             else if (name === 'chat') controlKey = 'chat';
 

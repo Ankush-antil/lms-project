@@ -1019,6 +1019,25 @@ const ChatPage = () => {
             return true;
         }
 
+        // Editor controls
+        if (user.role === 'Editor') {
+            const chatCtrl = user.editorProfile?.controls?.chat;
+            if (!chatCtrl) return true;
+            if (chatCtrl.enabled === false) return false;
+
+            const role = contact.role;
+            if (role === 'Teacher') {
+                return chatCtrl.teacher !== false;
+            }
+            if (role === 'Editor') {
+                return chatCtrl.editor !== false;
+            }
+            if (role === 'Student') {
+                return chatCtrl.students !== false;
+            }
+            return true;
+        }
+
         return true;
     };
 
@@ -1034,7 +1053,7 @@ const ChatPage = () => {
                 });
             }
         });
-        if (user?.role === 'Student' || user?.role === 'Teacher') {
+        if (user?.role === 'Student' || user?.role === 'Teacher' || user?.role === 'Editor') {
             list = list.filter(isContactAllowed);
         }
         return list;
@@ -1143,8 +1162,12 @@ const ChatPage = () => {
 
     const chatCtrl = user?.role === 'Student' 
         ? user?.studentProfile?.controls?.chat 
-        : (user?.role === 'Teacher' ? user?.teacherProfile?.controls?.chat : null);
-    const isChatDisabled = (user?.role === 'Student' || user?.role === 'Teacher') && chatCtrl?.enabled === false;
+        : (user?.role === 'Teacher' 
+            ? user?.teacherProfile?.controls?.chat 
+            : (user?.role === 'Editor' 
+                ? user?.editorProfile?.controls?.chat 
+                : null));
+    const isChatDisabled = (user?.role === 'Student' || user?.role === 'Teacher' || user?.role === 'Editor') && chatCtrl?.enabled === false;
     const chatMode = chatCtrl?.mode || 'hide';
 
     if (isChatDisabled && chatMode === 'hide') {

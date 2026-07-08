@@ -86,6 +86,23 @@ const CoursesList = () => {
     const paginatedCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
     const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
 
+    const editorControls = user?.editorProfile?.controls;
+    if (user?.role === 'Editor' && editorControls?.courses?.enabled === false) {
+        return (
+            <DashboardLayout role="Editor">
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4">
+                        <BookOpen className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                    <p className="text-slate-500 font-medium max-w-sm mt-2">
+                        {editorControls.courses.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             {/* Header */}
@@ -102,7 +119,18 @@ const CoursesList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.institute?.controls?.course?.addCourse !== false && (
+                    {user?.role !== 'Admin' && user?.role !== 'Editor' && user?.institute?.controls?.course?.addCourse !== false && (
+                        <button
+                            onClick={() => {
+                                setSelectedCourse(null);
+                                setIsModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Plus size={20} /> Add New Course
+                        </button>
+                    )}
+                    {user?.role === 'Editor' && editorControls?.courses?.addNewCourses !== false && (
                         <button
                             onClick={() => {
                                 setSelectedCourse(null);

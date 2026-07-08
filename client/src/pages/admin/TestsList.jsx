@@ -39,6 +39,24 @@ const TestsList = () => {
         setCurrentPage(1);
     }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
 
+    const editorControls = userInfo?.editorProfile?.controls;
+
+    useEffect(() => {
+        if (userInfo?.role === 'Editor' && editorControls?.activities) {
+            const act = editorControls.activities;
+            if (activeTab === 'lms' && act.lmsConnectedTests === false) {
+                if (act.publicWebTests !== false) setActiveTab('public');
+                else if (act.draftTests !== false) setActiveTab('draft');
+            } else if (activeTab === 'public' && act.publicWebTests === false) {
+                if (act.lmsConnectedTests !== false) setActiveTab('lms');
+                else if (act.draftTests !== false) setActiveTab('draft');
+            } else if (activeTab === 'draft' && act.draftTests === false) {
+                if (act.lmsConnectedTests !== false) setActiveTab('lms');
+                else if (act.publicWebTests !== false) setActiveTab('public');
+            }
+        }
+    }, [userInfo, editorControls, activeTab]);
+
     // Folder Explorer state
     const [showFolderExplorer, setShowFolderExplorer] = useState(false);
 
@@ -1911,6 +1929,22 @@ const TestsList = () => {
         );
     }
 
+    if (userInfo?.role === 'Editor' && editorControls?.activities?.enabled === false) {
+        return (
+            <DashboardLayout role="Editor">
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4">
+                        <FileText className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                    <p className="text-slate-500 font-medium max-w-sm mt-2">
+                        {editorControls.activities.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={userInfo?.role || 'Admin'}>
 
@@ -1928,45 +1962,53 @@ const TestsList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    <button
-                        onClick={() => navigate(`${basePath}/activities-builder`)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
-                    >
-                        <Plus size={20} /> Create New Assessment
-                    </button>
+                    {((userInfo?.role !== 'Admin' && userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.createNewAssessment !== false)) && (
+                        <button
+                            onClick={() => navigate(`${basePath}/activities-builder`)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Plus size={20} /> Create New Assessment
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Tab Selectors & Folder Explorer Trigger */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-                    <button
-                        onClick={() => setActiveTab('lms')}
-                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
-                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        LMS Connected Tests
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('public')}
-                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
-                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        Public Web Tests
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('draft')}
-                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'draft'
-                            ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        Draft Tests
-                    </button>
+                    {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.lmsConnectedTests !== false)) && (
+                        <button
+                            onClick={() => setActiveTab('lms')}
+                            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms'
+                                ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                        >
+                            LMS Connected Tests
+                        </button>
+                    )}
+                    {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.publicWebTests !== false)) && (
+                        <button
+                            onClick={() => setActiveTab('public')}
+                            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'public'
+                                ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                        >
+                            Public Web Tests
+                        </button>
+                    )}
+                    {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.draftTests !== false)) && (
+                        <button
+                            onClick={() => setActiveTab('draft')}
+                            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'draft'
+                                ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                                : 'text-slate-555 hover:text-slate-800'
+                                }`}
+                        >
+                            Draft Tests
+                        </button>
+                    )}
                 </div>
 
                 {(activeTab === 'lms' || activeTab === 'public') && (

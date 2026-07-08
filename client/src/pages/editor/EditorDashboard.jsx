@@ -11,6 +11,7 @@ import { BookOpen, FileText, Plus, PenTool, Sparkles, Folder, Calendar, ArrowRig
 const EditorDashboard = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const controls = user?.editorProfile?.controls;
     const [activeSection, setActiveSection] = useState('tests'); // 'tests' | 'builder'
     const [tests, setTests] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -56,6 +57,22 @@ const EditorDashboard = () => {
         fetchData();
     };
 
+    if (controls?.dashboard?.enabled === false) {
+        return (
+            <DashboardLayout role="Editor">
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 text-red-505 rounded-2xl flex items-center justify-center mb-4">
+                        <Folder className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                    <p className="text-slate-500 font-medium max-w-sm mt-2">
+                        {controls.dashboard.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role="Editor">
             {/* Upper Premium Banner */}
@@ -75,18 +92,22 @@ const EditorDashboard = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={() => setIsCourseModalOpen(true)}
-                            className="px-5 py-3 bg-white text-slate-900 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            <Plus size={16} /> Create Course
-                        </button>
-                        <button
-                            onClick={() => navigate('/editor/activities-builder')}
-                            className="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg shadow-purple-900/30 hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            <PenTool size={16} /> Launch Test Builder
-                        </button>
+                        {controls?.dashboard?.createCourse !== false && (
+                            <button
+                                onClick={() => setIsCourseModalOpen(true)}
+                                className="px-5 py-3 bg-white text-slate-900 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Plus size={16} /> Create Course
+                            </button>
+                        )}
+                        {controls?.dashboard?.launchTestBuilder !== false && (
+                            <button
+                                onClick={() => navigate('/editor/activities-builder')}
+                                className="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg shadow-purple-900/30 hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <PenTool size={16} /> Launch Test Builder
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

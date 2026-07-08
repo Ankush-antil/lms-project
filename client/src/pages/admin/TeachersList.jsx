@@ -112,6 +112,23 @@ const TeachersList = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + itemsPerPage);
 
+    const editorControls = user?.editorProfile?.controls;
+    if (user?.role === 'Editor' && editorControls?.teachers?.enabled === false) {
+        return (
+            <DashboardLayout role="Editor">
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4">
+                        <Users className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                    <p className="text-slate-500 font-medium max-w-sm mt-2">
+                        {editorControls.teachers.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -144,7 +161,15 @@ const TeachersList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.institute?.controls?.teacher?.addTeacher !== false && (
+                    {user?.role !== 'Admin' && user?.role !== 'Editor' && user?.institute?.controls?.teacher?.addTeacher !== false && (
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} /> Add New Teacher
+                        </button>
+                    )}
+                    {user?.role === 'Editor' && editorControls?.teachers?.addNewTeacher !== false && (
                         <button
                             onClick={() => setIsModalOpen(true)}
                             className="btn-primary flex items-center gap-2"

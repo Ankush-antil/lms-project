@@ -404,8 +404,8 @@ const TeacherDrive = () => {
                                                                     }`}>
                                                                     <BookOpen size={13} />
                                                                 </div>
-                                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-705'}`}>
-                                                                    Day {day.dayNum} (Index {day.indexNum})
+                                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-750'}`}>
+                                                                    Inbox {day.dayNum}
                                                                 </h3>
                                                             </div>
                                                         </div>
@@ -431,7 +431,7 @@ const TeacherDrive = () => {
                             </div>
                             <div>
                                 <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                    {selectedInboxId ? `Day ${selectedDayNumber} (${selectedInboxId})` : 'Select an Inbox'}
+                                    {selectedInboxId ? `Inbox ${selectedDayNumber}` : 'Select an Inbox'}
                                 </h1>
                                 <p className="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
                                     {selectedCourse ? `${selectedCourse.name} · ${selectedSubjectName}` : 'Private Drive'}
@@ -551,7 +551,7 @@ const TeacherDrive = () => {
                         <div className="mb-5">
                             <h2 className="text-base font-extrabold text-slate-850">Upload to Private Drive</h2>
                             <p className="text-[10px] text-slate-400 mt-1 font-black uppercase tracking-wider">
-                                {selectedInboxId ? `Subject: ${selectedSubjectName} · Day ${selectedDayNumber}` : ''}
+                                {selectedInboxId ? `Subject: ${selectedSubjectName} · Inbox ${selectedDayNumber}` : ''}
                             </p>
                         </div>
 

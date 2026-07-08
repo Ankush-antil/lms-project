@@ -226,6 +226,63 @@ const userSchema = new mongoose.Schema({
                 chatStudent: { type: Boolean, default: true },
                 chatEditor: { type: Boolean, default: true },
                 chatInstitute: { type: Boolean, default: true }
+        }
+    },
+    editorProfile: {
+        controls: {
+            dashboard: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                createCourse: { type: Boolean, default: true },
+                launchTestBuilder: { type: Boolean, default: true }
+            },
+            teachers: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                addNewTeacher: { type: Boolean, default: true }
+            },
+            courses: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                addNewCourses: { type: Boolean, default: true }
+            },
+            subjects: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                addSubject: { type: Boolean, default: true }
+            },
+            activities: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                createNewAssessment: { type: Boolean, default: true },
+                lmsConnectedTests: { type: Boolean, default: true },
+                publicWebTests: { type: Boolean, default: true },
+                draftTests: { type: Boolean, default: true }
+            },
+            activitiesBuilder: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} }
+            },
+            chat: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' },
+                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                teacher: { type: Boolean, default: true },
+                editor: { type: Boolean, default: true },
+                students: { type: Boolean, default: true }
             }
         }
     },

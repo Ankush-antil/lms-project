@@ -224,6 +224,23 @@ const SubjectsList = () => {
         setIsModalOpen(true);
     };
 
+    const editorControls = currentUser?.editorProfile?.controls;
+    if (currentUser?.role === 'Editor' && editorControls?.subjects?.enabled === false) {
+        return (
+            <DashboardLayout role="Editor">
+                <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4">
+                        <BookOpen className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                    <p className="text-slate-500 font-medium max-w-sm mt-2">
+                        {editorControls.subjects.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    </p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={currentUser?.role || 'Admin'}>
             {/* Header */}
@@ -232,7 +249,7 @@ const SubjectsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Subjects Directory</h1>
                     <p className="text-slate-500">Manage all subjects, courses, institutes, and check assigned teachers and tests details.</p>
                 </div>
-                {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute' || currentUser?.role === 'Editor') && (
+                {((currentUser?.role === 'Admin' || currentUser?.role === 'Institute') || (currentUser?.role === 'Editor' && editorControls?.subjects?.addSubject !== false)) && (
                     <button
                         onClick={openAddModal}
                         className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-650/15 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"

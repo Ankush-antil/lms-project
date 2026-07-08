@@ -2072,6 +2072,27 @@ const TestBuilder = () => {
         navigate(fallbackPath);
     };
 
+    const editorControls = user?.editorProfile?.controls;
+    if (user?.role === 'Editor' && editorControls?.activitiesBuilder?.enabled === false) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
+                <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4 animate-bounce">
+                    <Settings className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
+                <p className="text-slate-500 font-medium max-w-sm mt-2">
+                    {editorControls.activitiesBuilder.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                </p>
+                <button
+                    onClick={handleCloseBuilder}
+                    className="mt-6 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 active:scale-95 transition-all"
+                >
+                    Back to Workspace
+                </button>
+            </div>
+        );
+    }
+
     const hasActivityControl = (controlName) => {
         if (user?.role === 'Admin') return true;
 

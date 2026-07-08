@@ -16,7 +16,7 @@ const ensureFeeRecordsExist = async (instituteId) => {
         const studentIds = studentsList.map(s => s._id);
 
         const existingRecords = await FeeRecord.find({ student: { $in: studentIds } });
-        const existingStudentIds = new Set(existingRecords.map(r => r.student.toString()));
+        const existingStudentIds = new Set(existingRecords.map(r => r.student ? r.student.toString() : null).filter(Boolean));
 
         const missingStudents = studentsList.filter(s => !existingStudentIds.has(s._id.toString()));
         if (missingStudents.length > 0) {
@@ -38,6 +38,7 @@ const ensureFeeRecordsExist = async (instituteId) => {
 
         // Self-healing: If student has totalFee === 0, no transactions, but course fee is set > 0, update it.
         for (const record of existingRecords) {
+            if (!record.student) continue;
             const student = studentsList.find(s => s._id.toString() === record.student.toString());
             if (student && student.studentProfile?.course) {
                 const courseFee = student.studentProfile.course.fee || 0;

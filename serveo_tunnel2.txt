@@ -1,4 +1,0 @@
-Pseudo-terminal will not be allocated because stdin is not a terminal.
-[32mForwarding HTTP traffic from https://73522ae3a7124120-157-49-174-17.serveousercontent.com
-[0m[33mTip (1): Create an account to reserve names. Pro removes the warning page: https://console.serveo.net/settings?n=1&src=ssh_nudge&v=A
-[0mclient_loop: send disconnect: Connection reset

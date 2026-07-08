@@ -152,8 +152,19 @@ const getAllReceipts = asyncHandler(async (req, res) => {
 // @desc    Collect fee for a student (admin)
 // @route   POST /api/fees/admin/collect
 const collectFee = asyncHandler(async (req, res) => {
-    const { studentId, amount, paymentMode, referenceNo, remark } = req.body;
-    if (!studentId || !amount) return res.status(400).json({ message: 'Student and amount required' });
+    const { studentId, amount, paymentMode, referenceNo, remark, extraCharge } = req.body;
+    let collectAmount = Number(amount) || 0;
+    const hasExtra = extraCharge && extraCharge.amount && Number(extraCharge.amount) > 0;
+
+    // If amount is 0/empty but they added an extra charge, default the collected amount to the extra charge amount
+    if (collectAmount === 0 && hasExtra) {
+        collectAmount = Number(extraCharge.amount);
+    }
+
+    if (!studentId) return res.status(400).json({ message: 'Student ID required' });
+    if (collectAmount <= 0 && !hasExtra) {
+        return res.status(400).json({ message: 'Amount or Extra Charge is required' });
+    }
 
     const studentDoc = await User.findById(studentId);
     if (!studentDoc || String(studentDoc.institute) !== String(req.user.institute)) {
@@ -172,15 +183,40 @@ const collectFee = asyncHandler(async (req, res) => {
         });
     }
 
-    const receiptNo = generateReceiptNo();
-    record.transactions.push({
-        receiptNo,
-        amount: Number(amount),
-        paymentMode: paymentMode || 'Cash',
-        referenceNo: referenceNo || '',
-        remark: remark || '',
-        collectedBy: req.user?.name || 'Admin'
-    });
+    let newExtraChargeId = null;
+    // Add extra charge (fine, party, etc.) if provided during fee collection
+    if (extraCharge && extraCharge.amount && Number(extraCharge.amount) > 0) {
+        record.extraCharges.push({
+            label: extraCharge.label || 'Extra',
+            amount: Number(extraCharge.amount),
+            remark: extraCharge.remark || ''
+        });
+        // Add extra charge to total fee as well
+        record.totalFee += Number(extraCharge.amount);
+        
+        // Find the pushed extra charge to get its _id
+        const addedEc = record.extraCharges[record.extraCharges.length - 1];
+        if (addedEc) {
+            newExtraChargeId = addedEc._id;
+        }
+    }
+
+    let receiptNo = 'N/A';
+    if (collectAmount > 0) {
+        receiptNo = generateReceiptNo();
+        const txDoc = {
+            receiptNo,
+            amount: collectAmount,
+            paymentMode: paymentMode || 'Cash',
+            referenceNo: referenceNo || '',
+            remark: remark || '',
+            collectedBy: req.user?.name || 'Admin'
+        };
+        if (newExtraChargeId) {
+            txDoc.extraChargeId = newExtraChargeId;
+        }
+        record.transactions.push(txDoc);
+    }
 
     await record.save();
     res.json({ success: true, receiptNo, record });
@@ -289,8 +325,65 @@ const deleteTransaction = asyncHandler(async (req, res) => {
     if (record.student && String(record.student.institute) !== String(req.user.institute)) {
         return res.status(403).json({ message: 'Access denied: Transaction belongs to another institute' });
     }
+
+    const tx = record.transactions.id(transactionId);
+    if (tx) {
+        // 1. If it has a linked extraChargeId, delete it and deduct from totalFee
+        if (tx.extraChargeId) {
+            const chargeIndex = record.extraCharges.findIndex(ec => String(ec._id) === String(tx.extraChargeId));
+            if (chargeIndex !== -1) {
+                const charge = record.extraCharges[chargeIndex];
+                record.totalFee = Math.max(0, record.totalFee - (charge.amount || 0));
+                record.extraCharges.splice(chargeIndex, 1);
+                console.log(`[Delete Transaction] Auto-deleted linked extra charge ${charge.label} of ${charge.amount}`);
+            }
+        } else {
+            // 2. Fallback: Match by label in remark or amount similarity for older entries
+            const remarkLower = (tx.remark || '').toLowerCase();
+            const txAmount = tx.amount;
+            const chargeIndex = record.extraCharges.findIndex(ec => {
+                const labelLower = (ec.label || '').toLowerCase();
+                return (labelLower && remarkLower.includes(labelLower)) || (ec.amount === txAmount);
+            });
+            if (chargeIndex !== -1) {
+                const charge = record.extraCharges[chargeIndex];
+                record.totalFee = Math.max(0, record.totalFee - (charge.amount || 0));
+                record.extraCharges.splice(chargeIndex, 1);
+                console.log(`[Delete Transaction] Fallback auto-deleted extra charge ${charge.label} of ${charge.amount}`);
+            }
+        }
+    }
     
     record.transactions.pull({ _id: transactionId });
+    await record.save();
+    
+    res.json({ success: true, record });
+});
+
+// @desc    Delete an extra charge from a fee record
+// @route   DELETE /api/fees/admin/student/:studentId/extra-charge/:chargeId
+const deleteExtraCharge = asyncHandler(async (req, res) => {
+    const { studentId, chargeId } = req.params;
+    
+    const record = await FeeRecord.findOne({ student: studentId }).populate('student');
+    if (!record) return res.status(404).json({ message: 'Fee record not found' });
+    
+    if (record.student && String(record.student.institute) !== String(req.user.institute)) {
+        return res.status(403).json({ message: 'Access denied: Record belongs to another institute' });
+    }
+
+    const chargeIndex = record.extraCharges.findIndex(ec => String(ec._id) === String(chargeId));
+    if (chargeIndex === -1) {
+        return res.status(404).json({ message: 'Extra charge not found' });
+    }
+
+    const charge = record.extraCharges[chargeIndex];
+    // Deduct charge amount from total fee
+    record.totalFee = Math.max(0, record.totalFee - (charge.amount || 0));
+    
+    // Remove the extra charge from array
+    record.extraCharges.splice(chargeIndex, 1);
+    
     await record.save();
     
     res.json({ success: true, record });
@@ -443,5 +536,6 @@ module.exports = {
     getReports,
     deleteTransaction,
     deleteFeeRecord,
-    getMergedDashboardData
+    getMergedDashboardData,
+    deleteExtraCharge
 };

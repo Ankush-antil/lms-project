@@ -58,23 +58,19 @@ async function getSheetsClient(instId = null) {
     }
 }
 
-/**
- * Custom layout (A to L - 12 columns):
- * A: Adm. no.
- * B: Ledger  No.
- * C: Mobile no.
- * D: Mobile1
- * E: Date of Joining 
- * F: Name 
- * G: Father name
- * H: Course Name
- * I: Course fees
- * J: fine
- * K: Balance
- * L: Mode
- */
-const SHEET_RANGE = 'A:L';
-const SHEET_LAST_COL = 'L';
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const MONTHLY_HEADERS = [];
+MONTH_NAMES.forEach(month => {
+    MONTHLY_HEADERS.push(`${month} Fee`);
+    MONTHLY_HEADERS.push(`${month} Fee Mode`);
+    MONTHLY_HEADERS.push(`${month} Extra Name`);
+    MONTHLY_HEADERS.push(`${month} Extra Amount`);
+    MONTHLY_HEADERS.push(`${month} Extra Mode`);
+});
+
+const SHEET_RANGE = 'A:BT';
+const SHEET_LAST_COL = 'BT';
 
 const SHEET_HEADER = [
     'Adm. no.',
@@ -88,7 +84,8 @@ const SHEET_HEADER = [
     'Course fees',
     'fine',
     'Balance',
-    'Mode'
+    'Mode',
+    ...MONTHLY_HEADERS
 ];
 
 /**
@@ -110,7 +107,81 @@ function formatRow(record) {
         mode = record.transactions[record.transactions.length - 1].paymentMode || 'Cash';
     }
 
-    return [
+    // Group transactions and extra charges by month
+    const monthlyData = {};
+    MONTH_NAMES.forEach(month => {
+        monthlyData[month] = {
+            feePaid: 0,
+            feeModes: new Set(),
+            extraNames: [],
+            extraAmounts: [],
+            extraModes: new Set()
+        };
+    });
+
+    const extraCharges = record.extraCharges || [];
+    const transactions = record.transactions || [];
+
+    // Process extra charges
+    extraCharges.forEach(ec => {
+        const d = ec.date || record.updatedAt || new Date();
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return;
+        const monthName = MONTH_NAMES[dateObj.getMonth()];
+        
+        monthlyData[monthName].extraNames.push(ec.label || 'Extra');
+        monthlyData[monthName].extraAmounts.push(ec.amount || 0);
+    });
+
+    // Process transactions
+    transactions.forEach(t => {
+        if (!t.date) return;
+        const dateObj = new Date(t.date);
+        if (isNaN(dateObj.getTime())) return;
+        const monthName = MONTH_NAMES[dateObj.getMonth()];
+        const remarkLower = (t.remark || '').toLowerCase();
+        
+        // Match transactions to extra charges by remark label
+        let isExtraPayment = false;
+        extraCharges.forEach(ec => {
+            const labelLower = (ec.label || '').toLowerCase();
+            if (labelLower && remarkLower.includes(labelLower)) {
+                isExtraPayment = true;
+            }
+        });
+
+        if (isExtraPayment) {
+            if (t.paymentMode) {
+                monthlyData[monthName].extraModes.add(t.paymentMode);
+            }
+        } else {
+            monthlyData[monthName].feePaid += (t.amount || 0);
+            if (t.paymentMode) {
+                monthlyData[monthName].feeModes.add(t.paymentMode);
+            }
+        }
+    });
+
+    // Fallback: associate extra charges with any payment transaction in the same month if no exact remark match
+    extraCharges.forEach(ec => {
+        if (!ec.date) return;
+        const dateObj = new Date(ec.date);
+        if (isNaN(dateObj.getTime())) return;
+        const monthName = MONTH_NAMES[dateObj.getMonth()];
+        
+        if (monthlyData[monthName].extraModes.size === 0) {
+            transactions.forEach(t => {
+                const tDateObj = new Date(t.date);
+                if (!isNaN(tDateObj.getTime()) && MONTH_NAMES[tDateObj.getMonth()] === monthName) {
+                    if (t.paymentMode) {
+                        monthlyData[monthName].extraModes.add(t.paymentMode);
+                    }
+                }
+            });
+        }
+    });
+
+    const rowValues = [
         student.admissionNo || '',                      // A: Adm. no.
         student.studentProfile?.ledgerNo || '',         // B: Ledger No.
         student.mobileNumber || '',                     // C: Mobile no.
@@ -124,6 +195,59 @@ function formatRow(record) {
         record.pendingAmount || 0,                      // K: Balance
         mode                                            // L: Mode
     ];
+
+    MONTH_NAMES.forEach(month => {
+        const m = monthlyData[month];
+        rowValues.push(m.feePaid || '');
+        rowValues.push(Array.from(m.feeModes).join(', ') || '');
+        rowValues.push(m.extraNames.join(', ') || '');
+        rowValues.push(m.extraAmounts.join(', ') || '');
+        rowValues.push(Array.from(m.extraModes).join(', ') || '');
+    });
+
+    return rowValues;
+}
+
+/**
+ * Helper to apply soft green background formatting to columns M to BT (index 12 to 71)
+ */
+async function applyGreenFormatting(sheets, spreadsheetId, sheetName, startRow, endRow) {
+    try {
+        const sheetMetadata = await sheets.spreadsheets.get({ spreadsheetId });
+        const sheet = sheetMetadata.data.sheets.find(s => s.properties.title === sheetName);
+        const sheetId = sheet ? sheet.properties.sheetId : 0;
+
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            resource: {
+                requests: [
+                    {
+                        repeatCell: {
+                            range: {
+                                sheetId: sheetId,
+                                startRowIndex: startRow,
+                                endRowIndex: endRow,
+                                startColumnIndex: 12,
+                                endColumnIndex: 72
+                            },
+                            cell: {
+                                userEnteredFormat: {
+                                    backgroundColor: {
+                                        red: 0.718,
+                                        green: 0.882,
+                                        blue: 0.804
+                                    }
+                                }
+                            },
+                            fields: 'userEnteredFormat.backgroundColor'
+                        }
+                    }
+                ]
+            }
+        });
+    } catch (err) {
+        console.error('⚠️ [Google Sheets Formatting] Failed to apply background color:', err.message);
+    }
 }
 
 /**
@@ -169,10 +293,10 @@ async function syncToSheets(record) {
         const student = record.student || {};
         console.log(`[Google Sheets Sync] Syncing FeeRecord ${recordId} for ${student.name || 'unknown'}...`);
 
-        // Read all values from Column A to Z to find the student
+        // Read all values from Column A to BT to find the student
         const res = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A1:Z300`,
+            range: `${sheetName}!A1:BT1000`,
         });
 
         const rows = res.data.values || [];
@@ -210,7 +334,7 @@ async function syncToSheets(record) {
 
             await sheets.spreadsheets.values.update({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:L${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:BT${rowIndex}`,
                 valueInputOption: 'USER_ENTERED',
                 resource: { values: [updatedRow] }
             });
@@ -218,12 +342,15 @@ async function syncToSheets(record) {
             console.log(`[Google Sheets Sync] Appending new row to Sheet...`);
             await sheets.spreadsheets.values.append({
                 spreadsheetId,
-                range: `${sheetName}!A1:L`,
+                range: `${sheetName}!A1:BT`,
                 valueInputOption: 'USER_ENTERED',
                 insertDataOption: 'INSERT_ROWS',
                 resource: { values: [updatedRow] }
             });
         }
+        
+        // Apply soft green background to columns M to BT for all data rows (Row 3 onwards)
+        await applyGreenFormatting(sheets, spreadsheetId, sheetName, 2, 1000);
         console.log('✅ [Google Sheets Sync] Successfully synced to Sheets.');
     } catch (err) {
         console.error('❌ [Google Sheets Sync] Error syncing to Sheets:', err.message);
@@ -246,7 +373,7 @@ async function deleteFromSheets(recordId, admissionNo, studentName, instId = nul
 
         const res = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!A1:Z300`,
+            range: `${sheetName}!A1:BT1000`,
         });
 
         const rows = res.data.values || [];
@@ -271,7 +398,7 @@ async function deleteFromSheets(recordId, admissionNo, studentName, instId = nul
             console.log(`[Google Sheets Sync] Clearing row ${rowIndex} in Sheet...`);
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `${sheetName}!A${rowIndex}:L${rowIndex}`,
+                range: `${sheetName}!A${rowIndex}:BT${rowIndex}`,
             });
             console.log('✅ [Google Sheets Sync] Successfully cleared row from Sheets.');
         } else {
@@ -317,10 +444,10 @@ async function importFromSheets(instId = null) {
         return new Date();
     };
 
-    console.log(`[Google Sheets Import] Fetching range A:L from: ${spreadsheetId}...`);
+    console.log(`[Google Sheets Import] Fetching range A:BT from: ${spreadsheetId}...`);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!A:Z`,
+        range: `${sheetName}!A:BT`,
     });
 
     const rows = res.data.values || [];
@@ -523,7 +650,7 @@ async function importFromSheets(instId = null) {
         // Overwrite Sheet with updated layout data
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheetName}!A1:L${updatedRows.length}`,
+            range: `${sheetName}!A1:BT${updatedRows.length}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: updatedRows }
         });
@@ -563,19 +690,22 @@ async function exportToSheets(instId = null) {
         rows.push(formatRow(record));
     });
 
-    // Clear old data
+    // Clear old data starting from Row 2 to protect Row 1 formulas
     await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `${sheetName}!${SHEET_RANGE}`,
+        range: `${sheetName}!A2:${SHEET_LAST_COL}1000`,
     });
 
-    // Write all rows
+    // Write all rows starting at Row 2 (A2)
     await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${sheetName}!A1:${SHEET_LAST_COL}${rows.length}`,
+        range: `${sheetName}!A2:${SHEET_LAST_COL}${rows.length + 1}`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: rows }
     });
+
+    // Apply soft green background to columns M to BT for all data rows (Row 3 onwards)
+    await applyGreenFormatting(sheets, spreadsheetId, sheetName, 2, 1000);
 
     return { success: true, exportedCount: records.length };
 }

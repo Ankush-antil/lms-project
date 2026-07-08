@@ -1680,15 +1680,42 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s)</label>
-                                                    <input
-                                                        required
-                                                        type="text"
-                                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all disabled:opacity-50"
-                                                        value={formData.subject}
-                                                        onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                        placeholder="e.g. Maths, Science, English"
-                                                        disabled={!formData.course}
-                                                    />
+                                                    {(() => {
+                                                        const selectedCourse = courses.find(c => c._id === formData.course);
+                                                        const subjectsList = selectedCourse?.subjects || [];
+                                                        if (!formData.course) {
+                                                            return (
+                                                                <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-400 opacity-60 select-none">
+                                                                    Select a course first
+                                                                </div>
+                                                            );
+                                                        }
+                                                        if (subjectsList.length === 0) {
+                                                            return (
+                                                                <input
+                                                                    required
+                                                                    type="text"
+                                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                                    value={formData.subject}
+                                                                    onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                                                    placeholder="e.g. Maths, Science"
+                                                                />
+                                                            );
+                                                        }
+                                                        return (
+                                                            <select
+                                                                required
+                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                                value={formData.subject}
+                                                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                                            >
+                                                                <option value="">Select Subject</option>
+                                                                {subjectsList.map((sub, i) => (
+                                                                    <option key={i} value={sub}>{sub}</option>
+                                                                ))}
+                                                            </select>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 mt-4">

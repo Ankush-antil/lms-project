@@ -8,7 +8,7 @@ import {
     Users, Search, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
-    Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload,
+    Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload, Link2,
     CreditCard, Activity, Edit3, Lock, Loader2
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -440,7 +440,10 @@ const TeacherActivities = () => {
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [matTitle, setMatTitle] = useState('');
     const [matFile, setMatFile] = useState(null);
+    const [matUrl, setMatUrl] = useState('');
+    const [uploadType, setUploadType] = useState('url'); // 'file' or 'url'
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
+    const [showMatModal, setShowMatModal] = useState(false);
 
     useEffect(() => {
         if (viewMode === 'study-material' && selectedInboxId) {
@@ -694,25 +697,43 @@ const TeacherActivities = () => {
 
     const handleUploadStudyMaterial = async (e) => {
         e.preventDefault();
-        if (!matTitle.trim() || !matFile || !selectedInboxId) {
-            toast.error("Please fill in the title and select a file");
+        if (!matTitle.trim() || !selectedInboxId) {
+            toast.error("Please fill in the title");
             return;
         }
+
+        if (uploadType === 'file' && !matFile) {
+            toast.error("Please select a file to upload");
+            return;
+        }
+
+        if (uploadType === 'url' && !matUrl.trim()) {
+            toast.error("Please provide a Web Link (URL)");
+            return;
+        }
+
         try {
             setUploadingMaterial(true);
             const formData = new FormData();
             formData.append('title', matTitle.trim());
             formData.append('inboxId', selectedInboxId);
-            formData.append('file', matFile);
+            
+            if (uploadType === 'file') {
+                formData.append('file', matFile);
+            } else {
+                formData.append('fileUrl', matUrl.trim());
+            }
 
             const { data } = await axios.post('/api/study-materials', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            toast.success("Study material uploaded successfully!");
+            toast.success(uploadType === 'file' ? "Study material uploaded successfully!" : "Web Link added successfully!");
             setStudyMaterials(prev => [data, ...prev]);
             setMatTitle('');
             setMatFile(null);
+            setMatUrl('');
+            setShowMatModal(false);
             const fileInput = document.getElementById('study-material-file');
             if (fileInput) fileInput.value = '';
         } catch (err) {
@@ -2106,45 +2127,14 @@ const TeacherActivities = () => {
                                     </div>
                                 ) : viewMode === 'study-material' ? (
                                     /* --- STUDY MATERIAL TAB --- */
-                                    <div className="animate-fade-in space-y-6 text-left">
-                                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                                            <h3 className="font-extrabold text-slate-800 text-sm mb-4">Upload Study Material</h3>
-                                            <form onSubmit={handleUploadStudyMaterial} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Material Title</label>
-                                                    <input
-                                                        type="text"
-                                                        value={matTitle}
-                                                        onChange={(e) => setMatTitle(e.target.value)}
-                                                        placeholder="e.g. React Cheatsheet"
-                                                        className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Choose File</label>
-                                                    <input
-                                                        type="file"
-                                                        id="study-material-file"
-                                                        onChange={(e) => setMatFile(e.target.files[0])}
-                                                        className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                                    />
-                                                </div>
-                                                <button
-                                                    type="submit"
-                                                    disabled={uploadingMaterial}
-                                                    className="h-9 px-6 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
-                                                >
-                                                    {uploadingMaterial ? 'Uploading...' : 'Upload File'}
-                                                </button>
-                                            </form>
-                                        </div>
+                                    <div className="animate-fade-in space-y-6 text-left relative">
 
                                         <div className="space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <h3 className="font-extrabold text-slate-800 text-sm">Uploaded Materials</h3>
-                                                <span className="text-xs bg-slate-100 text-slate-650 px-3 py-1 rounded-full font-bold">
-                                                    Total Files: {studyMaterials.length}
-                                                </span>
+                                            <div className="flex items-center">
+                                                <div>
+                                                    <h3 className="font-extrabold text-slate-800 text-sm">Study Materials</h3>
+                                                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">{studyMaterials.length} material{studyMaterials.length !== 1 ? 's' : ''} uploaded</p>
+                                                </div>
                                             </div>
 
                                             {loadingMaterials ? (
@@ -2164,7 +2154,13 @@ const TeacherActivities = () => {
                                                         <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
                                                             <div className="space-y-2">
                                                                 <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                                <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                                <p className="text-xs text-slate-450 truncate" title={mat.filename}>
+                                                                    {mat.filename === 'Web Link' ? (
+                                                                        <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
+                                                                    ) : (
+                                                                        mat.filename
+                                                                    )}
+                                                                </p>
                                                                 <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
                                                             </div>
                                                             <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
@@ -2180,7 +2176,7 @@ const TeacherActivities = () => {
                                                                     rel="noreferrer"
                                                                     className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
                                                                 >
-                                                                    View File
+                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
                                                                 </a>
                                                             </div>
                                                         </div>
@@ -3005,9 +3001,17 @@ const TeacherActivities = () => {
                         )}
                     </div>
 
-                    {/* Sticky bottom bar — Add More (only on pending tab) */}
-                    {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'pending' && (
-                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end">
+                    {/* Sticky bottom bar — Add More + Add Material (on pending and assign tabs) */}
+                    {selectedStudent && selectedInboxId && studentTab === 'tests' && (viewMode === 'pending' || viewMode === 'assign') && (
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowMatModal(true)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md active:scale-95"
+                            >
+                                <Plus size={14} strokeWidth={3} />
+                                <span>Add Material</span>
+                            </button>
                             <button
                                 onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
@@ -3015,6 +3019,145 @@ const TeacherActivities = () => {
                                 <Plus size={14} strokeWidth={3} />
                                 <span>Add More</span>
                             </button>
+                        </div>
+                    )}
+
+                    {/* Sticky bottom bar — Add Material (study-material tab) */}
+                    {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'study-material' && (
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setShowMatModal(true)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
+                            >
+                                <Plus size={14} strokeWidth={3} />
+                                <span>Add Material</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Global Add Study Material Modal — renders on any tab */}
+                    {showMatModal && (
+                        <div
+                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                            style={{ backgroundColor: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)' }}
+                            onClick={() => setShowMatModal(false)}
+                        >
+                            <div
+                                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* Modal Header */}
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+                                            <FileText size={15} className="text-[#3E3ADD]" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-extrabold text-slate-800 text-sm">Add Study Material</h3>
+                                            <p className="text-[10px] text-slate-400 font-medium">Upload a file or paste a web link</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMatModal(false)}
+                                        className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all cursor-pointer text-sm font-bold"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <form onSubmit={handleUploadStudyMaterial} className="space-y-4">
+                                    {/* Segmented Tab */}
+                                    <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setUploadType('url')}
+                                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${uploadType === 'url' ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            <Link2 size={13} /> Paste Link
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setUploadType('file')}
+                                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${uploadType === 'file' ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            <Upload size={13} /> Upload File
+                                        </button>
+                                    </div>
+
+                                    {/* Title */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Material Title</label>
+                                        <input
+                                            type="text"
+                                            value={matTitle}
+                                            onChange={(e) => setMatTitle(e.target.value)}
+                                            placeholder="e.g. React Cheatsheet"
+                                            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* URL or File */}
+                                    {uploadType === 'url' ? (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Web Link (URL)</label>
+                                            <input
+                                                type="url"
+                                                value={matUrl}
+                                                onChange={(e) => setMatUrl(e.target.value)}
+                                                placeholder="https://drive.google.com/... or any URL"
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Choose File</label>
+                                            <div
+                                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all"
+                                                onClick={() => document.getElementById('study-material-file-global').click()}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    id="study-material-file-global"
+                                                    onChange={(e) => setMatFile(e.target.files[0])}
+                                                    className="hidden"
+                                                />
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                                    <Upload size={18} className="text-[#3E3ADD]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-slate-600">
+                                                        {matFile ? matFile.name : 'Click to choose a file'}
+                                                    </p>
+                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">PDF, DOC, PPT, Images supported</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMatModal(false)}
+                                            className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={uploadingMaterial}
+                                            className="flex-1 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {uploadingMaterial ? (
+                                                <><Loader2 size={12} className="animate-spin" /> Adding...</>
+                                            ) : 'Add Material'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     )}
                 </main>

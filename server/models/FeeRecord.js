@@ -7,7 +7,8 @@ const transactionSchema = new mongoose.Schema({
     referenceNo: { type: String, default: '' },
     remark: { type: String, default: '' },
     collectedBy: { type: String, default: 'Admin' },
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    extraChargeId: { type: mongoose.Schema.Types.ObjectId }
 });
 
 const feeRecordSchema = new mongoose.Schema({

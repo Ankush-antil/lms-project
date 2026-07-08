@@ -374,7 +374,7 @@ const ReceiptModal = ({ receipt, onClose }) => {
 };
 
 /* ─── Student Details Modal ─── */
-const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt, onDelete, onDeleteTransaction }) => {
+const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt, onDelete, onDeleteTransaction, onDeleteExtraCharge }) => {
     if (!record) return null;
 
     const student = record.student || {};
@@ -399,7 +399,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                 {/* Close Button */}
                 <button 
                     onClick={onClose} 
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1 bg-slate-50 hover:bg-slate-100 rounded-full"
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 transition-colors p-1 bg-slate-50 hover:bg-slate-100 rounded-full"
                 >
                     <X size={20} />
                 </button>
@@ -463,9 +463,20 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                         <span className="text-amber-600 text-sm font-bold block mt-1">
                                             {fmt((record.extraCharges || []).reduce((s,ec) => s+(ec.amount||0), 0))}
                                         </span>
-                                        <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 mt-2 space-y-1">
                                             {record.extraCharges.map((ec, i) => (
-                                                <div key={i}>{ec.label || 'Extra'}: {fmt(ec.amount)}</div>
+                                                <div key={ec._id || i} className="flex justify-between items-center py-0.5 border-b border-amber-100/50 last:border-0">
+                                                    <span>{ec.label || 'Extra'}: {fmt(ec.amount)}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (onDeleteExtraCharge) onDeleteExtraCharge(student._id, ec._id);
+                                                        }}
+                                                        className="p-1 hover:bg-rose-100/80 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                                                        title="Delete Extra Charge"
+                                                    >
+                                                        <Trash2 size={11} />
+                                                    </button>
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
@@ -600,6 +611,12 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [loadingRecord, setLoadingRecord] = useState(false);
 
+    // Extra charges state
+    const [hasExtraCharge, setHasExtraCharge] = useState(false);
+    const [extraLabel, setExtraLabel] = useState('');
+    const [extraAmount, setExtraAmount] = useState('');
+    const [extraRemark, setExtraRemark] = useState('');
+
     const [filterCourse, setFilterCourse] = useState('');
     const [filterSection, setFilterSection] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -667,11 +684,34 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     }, [preselectedId]);
 
     const handleSubmit = async () => {
-        if (!selectedId || !amount) return toast.error('Select student and enter amount');
+        if (!selectedId) return toast.error('Select student');
+        
+        const collectAmount = Number(amount) || 0;
+        const hasExtra = hasExtraCharge && extraLabel && extraAmount && Number(extraAmount) > 0;
+        
+        if (collectAmount <= 0 && !hasExtra) {
+            return toast.error('Please enter receive amount or add an extra charge');
+        }
+
         setLoading(true);
+
+        let extraChargeData = null;
+        if (hasExtraCharge && extraLabel && extraAmount) {
+            extraChargeData = {
+                label: extraLabel,
+                amount: Number(extraAmount),
+                remark: extraRemark
+            };
+        }
+
         try {
             const res = await axios.post(`/api/fees/admin/collect`, {
-                studentId: selectedId, amount: Number(amount), paymentMode: mode, referenceNo: refNo, remark
+                studentId: selectedId, 
+                amount: Number(amount), 
+                paymentMode: mode, 
+                referenceNo: refNo, 
+                remark,
+                extraCharge: extraChargeData
             }, { withCredentials: true });
             toast.success(`Receipt generated: ${res.data.receiptNo}`);
             onSuccess();
@@ -683,7 +723,8 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
         }
     };
 
-    const newBalance = selectedRecord ? Math.max(0, selectedRecord.pendingAmount - (Number(amount) || 0)) : null;
+    const extraAmtNum = (hasExtraCharge && Number(extraAmount)) ? Number(extraAmount) : 0;
+    const newBalance = selectedRecord ? Math.max(0, selectedRecord.pendingAmount + extraAmtNum - (Number(amount) || 0)) : null;
 
     return (
         <div className="flex flex-col md:flex-row gap-6 text-slate-800">
@@ -865,6 +906,54 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
                     </div>
                 </div>
 
+                {/* Extra Charge Section */}
+                <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={hasExtraCharge}
+                            onChange={e => setHasExtraCharge(e.target.checked)}
+                            className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded border-slate-350 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700">Add Extra Charge (Optional)</span>
+                    </label>
+                    
+                    {hasExtraCharge && (
+                        <div className="grid grid-cols-3 gap-3 animate-fade-in pt-1">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Charge Name</label>
+                                <input
+                                    type="text"
+                                    value={extraLabel}
+                                    onChange={e => setExtraLabel(e.target.value)}
+                                    placeholder="e.g. Fine, Books"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    value={extraAmount}
+                                    onChange={e => setExtraAmount(e.target.value)}
+                                    placeholder="Amount"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Remark</label>
+                                <input
+                                    type="text"
+                                    value={extraRemark}
+                                    onChange={e => setExtraRemark(e.target.value)}
+                                    placeholder="Remark"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Ref + Remark */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -904,7 +993,15 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
                         <>
                             <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Student: </span><span className="text-slate-700 font-bold">{selectedRecord.student?.name}</span></div>
                             <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Course: </span><span className="text-slate-700 font-bold">{selectedRecord.course}</span></div>
-                            <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Amount: </span><span className="text-slate-800 font-black">{amount ? fmt(amount) : '₹0'}</span></div>
+                            {hasExtraCharge && extraLabel && extraAmtNum > 0 && (
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5"><span className="text-slate-400">Extra Charge: </span><span className="text-amber-600 font-bold">+{fmt(extraAmtNum)} ({extraLabel})</span></div>
+                            )}
+                            <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                <span className="text-slate-400">Amount: </span>
+                                <span className="text-slate-800 font-black">
+                                    {amount ? fmt(amount) : (extraAmtNum > 0 ? fmt(extraAmtNum) : '₹0')}
+                                </span>
+                            </div>
                             <div className="flex justify-between"><span className="text-slate-400">New Balance: </span><span className={`font-bold ${newBalance === 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmt(newBalance)}</span></div>
                         </>
                     ) : (
@@ -1032,6 +1129,7 @@ export default function AdminFeePortal() {
                 setSyncConfig(configR.data);
                 setSpreadsheetIdInput(configR.data.spreadsheetId || '');
             }
+            return students;
         } catch (e) {
             toast.error('Failed to load fee data');
         } finally {
@@ -1091,25 +1189,11 @@ export default function AdminFeePortal() {
             await axios.delete(`/api/fees/admin/transaction/${transactionId}`, { withCredentials: true });
             toast.success("Transaction deleted successfully");
             
-            // Re-fetch all data to refresh statistics
-            setLoading(true);
-            const [statsR, studentsR, pendingR, receiptsR, reportsR] = await Promise.all([
-                axios.get(`/api/fees/admin/stats`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/all`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/pending-dues`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/receipts`, { withCredentials: true }),
-                axios.get(`/api/fees/admin/reports`, { withCredentials: true })
-            ]);
-            setStats(statsR.data);
-            setStudents(studentsR.data);
-            setPendingDues(pendingR.data);
-            setReceipts(receiptsR.data);
-            setReports(reportsR.data);
-            setLoading(false);
+            const updatedStudents = await fetchAll();
             
             // Update the modal details
-            if (studentId) {
-                const updatedStudent = studentsR.data.find(s => s.student?._id === studentId);
+            if (studentId && updatedStudents) {
+                const updatedStudent = updatedStudents.find(s => s.student?._id === studentId);
                 if (updatedStudent) {
                     setSelectedStudentForDetails(updatedStudent);
                 } else {
@@ -1118,7 +1202,28 @@ export default function AdminFeePortal() {
             }
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to delete transaction");
-            setLoading(false);
+        }
+    };
+
+    const handleDeleteExtraCharge = async (studentId, chargeId) => {
+        if (!window.confirm("Are you sure you want to delete this extra charge? This will deduct its amount from total fee.")) return;
+        try {
+            await axios.delete(`/api/fees/admin/student/${studentId}/extra-charge/${chargeId}`, { withCredentials: true });
+            toast.success("Extra charge deleted successfully");
+            
+            const updatedStudents = await fetchAll();
+            
+            // Update the modal details
+            if (studentId && updatedStudents) {
+                const updatedStudent = updatedStudents.find(s => s.student?._id === studentId);
+                if (updatedStudent) {
+                    setSelectedStudentForDetails(updatedStudent);
+                } else {
+                    setSelectedStudentForDetails(null);
+                }
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to delete extra charge");
         }
     };
 
@@ -2155,6 +2260,7 @@ export default function AdminFeePortal() {
                     onOpenReceipt={(rec) => setSelectedReceipt(rec)}
                     onDelete={(studentId) => handleDeleteFeeRecord(selectedStudentForDetails._id, studentId)}
                     onDeleteTransaction={handleDeleteTransaction}
+                    onDeleteExtraCharge={handleDeleteExtraCharge}
                 />
             )}
             {showCollectModal && (

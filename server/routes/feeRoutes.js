@@ -13,7 +13,8 @@ const {
     getReports,
     deleteTransaction,
     deleteFeeRecord,
-    getMergedDashboardData
+    getMergedDashboardData,
+    deleteExtraCharge
 } = require('../controllers/feeController');
 
 // Admin routes
@@ -28,6 +29,7 @@ router.post('/admin/setup', protect, adminOrEditor, setupFeeRecord);
 router.get('/admin/student/:id', protect, adminOrEditor, getStudentFeeRecord);
 router.delete('/admin/transaction/:id', protect, adminOrEditor, deleteTransaction);
 router.delete('/admin/record/:id', protect, adminOrEditor, deleteFeeRecord);
+router.delete('/admin/student/:studentId/extra-charge/:chargeId', protect, adminOrEditor, deleteExtraCharge);
 
 // Student routes
 router.get('/student/my-fees', protect, getMyFees);

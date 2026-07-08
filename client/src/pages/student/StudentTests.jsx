@@ -1259,7 +1259,13 @@ const StudentTests = () => {
                                             <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
                                                 <div className="space-y-2">
                                                     <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                    <p className="text-xs text-slate-450 truncate" title={mat.filename}>{mat.filename}</p>
+                                                    <p className="text-xs text-slate-450 truncate" title={mat.filename}>
+                                                        {mat.filename === 'Web Link' ? (
+                                                            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
+                                                        ) : (
+                                                            mat.filename
+                                                        )}
+                                                    </p>
                                                     <p className="text-[10px] text-slate-450">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
                                                 </div>
                                                 <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
@@ -1272,7 +1278,7 @@ const StudentTests = () => {
                                                         rel="noreferrer"
                                                         className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
                                                     >
-                                                        Open File
+                                                        {mat.filename === 'Web Link' ? 'Open Link' : 'Open File'}
                                                     </a>
                                                 </div>
                                             </div>

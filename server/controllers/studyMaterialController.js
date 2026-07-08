@@ -20,17 +20,19 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to upload study material');
     }
 
-    const { title, inboxId } = req.body;
+    const { title, inboxId, fileUrl } = req.body;
 
-    if (!req.file) {
+    if (!req.file && !fileUrl) {
         res.status(400);
-        throw new Error('Please upload a file');
+        throw new Error('Please upload a file or provide a Web Link (URL)');
     }
 
     if (!title || !inboxId) {
         // Cleanup uploaded file if missing parameters
-        const filePath = path.join(__dirname, '..', 'uploads/attachments', req.file.filename);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (req.file) {
+            const filePath = path.join(__dirname, '..', 'uploads/attachments', req.file.filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
         
         res.status(400);
         throw new Error('Please provide title and inboxId');
@@ -40,19 +42,22 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
     const instituteName = user.institute?.name || '';
 
     if (!instituteName) {
-        const filePath = path.join(__dirname, '..', 'uploads/attachments', req.file.filename);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (req.file) {
+            const filePath = path.join(__dirname, '..', 'uploads/attachments', req.file.filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
 
         res.status(400);
         throw new Error('User has no assigned institute');
     }
 
-    const fileUrl = `/uploads/attachments/${req.file.filename}`;
+    const finalFileUrl = req.file ? `/uploads/attachments/${req.file.filename}` : fileUrl;
+    const finalFilename = req.file ? req.file.originalname : 'Web Link';
 
     const material = await StudyMaterial.create({
         title,
-        filename: req.file.originalname,
-        fileUrl,
+        filename: finalFilename,
+        fileUrl: finalFileUrl,
         inboxId,
         institute: instituteName,
         uploadedBy: req.user._id
@@ -106,13 +111,14 @@ const deleteStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to delete this study material');
     }
 
-    // Delete actual file
-    // fileUrl starts with /uploads/attachments/filename
-    const relativePath = material.fileUrl.startsWith('/') ? material.fileUrl.slice(1) : material.fileUrl;
-    const filePath = path.join(__dirname, '..', relativePath);
-    
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    // Delete actual file if it is a local upload
+    if (material.fileUrl && material.fileUrl.startsWith('/uploads/')) {
+        const relativePath = material.fileUrl.startsWith('/') ? material.fileUrl.slice(1) : material.fileUrl;
+        const filePath = path.join(__dirname, '..', relativePath);
+        
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
     }
 
     await material.deleteOne();

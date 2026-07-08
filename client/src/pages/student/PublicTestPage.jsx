@@ -87,6 +87,7 @@ const PublicTestPage = () => {
     const [recaptchaChecked, setRecaptchaChecked] = useState(false);
     const [recaptchaVerifying, setRecaptchaVerifying] = useState(false);
     const [recaptchaDone, setRecaptchaDone] = useState(false);
+    const [showProfileDropdown, setShowProfileDropdown] = useState(false);
     const [duplicateChecking, setDuplicateChecking] = useState(false);
 
 
@@ -1496,45 +1497,50 @@ const PublicTestPage = () => {
                                 <FileText size={11} /> My Drafts
                             </button>
 
-                            {/* More Menu */}
-                            <div className="relative group/menu shrink-0">
-                                <button type="button" className="w-7 h-7 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-800 hover:bg-slate-100 transition-colors">
-                                    <MoreVertical size={14} />
-                                </button>
-                                <div className="absolute right-0 top-8 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-35 hidden group-hover/menu:block text-slate-700 text-[11px]">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            test.questions?.forEach((_, qIdx) => handleTextChange(qIdx, ''));
-                                            toast.success("All answers cleared.");
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-55 font-semibold"
-                                    >
-                                        Clear All Answers
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            test.questions?.forEach((q, qIdx) => handleTemporaryFill(qIdx, q.type));
-                                            toast.success("All placeholders filled.");
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-55 font-semibold"
-                                    >
-                                        Fill All Placeholders
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => toast.success("Issue reported to host.")}
-                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 font-semibold text-red-600"
-                                    >
-                                        Report Issue
-                                    </button>
-                                </div>
-                            </div>
+
 
                             {/* Guest Profile avatar */}
-                            <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-slate-200 shadow-sm cursor-pointer text-[11px] shrink-0">
-                                {guestName ? guestName.slice(0, 2).toUpperCase() : 'GT'}
+                            <div className="relative shrink-0">
+                                <div
+                                    onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                                    className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-slate-200 shadow-sm cursor-pointer text-[11px] shrink-0 hover:scale-105 transition-transform"
+                                >
+                                    {guestName ? guestName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'GT'}
+                                </div>
+                                {showProfileDropdown && (
+                                    <>
+                                        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowProfileDropdown(false)} />
+                                        <div className="absolute right-0 top-11 bg-white border border-slate-150 rounded-2xl shadow-xl p-4 z-50 w-64 animate-fade-in text-slate-750 text-left">
+                                            <div className="flex items-center gap-3 border-b border-slate-100 pb-3 mb-3">
+                                                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0">
+                                                    {guestName ? guestName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'GT'}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="font-extrabold text-slate-800 text-xs truncate leading-tight">{guestName || 'Guest Student'}</h4>
+                                                    <span className="text-[10px] text-slate-400 font-bold block truncate mt-0.5">{guestEmail || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 text-[10px] font-bold text-slate-500">
+                                                {guestPhone && (
+                                                    <div className="flex justify-between items-center py-1">
+                                                        <span>Phone:</span>
+                                                        <span className="text-slate-800 font-black">{guestPhone}</span>
+                                                    </div>
+                                                )}
+                                                {guestOrg && (
+                                                    <div className="flex justify-between items-center py-1">
+                                                        <span>Organization:</span>
+                                                        <span className="text-slate-800 font-black truncate max-w-[130px]" title={guestOrg}>{guestOrg}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center py-1 border-t border-slate-50 pt-2 text-[9px] text-slate-400">
+                                                    <span>Session Type:</span>
+                                                    <span className="font-black text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded uppercase">Guest Mode</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -3899,7 +3905,7 @@ const PublicTestPage = () => {
                                 {msgs.map((msg, mIdx) => (
                                     <div key={mIdx} className={`flex gap-2 ${msg.sender === 'student' ? 'flex-row-reverse' : 'flex-row'}`}>
                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${msg.sender === 'student' ? 'bg-orange-500' : 'bg-[#6F42C1]'}`}>
-                                            {msg.sender === 'student' ? (guestName?.slice(0, 2).toUpperCase() || 'ST') : 'T'}
+                                            {msg.sender === 'student' ? (guestName ? guestName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'ST') : 'T'}
                                         </div>
                                         <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'student'
                                             ? 'bg-[#6F42C1] text-white rounded-tr-sm'

@@ -61,6 +61,7 @@ const ShortAnswerTest = () => {
     const [existingSubmission, setExistingSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
     const [answers, setAnswers] = useState({});
+    const [showProfileDropdown, setShowProfileDropdown] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [isListening, setIsListening] = useState(null);
     const [recordingStatus, setRecordingStatus] = useState({});
@@ -1174,8 +1175,47 @@ const ShortAnswerTest = () => {
                         </div>
 
                         {/* Student Profile avatar */}
-                        <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-slate-200 shadow-sm cursor-pointer text-[11px] shrink-0">
-                            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'ST'}
+                        <div className="relative shrink-0">
+                            <div
+                                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                                className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-slate-200 shadow-sm cursor-pointer text-[11px] shrink-0 hover:scale-105 transition-transform"
+                            >
+                                {user?.name ? user.name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'ST'}
+                            </div>
+                            {showProfileDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowProfileDropdown(false)} />
+                                    <div className="absolute right-0 top-11 bg-white border border-slate-150 rounded-2xl shadow-xl p-4 z-50 w-64 animate-fade-in text-slate-750 text-left">
+                                        <div className="flex items-center gap-3 border-b border-slate-100 pb-3 mb-3">
+                                            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0">
+                                                {user?.name ? user.name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'ST'}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="font-extrabold text-slate-800 text-xs truncate leading-tight">{user?.name || 'Student'}</h4>
+                                                <span className="text-[10px] text-slate-400 font-bold block truncate mt-0.5">{user?.email || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 text-[10px] font-bold text-slate-500">
+                                            {user?.studentProfile?.course?.name && (
+                                                <div className="flex justify-between items-center py-1">
+                                                    <span>Course:</span>
+                                                    <span className="text-slate-800 font-black truncate max-w-[150px]" title={user.studentProfile.course.name}>{user.studentProfile.course.name}</span>
+                                                </div>
+                                            )}
+                                            {user?.institute?.name && (
+                                                <div className="flex justify-between items-center py-1">
+                                                    <span>Institute:</span>
+                                                    <span className="text-slate-800 font-black truncate max-w-[150px]" title={user.institute.name}>{user.institute.name}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center py-1 border-t border-slate-50 pt-2 text-[9px] text-slate-400">
+                                                <span>Session Type:</span>
+                                                <span className="font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Logged In</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1279,7 +1319,9 @@ const ShortAnswerTest = () => {
                     const hasAnyAction = !!(
                         q.moreSettings?.allowUpload === true ||
                         q.moreSettings?.allowAudioAnswer === true ||
+                        q.particulars?.enableAudio === true ||
                         q.moreSettings?.allowVideo === true ||
+                        q.particulars?.enableVideo === true ||
                         q.moreSettings?.allowChat === true ||
                         q.moreSettings?.allowSubmitFinish === true ||
                         (submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0)
@@ -2702,7 +2744,7 @@ const ShortAnswerTest = () => {
                                             {/* 🔲 FOUR-PART REFERENCE & ASSISTIVE BAR (single line) */}
                                             {(() => {
                                                 const hasAddon = qAssistive.translation || qAssistive.relevantInformation || qAssistive.temporaryFill || qAssistive.textToSpeech || qAssistive.speechToText || qAssistive.calculator;
-                                                const hasWidget = q.moreSettings?.allowUpload || q.moreSettings?.allowAudioAnswer || q.moreSettings?.allowVideo || q.moreSettings?.allowChat || q.moreSettings?.allowSubmitFinish || (submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0);
+                                                const hasWidget = q.moreSettings?.allowUpload || q.moreSettings?.allowAudioAnswer || q.particulars?.enableAudio || q.moreSettings?.allowVideo || q.particulars?.enableVideo || q.moreSettings?.allowChat || q.moreSettings?.allowSubmitFinish || (submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0);
                                                 return (
                                                     <div className="flex items-center border border-slate-200 rounded-xl bg-white text-xs select-none h-9 relative">
                                                         {collapsedExtras[idx] === false ? (
@@ -2937,7 +2979,7 @@ const ShortAnswerTest = () => {
                                                                     })()}
 
                                                                     {/* Audio Recording Mic Button */}
-                                                                    {q.moreSettings?.allowAudioAnswer === true && (
+                                                                    {(q.moreSettings?.allowAudioAnswer === true || q.particulars?.enableAudio === true) && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -2964,7 +3006,7 @@ const ShortAnswerTest = () => {
                                                                     )}
 
                                                                     {/* Video Recording Button */}
-                                                                    {q.moreSettings?.allowVideo === true && (
+                                                                    {(q.moreSettings?.allowVideo === true || q.particulars?.enableVideo === true) && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -3330,7 +3372,7 @@ const ShortAnswerTest = () => {
                             {msgs.map((msg, mIdx) => (
                                 <div key={mIdx} className={`flex gap-2 ${msg.sender === 'student' ? 'flex-row-reverse' : 'flex-row'}`}>
                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${msg.sender === 'student' ? 'bg-orange-500' : 'bg-[#6F42C1]'}`}>
-                                        {msg.sender === 'student' ? (user?.name?.slice(0, 2).toUpperCase() || 'ST') : 'T'}
+                                        {msg.sender === 'student' ? (user?.name ? user.name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() : 'ST') : 'T'}
                                     </div>
                                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'student'
                                         ? 'bg-[#6F42C1] text-white rounded-tr-sm'

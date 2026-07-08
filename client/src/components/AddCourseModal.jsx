@@ -8,6 +8,8 @@ import { createPortal } from 'react-dom';
 const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
+    const [allSubjects, setAllSubjects] = useState([]);
+    const [isDurationManuallyEdited, setIsDurationManuallyEdited] = useState(false);
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
         syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
@@ -19,13 +21,42 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [loading, setLoading] = useState(false);
     const syllabusFileRef = useRef(null);
 
+    const calculateSumOfDays = (subjectsString) => {
+        if (!subjectsString) return 0;
+        const selectedNames = subjectsString.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        let sum = 0;
+        selectedNames.forEach(name => {
+            const match = allSubjects.find(sub => sub.name?.toLowerCase() === name);
+            if (match) {
+                sum += Number(match.duration) || 0;
+            } else if (course && course.subjectDurations) {
+                const courseMatch = course.subjectDurations.find(sd => sd.subjectName?.toLowerCase() === name);
+                if (courseMatch) {
+                    sum += Number(courseMatch.duration) || 0;
+                }
+            }
+        });
+        return sum;
+    };
+
     useEffect(() => {
         if (isOpen) {
+            setIsDurationManuallyEdited(false);
             const fetchInstitutes = async () => {
                 const { data } = await axios.get('/api/setup/institutes');
                 setInstitutes(data);
             };
             fetchInstitutes();
+
+            const fetchSubjects = async () => {
+                try {
+                    const { data } = await axios.get('/api/setup/subjects');
+                    setAllSubjects(data);
+                } catch (err) {
+                    console.error("Error fetching subjects:", err);
+                }
+            };
+            fetchSubjects();
 
             if (course) {
                 setFormData({
@@ -59,6 +90,15 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             setSyllabusFile(null);
         }
     }, [isOpen, user, course]);
+
+    useEffect(() => {
+        if (!isDurationManuallyEdited && allSubjects.length > 0 && formData.subjects) {
+            const calculatedDuration = calculateSumOfDays(formData.subjects);
+            if (calculatedDuration > 0) {
+                setFormData(prev => ({ ...prev, duration: calculatedDuration }));
+            }
+        }
+    }, [allSubjects, formData.subjects, isDurationManuallyEdited]);
 
     const handleSyllabusFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -247,6 +287,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                 value={formData.duration}
                                 onChange={e => {
                                     const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setIsDurationManuallyEdited(true);
                                     setFormData({ ...formData, duration: val });
                                 }}
                                 placeholder="e.g. 5"

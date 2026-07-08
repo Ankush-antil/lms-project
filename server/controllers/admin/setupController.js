@@ -1032,63 +1032,93 @@ const getCourseStudents = asyncHandler(async (req, res) => {
 // @route   POST /api/setup/subjects
 // @access  Private/Admin
 const createSubject = asyncHandler(async (req, res) => {
-    const { courseId, subjectName, duration, assignedStudentIds, assignToAll } = req.body;
+    const { courseId, courseIds, subjectName, duration, assignedStudentIds, assignToAll, teacherIds } = req.body;
 
-    if (!courseId || !subjectName) {
+    const ids = courseIds && Array.isArray(courseIds) ? courseIds : (courseId ? [courseId] : []);
+    if (ids.length === 0 || !subjectName) {
         res.status(400);
-        throw new Error('Course ID and subject name are required');
+        throw new Error('Course ID(s) and subject name are required');
     }
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    const createdCourses = [];
 
-    // Check if subject already exists in this course
-    const exists = course.subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase());
-    if (exists) {
-        res.status(400);
-        throw new Error('Subject already exists in this course');
-    }
+    for (const cId of ids) {
+        const course = await Course.findById(cId);
+        if (!course) continue;
 
-    // Add subject name to subjects array
-    course.subjects.push(subjectName.trim());
+        // Check if subject already exists in this course
+        const exists = course.subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase());
+        if (!exists) {
+            course.subjects.push(subjectName.trim());
+        }
 
-    // Add duration allocation
-    if (!course.subjectDurations) {
-        course.subjectDurations = [];
-    }
-    course.subjectDurations.push({
-        subjectName: subjectName.trim(),
-        duration: Number(duration) || 0
-    });
+        // Add or update duration allocation
+        if (!course.subjectDurations) {
+            course.subjectDurations = [];
+        }
+        const durIndex = course.subjectDurations.findIndex(sd => sd.subjectName.toLowerCase() === subjectName.trim().toLowerCase());
+        if (durIndex !== -1) {
+            course.subjectDurations[durIndex].duration = Number(duration) || 0;
+        } else {
+            course.subjectDurations.push({
+                subjectName: subjectName.trim(),
+                duration: Number(duration) || 0
+            });
+        }
 
-    await course.save();
+        await course.save();
+        createdCourses.push(course);
 
-    // Assign subject to students
-    if (assignToAll !== false) {
-        const studentsToUpdate = await User.find({ role: 'Student', 'studentProfile.course': courseId });
-        for (const student of studentsToUpdate) {
-            let subjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
-            if (!subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
-                subjects.push(subjectName.trim());
-                student.studentProfile.subject = subjects.join(', ');
-                await student.save();
+        // Assign subject to students of this course
+        if (assignToAll !== false) {
+            const studentsToUpdate = await User.find({ role: 'Student', 'studentProfile.course': cId });
+            for (const student of studentsToUpdate) {
+                let studentSubjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
+                if (!studentSubjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
+                    studentSubjects.push(subjectName.trim());
+                    student.studentProfile.subject = studentSubjects.join(', ');
+                    await student.save();
+                }
+            }
+        } else if (assignedStudentIds && Array.isArray(assignedStudentIds)) {
+            const studentsToUpdate = await User.find({
+                _id: { $in: assignedStudentIds },
+                role: 'Student',
+                'studentProfile.course': cId
+            });
+            for (const student of studentsToUpdate) {
+                let studentSubjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
+                if (!studentSubjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
+                    studentSubjects.push(subjectName.trim());
+                    student.studentProfile.subject = studentSubjects.join(', ');
+                    await student.save();
+                }
             }
         }
-    } else if (assignedStudentIds && Array.isArray(assignedStudentIds)) {
-        const studentsToUpdate = await User.find({
-            _id: { $in: assignedStudentIds },
-            role: 'Student',
-            'studentProfile.course': courseId
-        });
-        for (const student of studentsToUpdate) {
-            let subjects = student.studentProfile.subject ? student.studentProfile.subject.split(',').map(s => s.trim()) : [];
-            if (!subjects.some(s => s.toLowerCase() === subjectName.trim().toLowerCase())) {
-                subjects.push(subjectName.trim());
-                student.studentProfile.subject = subjects.join(', ');
-                await student.save();
+    }
+
+    // Assign teachers to the new subject in these courses
+    if (teacherIds && Array.isArray(teacherIds)) {
+        for (const tId of teacherIds) {
+            const teacher = await User.findById(tId);
+            if (teacher && teacher.role === 'Teacher') {
+                if (!teacher.teacherProfile) {
+                    teacher.teacherProfile = { assignedCourses: [], subjects: [] };
+                }
+                
+                // Add all course IDs
+                ids.forEach(cId => {
+                    if (!teacher.teacherProfile.assignedCourses.some(id => id.toString() === cId.toString())) {
+                        teacher.teacherProfile.assignedCourses.push(cId);
+                    }
+                });
+
+                // Add subject name
+                if (!teacher.teacherProfile.subjects.some(sName => sName.toLowerCase() === subjectName.trim().toLowerCase())) {
+                    teacher.teacherProfile.subjects.push(subjectName.trim());
+                }
+
+                await teacher.save();
             }
         }
     }
@@ -1096,7 +1126,7 @@ const createSubject = asyncHandler(async (req, res) => {
     res.status(201).json({
         success: true,
         message: 'Subject added successfully',
-        course
+        courses: createdCourses
     });
 });
 
@@ -1104,80 +1134,225 @@ const createSubject = asyncHandler(async (req, res) => {
 // @route   PUT /api/setup/subjects/update
 // @access  Private/Admin
 const updateSubjectDetails = asyncHandler(async (req, res) => {
-    const { courseId, oldSubjectName, newSubjectName, duration } = req.body;
+    const { courseId, oldSubjectName, newSubjectName, duration, teacherIds, courseIds } = req.body;
 
     if (!courseId || !oldSubjectName || !newSubjectName) {
         res.status(400);
         throw new Error('Course ID, old subject name, and new subject name are required');
     }
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
+    // Determine the set of course IDs to operate on
+    // If courseIds is provided, we use it; otherwise we default to the single courseId
+    const targetCourseIds = courseIds && Array.isArray(courseIds) ? courseIds : [courseId];
+
+    // 1. Find all courses that currently have oldSubjectName
+    const query = { status: 'active' };
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        query.institute = req.user.institute;
     }
+    const allCourses = await Course.find(query);
 
-    // Update subject name in subjects array
-    const subIndex = course.subjects.findIndex(s => s.toLowerCase() === oldSubjectName.toLowerCase());
-    if (subIndex === -1) {
-        res.status(400);
-        throw new Error('Subject not found in this course');
-    }
-    course.subjects[subIndex] = newSubjectName;
+    // Track which courses had the subject originally
+    const coursesWithSubject = allCourses.filter(c => 
+        c.subjects.some(s => s.toLowerCase() === oldSubjectName.toLowerCase())
+    );
+    const originalCourseIds = coursesWithSubject.map(c => c._id.toString());
 
-    // Manage subjectDurations array
-    if (!course.subjectDurations) {
-        course.subjectDurations = [];
-    }
+    // Update or add subject in target courses
+    for (const cId of targetCourseIds) {
+        const course = allCourses.find(c => c._id.toString() === cId.toString());
+        if (!course) continue;
 
-    // Remove old duration if exists
-    course.subjectDurations = course.subjectDurations.filter(sd => sd.subjectName?.toLowerCase() !== oldSubjectName.toLowerCase());
+        // Rename subject in subjects array
+        const subIndex = course.subjects.findIndex(s => s.toLowerCase() === oldSubjectName.toLowerCase());
+        if (subIndex !== -1) {
+            course.subjects[subIndex] = newSubjectName.trim();
+        } else {
+            // If it doesn't exist, add it
+            if (!course.subjects.some(s => s.toLowerCase() === newSubjectName.trim().toLowerCase())) {
+                course.subjects.push(newSubjectName.trim());
+            }
+        }
 
-    // Add new duration
-    course.subjectDurations.push({
-        subjectName: newSubjectName,
-        duration: Number(duration) || 0
-    });
+        // Manage subjectDurations array
+        if (!course.subjectDurations) {
+            course.subjectDurations = [];
+        }
+        // Remove old duration entries if exists
+        course.subjectDurations = course.subjectDurations.filter(
+            sd => sd.subjectName?.toLowerCase() !== oldSubjectName.toLowerCase() &&
+                  sd.subjectName?.toLowerCase() !== newSubjectName.trim().toLowerCase()
+        );
+        // Add new duration entry
+        course.subjectDurations.push({
+            subjectName: newSubjectName.trim(),
+            duration: Number(duration) || 0
+        });
 
-    await course.save();
+        await course.save();
 
-    // Update student subject names if renaming
-    if (oldSubjectName.toLowerCase() !== newSubjectName.toLowerCase()) {
-        const studentsToUpdateName = await User.find({ role: 'Student', 'studentProfile.course': courseId });
-        for (const student of studentsToUpdateName) {
+        // Update student subject names if renaming, or add subject to course students if new
+        const students = await User.find({ role: 'Student', 'studentProfile.course': cId });
+        for (const student of students) {
             if (student.studentProfile?.subject) {
-                let subjects = student.studentProfile.subject.split(',').map(s => s.trim());
+                let studentSubjects = student.studentProfile.subject.split(',').map(s => s.trim());
                 let updated = false;
-                subjects = subjects.map(s => {
+                
+                // If it's a rename in an existing course
+                studentSubjects = studentSubjects.map(s => {
                     if (s.toLowerCase() === oldSubjectName.toLowerCase()) {
                         updated = true;
-                        return newSubjectName;
+                        return newSubjectName.trim();
                     }
                     return s;
                 });
+
+                // If it's a new course assignment, add the subject name
+                if (!originalCourseIds.includes(cId.toString()) && 
+                    !studentSubjects.some(s => s.toLowerCase() === newSubjectName.trim().toLowerCase())) {
+                    studentSubjects.push(newSubjectName.trim());
+                    updated = true;
+                }
+
                 if (updated) {
-                    student.studentProfile.subject = subjects.join(', ');
+                    student.studentProfile.subject = studentSubjects.join(', ');
                     await student.save();
                 }
+            } else if (!originalCourseIds.includes(cId.toString())) {
+                // If student has no subject set, initialize it with the new subject
+                student.studentProfile = student.studentProfile || {};
+                student.studentProfile.subject = newSubjectName.trim();
+                await student.save();
+            }
+        }
+
+        // Update test subjects associated with this course and old subject
+        const Test = require('../../models/Test');
+        try {
+            await Test.updateMany(
+                { course: course.name, subject: oldSubjectName },
+                { subject: newSubjectName.trim() }
+            );
+        } catch (err) {
+            console.error('Error updating test subjects:', err);
+        }
+    }
+
+    // Remove subject from courses that are no longer selected
+    const coursesToRemove = originalCourseIds.filter(cId => !targetCourseIds.includes(cId));
+    for (const cId of coursesToRemove) {
+        const course = allCourses.find(c => c._id.toString() === cId);
+        if (!course) continue;
+
+        course.subjects = course.subjects.filter(s => s.toLowerCase() !== oldSubjectName.toLowerCase());
+        if (course.subjectDurations) {
+            course.subjectDurations = course.subjectDurations.filter(sd => sd.subjectName?.toLowerCase() !== oldSubjectName.toLowerCase());
+        }
+        await course.save();
+
+        // Remove subject name from students in that course
+        const students = await User.find({ role: 'Student', 'studentProfile.course': cId });
+        for (const student of students) {
+            if (student.studentProfile?.subject) {
+                let studentSubjects = student.studentProfile.subject.split(',').map(s => s.trim());
+                studentSubjects = studentSubjects.filter(s => s.toLowerCase() !== oldSubjectName.toLowerCase());
+                student.studentProfile.subject = studentSubjects.join(', ');
+                await student.save();
             }
         }
     }
 
-    // Update subject name in tests associated with this course and old subject
-    const Test = require('../../models/Test');
-    try {
-        await Test.updateMany(
-            { course: course.name, subject: oldSubjectName },
-            { subject: newSubjectName }
-        );
-    } catch (err) {
-        console.error('Error updating test subjects:', err);
+    // 2. Update Teacher Assignments if teacherIds is provided
+    if (teacherIds && Array.isArray(teacherIds)) {
+        const teacherQuery = { role: 'Teacher' };
+        if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+            teacherQuery.institute = req.user.institute;
+        }
+        const teachers = await User.find(teacherQuery);
+
+        for (const teacher of teachers) {
+            const isAssigned = teacherIds.includes(teacher._id.toString());
+            if (!teacher.teacherProfile) {
+                teacher.teacherProfile = { assignedCourses: [], subjects: [] };
+            }
+
+            let profileChanged = false;
+
+            if (isAssigned) {
+                // Add new courses to assignedCourses
+                targetCourseIds.forEach(cId => {
+                    if (!teacher.teacherProfile.assignedCourses.some(id => id.toString() === cId.toString())) {
+                        teacher.teacherProfile.assignedCourses.push(cId);
+                        profileChanged = true;
+                    }
+                });
+
+                // Remove old subject name if renaming
+                if (oldSubjectName.toLowerCase() !== newSubjectName.toLowerCase()) {
+                    const originalLen = teacher.teacherProfile.subjects.length;
+                    teacher.teacherProfile.subjects = teacher.teacherProfile.subjects.filter(
+                        s => s.toLowerCase() !== oldSubjectName.toLowerCase()
+                    );
+                    if (teacher.teacherProfile.subjects.length !== originalLen) {
+                        profileChanged = true;
+                    }
+                }
+
+                // Add new subject name
+                if (!teacher.teacherProfile.subjects.some(s => s.toLowerCase() === newSubjectName.trim().toLowerCase())) {
+                    teacher.teacherProfile.subjects.push(newSubjectName.trim());
+                    profileChanged = true;
+                }
+            } else {
+                // If not assigned to this subject anymore:
+                // Check if they taught this subject (old or new name) in any of the original/target courses
+                const teachesThisSubject = teacher.teacherProfile.subjects.some(
+                    s => s.toLowerCase() === oldSubjectName.toLowerCase() || 
+                         s.toLowerCase() === newSubjectName.trim().toLowerCase()
+                );
+
+                if (teachesThisSubject) {
+                    // Remove subject names
+                    teacher.teacherProfile.subjects = teacher.teacherProfile.subjects.filter(
+                        s => s.toLowerCase() !== oldSubjectName.toLowerCase() &&
+                             s.toLowerCase() !== newSubjectName.trim().toLowerCase()
+                    );
+                    profileChanged = true;
+
+                    // Clean up assignedCourses: if teacher has no other subjects left for a course, remove that course from their profile
+                    const remainingSubjects = teacher.teacherProfile.subjects;
+                    const coursesToKeep = [];
+
+                    for (const cId of teacher.teacherProfile.assignedCourses) {
+                        const course = allCourses.find(c => c._id.toString() === cId.toString());
+                        if (course) {
+                            const hasOtherSubject = course.subjects.some(sName => 
+                                remainingSubjects.some(remSub => remSub.toLowerCase() === sName.toLowerCase())
+                            );
+                            if (hasOtherSubject) {
+                                coursesToKeep.push(cId);
+                            }
+                        } else {
+                            coursesToKeep.push(cId);
+                        }
+                    }
+
+                    if (teacher.teacherProfile.assignedCourses.length !== coursesToKeep.length) {
+                        teacher.teacherProfile.assignedCourses = coursesToKeep;
+                        profileChanged = true;
+                    }
+                }
+            }
+
+            if (profileChanged) {
+                await teacher.save();
+            }
+        }
     }
 
     res.json({
         success: true,
-        message: 'Subject details updated successfully',
-        course
+        message: 'Subject details updated successfully'
     });
 });
 

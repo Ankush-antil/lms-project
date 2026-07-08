@@ -179,6 +179,28 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         }
     }, [formData.course, allCourses]);
 
+    // Update index/day options when course and subject change
+    useEffect(() => {
+        let duration = 50; // fallback
+        if (formData.course && formData.subject && allCourses.length > 0) {
+            const selectedCourse = allCourses.find(c => c.name === formData.course);
+            if (selectedCourse) {
+                const durationEntry = selectedCourse.subjectDurations?.find(
+                    sd => sd.subjectName?.toLowerCase() === formData.subject?.toLowerCase()
+                );
+                if (durationEntry && durationEntry.duration > 0) {
+                    duration = durationEntry.duration;
+                } else if (selectedCourse.duration > 0) {
+                    duration = selectedCourse.duration;
+                }
+            }
+        }
+        setOptions(prev => ({
+            ...prev,
+            index: Array.from({ length: duration }, (_, i) => `Day ${i + 1}`)
+        }));
+    }, [formData.course, formData.subject, allCourses]);
+
     const handleCreateNew = (field, key) => {
         const newValue = prompt(`Enter new ${field}:`);
         if (newValue) {
@@ -255,12 +277,12 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                         </div>
 
                         <CustomSelect
-                            label="Test Index"
+                            label="Test Day / Index"
                             value={formData.index}
                             options={options.index}
                             onChange={(val) => setFormData(prev => ({ ...prev, index: val }))}
-                            onCreateNew={() => handleCreateNew('Test Index', 'index')}
-                            placeholder="Select Index (e.g. Index 1)"
+                            onCreateNew={() => handleCreateNew('Test Day / Index', 'index')}
+                            placeholder="Select Day / Index"
                         />
 
                         <CustomSelect

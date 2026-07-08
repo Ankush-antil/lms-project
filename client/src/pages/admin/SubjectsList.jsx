@@ -40,6 +40,13 @@ const SubjectsList = () => {
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
 
+    // Teachers and Multiple Courses/Teachers Assignment State
+    const [teachersList, setTeachersList] = useState([]);
+    const [editSubjectTeachers, setEditSubjectTeachers] = useState([]);
+    const [editSubjectCourses, setEditSubjectCourses] = useState([]);
+    const [newSubjectTeachers, setNewSubjectTeachers] = useState([]);
+    const [newSubjectCourses, setNewSubjectCourses] = useState([]);
+
     useEffect(() => {
         if (selectedCourseId && isAddModalOpen) {
             const fetchCourseStudents = async () => {
@@ -66,24 +73,34 @@ const SubjectsList = () => {
         setSelectedSubject(subject);
         setEditSubjectName(subject.name);
         setEditSubjectDuration(subject.duration || 0);
+
+        // Pre-fill assigned teachers
+        const initialTeachers = subject.teachers ? subject.teachers.map(t => t._id) : [];
+        setEditSubjectTeachers(initialTeachers);
+
+        // Pre-fill assigned courses: find all courses in subjects array that have the same subject name
+        const initialCourses = subjects
+            .filter(s => s.name.toLowerCase() === subject.name.toLowerCase())
+            .map(s => s.course?._id)
+            .filter(Boolean);
+        setEditSubjectCourses([...new Set(initialCourses)]);
+
         setIsEditModalOpen(true);
     };
 
-    const openAddModal = async () => {
+    const openAddModal = () => {
         setIsAddModalOpen(true);
         setNewSubjectName('');
-        setSelectedCourseId('');
         setNewSubjectDuration('');
         setAssignToAll(true);
         setSelectedStudentIds([]);
-        try {
-            const res = await axios.get('/api/setup/courses');
-            setCourses(res.data || []);
-            if (res.data && res.data.length > 0) {
-                setSelectedCourseId(res.data[0]._id);
-            }
-        } catch (error) {
-            console.error("Error fetching courses for select:", error);
+        setNewSubjectTeachers([]);
+        if (courses.length > 0) {
+            setSelectedCourseId(courses[0]._id);
+            setNewSubjectCourses([courses[0]._id]);
+        } else {
+            setSelectedCourseId('');
+            setNewSubjectCourses([]);
         }
     };
 
@@ -92,13 +109,19 @@ const SubjectsList = () => {
             toast.error("Subject name cannot be empty");
             return;
         }
+        if (editSubjectCourses.length === 0) {
+            toast.error("Please select at least one course");
+            return;
+        }
         try {
             setSavingEdit(true);
             const res = await axios.put('/api/setup/subjects/update', {
                 courseId: selectedSubject.course?._id,
                 oldSubjectName: selectedSubject.name,
                 newSubjectName: editSubjectName.trim(),
-                duration: Number(editSubjectDuration) || 0
+                duration: Number(editSubjectDuration) || 0,
+                teacherIds: editSubjectTeachers,
+                courseIds: editSubjectCourses
             });
             if (res.data.success) {
                 toast.success("Subject details updated successfully!");
@@ -118,8 +141,8 @@ const SubjectsList = () => {
             toast.error("Subject name is required");
             return;
         }
-        if (!selectedCourseId) {
-            toast.error("Please select a course");
+        if (newSubjectCourses.length === 0) {
+            toast.error("Please select at least one course");
             return;
         }
         if (!assignToAll && selectedStudentIds.length === 0) {
@@ -129,11 +152,12 @@ const SubjectsList = () => {
         try {
             setSavingAdd(true);
             const res = await axios.post('/api/setup/subjects', {
-                courseId: selectedCourseId,
+                courseIds: newSubjectCourses,
                 subjectName: newSubjectName.trim(),
                 duration: Number(newSubjectDuration) || 0,
                 assignToAll: assignToAll,
-                assignedStudentIds: selectedStudentIds
+                assignedStudentIds: selectedStudentIds,
+                teacherIds: newSubjectTeachers
             });
             if (res.data.success) {
                 toast.success("Subject added successfully!");
@@ -155,12 +179,18 @@ const SubjectsList = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('/api/setup/subjects');
-            setSubjects(res.data);
+            const [subRes, courseRes, teacherRes] = await Promise.all([
+                axios.get('/api/setup/subjects'),
+                axios.get('/api/setup/courses'),
+                axios.get('/api/users?role=Teacher')
+            ]);
+            setSubjects(subRes.data || []);
+            setCourses(courseRes.data || []);
+            setTeachersList(teacherRes.data || []);
             setLoading(false);
         } catch (error) {
-            console.error("Error fetching subjects:", error);
-            toast.error("Failed to load subjects");
+            console.error("Error fetching setup data:", error);
+            toast.error("Failed to load subjects, courses, or teachers");
             setLoading(false);
         }
     };
@@ -254,7 +284,7 @@ const SubjectsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Assigned Teachers</th>
                                 <th className="p-4 font-semibold whitespace-nowrap text-center">Tests</th>
-                                <th className="p-4 font-semibold whitespace-nowrap text-center">Assignments</th>
+                                <th className="p-4 font-semibold whitespace-nowrap text-center">Days</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">Actions</th>
                             </tr>
                         </thead>
@@ -282,19 +312,19 @@ const SubjectsList = () => {
                                                 </span>
                                             </div>
                                         </td>
-
+ 
                                         {/* Course */}
                                         <td className="p-4 whitespace-nowrap text-sm text-slate-700">
                                             <span className="px-3 py-1 bg-slate-50 text-slate-700 rounded-full text-xs font-semibold border border-slate-100">
                                                 <TruncatedCell text={s.course?.name || 'N/A'} maxLength={20} />
                                             </span>
                                         </td>
-
+ 
                                         {/* Institute */}
                                         <td className="p-4 whitespace-nowrap text-sm text-slate-700">
                                             <TruncatedCell text={s.institute?.name || 'N/A'} maxLength={20} />
                                         </td>
-
+ 
                                         {/* Teachers */}
                                         <td className="p-4 whitespace-nowrap text-sm text-slate-600">
                                             {s.teachers && s.teachers.length > 0 ? (
@@ -309,15 +339,15 @@ const SubjectsList = () => {
                                                 <span className="text-slate-400 italic">No teacher assigned</span>
                                             )}
                                         </td>
-
+ 
                                         {/* Tests Count */}
                                         <td className="p-4 whitespace-nowrap text-center font-bold text-slate-800 text-sm">
                                             {s.testCount || 0}
                                         </td>
-
-                                        {/* Assignments Count */}
+ 
+                                        {/* Days Duration */}
                                         <td className="p-4 whitespace-nowrap text-center font-bold text-slate-800 text-sm">
-                                            {s.assignmentCount || 0}
+                                            {s.duration || 0}
                                         </td>
 
                                         {/* Actions */}
@@ -555,7 +585,7 @@ const SubjectsList = () => {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Subject Name</label>
                                 <input
@@ -579,6 +609,65 @@ const SubjectsList = () => {
                                 <span className="text-[10px] text-slate-400 font-semibold block mt-1">
                                     Total Course Duration: {selectedSubject.course?.duration || 0} days
                                 </span>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Assigned Course(s)</label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-[140px] overflow-y-auto space-y-1.5 custom-scrollbar">
+                                    {courses.map(c => {
+                                        const isSelected = editSubjectCourses.includes(c._id);
+                                        return (
+                                            <label key={c._id} className="flex items-center justify-between p-2 bg-white border border-slate-100 hover:border-slate-200 rounded-lg cursor-pointer transition-all select-none">
+                                                <span className="text-xs font-semibold text-slate-700">{c.name}</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => {
+                                                        if (isSelected) {
+                                                            setEditSubjectCourses(prev => prev.filter(id => id !== c._id));
+                                                        } else {
+                                                            setEditSubjectCourses(prev => [...prev, c._id]);
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                                                />
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Assigned Teacher(s)</label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-[140px] overflow-y-auto space-y-1.5 custom-scrollbar">
+                                    {teachersList.length > 0 ? (
+                                        teachersList.map(t => {
+                                            const isSelected = editSubjectTeachers.includes(t._id);
+                                            return (
+                                                <label key={t._id} className="flex items-center justify-between p-2 bg-white border border-slate-100 hover:border-slate-200 rounded-lg cursor-pointer transition-all select-none">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-semibold text-slate-700">{t.name}</span>
+                                                        <span className="text-[10px] text-slate-400">{t.email}</span>
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => {
+                                                            if (isSelected) {
+                                                                setEditSubjectTeachers(prev => prev.filter(id => id !== t._id));
+                                                            } else {
+                                                                setEditSubjectTeachers(prev => [...prev, t._id]);
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                                                    />
+                                                </label>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-xs text-slate-450 italic text-center py-2">No teachers found in institute</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -622,12 +711,21 @@ const SubjectsList = () => {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Target Course</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Primary Course (For Student Assignment)</label>
                                 <select
                                     value={selectedCourseId}
-                                    onChange={(e) => setSelectedCourseId(e.target.value)}
+                                    onChange={(e) => {
+                                        const cId = e.target.value;
+                                        setSelectedCourseId(cId);
+                                        setNewSubjectCourses(prev => {
+                                            if (!prev.includes(cId)) {
+                                                return [...prev, cId];
+                                            }
+                                            return prev;
+                                        });
+                                    }}
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-750 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                                 >
                                     <option value="" disabled>Select a Course</option>
@@ -637,6 +735,37 @@ const SubjectsList = () => {
                                         </option>
                                     ))}
                                 </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Target Course(s)</label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-[120px] overflow-y-auto space-y-1.5 custom-scrollbar">
+                                    {courses.map(c => {
+                                        const isSelected = newSubjectCourses.includes(c._id);
+                                        return (
+                                            <label key={c._id} className="flex items-center justify-between p-2 bg-white border border-slate-100 hover:border-slate-200 rounded-lg cursor-pointer transition-all select-none">
+                                                <span className="text-xs font-semibold text-slate-700">{c.name}</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => {
+                                                        if (isSelected) {
+                                                            // Keep selectedCourseId if it is the only one left, or don't allow unchecking if it's the primary course
+                                                            if (c._id === selectedCourseId) {
+                                                                toast.error("Cannot uncheck the primary course");
+                                                                return;
+                                                            }
+                                                            setNewSubjectCourses(prev => prev.filter(id => id !== c._id));
+                                                        } else {
+                                                            setNewSubjectCourses(prev => [...prev, c._id]);
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-indigo-650 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             </div>
 
                             <div className="space-y-1">
@@ -660,6 +789,39 @@ const SubjectsList = () => {
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                     placeholder="e.g. 30"
                                 />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Assigned Teacher(s)</label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-[120px] overflow-y-auto space-y-1.5 custom-scrollbar">
+                                    {teachersList.length > 0 ? (
+                                        teachersList.map(t => {
+                                            const isSelected = newSubjectTeachers.includes(t._id);
+                                            return (
+                                                <label key={t._id} className="flex items-center justify-between p-2 bg-white border border-slate-100 hover:border-slate-200 rounded-lg cursor-pointer transition-all select-none">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-semibold text-slate-700">{t.name}</span>
+                                                        <span className="text-[10px] text-slate-400">{t.email}</span>
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => {
+                                                            if (isSelected) {
+                                                                setNewSubjectTeachers(prev => prev.filter(id => id !== t._id));
+                                                            } else {
+                                                                setNewSubjectTeachers(prev => [...prev, t._id]);
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-indigo-650 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                                                    />
+                                                </label>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-xs text-slate-450 italic text-center py-2">No teachers found in institute</p>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">

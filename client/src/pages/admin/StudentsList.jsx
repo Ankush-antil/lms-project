@@ -237,7 +237,6 @@ const StudentsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Section</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Subject</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Actions</th>
                             </tr>
@@ -258,12 +257,15 @@ const StudentsList = () => {
                                                         student.name[0]
                                                     )}
                                                 </div>
-                                                <span
-                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
-                                                    onClick={() => openProfile(student._id)}
-                                                >
-                                                    <TruncatedCell text={student.name} maxLength={20} />
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span
+                                                        className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                                                        onClick={() => openProfile(student._id)}
+                                                    >
+                                                        <TruncatedCell text={student.name} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-400 font-semibold">{student.email}</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{student._id.slice(-6)}</td>
@@ -290,9 +292,6 @@ const StudentsList = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{student.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">
-                                            <TruncatedCell text={student.email} maxLength={25} />
-                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 onClick={() => handleToggleStatus(student._id, student.isActive)}

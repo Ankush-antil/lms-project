@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
@@ -14,6 +15,7 @@ import RecycleBinModal from '../../components/common/RecycleBinModal';
 const InstitutesList = () => {
     const { user } = useAuth();
     const userInfo = user;
+    const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
@@ -319,7 +321,10 @@ const InstitutesList = () => {
                                                     </span>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-1.5 text-indigo-650 font-black text-xs">
+                                                    <div 
+                                                        className="flex items-center gap-1.5 text-indigo-650 font-black text-xs cursor-pointer hover:underline hover:text-indigo-850"
+                                                        onClick={() => navigate(`/${user?.role?.toLowerCase()}/courses?institute=${inst._id}`)}
+                                                    >
                                                         <BookOpen size={14} />
                                                         <span>{inst.courseCount || 0} courses</span>
                                                     </div>

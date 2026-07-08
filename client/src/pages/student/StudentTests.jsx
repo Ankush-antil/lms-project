@@ -11,7 +11,7 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, Lock, Clock, Loader2
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, ChevronDown, Lock, Clock, Loader2
 } from 'lucide-react';
 
 const isTestExpired = (test) => {
@@ -188,6 +188,8 @@ const StudentTests = () => {
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
+    const [expandedSubjects, setExpandedSubjects] = useState({});
+    const [subjectFilter, setSubjectFilter] = useState('All');
     const [chatInput, setChatInput] = useState('');
     const [chatMessages, setChatMessages] = useState([]);
     const [contacts, setContacts] = useState([]);
@@ -639,6 +641,167 @@ const StudentTests = () => {
         );
     }, [dynamicInboxItems, inboxSearchQuery]);
 
+    const subjectDaysMapping = useMemo(() => {
+        if (!userInfo || !userInfo.studentProfile?.course) return [];
+        const course = userInfo.studentProfile.course;
+        const subjects = course.subjects || [];
+        const durations = course.subjectDurations || [];
+        const totalDuration = course.duration || 5;
+
+        let currentDayIndex = 1;
+        const mapping = [];
+
+        if (durations && durations.length > 0) {
+            durations.forEach(d => {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const daysList = [];
+                for (let i = 1; i <= subDur; i++) {
+                    if (currentDayIndex <= totalDuration) {
+                        daysList.push({
+                            dayNum: i,
+                            indexNum: currentDayIndex,
+                            id: `Index ${currentDayIndex}`
+                        });
+                        currentDayIndex++;
+                    }
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: daysList
+                    });
+                }
+            });
+        }
+
+        if (currentDayIndex <= totalDuration) {
+            const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
+            const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
+
+            if (remainingSubjects.length > 0) {
+                const remainingDays = totalDuration - currentDayIndex + 1;
+                const daysPerSubject = Math.floor(remainingDays / remainingSubjects.length);
+                const extraDays = remainingDays % remainingSubjects.length;
+
+                remainingSubjects.forEach((subName, idx) => {
+                    const subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
+                    const daysList = [];
+                    for (let i = 1; i <= subDur; i++) {
+                        if (currentDayIndex <= totalDuration) {
+                            daysList.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Index ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                    }
+                    if (daysList.length > 0) {
+                        mapping.push({
+                            subjectName: subName,
+                            days: daysList
+                        });
+                    }
+                });
+            } else {
+                const daysList = [];
+                let dayCounter = 1;
+                while (currentDayIndex <= totalDuration) {
+                    daysList.push({
+                        dayNum: dayCounter,
+                        indexNum: currentDayIndex,
+                        id: `Index ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                    dayCounter++;
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: 'Other Subjects',
+                        days: daysList
+                    });
+                }
+            }
+        }
+
+        if (mapping.length === 0) {
+            const daysList = [];
+            for (let i = 1; i <= totalDuration; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: i,
+                    id: `Index ${i}`
+                });
+            }
+            mapping.push({
+                subjectName: 'General',
+                days: daysList
+            });
+        }
+
+        return mapping;
+    }, [userInfo]);
+
+    useEffect(() => {
+        if (subjectDaysMapping.length > 0) {
+            const initial = {};
+            subjectDaysMapping.forEach(g => {
+                initial[g.subjectName] = true;
+            });
+            setExpandedSubjects(initial);
+        }
+    }, [subjectDaysMapping]);
+
+    const uniqueSubjects = useMemo(() => {
+        if (!userInfo || !userInfo.studentProfile?.course) return [];
+        const course = userInfo.studentProfile.course;
+        const subjects = course.subjects || [];
+        const durations = course.subjectDurations || [];
+        
+        const allSubjectNames = new Set();
+        subjects.forEach(s => {
+            if (s) allSubjectNames.add(s.trim());
+        });
+        durations.forEach(d => {
+            if (d && d.subjectName) allSubjectNames.add(d.subjectName.trim());
+        });
+        
+        return Array.from(allSubjectNames);
+    }, [userInfo]);
+
+    const groupedInboxItems = useMemo(() => {
+        return subjectDaysMapping.map(group => {
+            if (subjectFilter !== 'All' && group.subjectName.toLowerCase() !== subjectFilter.toLowerCase()) {
+                return null;
+            }
+
+            const matchedDays = group.days.map(day => {
+                const inboxItem = dynamicInboxItems.find(item => item.id?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                if (!inboxItem) return null;
+
+                const matchesSearch = getDisplayTitle(inboxItem.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
+                if (!matchesSearch) return null;
+
+                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Day ${day.dayNum}`;
+                const titleWithIndex = `${cleanDisplayName} (Index ${day.indexNum})`;
+
+                return {
+                    ...inboxItem,
+                    displayTitle: titleWithIndex,
+                    dayNum: day.dayNum,
+                    indexNum: day.indexNum
+                };
+            }).filter(Boolean);
+
+            return {
+                subjectName: group.subjectName,
+                days: matchedDays
+            };
+        }).filter(Boolean).filter(group => group.days.length > 0);
+    }, [subjectDaysMapping, dynamicInboxItems, inboxSearchQuery, subjectFilter, inboxConfigs]);
+
     useEffect(() => {
         const fetchContacts = async () => {
             try {
@@ -803,6 +966,23 @@ const StudentTests = () => {
                             />
                         </div>
 
+                        {uniqueSubjects.length > 0 && (
+                            <div className="mb-3">
+                                <select
+                                    value={subjectFilter}
+                                    onChange={(e) => setSubjectFilter(e.target.value)}
+                                    className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-bold cursor-pointer"
+                                >
+                                    <option value="All">All Subjects</option>
+                                    {uniqueSubjects.map(sub => (
+                                        <option key={sub} value={sub}>
+                                            {sub}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <div className="flex bg-slate-100 p-0.5 rounded-xl">
                             {['Institute', 'Course'].map(f => {
                                 const isActive = activeFilter === f;
@@ -827,72 +1007,103 @@ const StudentTests = () => {
                             <div className="space-y-3">
                                 {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />)}
                             </div>
-                        ) : filteredInboxItems.length === 0 ? (
+                        ) : groupedInboxItems.length === 0 ? (
                             <div className="text-center py-12 text-slate-400 text-xs font-semibold">No inboxes found.</div>
                         ) : (
-                            filteredInboxItems.map(item => {
-                                const isActive = selectedItem === item.id;
-                                const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
-                                const isDisabled = item.disabled;
-
+                            groupedInboxItems.map(group => {
+                                const isExpanded = expandedSubjects[group.subjectName] !== false;
                                 return (
-                                    <div
-                                        key={item.id}
-                                        onClick={() => {
-                                            if (isDisabled) {
-                                                toast.error("This inbox is locked by your teacher or has not unlocked yet.");
-                                                return;
-                                            }
-                                            setSelectedItem(item.id);
-                                            setSelectedCategory(null);
-                                            if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
-                                                setViewMode('pending');
-                                            }
-                                        }}
-                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                            : isDisabled
-                                                ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
-                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                            }`}
-                                    >
-                                        <div className="flex items-center space-x-2.5 min-w-0">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive
-                                                ? 'bg-[#3E3ADD] text-white shadow-sm'
-                                                : isDisabled
-                                                    ? 'bg-slate-200 text-slate-400'
-                                                    : 'bg-slate-100 text-slate-500'
-                                                }`}>
-                                                {isDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
+                                    <div key={group.subjectName} className="space-y-1.5 animate-fade-in mb-3">
+                                        {/* Subject Collapsible Header */}
+                                        <div
+                                            onClick={() => setExpandedSubjects(prev => ({
+                                                ...prev,
+                                                [group.subjectName]: !isExpanded
+                                            }))}
+                                            className="flex items-center justify-between p-2.5 bg-slate-100/70 hover:bg-slate-200/50 rounded-xl cursor-pointer select-none text-[11px] font-black text-slate-700 tracking-wide transition-all uppercase"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span>{group.subjectName}</span>
+                                                <span className="text-[9px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full font-bold">
+                                                    {group.days.length}
+                                                </span>
                                             </div>
-                                            <h3 className={`font-bold text-xs truncate flex items-center ${isActive
-                                                ? 'text-indigo-900'
-                                                : isDisabled
-                                                    ? 'text-slate-400'
-                                                    : 'text-slate-700'
-                                                }`}>
-                                                {getDisplayTitle(item.title)}
-                                                {isDisabled && (
-                                                    <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
-                                                        Locked
-                                                    </span>
-                                                )}
-                                            </h3>
+                                            <div>
+                                                {isExpanded ? <ChevronDown size={12} className="text-slate-400" /> : <ChevronRight size={12} className="text-slate-400" />}
+                                            </div>
                                         </div>
 
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (firstTest) setInfoModalData(firstTest);
-                                            }}
-                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                : 'border-slate-200 text-slate-400 bg-white'
-                                                }`}
-                                            title="Inbox Details"
-                                        >
-                                            <Info size={12} />
-                                        </button>
+                                        {/* Days List under this Subject */}
+                                        {isExpanded && (
+                                            <div className="space-y-1.5 pl-1.5 border-l border-slate-200/65 ml-2">
+                                                {group.days.map(item => {
+                                                    const isActive = selectedItem === item.id;
+                                                    const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                                    const isDisabled = item.disabled;
+
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            onClick={() => {
+                                                                if (isDisabled) {
+                                                                    toast.error("This inbox is locked by your teacher or has not unlocked yet.");
+                                                                    return;
+                                                                }
+                                                                setSelectedItem(item.id);
+                                                                setSelectedCategory(null);
+                                                                if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
+                                                                    setViewMode('pending');
+                                                                }
+                                                            }}
+                                                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                                ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                                : isDisabled
+                                                                    ? 'border-slate-200 bg-slate-50/40 opacity-70 cursor-not-allowed hover:shadow-none hover:border-slate-200'
+                                                                    : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center space-x-2.5 min-w-0">
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive
+                                                                    ? 'bg-[#3E3ADD] text-white shadow-sm'
+                                                                    : isDisabled
+                                                                        ? 'bg-slate-200 text-slate-400'
+                                                                        : 'bg-slate-100 text-slate-500'
+                                                                    }`}>
+                                                                    {isDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
+                                                                </div>
+                                                                <h3 className={`font-bold text-xs truncate flex items-center ${isActive
+                                                                    ? 'text-indigo-900'
+                                                                    : isDisabled
+                                                                        ? 'text-slate-400'
+                                                                        : 'text-slate-700'
+                                                                    }`}>
+                                                                    {item.displayTitle}
+                                                                    {isDisabled && (
+                                                                        <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                                            Locked
+                                                                        </span>
+                                                                    )}
+                                                                </h3>
+                                                            </div>
+
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (firstTest) setInfoModalData(firstTest);
+                                                                }}
+                                                                className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                    : 'border-slate-200 text-slate-400 bg-white'
+                                                                    }`}
+                                                                title="Inbox Details"
+                                                            >
+                                                                <Info size={12} />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })

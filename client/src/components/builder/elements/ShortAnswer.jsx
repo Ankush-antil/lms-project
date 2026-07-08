@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, Mic, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ShortAnswerBuilder = ({
@@ -60,41 +60,80 @@ const ShortAnswerBuilder = ({
                 );
             })()}
 
-            {/* Student Answer Box & Enable It Switch */}
-            <div className="flex items-center justify-between bg-white px-3.5 py-3.5 border border-slate-200 rounded-xl shadow-sm">
-                {particulars.enableAnswerBox !== false ? (
-                    <input
-                        type="text"
-                        placeholder="Type your Answer here"
-                        readOnly
-                        tabIndex={-1}
-                        className="bg-transparent outline-none flex-1 text-sm border-none font-sans pointer-events-none select-none cursor-default"
-                        style={{
-                            fontSize: particulars.enableTextStyle && particulars.style?.fontSize ? particulars.style.fontSize : '14px',
-                            fontWeight: particulars.enableTextStyle && particulars.style?.fontWeight ? particulars.style.fontWeight : 'normal',
-                            color: particulars.enableTextStyle && particulars.style?.textColor ? particulars.style.textColor : '#94a3b8',
-                            backgroundColor: particulars.enableTextStyle && particulars.style?.bgColor ? particulars.style.bgColor : 'transparent',
-                            borderRadius: particulars.enableTextStyle && particulars.style?.borderRadius ? particulars.style.borderRadius : '8px',
-                            border: particulars.enableTextStyle && particulars.style?.borderStyle && particulars.style.borderStyle !== 'none' ? `1px ${particulars.style.borderStyle} ${particulars.style.borderColor || '#cbd5e1'}` : 'none',
-                            pointerEvents: 'none',
-                            userSelect: 'none'
-                        }}
-                    />
-                ) : (
-                    <div className="text-slate-400 text-sm italic font-semibold">Student Answer Box Disabled</div>
-                )}
-                <div className="flex items-center gap-3.5 ml-auto select-none border-l border-slate-150 pl-3.5">
-                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Enable it</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={particulars.enableAnswerBox !== false}
-                            onChange={(e) => handleUpdateNestedField('particulars', 'enableAnswerBox', e.target.checked)}
-                            className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-650"></div>
-                    </label>
+            {/* Student Answer Box & Toggle Switches for Text, Audio, and Video Responses */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 border border-slate-200 rounded-xl shadow-sm">
+                
+                {/* Column 1: Text Answer (Type your Answer here) */}
+                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
+                    <div className="flex-1 mr-3 min-w-0">
+                        {particulars.enableAnswerBox !== false ? (
+                            <input
+                                type="text"
+                                placeholder="Type your Answer here"
+                                readOnly
+                                tabIndex={-1}
+                                className="bg-transparent outline-none w-full text-xs font-bold text-slate-500 pointer-events-none select-none cursor-default"
+                            />
+                        ) : (
+                            <div className="text-slate-400 text-xs italic font-bold">Text Box Disabled</div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">Text</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={particulars.enableAnswerBox !== false}
+                                onChange={(e) => handleUpdateNestedField('particulars', 'enableAnswerBox', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
                 </div>
+
+                {/* Column 2: Audio Answer */}
+                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
+                    <div className="flex items-center gap-2 min-w-0 mr-3">
+                        <div className="w-7 h-7 rounded-lg bg-red-50 text-red-650 flex items-center justify-center shrink-0">
+                            <Mic size={14} />
+                        </div>
+                        <span className="text-xs font-extrabold text-slate-700 truncate">Audio Response</span>
+                    </div>
+                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={particulars.enableAudio === true}
+                                onChange={(e) => handleUpdateNestedField('particulars', 'enableAudio', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                </div>
+
+                {/* Column 3: Video Answer */}
+                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
+                    <div className="flex items-center gap-2 min-w-0 mr-3">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-650 flex items-center justify-center shrink-0">
+                            <Video size={14} />
+                        </div>
+                        <span className="text-xs font-extrabold text-slate-700 truncate">Video Response</span>
+                    </div>
+                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={particulars.enableVideo === true}
+                                onChange={(e) => handleUpdateNestedField('particulars', 'enableVideo', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
             {/* Supporting Resources Upload Section */}

@@ -560,7 +560,9 @@ const QuestionBuilderCard = ({
         setTimeout(() => {
             let mockQ = "Explain your understanding of the given topic.";
             let mockOpts = [];
-            if (label === 'Multiple Choice' || label === 'Dropdown' || label === 'Audio Listening') {
+            const lblLower = label.toLowerCase();
+
+            if (lblLower.includes('choice') || lblLower.includes('dropdown') || lblLower.includes('listening')) {
                 mockQ = "Which of the following is a key feature of React?";
                 mockOpts = [
                     { text: "Virtual DOM", isCorrect: true },
@@ -568,7 +570,7 @@ const QuestionBuilderCard = ({
                     { text: "Two-way data binding by default", isCorrect: false },
                     { text: "Static templates", isCorrect: false }
                 ];
-            } else if (label === 'Checkboxes') {
+            } else if (lblLower.includes('checkbox')) {
                 mockQ = "Select all frontend frameworks/libraries from the list:";
                 mockOpts = [
                     { text: "React", isCorrect: true },
@@ -576,26 +578,55 @@ const QuestionBuilderCard = ({
                     { text: "Django", isCorrect: false },
                     { text: "Vue", isCorrect: true }
                 ];
-            } else if (label === 'True/False') {
+            } else if (lblLower.includes('true') || lblLower.includes('false')) {
                 mockQ = "Vite uses ES modules internally for hot module replacement during development.";
                 mockOpts = [
                     { text: "True", isCorrect: true },
                     { text: "False", isCorrect: false }
                 ];
-            } else if (label === 'Matching') {
+            } else if (lblLower.includes('matching')) {
                 mockQ = "Match the following databases with their primary types:";
                 onUpdateField('matchingPairs', [
                     { key: "MongoDB", value: "NoSQL Document Store" },
                     { key: "PostgreSQL", value: "Relational RDBMS" },
                     { key: "Neo4j", value: "Graph Database" }
                 ]);
-            } else if (label === 'Fill in the Blanks') {
+            } else if (lblLower.includes('blank')) {
                 mockQ = "A [blank] is a function passed as an argument to another function, to be executed after some event.";
                 onUpdateField('blankAnswers', ["callback", "callback function"]);
-            } else if (label === 'Paragraph') {
+            } else if (lblLower.includes('tabular')) {
+                mockQ = "Analyze the logic truth table below and fill in the missing output cells for the boolean operations:";
+                onUpdateField('tableData', {
+                    headers: ["Input A", "Input B", "A AND B", "A OR B"],
+                    rows: [
+                        ["0", "0", "0", "0"],
+                        ["0", "1", "0", "1"],
+                        ["1", "0", "0", "1"],
+                        ["1", "1", "1", ""]
+                    ]
+                });
+            } else if (lblLower.includes('paragraph')) {
                 mockQ = "Compare and contrast SQL and NoSQL databases. Mention consistency, horizontal scaling, and transaction support.";
-            } else if (label === 'Voice Rec') {
+            } else if (lblLower.includes('voice') || lblLower.includes('audio') || lblLower.includes('call')) {
                 mockQ = "Please pronounce the word: 'Antigravity' and describe its meaning in physics.";
+            } else if (lblLower.includes('video')) {
+                mockQ = "Record a short video introducing yourself and explaining why you chose this course.";
+            } else if (lblLower.includes('screen') || lblLower.includes('shot')) {
+                mockQ = "Record your screen demonstrating how to run a dev server with Vite, then take a screenshot of the terminal.";
+            } else if (lblLower.includes('file') || lblLower.includes('upload')) {
+                mockQ = "Upload your solution project source files in a single zip archive:";
+            } else if (lblLower.includes('pdf')) {
+                mockQ = "Read the attached React documentation PDF and answer the questions that follow.";
+            } else if (lblLower.includes('image')) {
+                mockQ = "Look at the architectural diagram below and identify the database component.";
+            } else if (lblLower.includes('rating')) {
+                mockQ = "Rate your experience with using JavaScript Async/Await vs Promises:";
+            } else if (lblLower.includes('date') || lblLower.includes('time')) {
+                mockQ = "Select the date and time when the first astronaut landed on the Moon:";
+            } else if (lblLower.includes('assignment')) {
+                mockQ = "Create a fully functional Todo list application using React and TailwindCSS. Upload your source files as a zip.";
+            } else if (lblLower.includes('activity')) {
+                mockQ = "Participate in the hands-on keyboard speed typing test and match the target speed of 45 WPM.";
             }
 
             onUpdateText(mockQ);
@@ -2043,7 +2074,7 @@ const TestBuilder = () => {
 
     const hasActivityControl = (controlName) => {
         if (user?.role === 'Admin') return true;
-        
+
         // 1. Check parent institute allowed status
         const instAllowed = user?.institute?.controls?.activities?.[controlName] !== false;
         if (!instAllowed) return false;
@@ -2096,9 +2127,19 @@ const TestBuilder = () => {
     // AI Question Generator States
     const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
     const [aiGeneratorTargetIndex, setAiGeneratorTargetIndex] = useState(null);
-    const [aiChatMessages, setAiChatMessages] = useState([
-        { sender: 'ai', text: 'Hello! I am your Gemini AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
-    ]);
+    const [aiChatMessages, setAiChatMessages] = useState(() => {
+        try {
+            const saved = localStorage.getItem(`lms_ai_chat_messages_${id || 'new'}`);
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {
+            console.error("Failed to load AI chat history from localStorage", e);
+        }
+        return [
+            { sender: 'ai', text: 'Hello! I am your Gemini AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+        ];
+    });
     const [aiChatInput, setAiChatInput] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
     const [activeVideoId, setActiveVideoId] = useState(null);
@@ -2115,6 +2156,14 @@ const TestBuilder = () => {
             chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
     }, [aiChatMessages, isAiGeneratorOpen]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(`lms_ai_chat_messages_${id || 'new'}`, JSON.stringify(aiChatMessages));
+        } catch (e) {
+            console.error("Failed to save AI chat history to localStorage", e);
+        }
+    }, [aiChatMessages, id]);
 
     useEffect(() => {
         formElementsRef.current = formElements;
@@ -2239,19 +2288,66 @@ const TestBuilder = () => {
         const newElements = questionsList.map(q => {
             let label = 'Short Answer';
             let defaultOptions = [];
+            let defaultMatchingPairs = [];
+            let defaultBlankAnswers = [];
+            let defaultTableData = null;
 
-            if (q.options && q.options.length > 0) {
-                label = 'Multiple Choice';
-                defaultOptions = q.options.map(opt => ({
-                    text: opt,
-                    isCorrect: opt === q.correctAnswer
+            const typeLower = (q.type || '').toLowerCase();
+
+            if (typeLower === 'tabular data' || q.tableData) {
+                label = 'Tabular Data';
+                defaultTableData = q.tableData || {
+                    headers: ["Input A", "Input B", "A AND B", "A OR B"],
+                    rows: [
+                        ["0", "0", "0", "0"],
+                        ["0", "1", "0", "1"],
+                        ["1", "0", "0", "1"],
+                        ["1", "1", "1", ""]
+                    ]
+                };
+            } else if (typeLower === 'matching' || (q.matchingPairs && q.matchingPairs.length > 0)) {
+                label = 'Matching';
+                defaultMatchingPairs = q.matchingPairs || [];
+            } else if (typeLower === 'fill in the blanks' || q.blankAnswers || typeLower.includes('blank')) {
+                label = 'Fill in the Blanks';
+                defaultBlankAnswers = q.blankAnswers || (q.correctAnswer ? [q.correctAnswer] : []);
+            } else if (typeLower === 'checkboxes' || typeLower === 'checkbox') {
+                label = 'Checkboxes';
+                defaultOptions = (q.options || []).map(opt => ({
+                    text: typeof opt === 'object' ? opt.text : opt,
+                    isCorrect: typeof opt === 'object' ? !!opt.isCorrect : (Array.isArray(q.correctAnswer) ? q.correctAnswer.includes(opt) : opt === q.correctAnswer)
                 }));
-            } else if (q.correctAnswer && (q.correctAnswer.toLowerCase() === 'true' || q.correctAnswer.toLowerCase() === 'false')) {
+            } else if (typeLower === 'true/false' || typeLower === 'true false') {
                 label = 'True/False';
                 defaultOptions = [
-                    { text: 'True', isCorrect: q.correctAnswer.toLowerCase() === 'true' },
-                    { text: 'False', isCorrect: q.correctAnswer.toLowerCase() === 'false' }
+                    { text: 'True', isCorrect: String(q.correctAnswer).toLowerCase() === 'true' },
+                    { text: 'False', isCorrect: String(q.correctAnswer).toLowerCase() === 'false' }
                 ];
+            } else if (q.options && q.options.length > 0) {
+                label = typeLower.includes('dropdown') ? 'Dropdown' : 'Multiple Choice';
+                defaultOptions = q.options.map(opt => ({
+                    text: typeof opt === 'object' ? opt.text : opt,
+                    isCorrect: typeof opt === 'object' ? !!opt.isCorrect : opt === q.correctAnswer
+                }));
+            } else if (typeLower) {
+                const mappedLabels = {
+                    'short answer': 'Short Answer',
+                    'paragraph': 'Paragraph',
+                    'paragraph answer': 'Paragraph',
+                    'voice rec': 'Voice Rec',
+                    'video rec': 'Video Rec',
+                    'screen rec': 'Screen Rec',
+                    'file upload': 'File Upload',
+                    'rating': 'Rating',
+                    'date/time': 'Date/Time',
+                    'date & time': 'Date/Time',
+                    'pdf': 'PDF',
+                    'image': 'Image',
+                    'youtube': 'YouTube',
+                    'assignment': 'Assignment',
+                    'activity': 'Activity'
+                };
+                label = mappedLabels[typeLower] || 'Short Answer';
             }
 
             return {
@@ -2259,9 +2355,9 @@ const TestBuilder = () => {
                 label: label,
                 text: q.question,
                 options: defaultOptions,
-                matchingPairs: [],
-                blankAnswers: label === 'Fill in the Blanks' ? [q.correctAnswer || ''] : [],
-                tableData: null,
+                matchingPairs: defaultMatchingPairs,
+                blankAnswers: defaultBlankAnswers,
+                tableData: defaultTableData,
                 description: q.answer || '',
                 helperText: '',
                 instructions: '',
@@ -2496,8 +2592,12 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
   "questions": [
     {
       "question": "The question text here",
-      "options": ["Option A", "Option B", "Option C", "Option D"], // Include 2 or 4 options if MCQ/True-False, or keep empty array [] if short answer/paragraph/etc.
-      "correctAnswer": "Option A", // Match one option exactly if MCQ, otherwise empty string "" or short text
+      "type": "Multiple Choice | Checkboxes | True/False | Matching | Fill in the Blanks | Tabular Data | Paragraph | Short Answer | Voice Rec | Video Rec | Screen Rec | File Upload | PDF | Image | YouTube | Rating | Date/Time | Assignment | Activity",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // Include options if MCQ/True-False/Dropdown/Checkboxes, otherwise keep empty array []
+      "correctAnswer": "Option A", // Match one option exactly if MCQ or True/False. For Fill in Blanks, the answer.
+      "matchingPairs": [{"key": "Term A", "value": "Match A"}], // Only if type is Matching, otherwise empty array []
+      "blankAnswers": ["word1", "word2"], // Only if type is Fill in the Blanks, otherwise empty array []
+      "tableData": { "headers": ["Header 1", "Header 2"], "rows": [["Cell 1", "Cell 2"], ["Cell 3", ""]] }, // Only if type is Tabular Data, otherwise null. Pre-fill some cells, leave others empty "" for students to fill.
       "answer": "Model answer or explanation",
       "addons": ["Timer", "Translator it"], // Add addons if requested by user, otherwise empty array []
       "marks": 1, // Default to 1, update if user asks for specific marks
@@ -5674,8 +5774,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 {aiChatMessages.map((msg, idx) => (
                                     <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                                         <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs font-semibold shadow-sm leading-relaxed ${msg.sender === 'user'
-                                                ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                : 'bg-white text-slate-800 border border-slate-200/60 rounded-tl-none'
+                                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                                            : 'bg-white text-slate-800 border border-slate-200/60 rounded-tl-none'
                                             }`}>
                                             <p className="whitespace-pre-wrap">{msg.text}</p>
 
@@ -5741,8 +5841,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                             disabled={isAdded}
                                                                             onClick={() => handleInsertEmbeddedVideo(vid, idx)}
                                                                             className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${isAdded
-                                                                                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                                                                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                                                                                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                                                                                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
                                                                                 }`}
                                                                         >
                                                                             {isAdded ? (
@@ -5778,8 +5878,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                             disabled={msg.added}
                                                             onClick={() => handleInsertGeneratedQuestions(msg.questions, idx)}
                                                             className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${msg.added
-                                                                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                                                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                                                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                                                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
                                                                 }`}
                                                         >
                                                             {msg.added ? (

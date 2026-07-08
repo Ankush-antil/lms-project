@@ -59,7 +59,7 @@ const getMe = async (req, res) => {
         const user = await User.findById(req.user._id)
             .select('-password')
             .populate('institute', 'name imageUrl controls')
-            .populate('studentProfile.course', 'name subjects duration')
+            .populate('studentProfile.course', 'name subjects duration subjectDurations')
             .populate('teacherProfile.assignedCourses', 'name')
             .populate('teacherProfile.assignedStudents', 'name email studentProfile');
         if (user) {

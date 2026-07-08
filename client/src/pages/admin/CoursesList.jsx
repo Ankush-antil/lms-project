@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye, Filter, ChevronDown } from 'lucide-react';
 import AddCourseModal from '../../components/AddCourseModal';
 import CourseDetailsModal from '../../components/CourseDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
@@ -12,6 +12,7 @@ import RecycleBinModal from '../../components/common/RecycleBinModal';
 const CoursesList = () => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,6 +21,15 @@ const CoursesList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+
+    const uniqueInstitutes = [
+        ...new Map(
+            courses
+                .map(c => c.institute)
+                .filter(inst => inst && inst.name)
+                .map(inst => [inst._id, inst])
+        ).values()
+    ];
 
     const fetchData = async () => {
         try {
@@ -36,11 +46,16 @@ const CoursesList = () => {
 
     useEffect(() => {
         fetchData();
+        const params = new URLSearchParams(window.location.search);
+        const instId = params.get('institute');
+        if (instId) {
+            setFilterInstitute(instId);
+        }
     }, []);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterInstitute]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this course? This will affect students and teachers enrolled in it.')) {
@@ -54,11 +69,18 @@ const CoursesList = () => {
         }
     };
 
-    const filteredCourses = courses.filter(course =>
-        course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.institute?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredCourses = courses.filter(course => {
+        const matchesSearch = 
+            course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            course.institute?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+        const matchesInstitute = 
+            filterInstitute === 'All' || 
+            (course.institute && (course.institute._id === filterInstitute || course.institute === filterInstitute));
+            
+        return matchesSearch && matchesInstitute;
+    });
 
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
@@ -94,17 +116,37 @@ const CoursesList = () => {
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            {/* Search and Filters */}
+            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full mb-6">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
                         placeholder="Search courses, codes or institutes..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-305 transition-all"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
                     />
+                </div>
+
+                <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                    {/* Institute Filter */}
+                    {user?.role === 'Admin' && uniqueInstitutes.length > 0 && (
+                        <div className="relative w-[190px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {uniqueInstitutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -175,6 +175,7 @@ const TeacherActivities = () => {
     const [viewMode, setViewMode] = useState('pending'); // 'pending' | 'submitted' | 'evaluated' | 'chat' | 'analytics'
     const [searchQuery, setSearchQuery] = useState('');
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
+    const [expandedSubjects, setExpandedSubjects] = useState({});
     const [subjectFilter, setSubjectFilter] = useState('All');
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [loading, setLoading] = useState(false);
@@ -916,6 +917,150 @@ const TeacherActivities = () => {
         });
     }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
 
+    const subjectDaysMapping = useMemo(() => {
+        if (!selectedStudent || !selectedStudent.studentProfile?.course) return [];
+        const course = selectedStudent.studentProfile.course;
+        const subjects = course.subjects || [];
+        const durations = course.subjectDurations || [];
+        const totalDuration = course.duration || 5;
+
+        let currentDayIndex = 1;
+        const mapping = [];
+
+        if (durations && durations.length > 0) {
+            durations.forEach(d => {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const daysList = [];
+                for (let i = 1; i <= subDur; i++) {
+                    if (currentDayIndex <= totalDuration) {
+                        daysList.push({
+                            dayNum: i,
+                            indexNum: currentDayIndex,
+                            id: `Index ${currentDayIndex}`
+                        });
+                        currentDayIndex++;
+                    }
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: daysList
+                    });
+                }
+            });
+        }
+
+        if (currentDayIndex <= totalDuration) {
+            const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
+            const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
+
+            if (remainingSubjects.length > 0) {
+                const remainingDays = totalDuration - currentDayIndex + 1;
+                const daysPerSubject = Math.floor(remainingDays / remainingSubjects.length);
+                const extraDays = remainingDays % remainingSubjects.length;
+
+                remainingSubjects.forEach((subName, idx) => {
+                    const subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
+                    const daysList = [];
+                    for (let i = 1; i <= subDur; i++) {
+                        if (currentDayIndex <= totalDuration) {
+                            daysList.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Index ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                    }
+                    if (daysList.length > 0) {
+                        mapping.push({
+                            subjectName: subName,
+                            days: daysList
+                        });
+                    }
+                });
+            } else {
+                const daysList = [];
+                let dayCounter = 1;
+                while (currentDayIndex <= totalDuration) {
+                    daysList.push({
+                        dayNum: dayCounter,
+                        indexNum: currentDayIndex,
+                        id: `Index ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                    dayCounter++;
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: 'Other Subjects',
+                        days: daysList
+                    });
+                }
+            }
+        }
+
+        if (mapping.length === 0) {
+            const daysList = [];
+            for (let i = 1; i <= totalDuration; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: i,
+                    id: `Index ${i}`
+                });
+            }
+            mapping.push({
+                subjectName: 'General',
+                days: daysList
+            });
+        }
+
+        return mapping;
+    }, [selectedStudent]);
+
+    useEffect(() => {
+        if (subjectDaysMapping.length > 0) {
+            const initial = {};
+            subjectDaysMapping.forEach(g => {
+                initial[g.subjectName] = true;
+            });
+            setExpandedSubjects(initial);
+        }
+    }, [subjectDaysMapping]);
+
+    const groupedInboxItems = useMemo(() => {
+        return subjectDaysMapping.map(group => {
+            if (subjectFilter !== 'All' && group.subjectName.toLowerCase() !== subjectFilter.toLowerCase()) {
+                return null;
+            }
+
+            const matchedDays = group.days.map(day => {
+                const inboxItem = dynamicInboxItems.find(item => item.id?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                if (!inboxItem) return null;
+
+                const matchesSearch = getDisplayTitle(inboxItem.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
+                if (!matchesSearch) return null;
+
+                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Day ${day.dayNum}`;
+                const titleWithIndex = `${cleanDisplayName} (Index ${day.indexNum})`;
+
+                return {
+                    ...inboxItem,
+                    displayTitle: titleWithIndex,
+                    dayNum: day.dayNum,
+                    indexNum: day.indexNum
+                };
+            }).filter(Boolean);
+
+            return {
+                subjectName: group.subjectName,
+                days: matchedDays
+            };
+        }).filter(Boolean).filter(group => group.days.length > 0);
+    }, [subjectDaysMapping, dynamicInboxItems, inboxSearchQuery, subjectFilter, inboxConfigs]);
+
     // Reset filter when student changes
     useEffect(() => {
         setSubjectFilter('All');
@@ -1023,20 +1168,33 @@ const TeacherActivities = () => {
     const uniqueSubjects = useMemo(() => {
         if (!selectedStudent || !userInfo) return [];
         const studentSubject = selectedStudent.studentProfile?.subject?.trim() || '';
-        if (!studentSubject) return [];
+        let baseSubjects = [];
+        if (studentSubject) {
+            baseSubjects = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (selectedStudent.studentProfile?.course) {
+            const course = selectedStudent.studentProfile.course;
+            const courseSubs = course.subjects || [];
+            const durations = course.subjectDurations || [];
+            const allSubs = new Set();
+            courseSubs.forEach(s => {
+                if (s) allSubs.add(s.trim());
+            });
+            durations.forEach(d => {
+                if (d && d.subjectName) allSubs.add(d.subjectName.trim());
+            });
+            baseSubjects = Array.from(allSubs);
+        }
         
-        const studentSubsOriginal = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
-        const uniqueOriginals = Array.from(new Set(studentSubsOriginal));
+        const uniqueOriginals = Array.from(new Set(baseSubjects));
 
         if (userInfo.role !== 'Teacher') {
             return uniqueOriginals;
         }
 
-        const studentSubs = studentSubject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const baseSubsLower = uniqueOriginals.map(s => s.toLowerCase());
         const teacherSubs = userInfo.teacherProfile?.subjects?.map(s => s.trim().toLowerCase()) || [];
         
-        // Intersect student subjects with teacher subjects
-        const commonSubs = studentSubs.filter(sub => teacherSubs.includes(sub));
+        const commonSubs = baseSubsLower.filter(sub => teacherSubs.includes(sub));
         return uniqueOriginals.filter(sub => commonSubs.includes(sub.toLowerCase()));
     }, [selectedStudent, userInfo]);
 
@@ -1430,137 +1588,167 @@ const TeacherActivities = () => {
                                             <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
                                             <p className="text-xs text-slate-450 font-semibold">Loading activities...</p>
                                         </div>
-                                    ) : filteredInboxItems.length > 0 ? (
-                                        filteredInboxItems.map(item => {
-                                            const isActive = selectedInboxId === item.id;
-                                            const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
-                                            const isInboxDisabled = item.disabled;
-
+                                    ) : groupedInboxItems.length > 0 ? (
+                                        groupedInboxItems.map(group => {
+                                            const isExpanded = expandedSubjects[group.subjectName] !== false;
                                             return (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={() => {
-                                                        setSelectedInboxId(item.id);
-                                                        setSelectedCategory(null);
-                                                        if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
-                                                            setViewMode('pending');
-                                                        }
-                                                    }}
-                                                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
-                                                        ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
-                                                        : isInboxDisabled
-                                                            ? 'border-slate-200 bg-slate-50/40 opacity-70 hover:shadow-none hover:border-slate-200'
-                                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center space-x-2.5 min-w-0">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive 
-                                                            ? 'bg-[#3E3ADD] text-white shadow-sm' 
-                                                            : isInboxDisabled 
-                                                                ? 'bg-slate-200 text-slate-400' 
-                                                                : 'bg-slate-100 text-slate-500'
-                                                            }`}>
-                                                            {isInboxDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
+                                                <div key={group.subjectName} className="space-y-1.5 animate-fade-in mb-3">
+                                                    <div
+                                                        onClick={() => setExpandedSubjects(prev => ({
+                                                            ...prev,
+                                                            [group.subjectName]: !isExpanded
+                                                        }))}
+                                                        className="flex items-center justify-between p-2.5 bg-slate-100/70 hover:bg-slate-200/50 rounded-xl cursor-pointer select-none text-[11px] font-black text-slate-700 tracking-wide transition-all uppercase"
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>{group.subjectName}</span>
+                                                            <span className="text-[9px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full font-bold">
+                                                                {group.days.length}
+                                                            </span>
                                                         </div>
-                                                        <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${(!item.visible || isInboxDisabled) ? 'opacity-60' : ''}`}>
-                                                            {getDisplayTitle(item.title)}
-                                                            {!item.visible && (
-                                                                <span className="ml-1 text-[9px] font-black text-red-500 bg-red-50 px-1 py-0.5 rounded shrink-0">
-                                                                    Hidden
-                                                                </span>
-                                                            )}
-                                                            {isInboxDisabled && (
-                                                                <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
-                                                                    Locked
-                                                                </span>
-                                                            )}
-                                                        </h3>
+                                                        <div>
+                                                            {isExpanded ? <ChevronDown size={12} className="text-slate-400" /> : <ChevronRight size={12} className="text-slate-400" />}
+                                                        </div>
                                                     </div>
 
-                                                    <div className="relative shrink-0 flex items-center space-x-1">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (firstTest) setInfoModalData(firstTest);
-                                                            }}
-                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                                : 'border-slate-200 text-slate-400 bg-white'
-                                                                }`}
-                                                            title="Inbox Details"
-                                                        >
-                                                            <Info size={12} />
-                                                        </button>
+                                                    {/* Days List under this Subject */}
+                                                    {isExpanded && (
+                                                        <div className="space-y-1.5 pl-1.5 border-l border-slate-200/65 ml-2">
+                                                            {group.days.map(item => {
+                                                                const isActive = selectedInboxId === item.id;
+                                                                const firstTest = item.tests && item.tests.length > 0 ? item.tests[0] : null;
+                                                                const isInboxDisabled = item.disabled;
 
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveDropdownInboxId(activeDropdownInboxId === item.id ? null : item.id);
-                                                            }}
-                                                            className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
-                                                                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
-                                                                : 'border-slate-200 text-slate-400 bg-white'
-                                                                }`}
-                                                            title="Settings"
-                                                        >
-                                                            <MoreVertical size={12} />
-                                                        </button>
+                                                                return (
+                                                                    <div
+                                                                        key={item.id}
+                                                                        onClick={() => {
+                                                                            setSelectedInboxId(item.id);
+                                                                            setSelectedCategory(null);
+                                                                            if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'student-feedback', 'chat', 'analytics'].includes(viewMode)) {
+                                                                                setViewMode('pending');
+                                                                            }
+                                                                        }}
+                                                                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isActive
+                                                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 shadow-sm ring-1 ring-[#3E3ADD]/10'
+                                                                            : isInboxDisabled
+                                                                                ? 'border-slate-200 bg-slate-50/40 opacity-70 hover:shadow-none hover:border-slate-200'
+                                                                                : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 hover:bg-slate-50/30'
+                                                                            }`}
+                                                                    >
+                                                                        <div className="flex items-center space-x-2.5 min-w-0">
+                                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive 
+                                                                                ? 'bg-[#3E3ADD] text-white shadow-sm' 
+                                                                                : isInboxDisabled 
+                                                                                    ? 'bg-slate-200 text-slate-400' 
+                                                                                    : 'bg-slate-100 text-slate-500'
+                                                                                }`}>
+                                                                                {isInboxDisabled ? <Lock size={12} /> : <BookOpen size={14} />}
+                                                                            </div>
+                                                                            <h3 className={`font-bold text-xs truncate flex items-center ${isActive ? 'text-indigo-900' : 'text-slate-700'} ${(!item.visible || isInboxDisabled) ? 'opacity-60' : ''}`}>
+                                                                                {item.displayTitle}
+                                                                                {!item.visible && (
+                                                                                    <span className="ml-1 text-[9px] font-black text-red-500 bg-red-50 px-1 py-0.5 rounded shrink-0">
+                                                                                        Hidden
+                                                                                    </span>
+                                                                                )}
+                                                                                {isInboxDisabled && (
+                                                                                    <span className="ml-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded shrink-0">
+                                                                                        Locked
+                                                                                    </span>
+                                                                                )}
+                                                                            </h3>
+                                                                        </div>
 
-                                                        {activeDropdownInboxId === item.id && (
-                                                            <>
-                                                                <div
-                                                                    className="fixed inset-0 z-40 bg-transparent"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setActiveDropdownInboxId(null);
-                                                                    }}
-                                                                />
-                                                                <div
-                                                                    className="absolute right-0 top-7 bg-white border border-slate-150 rounded-xl shadow-xl py-1 z-50 w-44 animate-fade-in text-slate-705 text-left"
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                >
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
-                                                                            const currentDisplayName = config ? config.displayName : '';
-                                                                            openBulkInboxConfigModal(item.id, !item.visible, item.disabled, currentDisplayName, 'hide');
-                                                                        }}
-                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
-                                                                    >
-                                                                        <span>Visible to Student</span>
-                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: item.visible ? '#3E3ADD' : '#cbd5e1' }}>
-                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: item.visible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                        <div className="relative shrink-0 flex items-center space-x-1">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (firstTest) setInfoModalData(firstTest);
+                                                                                }}
+                                                                                className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                                    : 'border-slate-200 text-slate-400 bg-white'
+                                                                                    }`}
+                                                                                title="Inbox Details"
+                                                                            >
+                                                                                <Info size={12} />
+                                                                            </button>
+
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setActiveDropdownInboxId(activeDropdownInboxId === item.id ? null : item.id);
+                                                                                }}
+                                                                                className={`p-1 rounded-full border transition-all shrink-0 hover:bg-slate-150 ${isActive
+                                                                                    ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                                                                                    : 'border-slate-200 text-slate-400 bg-white'
+                                                                                    }`}
+                                                                                title="Settings"
+                                                                            >
+                                                                                <MoreVertical size={12} />
+                                                                            </button>
+
+                                                                            {activeDropdownInboxId === item.id && (
+                                                                                <>
+                                                                                    <div
+                                                                                        className="fixed inset-0 z-40 bg-transparent"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveDropdownInboxId(null);
+                                                                                        }}
+                                                                                    />
+                                                                                    <div
+                                                                                        className="absolute right-0 top-7 bg-white border border-slate-150 rounded-xl shadow-xl py-1 z-50 w-44 animate-fade-in text-slate-705 text-left"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    >
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                const currentDisplayName = config ? config.displayName : '';
+                                                                                                openBulkInboxConfigModal(item.id, !item.visible, item.disabled, currentDisplayName, 'hide');
+                                                                                            }}
+                                                                                            className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
+                                                                                        >
+                                                                                            <span>Visible to Student</span>
+                                                                                            <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: item.visible ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: item.visible ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </div>
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                const currentDisplayName = config ? config.displayName : '';
+                                                                                                openBulkInboxConfigModal(item.id, item.visible, !item.disabled, currentDisplayName, 'disable');
+                                                                                            }}
+                                                                                            className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
+                                                                                        >
+                                                                                            <span>Enable Inbox</span>
+                                                                                            <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !item.disabled ? '#3E3ADD' : '#cbd5e1' }}>
+                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !item.disabled ? 'translateX(16px)' : 'translateX(0px)' }} />
+                                                                                            </div>
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setRenameInboxId(item.id);
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                setRenameValue(config && config.displayName ? config.displayName : item.id);
+                                                                                                setActiveDropdownInboxId(null);
+                                                                                            }}
+                                                                                            className="w-full px-3 py-1.5 hover:bg-slate-50 text-[10px] font-extrabold text-left transition-colors border-t border-slate-100 flex items-center gap-1.5"
+                                                                                        >
+                                                                                            <span>✏️ </span>
+                                                                                            <span>Rename Inbox</span>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </>
+                                                                            )}
                                                                         </div>
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
-                                                                            const currentDisplayName = config ? config.displayName : '';
-                                                                            openBulkInboxConfigModal(item.id, item.visible, !item.disabled, currentDisplayName, 'disable');
-                                                                        }}
-                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
-                                                                    >
-                                                                        <span>Enable Inbox</span>
-                                                                        <div className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200" style={{ backgroundColor: !item.disabled ? '#3E3ADD' : '#cbd5e1' }}>
-                                                                            <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !item.disabled ? 'translateX(16px)' : 'translateX(0px)' }} />
-                                                                        </div>
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setRenameInboxId(item.id);
-                                                                            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
-                                                                            setRenameValue(config && config.displayName ? config.displayName : item.id);
-                                                                            setActiveDropdownInboxId(null);
-                                                                        }}
-                                                                        className="w-full px-3 py-1.5 hover:bg-slate-50 text-[10px] font-extrabold text-left transition-colors border-t border-slate-100 flex items-center gap-1.5"
-                                                                    >
-                                                                        <span>✏️ </span>
-                                                                        <span>Rename Inbox</span>
-                                                                    </button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })

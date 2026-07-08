@@ -226,6 +226,7 @@ const userSchema = new mongoose.Schema({
                 chatStudent: { type: Boolean, default: true },
                 chatEditor: { type: Boolean, default: true },
                 chatInstitute: { type: Boolean, default: true }
+            }
         }
     },
     editorProfile: {

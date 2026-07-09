@@ -243,12 +243,11 @@ const updatePermissions = asyncHandler(async (req, res) => {
         return res.status(404).json({ message: 'Request not found' });
     }
 
-    // Either sender or receiver can update permissions
+    // Only the original sender can update permissions
     const isSender = request.sender.toString() === req.user._id.toString();
-    const isReceiver = request.receiver.toString() === req.user._id.toString();
 
-    if (!isSender && !isReceiver) {
-        return res.status(403).json({ message: 'Not authorized to change chat permissions' });
+    if (!isSender) {
+        return res.status(403).json({ message: 'Only the sender of the request can change permissions' });
     }
 
     request.permissions.audioCall = audioCall === true;
@@ -257,6 +256,7 @@ const updatePermissions = asyncHandler(async (req, res) => {
 
     res.json(request);
 });
+
 
 // @desc    Get all pending requests received by current user
 // @route   GET /api/chat/request/pending

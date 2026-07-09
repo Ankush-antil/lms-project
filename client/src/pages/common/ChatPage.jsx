@@ -50,6 +50,7 @@ const ChatPage = () => {
     const [searchingDirectory, setSearchingDirectory] = useState(false);
 
     const [customLists, setCustomLists] = useState([]);
+    const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
 
     // Lists creation flow states
     const [showListsIntro, setShowListsIntro] = useState(false);
@@ -1939,7 +1940,7 @@ const ChatPage = () => {
                                         <Search size={16} />
                                     </button>
 
-                                    {chatRequest?.status === 'accepted' && (
+                                    {chatRequest?.status === 'accepted' && chatRequest?.sender === String(user?._id) && (
                                         <button
                                             type="button"
                                             onClick={() => setShowPermissionsModal(true)}
@@ -1949,6 +1950,7 @@ const ChatPage = () => {
                                             <Pencil size={16} />
                                         </button>
                                     )}
+
 
                                     {/* Audio Call Button */}
                                     {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (

@@ -2153,6 +2153,18 @@ const TestBuilder = () => {
     ]);
     const [aiChatInput, setAiChatInput] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef(null);
+
+    // Clean up speech recognition on unmount
+    useEffect(() => {
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
+            }
+        };
+    }, []);
+
     const [activeVideoId, setActiveVideoId] = useState(null);
     const [addedVideoUrls, setAddedVideoUrls] = useState([]);
     
@@ -2679,6 +2691,57 @@ const TestBuilder = () => {
             setAiAttachmentPreview('');
             setAiAttachmentType('');
         }
+    };
+
+    const handleVoiceTyping = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast.error("Voice typing is not supported in this browser. Please use Google Chrome or Edge.");
+            return;
+        }
+
+        if (isListening) {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+            setIsListening(false);
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-IN'; // Indian English / Hinglish support
+
+        recognition.onstart = () => {
+            setIsListening(true);
+            toast('Listening... Speak now!', { icon: '🎙️' });
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            if (transcript) {
+                setAiChatInput(prev => prev ? prev + ' ' + transcript : transcript);
+                toast.success("Voice input added!");
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error", event);
+            if (event.error === 'not-allowed') {
+                toast.error("Microphone access denied. Please check your browser settings.");
+            } else {
+                toast.error(`Voice error: ${event.error}`);
+            }
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
     };
 
     const handleSendChatMessage = async () => {
@@ -6174,6 +6237,19 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         title="Attach Image or PDF"
                                     >
                                         <Paperclip size={14} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleVoiceTyping}
+                                        disabled={aiGenerating || aiParsingPdf}
+                                        className={`p-2.5 border rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 ${
+                                            isListening
+                                                ? 'bg-rose-50 border-rose-200 text-rose-650 animate-pulse'
+                                                : 'text-slate-500 hover:text-indigo-650 hover:bg-slate-50 border-slate-200 bg-white'
+                                        }`}
+                                        title={isListening ? "Stop Listening" : "Voice Typing (Speech to Text)"}
+                                    >
+                                        <Mic size={14} />
                                     </button>
                                     <input
                                         type="text"

@@ -9,8 +9,10 @@ import DashboardLayout from '../../../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { getTodayDdMmYyyy } from '../../../utils/dateUtils';
+import { useAuth } from '../../../context/AuthContext';
 
 const NotesPage = () => {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -31,6 +33,7 @@ const NotesPage = () => {
     const [content, setContent] = useState('');
     const [shareWithTeacher, setShareWithTeacher] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [notesTab, setNotesTab] = useState('saved'); // 'saved' | 'drafts'
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -155,6 +158,7 @@ const NotesPage = () => {
             const { data } = await axios.post('/api/notes', payload);
 
             toast.success(selectedNote && !selectedNote.isDraft ? "Note updated successfully!" : "Note saved successfully!");
+            setNotesTab('saved');
 
             // If it was a draft, remove it from drafts
             if (selectedNote?.isDraft) {
@@ -210,6 +214,7 @@ const NotesPage = () => {
         });
 
         setSelectedNote(newDraft);
+        setNotesTab('drafts');
         toast.success("Note saved as draft locally!");
     };
 
@@ -260,12 +265,13 @@ const NotesPage = () => {
         if (inboxParam) {
             navigate(`/student/tests?tab=practice`);
         } else {
-            navigate(`/student/practice-tools?date=${dateParam || todayDdMmYyyy}`);
+            const rolePath = user?.role ? `/${user.role.toLowerCase()}` : '/student';
+            navigate(rolePath);
         }
     };
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
             <div className="flex flex-col h-[calc(100vh-120px)] bg-slate-50/50 rounded-3xl border border-slate-200 overflow-hidden font-sans">
 
                 {/* Header Navbar */}
@@ -293,18 +299,58 @@ const NotesPage = () => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleNewNote}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95"
-                    >
-                        <Plus size={14} />
-                        <span>New Note</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {/* Tab Switcher */}
+                        <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/50 select-none">
+                            <button
+                                type="button"
+                                onClick={() => setNotesTab('saved')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    notesTab === 'saved'
+                                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20'
+                                        : 'text-slate-500 hover:text-slate-850'
+                                }`}
+                            >
+                                <span>Saved</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                                    notesTab === 'saved' ? 'bg-indigo-50 text-indigo-750' : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                    {filteredNotes.length}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setNotesTab('drafts')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    notesTab === 'drafts'
+                                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20'
+                                        : 'text-slate-500 hover:text-slate-850'
+                                }`}
+                            >
+                                <span>Drafts</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                                    notesTab === 'drafts' ? 'bg-yellow-50 text-yellow-750' : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                    {drafts.length}
+                                </span>
+                            </button>
+                        </div>
+
+                        {/* New Note Button */}
+                        <button
+                            type="button"
+                            onClick={handleNewNote}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+                        >
+                            <Plus size={14} />
+                            <span>New Note</span>
+                        </button>
+                    </div>
                 </header>
 
                 <div className="flex-1 flex overflow-hidden">
                     {/* Left Sidebar - Note List */}
-                    <aside className="w-80 border-r border-slate-200 bg-white flex flex-col shrink-0 overflow-hidden">
+                    <aside className="w-80 border-r border-slate-200 bg-white flex flex-col shrink-0 overflow-hidden text-left">
                         <div className="p-4 border-b border-slate-100 shrink-0">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -319,90 +365,97 @@ const NotesPage = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-50/10">
-                            {/* --- Draft Content --- */}
-                            <div className="space-y-2">
-                                <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                                    <span>Draft Content</span>
-                                    <span className="px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[9px] font-bold">
-                                        {drafts.length}
-                                    </span>
-                                </h4>
-                                {drafts.length === 0 ? (
-                                    <p className="text-[10px] text-slate-400 italic px-2 py-1 text-left">No drafts</p>
-                                ) : (
-                                    drafts.map(draft => {
-                                        const isActive = selectedNote?.isDraft && selectedNote?.id === draft.id;
-                                        const snippet = draft.content ? (draft.content.length > 35 ? `${draft.content.substring(0, 35)}...` : draft.content) : 'No content...';
-                                        return (
-                                            <div
-                                                key={draft.id}
-                                                onClick={() => handleSelectNote(draft)}
-                                                className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
-                                                    ? 'border-yellow-500 bg-yellow-50/20 shadow-sm ring-1 ring-yellow-500/10'
-                                                    : 'border-slate-100 bg-white hover:border-yellow-500/40 hover:bg-slate-50/30'
-                                                    }`}
-                                            >
-                                                <h3 className={`font-bold text-xs truncate ${isActive ? 'text-yellow-900' : 'text-slate-700'}`}>
-                                                    {draft.title || 'Untitled Draft'}
-                                                </h3>
-                                                <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-
-                            <hr className="border-slate-150" />
-
-                            {/* --- Saved Content --- */}
-                            <div className="space-y-2">
-                                <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                                    <span>Saved Content</span>
-                                    <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-805 text-[9px] font-bold">
-                                        {filteredNotes.length}
-                                    </span>
-                                </h4>
-                                {loading && notes.length === 0 ? (
-                                    <div className="space-y-3">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />
-                                        ))}
-                                    </div>
-                                ) : filteredNotes.length === 0 ? (
-                                    <p className="text-[10px] text-slate-400 italic px-2 py-1 text-left">No saved notes</p>
-                                ) : (
-                                    filteredNotes.map(note => {
-                                        const isActive = selectedNote && !selectedNote.isDraft && selectedNote._id === note._id;
-                                        const snippet = note.content ? (note.content.length > 35 ? `${note.content.substring(0, 35)}...` : note.content) : 'No content...';
-                                        return (
-                                            <div
-                                                key={note._id}
-                                                onClick={() => handleSelectNote(note)}
-                                                className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
-                                                    ? 'border-indigo-500 bg-indigo-50/20 shadow-sm ring-1 ring-indigo-500/10'
-                                                    : 'border-slate-100 bg-white hover:border-indigo-500/40 hover:bg-slate-50/30'
-                                                    }`}
-                                            >
-                                                <div className="flex justify-between items-start gap-2">
-                                                    <h3 className={`font-bold text-xs truncate flex-1 ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                                        {note.title}
-                                                    </h3>
-                                                    {note.shareWithTeacher ? (
-                                                        <span className="shrink-0 text-emerald-600 bg-emerald-50 p-0.5 rounded-lg" title="Shared with Teacher">
-                                                            <Eye size={8} />
-                                                        </span>
-                                                    ) : (
-                                                        <span className="shrink-0 text-slate-400 bg-slate-50 p-0.5 rounded-lg" title="Private">
-                                                            <EyeOff size={8} />
-                                                        </span>
-                                                    )}
+                            {notesTab === 'drafts' ? (
+                                /* --- Draft Content --- */
+                                <div className="space-y-2">
+                                    <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                        <span>Draft Content</span>
+                                        <span className="px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[9px] font-bold">
+                                            {drafts.length}
+                                        </span>
+                                    </h4>
+                                    {drafts.length === 0 ? (
+                                        <p className="text-[10px] text-slate-400 italic px-2 py-4 text-left">No drafts found</p>
+                                    ) : (
+                                        drafts
+                                            .filter(draft => 
+                                                draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                draft.content.toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map(draft => {
+                                                const isActive = selectedNote?.isDraft && selectedNote?.id === draft.id;
+                                                const snippet = draft.content ? (draft.content.length > 35 ? `${draft.content.substring(0, 35)}...` : draft.content) : 'No content...';
+                                                return (
+                                                    <div
+                                                        key={draft.id}
+                                                        onClick={() => handleSelectNote(draft)}
+                                                        className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
+                                                            ? 'border-yellow-500 bg-yellow-50/20 shadow-sm ring-1 ring-yellow-500/10'
+                                                            : 'border-slate-100 bg-white hover:border-yellow-500/40 hover:bg-slate-50/30'
+                                                            }`}
+                                                    >
+                                                        <h3 className={`font-bold text-xs truncate ${isActive ? 'text-yellow-900' : 'text-slate-700'}`}>
+                                                            {draft.title || 'Untitled Draft'}
+                                                        </h3>
+                                                        <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            ) : (
+                                /* --- Saved Content --- */
+                                <div className="space-y-2">
+                                    <h4 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                        <span>Saved Content</span>
+                                        <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-805 text-[9px] font-bold">
+                                            {filteredNotes.length}
+                                        </span>
+                                    </h4>
+                                    {loading && notes.length === 0 ? (
+                                        <div className="space-y-3">
+                                            {[1, 2, 3].map(i => (
+                                                <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />
+                                            ))}
+                                        </div>
+                                    ) : filteredNotes.length === 0 ? (
+                                        <p className="text-[10px] text-slate-400 italic px-2 py-4 text-left">No saved notes found</p>
+                                    ) : (
+                                        filteredNotes.map(note => {
+                                            const isActive = selectedNote && !selectedNote.isDraft && selectedNote._id === note._id;
+                                            const snippet = note.content ? (note.content.length > 35 ? `${note.content.substring(0, 35)}...` : note.content) : 'No content...';
+                                            return (
+                                                <div
+                                                    key={note._id}
+                                                    onClick={() => handleSelectNote(note)}
+                                                    className={`p-3 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative group ${isActive
+                                                        ? 'border-indigo-500 bg-indigo-50/20 shadow-sm ring-1 ring-indigo-500/10'
+                                                        : 'border-slate-100 bg-white hover:border-indigo-500/40 hover:bg-slate-50/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <h3 className={`font-bold text-xs truncate flex-1 ${isActive ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                            {note.title}
+                                                        </h3>
+                                                        {user?.role === 'Student' && (
+                                                            note.shareWithTeacher ? (
+                                                                <span className="shrink-0 text-emerald-600 bg-emerald-50 p-0.5 rounded-lg" title="Shared with Teacher">
+                                                                    <Eye size={8} />
+                                                                </span>
+                                                            ) : (
+                                                                <span className="shrink-0 text-slate-400 bg-slate-50 p-0.5 rounded-lg" title="Private">
+                                                                    <EyeOff size={8} />
+                                                                </span>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
                                                 </div>
-                                                <p className="text-[10px] text-slate-400 truncate">{snippet}</p>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </aside>
 
@@ -412,21 +465,25 @@ const NotesPage = () => {
                             {/* Editor Toolbar / Header */}
                             <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/30">
                                 {/* Share Toggle Switch */}
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <Share2 size={14} className={shareWithTeacher ? 'text-indigo-600' : 'text-slate-400'} />
-                                        <span className="text-xs font-semibold text-slate-655">Share with Instructor</span>
+                                {user?.role === 'Student' ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <Share2 size={14} className={shareWithTeacher ? 'text-indigo-600' : 'text-slate-400'} />
+                                            <span className="text-xs font-semibold text-slate-655">Share with Instructor</span>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={shareWithTeacher}
+                                                onChange={(e) => setShareWithTeacher(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={shareWithTeacher}
-                                            onChange={(e) => setShareWithTeacher(e.target.checked)}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
+                                ) : (
+                                    <div />
+                                )}
 
                                 <div className="flex items-center gap-2">
                                     <button

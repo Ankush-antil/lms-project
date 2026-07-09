@@ -12,6 +12,9 @@ import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
+import AccountantsList from './pages/admin/AccountantsList';
+import MarketersList from './pages/admin/MarketersList';
+import AdminDrive from './pages/admin/AdminDrive';
 
 import TestsList from './pages/admin/TestsList';
 import TestBuilder from './pages/admin/TestBuilder';
@@ -157,6 +160,16 @@ function App() {
                                         <AdminFeePortal />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/drive" element={
+                                    <PrivateRoute role="Institute">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/notes" element={
+                                    <PrivateRoute role="Institute">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
 
                                 {/* Admin Routes */}
                                 <Route path="/admin" element={
@@ -219,6 +232,31 @@ function App() {
                                 <Route path="/admin/chat" element={
                                     <PrivateRoute role="Admin">
                                         <ChatPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/accountants" element={
+                                    <PrivateRoute role="Admin">
+                                        <AccountantsList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/marketers" element={
+                                    <PrivateRoute role="Admin">
+                                        <MarketersList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/attendance-portal" element={
+                                    <PrivateRoute role="Admin">
+                                        <TeacherAttendance />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/drive" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/notes" element={
+                                    <PrivateRoute role="Admin">
+                                        <NotesPage />
                                     </PrivateRoute>
                                 } />
                                 {/* <Route path="/admin/tools" element={
@@ -292,6 +330,16 @@ function App() {
                                         <ChatPage />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/editor/drive" element={
+                                    <PrivateRoute role="Editor">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/editor/notes" element={
+                                    <PrivateRoute role="Editor">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
 
                                 {/* Teacher Routes */}
                                 <Route path="/teacher" element={
@@ -339,7 +387,12 @@ function App() {
 
                                 <Route path="/teacher/drive" element={
                                     <PrivateRoute role="Teacher">
-                                        <TeacherDrive />
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/notes" element={
+                                    <PrivateRoute role="Teacher">
+                                        <NotesPage />
                                     </PrivateRoute>
                                 } />
 
@@ -379,6 +432,11 @@ function App() {
                                         <ChatPage />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/student/drive" element={
+                                    <PrivateRoute role="Student">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/student/test-result/:id" element={
                                     <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
                                         <ViewTestResult />
@@ -414,7 +472,7 @@ function App() {
                                         <FileUploadPage />
                                     </PrivateRoute>
                                 } />
-                                <Route path="/student/practice-tools/notes" element={
+                                <Route path="/student/notes" element={
                                     <PrivateRoute role="Student">
                                         <NotesPage />
                                     </PrivateRoute>

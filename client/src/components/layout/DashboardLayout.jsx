@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
-    BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive
+    BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
+    Calculator, Megaphone, Calendar, StickyNote
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -153,8 +155,15 @@ const menuItems = {
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
+        { name: 'Accountants', icon: Calculator, path: '/admin/accountants' },
+        { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
+        { name: 'Fees Portal', icon: CreditCard, path: '/admin/fee-portal' },
+        { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
-        { name: 'Activities Builder', icon: PenTool, path: '/admin/activities-builder' },
+        { name: 'Tools', icon: PenTool, path: '/admin/activities-builder' },
+        { name: 'Chat', icon: MessageSquare, path: '/admin/chat' },
+        { name: 'Drive', icon: HardDrive, path: '/admin/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/admin/notes' }
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -164,9 +173,11 @@ const menuItems = {
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/institute/subjects' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
-        { name: 'Activities Builder', icon: PenTool, path: '/institute/activities-builder' },
+        { name: 'Tools', icon: PenTool, path: '/institute/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
         { name: 'Fee Portal', icon: CreditCard, path: '/institute/fee-portal' },
+        { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/institute/notes' }
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
@@ -174,8 +185,9 @@ const menuItems = {
         { name: 'Drive', icon: HardDrive, path: '/teacher/drive' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
         { name: 'Snapshots', icon: ClipboardCheck, path: '/teacher/snapshots' },
-        { name: 'Activities Builder', icon: ClipboardCheck, path: '/teacher/activities-builder' },
+        { name: 'Tools', icon: PenTool, path: '/teacher/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/teacher/chat' },
+        { name: 'Notes', icon: StickyNote, path: '/teacher/notes' },
     ],
     Editor: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
@@ -183,8 +195,10 @@ const menuItems = {
         { name: 'Courses', icon: ClipboardCheck, path: '/editor/courses' },
         { name: 'Subjects', icon: ClipboardCheck, path: '/editor/subjects' },
         { name: 'Activities', icon: ClipboardCheck, path: '/editor/activities' },
-        { name: 'Activities Builder', icon: ClipboardCheck, path: '/editor/activities-builder' },
+        { name: 'Tools', icon: ClipboardCheck, path: '/editor/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/editor/chat' },
+        { name: 'Drive', icon: HardDrive, path: '/editor/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/editor/notes' }
     ],
     Student: [
         { name: 'My Activities', icon: FileText, path: '/student/tests' },
@@ -192,7 +206,9 @@ const menuItems = {
         { name: 'Fee Portal', icon: Wallet, path: '/student/fee-portal' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
         { name: 'My SnapShots', icon: BarChart3, path: '/student/performance' },
-        { name: 'Chat', icon: MessageSquare, path: '/student/chat' }
+        { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
+        { name: 'Drive', icon: HardDrive, path: '/student/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/student/notes' },
     ]
 };
 
@@ -377,7 +393,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const handleLogout = () => logout();
     const safeRole = role || 'Admin';
     const showBell = safeRole === 'Teacher' || safeRole === 'Student';
-    
+
     const savedAccounts = (() => {
         try {
             const listStr = localStorage.getItem('lmsSavedAccounts');
@@ -432,7 +448,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         onClick={(e) => e.stopPropagation()}
                         className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50 flex flex-col gap-1.5"
                     >
-                        <div 
+                        <div
                             onClick={() => openProfile(user?._id || user?.id)}
                             className="px-3 py-2.5 border-b border-slate-800 cursor-pointer hover:bg-white/5 rounded-xl transition-all"
                         >
@@ -440,7 +456,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                             <p className="text-sm font-bold text-slate-200 truncate">{user?.email}</p>
                             <span className="inline-block mt-1.5 text-[8px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-widest">{user?.role}</span>
                         </div>
-                        
+
                         <button
                             onClick={() => openProfile(user?._id || user?.id)}
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
@@ -448,7 +464,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                             <User size={16} />
                             <span>My Profile Settings</span>
                         </button>
-                        
+
                         {/* Saved Accounts Switcher */}
                         {savedAccounts.length > 0 && (
                             <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
@@ -496,9 +512,9 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                             <UserPlus size={16} />
                             <span>Add More Account</span>
                         </button>
-                        
+
                         <hr className="my-0.5 border-slate-800" />
-                        
+
                         <button
                             onClick={handleLogout}
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
@@ -668,7 +684,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         if (!controls) return true;
 
         const name = item.name.toLowerCase();
-        
+
         if (name === 'dashboard') {
             return controls.dashboard?.show !== false;
         }
@@ -694,6 +710,15 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     };
 
     const filteredItems = preparedItems.filter(isMenuItemAllowed);
+
+    const handleItemClick = (item) => {
+        if (item.disabled) return;
+        if (user?.role === 'Admin' && ['fees portal', 'attendance portal'].includes(item.name.toLowerCase())) {
+            toast('Coming Soon', { icon: '⏳' });
+            return;
+        }
+        navigate(item.path);
+    };
 
     const isActive = (path) => {
         const baseRolePath = `/${safeRole.toLowerCase()}`;
@@ -722,7 +747,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                         return (
                             <button
                                 key={item.name}
-                                onClick={() => !item.disabled && navigate(item.path)}
+                                onClick={() => handleItemClick(item)}
                                 title={item.disabled ? (item.note || 'Feature Restricted') : (collapsed ? item.name : undefined)}
                                 className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
                                     ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
@@ -766,7 +791,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                             return (
                                 <button
                                     key={item.name}
-                                    onClick={() => !item.disabled && navigate(item.path)}
+                                    onClick={() => handleItemClick(item)}
                                     title={item.disabled ? (item.note || 'Feature Restricted') : undefined}
                                     className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold 
                                         ${active

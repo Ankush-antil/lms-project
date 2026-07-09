@@ -41,9 +41,13 @@ const TeacherDrive = () => {
                 // Fetch all courses in the institute
                 const { data: allCourses } = await axios.get(`/api/setup/courses?instituteId=${instId}`);
                 
-                // Filter to only those assigned to the teacher
-                const assignedIds = user?.teacherProfile?.assignedCourses?.map(ac => String(ac._id || ac)) || [];
-                const filteredCourses = allCourses.filter(c => assignedIds.includes(String(c._id)));
+                // Filter to only those assigned to the teacher, unless Admin
+                const filteredCourses = user?.role === 'Admin' 
+                    ? allCourses 
+                    : allCourses.filter(c => {
+                        const assignedIds = user?.teacherProfile?.assignedCourses?.map(ac => String(ac._id || ac)) || [];
+                        return assignedIds.includes(String(c._id));
+                    });
                 
                 setCourses(filteredCourses);
                 

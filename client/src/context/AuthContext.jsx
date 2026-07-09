@@ -40,23 +40,21 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const fetchUser = async () => {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            setLoading(false);
-            return;
-        }
-
         try {
             setLoading(true);
             const { data } = await axios.get('/api/auth/me');
             setUser(data);
-            saveAccountToList(token, data);
+            
+            // Sync token to localStorage if we got it back or if we can read it
+            const storedToken = localStorage.getItem('authToken') || data.token;
+            if (storedToken) {
+                localStorage.setItem('authToken', storedToken);
+                saveAccountToList(storedToken, data);
+            }
         } catch (error) {
             console.error("Auth verification failed:", error.response?.status);
-            if (error.response?.status === 401) {
-                localStorage.removeItem('authToken');
-                setUser(null);
-            }
+            localStorage.removeItem('authToken');
+            setUser(null);
         } finally {
             setLoading(false);
         }
@@ -80,26 +78,41 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const switchAccount = (token, userInfo) => {
+    const switchAccount = async (token, userInfo) => {
         if (!token) return;
+        
+        try {
+            // Update the cross-subdomain HTTP-only cookie on the backend
+            await axios.post('/api/auth/set-token-cookie', { token });
+        } catch (e) {
+            console.error("Failed to sync switchAccount cookie on server:", e);
+        }
+
         localStorage.setItem('authToken', token);
-        // Do not call setUser here to prevent intermediate client-side redirects before full page reload
         toast.success(`Switched to ${userInfo.name || userInfo.email}`);
         
-        if (userInfo.role === 'Student') {
-            window.location.href = '/student/tests';
-        } else if (userInfo.role === 'Admin') {
-            window.location.href = '/admin';
-        } else if (userInfo.role === 'Teacher') {
-            window.location.href = '/teacher';
-        } else if (userInfo.role === 'Editor') {
-            window.location.href = '/editor';
-        } else if (userInfo.role === 'Institute') {
-            window.location.href = '/institute';
-        } else if (userInfo.role === 'Accountant') {
-            window.location.href = '/accountant';
+        // Define redirect path
+        const roleSubdomains = {
+            Admin: 'admin',
+            Teacher: 'teacher',
+            Student: 'student',
+            Editor: 'editor',
+            Institute: 'institute',
+            Accountant: 'account',
+            Marketer: 'marketer'
+        };
+
+        const subdomain = roleSubdomains[userInfo.role] || 'landing';
+        const redirectPath = userInfo.role === 'Student' ? '/student/tests' : `/${userInfo.role.toLowerCase()}`;
+        
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.');
+
+        if (isLocalHost) {
+            window.location.href = redirectPath;
         } else {
-            window.location.href = '/';
+            window.location.href = `${window.location.protocol}//${subdomain}.digitalstudyacademy.com${redirectPath}`;
         }
     };
 

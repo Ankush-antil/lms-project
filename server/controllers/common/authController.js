@@ -149,5 +149,23 @@ const registerUser = async (req, res) => {
     }
 };
 
-module.exports = { loginUser, registerUser, getMe, logoutUser };
+// @desc    Set cookie for a token (used during account switching across subdomains)
+// @route   POST /api/auth/set-token-cookie
+// @access  Public
+const setTokenCookie = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ message: 'Token is required' });
+        }
+
+        res.cookie('token', token, getCookieOptions(req));
+        res.json({ success: true, message: 'Cookie updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie };
+
 

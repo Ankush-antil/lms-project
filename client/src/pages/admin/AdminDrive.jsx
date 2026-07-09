@@ -24,6 +24,15 @@ const VIEW_MODE_OPTIONS = [
 
 const AdminDrive = () => {
     const { user } = useAuth();
+
+    const canPerform = (feature, subAction) => {
+        if (user?.role !== 'Accountant') return true;
+        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!ctrl) return true;
+        if (ctrl.enabled === false) return false;
+        return ctrl[subAction] !== false;
+    };
+
     const [items, setItems] = useState([]);
     const [breadcrumbs, setBreadcrumbs] = useState([]);
     const [currentParentId, setCurrentParentId] = useState(null);
@@ -112,6 +121,9 @@ const AdminDrive = () => {
     // Create New Folder
     const handleCreateFolder = async (e) => {
         e.preventDefault();
+        if (!canPerform('drive', 'uploadFiles')) {
+            return toast.error("You do not have permission to create folders / upload files");
+        }
         if (!folderName.trim()) return;
 
         try {
@@ -142,6 +154,10 @@ const AdminDrive = () => {
 
     // File Upload Handler
     const handleFileUpload = async (e) => {
+        if (!canPerform('drive', 'uploadFiles')) {
+            e.target.value = '';
+            return toast.error("You do not have permission to upload files");
+        }
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
@@ -176,6 +192,10 @@ const AdminDrive = () => {
 
     // Folder Upload Handler
     const handleFolderUpload = async (e) => {
+        if (!canPerform('drive', 'uploadFiles')) {
+            e.target.value = '';
+            return toast.error("You do not have permission to upload folders / files");
+        }
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
@@ -215,6 +235,9 @@ const AdminDrive = () => {
 
     // Delete item
     const handleDelete = async (id, name) => {
+        if (!canPerform('drive', 'deleteFiles')) {
+            return toast.error("You do not have permission to delete files / folders");
+        }
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
                 await axios.delete(`/api/drive/${id}`);
@@ -626,44 +649,46 @@ const AdminDrive = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-3">
                         {/* "+ New" Dropdown Wrapper */}
-                        <div className="relative" ref={newMenuRef}>
-                            <button
-                                onClick={() => setNewMenuOpen(!newMenuOpen)}
-                                className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
-                            >
-                                <Plus size={18} className="text-indigo-600" strokeWidth={2.5} />
-                                <span>New</span>
-                            </button>
+                        {canPerform('drive', 'uploadFiles') && (
+                            <div className="relative" ref={newMenuRef}>
+                                <button
+                                    onClick={() => setNewMenuOpen(!newMenuOpen)}
+                                    className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
+                                >
+                                    <Plus size={18} className="text-indigo-600" strokeWidth={2.5} />
+                                    <span>New</span>
+                                </button>
 
-                            {newMenuOpen && (
-                                <div className="absolute left-0 mt-2.5 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl z-[90] p-2 animate-fade-in">
-                                    <button
-                                        onClick={() => {
-                                            setNewMenuOpen(false);
-                                            setShowFolderModal(true);
-                                        }}
-                                        className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors"
-                                    >
-                                        <FolderPlus size={18} className="text-slate-500" />
-                                        <span>New folder</span>
-                                    </button>
-                                    <button
-                                        onClick={handleFileSelect}
-                                        className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors border-t border-slate-100 mt-1 pt-3"
-                                    >
-                                        <FileUp size={18} className="text-slate-500" />
-                                        <span>File upload</span>
-                                    </button>
-                                    <button
-                                        onClick={handleFolderSelect}
-                                        className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors"
-                                    >
-                                        <FolderUp size={18} className="text-slate-500" />
-                                        <span>Folder upload</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                                {newMenuOpen && (
+                                    <div className="absolute left-0 mt-2.5 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl z-[90] p-2 animate-fade-in">
+                                        <button
+                                            onClick={() => {
+                                                setNewMenuOpen(false);
+                                                setShowFolderModal(true);
+                                            }}
+                                            className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors"
+                                        >
+                                            <FolderPlus size={18} className="text-slate-500" />
+                                            <span>New folder</span>
+                                        </button>
+                                        <button
+                                            onClick={handleFileSelect}
+                                            className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors border-t border-slate-100 mt-1 pt-3"
+                                        >
+                                            <FileUp size={18} className="text-slate-500" />
+                                            <span>File upload</span>
+                                        </button>
+                                        <button
+                                            onClick={handleFolderSelect}
+                                            className="flex items-center gap-3.5 w-full p-3 hover:bg-slate-50 rounded-xl text-left text-sm font-semibold text-slate-700 transition-colors"
+                                        >
+                                            <FolderUp size={18} className="text-slate-500" />
+                                            <span>Folder upload</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Integrate Button */}
                         <button

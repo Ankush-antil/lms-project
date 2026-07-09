@@ -16,6 +16,14 @@ const NotesPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const canPerform = (feature, subAction) => {
+        if (user?.role !== 'Accountant') return true;
+        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!ctrl) return true;
+        if (ctrl.enabled === false) return false;
+        return ctrl[subAction] !== false;
+    };
+
     // Parse inbox and date parameters
     const searchParams = new URLSearchParams(location.search);
     const dateParam = searchParams.get('date');
@@ -140,6 +148,9 @@ const NotesPage = () => {
     // Save Note (Create or Update)
     const handleSaveNote = async (e) => {
         if (e) e.preventDefault();
+        if (!canPerform('notes', 'createNotes')) {
+            return toast.error("You do not have permission to create or edit notes");
+        }
         if (!title.trim()) {
             toast.error("Please enter a note title");
             return;
@@ -190,6 +201,9 @@ const NotesPage = () => {
     // Save Note as Draft Locally
     const handleSaveDraft = (e) => {
         if (e) e.preventDefault();
+        if (!canPerform('notes', 'createNotes')) {
+            return toast.error("You do not have permission to create drafts");
+        }
         if (!title.trim()) {
             toast.error("Please enter a note title");
             return;
@@ -220,6 +234,9 @@ const NotesPage = () => {
 
     // Delete Note
     const handleDeleteNote = async (id) => {
+        if (!canPerform('notes', 'deleteNotes')) {
+            return toast.error("You do not have permission to delete notes");
+        }
         if (!id) return;
         if (!window.confirm("Are you sure you want to delete this note?")) return;
 
@@ -337,14 +354,16 @@ const NotesPage = () => {
                         </div>
 
                         {/* New Note Button */}
-                        <button
-                            type="button"
-                            onClick={handleNewNote}
-                            className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
-                        >
-                            <Plus size={14} />
-                            <span>New Note</span>
-                        </button>
+                        {canPerform('notes', 'createNotes') && (
+                            <button
+                                type="button"
+                                onClick={handleNewNote}
+                                className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+                            >
+                                <Plus size={14} />
+                                <span>New Note</span>
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -500,7 +519,7 @@ const NotesPage = () => {
                                         <span>{isListening ? 'Listening...' : 'Voice Type'}</span>
                                     </button>
 
-                                    {selectedNote && (
+                                    {selectedNote && canPerform('notes', 'deleteNotes') && (
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteNote(selectedNote._id)}
@@ -510,22 +529,26 @@ const NotesPage = () => {
                                             <Trash size={14} />
                                         </button>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={handleSaveDraft}
-                                        className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 cursor-pointer mr-1"
-                                    >
-                                        <Save size={14} />
-                                        <span>Save Draft</span>
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                                    >
-                                        <Save size={14} />
-                                        <span>{saving ? 'Saving...' : 'Save Note'}</span>
-                                    </button>
+                                    {canPerform('notes', 'createNotes') && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveDraft}
+                                                className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 cursor-pointer mr-1"
+                                            >
+                                                <Save size={14} />
+                                                <span>Save Draft</span>
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={saving}
+                                                className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                            >
+                                                <Save size={14} />
+                                                <span>{saving ? 'Saving...' : 'Save Note'}</span>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

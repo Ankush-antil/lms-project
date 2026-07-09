@@ -292,7 +292,12 @@ const userSchema = new mongoose.Schema({
             feePortal: {
                 enabled: { type: Boolean, default: true },
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' }
+                note: { type: String, default: '' },
+                collectFee: { type: Boolean, default: true },
+                editStructure: { type: Boolean, default: true },
+                deleteTransaction: { type: Boolean, default: true },
+                googleSheets: { type: Boolean, default: true },
+                viewReports: { type: Boolean, default: true }
             },
             chat: {
                 enabled: { type: Boolean, default: true },
@@ -301,17 +306,25 @@ const userSchema = new mongoose.Schema({
                 subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
                 teacher: { type: Boolean, default: true },
                 editor: { type: Boolean, default: true },
-                students: { type: Boolean, default: true }
+                students: { type: Boolean, default: true },
+                chatWithAdmin: { type: Boolean, default: true },
+                chatWithTeacher: { type: Boolean, default: true },
+                chatWithEditor: { type: Boolean, default: true },
+                chatWithStudent: { type: Boolean, default: true }
             },
             drive: {
                 enabled: { type: Boolean, default: true },
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' }
+                note: { type: String, default: '' },
+                uploadFiles: { type: Boolean, default: true },
+                deleteFiles: { type: Boolean, default: true }
             },
             notes: {
                 enabled: { type: Boolean, default: true },
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' }
+                note: { type: String, default: '' },
+                createNotes: { type: Boolean, default: true },
+                deleteNotes: { type: Boolean, default: true }
             }
         }
     },

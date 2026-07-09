@@ -199,7 +199,12 @@ const DEFAULT_ACCOUNTANT_CONTROLS = {
     feePortal: {
         enabled: true,
         mode: 'hide',
-        note: ''
+        note: '',
+        collectFee: true,
+        editStructure: true,
+        deleteTransaction: true,
+        googleSheets: true,
+        viewReports: true
     },
     chat: {
         enabled: true,
@@ -208,17 +213,25 @@ const DEFAULT_ACCOUNTANT_CONTROLS = {
         subNotes: {},
         teacher: true,
         editor: true,
-        students: true
+        students: true,
+        chatWithAdmin: true,
+        chatWithTeacher: true,
+        chatWithEditor: true,
+        chatWithStudent: true
     },
     drive: {
         enabled: true,
         mode: 'hide',
-        note: ''
+        note: '',
+        uploadFiles: true,
+        deleteFiles: true
     },
     notes: {
         enabled: true,
         mode: 'hide',
-        note: ''
+        note: '',
+        createNotes: true,
+        deleteNotes: true
     }
 };
 
@@ -1915,8 +1928,34 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
 
         const controls = formData.controls || DEFAULT_ACCOUNTANT_CONTROLS;
 
+        const subControlOptions = {
+            feePortal: [
+                { key: 'collectFee', label: 'Record Collections / Collect Fee' },
+                { key: 'editStructure', label: 'Setup Student Fee Structure' },
+                { key: 'deleteTransaction', label: 'Delete recorded Transactions' },
+                { key: 'googleSheets', label: 'Google Sheets Sync Integration' },
+                { key: 'viewReports', label: 'Financial Reports & Charts' }
+            ],
+            chat: [
+                { key: 'chatWithAdmin', label: 'Chat with Institute Admins' },
+                { key: 'chatWithTeacher', label: 'Chat with Faculty Teachers' },
+                { key: 'chatWithEditor', label: 'Chat with Fellow Editors' },
+                { key: 'chatWithStudent', label: 'Chat with Enrolled Students' }
+            ],
+            drive: [
+                { key: 'uploadFiles', label: 'Upload files and directories' },
+                { key: 'deleteFiles', label: 'Delete files and directories' }
+            ],
+            notes: [
+                { key: 'createNotes', label: 'Create and edit notes' },
+                { key: 'deleteNotes', label: 'Delete notes' }
+            ]
+        };
+
         const renderControlCard = (key, label, checkboxId) => {
             const ctrl = controls[key] || { enabled: true, mode: 'hide', note: '' };
+            const subs = subControlOptions[key] || [];
+
             return (
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
                     <div className="flex items-center justify-between">
@@ -1951,6 +1990,24 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                 placeholder="Enter reason (e.g. Please clear your dues to activate)"
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                             />
+                        </div>
+                    )}
+                    {ctrl.enabled !== false && subs.length > 0 && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Available Actions / Tabs</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                {subs.map(sub => (
+                                    <label key={sub.key} className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={ctrl[sub.key] !== false}
+                                            onChange={e => updateControl(key, sub.key, e.target.checked)}
+                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-semibold text-slate-700">{sub.label}</span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

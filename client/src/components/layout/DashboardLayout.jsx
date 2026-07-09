@@ -615,6 +615,23 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                     }
                 }
             }
+        } else if (user?.role === 'Accountant') {
+            const controls = user.accountantProfile?.controls;
+            if (controls) {
+                const name = item.name.toLowerCase();
+                let controlKey = '';
+                if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+
+                if (controlKey) {
+                    const ctrl = controls[controlKey];
+                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                        return { ...item, disabled: true, note: ctrl.note };
+                    }
+                }
+            }
         }
         return item;
     });
@@ -678,6 +695,26 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'subjects') controlKey = 'subjects';
             else if (name === 'activities') controlKey = 'activities';
             else if (name === 'tools') controlKey = 'tools';
+            else if (name === 'chat') controlKey = 'chat';
+
+            if (controlKey) {
+                const ctrl = controls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (user?.role === 'Accountant') {
+            const controls = user.accountantProfile?.controls;
+            if (!controls) return true;
+
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (name === 'fee portal') controlKey = 'feePortal';
+            else if (name === 'drive') controlKey = 'drive';
+            else if (name === 'notes') controlKey = 'notes';
             else if (name === 'chat') controlKey = 'chat';
 
             if (controlKey) {

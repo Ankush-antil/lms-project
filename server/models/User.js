@@ -302,6 +302,16 @@ const userSchema = new mongoose.Schema({
                 teacher: { type: Boolean, default: true },
                 editor: { type: Boolean, default: true },
                 students: { type: Boolean, default: true }
+            },
+            drive: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' }
+            },
+            notes: {
+                enabled: { type: Boolean, default: true },
+                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
+                note: { type: String, default: '' }
             }
         }
     },

@@ -156,9 +156,9 @@ const menuItems = {
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
-        { name: 'Accountants', icon: Calculator, path: '/admin/accountants' },
         { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
         { name: 'Fees Portal', icon: CreditCard, path: '/admin/fee-portal' },
+
         { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },

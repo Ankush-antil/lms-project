@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+
 import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import InstituteDashboard from './pages/institute/InstituteDashboard';
@@ -86,17 +88,110 @@ const PrivateRoute = ({ children, role }) => {
     return children;
 };
 
+const SubdomainRedirectHandler = ({ children }) => {
+    const { user, loading } = useAuth();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (loading) return;
+
+        const hostname = window.location.hostname;
+        const path = location.pathname;
+
+        // Skip redirect logic for localhost, local IPs, or dev subdomain (allow root domain digitalstudyacademy.com to redirect)
+        const parts = hostname.split('.');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith('dev.');
+        if (isLocalHost) {
+            return;
+        }
+
+        const subdomain = parts[0].toLowerCase();
+        // Public paths allowed without login
+        const isPublicPath = path.startsWith('/share/') || path === '/track-applications';
+
+        if (!user) {
+            // Unauthenticated users are forced to landing page for login (except on public paths)
+            if (subdomain !== 'landing' && !isPublicPath) {
+                window.location.href = `${window.location.protocol}//landing.digitalstudyacademy.com/login`;
+            }
+            return;
+        }
+
+        // Mappings for roles to expected subdomains
+        const roleSubdomains = {
+            Admin: 'admin',
+            Teacher: 'teacher',
+            Student: 'student',
+            Editor: 'editor',
+            Institute: 'institute',
+            Accountant: 'account',
+            Marketer: 'marketer'
+        };
+
+        const expectedSubdomain = roleSubdomains[user.role];
+
+        // 1. Handle feature and role subdomains root routing
+        if (path === '/') {
+            if (subdomain === expectedSubdomain) {
+                const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;
+                window.location.href = `${window.location.protocol}//${hostname}${redirectPath}`;
+                return;
+            }
+            if (subdomain === 'notes') {
+
+                window.location.href = `${window.location.protocol}//notes.digitalstudyacademy.com/${user.role.toLowerCase()}/notes`;
+                return;
+            }
+            if (subdomain === 'drive') {
+                window.location.href = `${window.location.protocol}//drive.digitalstudyacademy.com/${user.role.toLowerCase()}/drive`;
+                return;
+            }
+            if (subdomain === 'chat') {
+                window.location.href = `${window.location.protocol}//chat.digitalstudyacademy.com/${user.role.toLowerCase()}/chat`;
+                return;
+            }
+            if (subdomain === 'feeportal') {
+                window.location.href = `${window.location.protocol}//feeportal.digitalstudyacademy.com/${user.role.toLowerCase()}/fee-portal`;
+                return;
+            }
+            if (subdomain === 'attandence') {
+                const attPath = user.role === 'Admin' ? '/admin/attendance-portal' : '/teacher/attendance';
+                window.location.href = `${window.location.protocol}//attandence.digitalstudyacademy.com${attPath}`;
+                return;
+            }
+        }
+
+        // 2. Enforce role subdomain routing (skip for special feature subdomains)
+        const specialSubdomains = ['notes', 'drive', 'chat', 'feeportal', 'attandence'];
+        if (specialSubdomains.includes(subdomain)) {
+            return;
+        }
+
+        if (subdomain === 'landing' || (expectedSubdomain && subdomain !== expectedSubdomain)) {
+            if (expectedSubdomain) {
+                const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
+                const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;
+                window.location.href = `${window.location.protocol}//${targetHost}${redirectPath}`;
+            }
+        }
+    }, [user, loading, location.pathname]);
+
+    return children;
+};
+
 function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <SocketProvider>
-                    <UserProfileProvider>
-                        <ScreenshotProvider>
-                            <Toaster position="top-right" reverseOrder={false} />
-                            <Routes>
-                                <Route path="/" element={<LandingPage />} />
-                                <Route path="/login" element={<LoginPage />} />
+                <SubdomainRedirectHandler>
+                    <SocketProvider>
+                        <UserProfileProvider>
+                            <ScreenshotProvider>
+                                <Toaster position="top-right" reverseOrder={false} />
+                                <Routes>
+                                    <Route path="/" element={<LandingPage />} />
+                                    <Route path="/login" element={<LoginPage />} />
+
                                 {/* Public Shared Recording Page — no auth */}
                                 <Route path="/share/voice/:id" element={<SharedAudioPage />} />
                                 <Route path="/share/video/:id" element={<SharedVideoPage />} />
@@ -550,9 +645,10 @@ function App() {
                         </ScreenshotProvider>
                     </UserProfileProvider>
                 </SocketProvider>
-            </AuthProvider>
-        </BrowserRouter>
-    );
+            </SubdomainRedirectHandler>
+        </AuthProvider>
+    </BrowserRouter>
+);
 }
 
 export default App;

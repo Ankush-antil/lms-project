@@ -6,6 +6,34 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+const getCookieOptions = (req) => {
+    const isProd = req.headers.host && req.headers.host.includes('digitalstudyacademy.com');
+    const options = {
+        httpOnly: true,
+        secure: isProd || process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    };
+    if (isProd) {
+        options.domain = '.digitalstudyacademy.com';
+    }
+    return options;
+};
+
+const getLogoutCookieOptions = (req) => {
+    const isProd = req.headers.host && req.headers.host.includes('digitalstudyacademy.com');
+    const options = {
+        httpOnly: true,
+        secure: isProd || process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: new Date(0)
+    };
+    if (isProd) {
+        options.domain = '.digitalstudyacademy.com';
+    }
+    return options;
+};
+
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public
@@ -25,12 +53,7 @@ const loginUser = async (req, res) => {
             const token = generateToken(user._id);
 
             // Set Cookie
-            res.cookie('token', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-            });
+            res.cookie('token', token, getCookieOptions(req));
 
             res.json({
                 _id: user._id,
@@ -76,10 +99,7 @@ const getMe = async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Public
 const logoutUser = async (req, res) => {
-    res.cookie('token', '', {
-        httpOnly: true,
-        expires: new Date(0)
-    });
+    res.cookie('token', '', getLogoutCookieOptions(req));
     res.json({ message: 'Logged out successfully' });
 };
 
@@ -119,12 +139,7 @@ const registerUser = async (req, res) => {
         const token = generateToken(user._id);
 
         // Set Cookie
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
+        res.cookie('token', token, getCookieOptions(req));
 
         res.status(201).json({
             _id: user._id,
@@ -138,4 +153,23 @@ const registerUser = async (req, res) => {
     }
 };
 
-module.exports = { loginUser, registerUser, getMe, logoutUser };
+// @desc    Set cookie for a token (used during account switching across subdomains)
+// @route   POST /api/auth/set-token-cookie
+// @access  Public
+const setTokenCookie = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ message: 'Token is required' });
+        }
+
+        res.cookie('token', token, getCookieOptions(req));
+        res.json({ success: true, message: 'Cookie updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie };
+
+

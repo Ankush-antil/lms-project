@@ -551,118 +551,6 @@ const StudentTests = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedItem);
 
-    const activeDayDetails = useMemo(() => {
-        if (!selectedItem || subjectDaysMapping.length === 0) return null;
-        for (const group of subjectDaysMapping) {
-            const foundDay = group.days.find(d => d.id === selectedItem);
-            if (foundDay) {
-                return {
-                    dayNum: foundDay.dayNum,
-                    subjectName: group.subjectName
-                };
-            }
-        }
-        return null;
-    }, [selectedItem, subjectDaysMapping]);
-
-    const headerTitle = useMemo(() => {
-        if (!selectedItem) return 'Select an Inbox';
-        const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedItem.trim().toLowerCase());
-        if (config && config.displayName) return config.displayName;
-        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
-        return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
-    }, [selectedItem, activeDayDetails, inboxConfigs, selectedGroup]);
-
-    const submissionMap = useMemo(() => {
-        const map = new Map();
-        submissions.forEach(sub => {
-            const testId = sub.test?._id || sub.test;
-            if (testId) map.set(testId, sub);
-        });
-        return map;
-    }, [submissions]);
-
-    const pendingCount = useMemo(() => {
-        if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => {
-            const sub = submissionMap.get(t._id);
-            return t.isAssigned !== false && !isTestExpired(t) && (!sub || sub.status === 'reported');
-        }).length;
-    }, [selectedGroup, submissionMap]);
-
-    const submittedCount = useMemo(() => {
-        if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => {
-            const sub = submissionMap.get(t._id);
-            return t.isAssigned !== false && sub && sub.status === 'submitted';
-        }).length;
-    }, [selectedGroup, submissionMap]);
-
-    const returnedCount = useMemo(() => {
-        if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => {
-            const sub = submissionMap.get(t._id);
-            return t.isAssigned !== false && !isTestExpired(t) && sub && sub.status === 'returned';
-        }).length;
-    }, [selectedGroup, submissionMap]);
-
-    const evaluatedCount = useMemo(() => {
-        if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => {
-            const sub = submissionMap.get(t._id);
-            return t.isAssigned !== false && sub && sub.status === 'evaluated';
-        }).length;
-    }, [selectedGroup, submissionMap]);
-
-    const expiredCount = useMemo(() => {
-        if (!selectedGroup) return 0;
-        return (selectedGroup.tests || []).filter(t => {
-            const sub = submissionMap.get(t._id);
-            const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
-            return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
-        }).length;
-    }, [selectedGroup, submissionMap]);
-
-    const activeTests = useMemo(() => {
-        if (!selectedGroup) return [];
-        return (selectedGroup.tests || []).filter(test => {
-            const sub = submissionMap.get(test._id);
-            const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
-            if (isConfiguredHidden) return false;
-            if (test.isAssigned === false) return false;
-
-            if (viewMode === 'pending') {
-                return (!sub || sub.status === 'reported') && !isTestExpired(test);
-            } else if (viewMode === 'submitted') {
-                return sub && sub.status === 'submitted';
-            } else if (viewMode === 'returned') {
-                return !isTestExpired(test) && sub && sub.status === 'returned';
-            } else if (viewMode === 'evaluated') {
-                return sub && sub.status === 'evaluated';
-            } else if (viewMode === 'expired') {
-                const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
-                return isTestExpired(test) && isUnfinished;
-            }
-            return false;
-        });
-    }, [selectedGroup, viewMode, submissionMap, activityConfigs]);
-
-    const categoriesMap = useMemo(() => {
-        const map = {};
-        activeTests.forEach(test => {
-            const catName = getCategoryDisplayName(test.activity);
-            if (!map[catName]) map[catName] = [];
-            map[catName].push(test);
-        });
-        return map;
-    }, [activeTests]);
-
-    const filteredInboxItems = useMemo(() => {
-        return dynamicInboxItems.filter(item =>
-            getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
-        );
-    }, [dynamicInboxItems, inboxSearchQuery]);
-
     const subjectDaysMapping = useMemo(() => {
         if (!userInfo || !userInfo.studentProfile?.course) return [];
         const course = userInfo.studentProfile.course;
@@ -791,6 +679,118 @@ const StudentTests = () => {
         
         return Array.from(allSubjectNames);
     }, [userInfo]);
+
+    const activeDayDetails = useMemo(() => {
+        if (!selectedItem || subjectDaysMapping.length === 0) return null;
+        for (const group of subjectDaysMapping) {
+            const foundDay = group.days.find(d => d.id === selectedItem);
+            if (foundDay) {
+                return {
+                    dayNum: foundDay.dayNum,
+                    subjectName: group.subjectName
+                };
+            }
+        }
+        return null;
+    }, [selectedItem, subjectDaysMapping]);
+
+    const headerTitle = useMemo(() => {
+        if (!selectedItem) return 'Select an Inbox';
+        const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedItem.trim().toLowerCase());
+        if (config && config.displayName) return config.displayName;
+        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
+        return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
+    }, [selectedItem, activeDayDetails, inboxConfigs, selectedGroup]);
+
+    const submissionMap = useMemo(() => {
+        const map = new Map();
+        submissions.forEach(sub => {
+            const testId = sub.test?._id || sub.test;
+            if (testId) map.set(testId, sub);
+        });
+        return map;
+    }, [submissions]);
+
+    const pendingCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && !isTestExpired(t) && (!sub || sub.status === 'reported');
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const submittedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && sub && sub.status === 'submitted';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const returnedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && !isTestExpired(t) && sub && sub.status === 'returned';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const evaluatedCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            return t.isAssigned !== false && sub && sub.status === 'evaluated';
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const expiredCount = useMemo(() => {
+        if (!selectedGroup) return 0;
+        return (selectedGroup.tests || []).filter(t => {
+            const sub = submissionMap.get(t._id);
+            const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
+            return t.isAssigned !== false && isTestExpired(t) && isUnfinished;
+        }).length;
+    }, [selectedGroup, submissionMap]);
+
+    const activeTests = useMemo(() => {
+        if (!selectedGroup) return [];
+        return (selectedGroup.tests || []).filter(test => {
+            const sub = submissionMap.get(test._id);
+            const isConfiguredHidden = activityConfigs.some(c => c.test === test._id && c.visible === false);
+            if (isConfiguredHidden) return false;
+            if (test.isAssigned === false) return false;
+
+            if (viewMode === 'pending') {
+                return (!sub || sub.status === 'reported') && !isTestExpired(test);
+            } else if (viewMode === 'submitted') {
+                return sub && sub.status === 'submitted';
+            } else if (viewMode === 'returned') {
+                return !isTestExpired(test) && sub && sub.status === 'returned';
+            } else if (viewMode === 'evaluated') {
+                return sub && sub.status === 'evaluated';
+            } else if (viewMode === 'expired') {
+                const isUnfinished = !sub || sub.status === 'returned' || sub.status === 'reported';
+                return isTestExpired(test) && isUnfinished;
+            }
+            return false;
+        });
+    }, [selectedGroup, viewMode, submissionMap, activityConfigs]);
+
+    const categoriesMap = useMemo(() => {
+        const map = {};
+        activeTests.forEach(test => {
+            const catName = getCategoryDisplayName(test.activity);
+            if (!map[catName]) map[catName] = [];
+            map[catName].push(test);
+        });
+        return map;
+    }, [activeTests]);
+
+    const filteredInboxItems = useMemo(() => {
+        return dynamicInboxItems.filter(item =>
+            getDisplayTitle(item.title).toLowerCase().includes(inboxSearchQuery.toLowerCase())
+        );
+    }, [dynamicInboxItems, inboxSearchQuery]);
 
     const groupedInboxItems = useMemo(() => {
         return subjectDaysMapping.map(group => {

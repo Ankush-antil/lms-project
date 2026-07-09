@@ -226,6 +226,7 @@ const userSchema = new mongoose.Schema({
                 chatStudent: { type: Boolean, default: true },
                 chatEditor: { type: Boolean, default: true },
                 chatInstitute: { type: Boolean, default: true }
+            }
         }
     },
     editorProfile: {
@@ -287,9 +288,9 @@ const userSchema = new mongoose.Schema({
         }
     },
     isActive: { type: Boolean, default: true }
-}, {
-    timestamps: true
-});
+    }, {
+        timestamps: true
+    });
 
 // Optimization Indexes
 userSchema.index({ role: 1 });

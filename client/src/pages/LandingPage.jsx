@@ -205,7 +205,7 @@ const LandingPage = () => {
             } else if (user.role === 'Institute') {
                 navigate('/institute');
             } else if (user.role === 'Accountant') {
-                navigate('/accountant/fee-portal');
+                navigate('/accountant');
             }
         }
     }, [user, loading, navigate]);

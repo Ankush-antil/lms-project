@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
         } else if (userInfo.role === 'Institute') {
             window.location.href = '/institute';
         } else if (userInfo.role === 'Accountant') {
-            window.location.href = '/accountant/fee-portal';
+            window.location.href = '/accountant';
         } else {
             window.location.href = '/';
         }

@@ -11,6 +11,7 @@ import TeachersList from './pages/admin/TeachersList';
 import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
 import AccountantsList from './pages/admin/AccountantsList';
+import AccountantDashboard from './pages/accountant/AccountantDashboard';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
 import MarketersList from './pages/admin/MarketersList';
@@ -290,12 +291,22 @@ function App() {
                                 {/* Accountant Routes */}
                                 <Route path="/accountant" element={
                                     <PrivateRoute role="Accountant">
-                                        <Navigate to="/accountant/fee-portal" replace />
+                                        <AccountantDashboard />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/accountant/fee-portal" element={
                                     <PrivateRoute role="Accountant">
                                         <AdminFeePortal />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/accountant/drive" element={
+                                    <PrivateRoute role="Accountant">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/accountant/notes" element={
+                                    <PrivateRoute role="Accountant">
+                                        <NotesPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/accountant/chat" element={

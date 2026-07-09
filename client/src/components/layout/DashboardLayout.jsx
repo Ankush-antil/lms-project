@@ -203,7 +203,10 @@ const menuItems = {
         { name: 'Notes', icon: StickyNote, path: '/editor/notes' }
     ],
     Accountant: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/accountant' },
         { name: 'Fee Portal', icon: CreditCard, path: '/accountant/fee-portal' },
+        { name: 'Drive', icon: HardDrive, path: '/accountant/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/accountant/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/accountant/chat' },
     ],
     Student: [

@@ -9,7 +9,7 @@ import {
     FileText, Zap, Layout, Share2, History, MessageSquare,
     Play, PanelLeft, Bot, Palette, Link, Save, Hash, Check,
     FolderUp, CircleDot, File, Mic, Video, Monitor, Camera, Phone,
-    PlaySquare, Box, Globe, Headphones, Brain, Trash2, X, Sparkles, CheckCircle2, AlertCircle, Copy, Info,
+    PlaySquare, Box, Globe, Headphones, Brain, Trash2, X, Sparkles, CheckCircle2, AlertCircle, Copy, Info, Loader2,
     Bold, Italic, Underline, Strikethrough, ArrowRightLeft, Activity, Code, Quote, Table, HelpCircle, Sliders, GitBranch, Smile, Heading, ListOrdered, GripVertical, AlertTriangle,
     Move, ZoomIn, ZoomOut, Feather, Cog, AlignCenter, AlignRight, AlignJustify, Edit, PieChart, Languages, Paperclip,
     Files, Volume2, PhoneCall, Film, MapPin, Lock, Shield, LayoutTemplate
@@ -2165,6 +2165,14 @@ const TestBuilder = () => {
     const [aiGenerating, setAiGenerating] = useState(false);
     const [activeVideoId, setActiveVideoId] = useState(null);
     const [addedVideoUrls, setAddedVideoUrls] = useState([]);
+    
+    // AI Assistant Attachment States & Ref
+    const [aiAttachment, setAiAttachment] = useState(null);
+    const [aiAttachmentPreview, setAiAttachmentPreview] = useState('');
+    const [aiAttachmentType, setAiAttachmentType] = useState('');
+    const [aiPdfText, setAiPdfText] = useState('');
+    const [aiParsingPdf, setAiParsingPdf] = useState(false);
+    const aiAttachmentInputRef = useRef(null);
 
     const dragPositionsRef = useRef([]);
     const draggedIndexRef = useRef(null);
@@ -2578,27 +2586,137 @@ const TestBuilder = () => {
         toast.success("Successfully added Video Displaying element to the test!");
     };
 
+    const loadPdfJs = () => {
+        return new Promise((resolve, reject) => {
+            if (window['pdfjs-dist/build/pdf']) {
+                resolve(window['pdfjs-dist/build/pdf']);
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            script.onload = () => {
+                resolve(window['pdfjs-dist/build/pdf']);
+            };
+            script.onerror = () => {
+                reject(new Error("Failed to load PDF parser library"));
+            };
+            document.body.appendChild(script);
+        });
+    };
+
+    const handleAiAttachmentChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setAiAttachment(file);
+        setAiPdfText('');
+
+        if (file.type.startsWith('image/')) {
+            setAiAttachmentType('image');
+            const reader = new FileReader();
+            reader.onload = () => {
+                setAiAttachmentPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            setAiAttachmentType('pdf');
+            setAiAttachmentPreview(file.name);
+            setAiParsingPdf(true);
+
+            try {
+                const pdfjsLib = await loadPdfJs();
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+                const fileReader = new FileReader();
+                fileReader.onload = async (event) => {
+                    try {
+                        const typedarray = new Uint8Array(event.target.result);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        let extractedText = '';
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const content = await page.getTextContent();
+                            const pageText = content.items.map(item => item.str).join(' ');
+                            extractedText += pageText + '\n';
+                        }
+                        setAiPdfText(extractedText);
+                        setAiParsingPdf(false);
+                        toast.success(`Successfully parsed PDF (${pdf.numPages} pages)!`);
+                    } catch (err) {
+                        console.error("PDF Parsing Error:", err);
+                        toast.error("Failed to parse PDF content");
+                        setAiParsingPdf(false);
+                        setAiAttachment(null);
+                        setAiAttachmentPreview('');
+                        setAiAttachmentType('');
+                    }
+                };
+                fileReader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error("Failed to initialize PDF library:", err);
+                toast.error("Could not load PDF parsing library");
+                setAiParsingPdf(false);
+                setAiAttachment(null);
+                setAiAttachmentPreview('');
+                setAiAttachmentType('');
+            }
+        } else {
+            toast.error("Unsupported file type. Please select an image or PDF.");
+            setAiAttachment(null);
+            setAiAttachmentPreview('');
+            setAiAttachmentType('');
+        }
+    };
+
     const handleSendChatMessage = async () => {
-        if (!aiChatInput.trim()) return;
+        if (!aiChatInput.trim() && !aiAttachment) return;
 
         const userMessage = aiChatInput.trim();
-        setAiChatInput('');
-        setAiGenerating(true);
+        let promptText = userMessage;
+
+        // If it's a PDF, we append the extracted text to the prompt!
+        if (aiAttachmentType === 'pdf' && aiPdfText) {
+            promptText = `[Attached PDF Content: "${aiPdfText}"]\n\nUser Message: ${userMessage || "Please generate questions based on this PDF document"}`;
+        }
+
+        const payloadMessage = userMessage || (aiAttachmentType === 'image' ? "Question generation from image" : `Questions from PDF: ${aiAttachmentPreview}`);
 
         // Add user message to chat log
-        setAiChatMessages(prev => [...prev, { sender: 'user', text: userMessage }]);
+        setAiChatMessages(prev => [
+            ...prev,
+            { 
+                sender: 'user', 
+                text: payloadMessage, 
+                attachmentPreview: aiAttachmentType === 'image' ? aiAttachmentPreview : null,
+                attachmentName: aiAttachmentType === 'pdf' ? aiAttachmentPreview : null
+            }
+        ]);
+
+        setAiChatInput('');
+        const currentAttachmentPreview = aiAttachmentPreview;
+        const currentAttachmentType = aiAttachmentType;
+
+        // Reset attachment state immediately
+        setAiAttachment(null);
+        setAiAttachmentPreview('');
+        setAiAttachmentType('');
+        setAiPdfText('');
+
+        setAiGenerating(true);
 
         // Construct history context for Gemini
-        const chatHistoryText = aiChatMessages.map(msg => `${msg.sender === 'user' ? 'User' : 'AI Assistant'}: ${msg.text}`).join('\n');
+        const chatHistoryText = aiChatMessages
+            .map(msg => `${msg.sender === 'user' ? 'User' : 'AI Assistant'}: ${msg.text}`)
+            .join('\n');
 
-        const promptText = `
+        const fullPromptText = `
 You are an AI Question Generator assistant in an online LMS test builder.
 The user is talking to you in a chat interface. They will ask you to generate questions, suggest video courses/tutorials, change difficulty, refine topics, translate, etc.
 
 Current conversation history:
 ${chatHistoryText}
 
-User's new request: "${userMessage}"
+User's new request: "${promptText}"
 
 Your instructions:
 1. If the user asks to generate, update, or refine questions (e.g. "make 5 HTML questions", "translate to Hindi", "make it hard"), you MUST generate the requested questions and place them in the "questions" array.
@@ -2637,12 +2755,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
 `;
 
         try {
+            const bodyPayload = { prompt: fullPromptText };
+            if (currentAttachmentType === 'image' && currentAttachmentPreview) {
+                bodyPayload.image = currentAttachmentPreview;
+            }
+
             const response = await fetch('/api/ai/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ prompt: promptText })
+                body: JSON.stringify(bodyPayload)
             });
 
             if (!response.ok) {
@@ -5799,6 +5922,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                             : 'bg-white text-slate-800 border border-slate-200/60 rounded-tl-none'
                                             }`}>
                                             <p className="whitespace-pre-wrap">{msg.text}</p>
+                                            {msg.attachmentPreview && (
+                                                <div className="mt-2 rounded-xl overflow-hidden border border-white/20 max-w-[200px]">
+                                                    <img src={msg.attachmentPreview} alt="attachment" className="w-full max-h-[150px] object-cover" />
+                                                </div>
+                                            )}
+                                            {msg.attachmentName && (
+                                                <div className="mt-2 flex items-center gap-1.5 bg-slate-900/25 text-white/90 rounded-xl px-3 py-1.5 text-[10px] w-fit">
+                                                    <span>📄</span>
+                                                    <span className="font-bold truncate max-w-[150px]">{msg.attachmentName}</span>
+                                                </div>
+                                            )}
 
                                             {/* YouTube Embedded Cards */}
                                             {msg.videos && msg.videos.length > 0 && (
@@ -5954,6 +6088,51 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 <div ref={chatEndRef} />
                             </div>
 
+                            {/* Attachment Preview Card */}
+                            {(aiAttachmentPreview || aiParsingPdf) && (
+                                <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 animate-fade-in shrink-0">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {aiAttachmentType === 'image' && aiAttachmentPreview && (
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200">
+                                                <img src={aiAttachmentPreview} alt="attachment preview" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                        {aiAttachmentType === 'pdf' && (
+                                            <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-lg text-indigo-650 shrink-0">
+                                                📄
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 text-left">
+                                            <p className="text-xs font-bold text-slate-700 truncate max-w-[240px]">
+                                                {aiAttachmentType === 'image' ? 'Attached Image' : aiAttachmentPreview}
+                                            </p>
+                                            <p className="text-[10px] text-slate-450 font-semibold uppercase tracking-wider">
+                                                {aiParsingPdf ? (
+                                                    <span className="flex items-center gap-1 text-indigo-600 animate-pulse">
+                                                        <Loader2 className="animate-spin" size={10} />
+                                                        Parsing document content...
+                                                    </span>
+                                                ) : 'Ready to analyze'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAiAttachment(null);
+                                            setAiAttachmentPreview('');
+                                            setAiAttachmentType('');
+                                            setAiPdfText('');
+                                            setAiParsingPdf(false);
+                                            if (aiAttachmentInputRef.current) aiAttachmentInputRef.current.value = '';
+                                        }}
+                                        className="p-1 hover:bg-slate-200 rounded-full text-slate-450 hover:text-slate-700 transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Chat Input */}
                             <div className="p-3 border-t border-slate-100 bg-white shrink-0">
                                 <form
@@ -5964,17 +6143,33 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                     className="flex gap-2 items-center"
                                 >
                                     <input
+                                        type="file"
+                                        ref={aiAttachmentInputRef}
+                                        onChange={handleAiAttachmentChange}
+                                        accept="image/*,application/pdf"
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => aiAttachmentInputRef.current?.click()}
+                                        disabled={aiGenerating || aiParsingPdf}
+                                        className="p-2.5 text-slate-500 hover:text-indigo-650 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                                        title="Attach Image or PDF"
+                                    >
+                                        <Paperclip size={14} />
+                                    </button>
+                                    <input
                                         type="text"
                                         value={aiChatInput}
                                         onChange={(e) => setAiChatInput(e.target.value)}
-                                        placeholder="Type here (e.g. 'make 5 medium html questions')"
-                                        disabled={aiGenerating}
+                                        placeholder="Ask AI (e.g. 'make 5 questions from this')"
+                                        disabled={aiGenerating || aiParsingPdf}
                                         className="flex-1 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:border-indigo-600 transition-all font-sans disabled:opacity-60"
                                     />
                                     <button
                                         type="submit"
-                                        disabled={aiGenerating || !aiChatInput.trim()}
-                                        className="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                        disabled={aiGenerating || aiParsingPdf || (!aiChatInput.trim() && !aiAttachmentPreview)}
+                                        className="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
                                     >
                                         <Send size={14} />
                                     </button>

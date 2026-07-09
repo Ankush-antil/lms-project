@@ -590,7 +590,14 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                                 <td className="px-4 py-2.5 text-slate-500">{fmtDate(rec.date)}</td>
                                                 <td className="px-4 py-2.5 text-emerald-600 font-bold">{fmt(rec.amount)}</td>
                                                 <td className="px-4 py-2.5 text-slate-500">
-                                                    <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">{rec.paymentMode}</span>
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold">{rec.paymentMode}</span>
+                                                        {rec.referenceNo && (
+                                                            <span className="text-[10px] text-slate-400 font-bold select-all tracking-tight leading-tight">
+                                                                {rec.referenceNo}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-2.5 text-center">
                                                     <div className="flex items-center justify-center gap-1.5">

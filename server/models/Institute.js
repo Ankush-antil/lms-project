@@ -55,7 +55,7 @@ const instituteSchema = new mongoose.Schema({
             addCourse: { type: Boolean, default: true },
             editCourse: { type: Boolean, default: true }
         },
-        activities: {
+        tools: {
             show: { type: Boolean, default: true },
             elementsControl: { type: Boolean, default: true },
             inputElements: { type: Boolean, default: true },

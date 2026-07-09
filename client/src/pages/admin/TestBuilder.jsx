@@ -2073,7 +2073,7 @@ const TestBuilder = () => {
     };
 
     const editorControls = user?.editorProfile?.controls;
-    if (user?.role === 'Editor' && editorControls?.activitiesBuilder?.enabled === false) {
+    if (user?.role === 'Editor' && editorControls?.tools?.enabled === false) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
                 <div className="w-16 h-16 bg-red-50 text-red-550 rounded-2xl flex items-center justify-center mb-4 animate-bounce">
@@ -2081,7 +2081,7 @@ const TestBuilder = () => {
                 </div>
                 <h3 className="text-lg font-extrabold text-slate-800">Section Deactivated</h3>
                 <p className="text-slate-500 font-medium max-w-sm mt-2">
-                    {editorControls.activitiesBuilder.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
+                    {editorControls.tools.note || 'This page has been deactivated by your administrator. Please contact support if you require access.'}
                 </p>
                 <button
                     onClick={handleCloseBuilder}
@@ -2102,7 +2102,7 @@ const TestBuilder = () => {
 
         // 2. If Teacher, check teacher profile controls
         if (user?.role === 'Teacher') {
-            const builderControls = user?.teacherProfile?.controls?.activitiesBuilder;
+            const builderControls = user?.teacherProfile?.controls?.tools;
             if (builderControls) {
                 if (builderControls.enabled === false) return false;
                 if (builderControls[controlName] === false) return false;
@@ -3645,7 +3645,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         );
     }
 
-    const builderControls = user?.teacherProfile?.controls?.activitiesBuilder;
+    const builderControls = user?.teacherProfile?.controls?.tools;
     if (user?.role === 'Teacher' && builderControls?.enabled === false) {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-slate-50 font-sans">
@@ -3654,9 +3654,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     <div className="w-20 h-20 bg-red-50 text-red-650 rounded-3xl flex items-center justify-center mb-6 shadow-inner transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                         <AlertCircle size={40} />
                     </div>
-                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Activities Builder Locked</h2>
+                    <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Tools Locked</h2>
                     <p className="text-sm font-bold text-slate-500 max-w-md mb-6 leading-relaxed">
-                        {builderControls.note || 'The activities builder page has been deactivated by your administrator. Please contact support if you require access.'}
+                        {builderControls.note || 'The tools page has been deactivated by your administrator. Please contact support if you require access.'}
                     </p>
                     <button
                         onClick={handleCloseBuilder}

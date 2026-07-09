@@ -51,6 +51,12 @@ const getContacts = asyncHandler(async (req, res) => {
             }).select('_id');
             instituteUsers.forEach(u => relatedUserIds.add(u._id.toString()));
         }
+    } else if (userRole === 'Admin') {
+        const allUsers = await User.find({
+            _id: { $ne: userId },
+            isDeleted: { $ne: true }
+        }).select('_id');
+        allUsers.forEach(u => relatedUserIds.add(u._id.toString()));
     }
 
     // 2. Fetch history-based relations (anyone we have exchanged messages with)

@@ -283,12 +283,6 @@ const StudentPracticeTools = () => {
             path: "/student/practice-tools/file-uploader"
         },
         {
-            title: "Notes Writing",
-            icon: FileText,
-            color: "text-amber-500 bg-amber-50 border-amber-150 hover:border-amber-300",
-            path: "/student/practice-tools/notes"
-        },
-        {
             title: "Screenshot Tool",
             icon: Camera,
             color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",

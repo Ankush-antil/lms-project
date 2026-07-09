@@ -79,7 +79,7 @@ const AccountantsList = () => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setIsTrashOpen(true)}
-                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-655 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
                         title="Recycle Bin"
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
@@ -245,13 +245,12 @@ const AccountantsList = () => {
                                             key={idx}
                                             disabled={p === '...'}
                                             onClick={() => p !== '...' && setCurrentPage(p)}
-                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
-                                                p === '...'
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
                                                     ? 'text-slate-400 cursor-default bg-transparent'
                                                     : currentPage === p
                                                         ? 'bg-[#0b1329] text-white shadow-md'
                                                         : 'text-slate-600 hover:bg-slate-100 bg-transparent'
-                                            }`}
+                                                }`}
                                         >
                                             {p}
                                         </button>

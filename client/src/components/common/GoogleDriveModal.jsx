@@ -163,7 +163,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
         try {
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: '1091703484552-ogtcuj2470cnoh22bvke65ul96a0n5hc.apps.googleusercontent.com',
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
                 callback: async (tokenResponse) => {
                     if (tokenResponse && tokenResponse.access_token) {
                         const token = tokenResponse.access_token;
@@ -526,7 +526,16 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error(`Google Drive fetch error: ${res.status}`);
+            if (!res.ok) {
+                let errorMsg = `Google Drive fetch error: ${res.status}`;
+                try {
+                    const errBody = await res.json();
+                    if (errBody?.error?.message) {
+                        errorMsg = `Google Drive: ${errBody.error.message}`;
+                    }
+                } catch (e) {}
+                throw new Error(errorMsg);
+            }
             const data = await res.json();
             const allItems = data.files || [];
 

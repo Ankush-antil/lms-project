@@ -11,7 +11,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
         teacher: { show: true, hiring: true, addTeacher: true, editTeacher: true },
         editor: { show: true, hiring: true, addEditor: true, editEditor: true },
         course: { show: true, addCourse: true, editCourse: true },
-        activities: {
+        tools: {
             show: true,
             elementsControl: true,
             inputElements: true,
@@ -79,7 +79,7 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                     teacher: { ...defaultControls.teacher, ...institute.controls.teacher },
                     editor: { ...defaultControls.editor, ...institute.controls.editor },
                     course: { ...defaultControls.course, ...institute.controls.course },
-                    activities: { ...defaultControls.activities, ...institute.controls.activities },
+                    tools: { ...defaultControls.tools, ...institute.controls.tools },
                     chat: { ...defaultControls.chat, ...institute.controls.chat }
                 } : defaultControls
             });
@@ -689,21 +689,21 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                     {/* Activities */}
                                     <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
                                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                            <span className="text-sm font-extrabold text-slate-800">6. Activities Page</span>
+                                            <span className="text-sm font-extrabold text-slate-800">6. Tools Page</span>
                                             <input 
                                                 type="checkbox"
-                                                checked={formData.controls?.activities?.show !== false}
-                                                onChange={(e) => handleNestedControlChange('activities', 'show', e.target.checked)}
+                                                checked={formData.controls?.tools?.show !== false}
+                                                onChange={(e) => handleNestedControlChange('tools', 'show', e.target.checked)}
                                                 className="rounded text-indigo-650"
                                             />
                                         </div>
-                                        {formData.controls?.activities?.show !== false && (
+                                        {formData.controls?.tools?.show !== false && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
                                                 <label className="flex items-center gap-2 text-xs text-slate-650 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.elementsControl !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'elementsControl', e.target.checked)}
+                                                        checked={formData.controls?.tools?.elementsControl !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'elementsControl', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Elements Control
@@ -711,8 +711,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.inputElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'inputElements', e.target.checked)}
+                                                        checked={formData.controls?.tools?.inputElements !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'inputElements', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Input Elements
@@ -720,8 +720,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.displayingElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'displayingElements', e.target.checked)}
+                                                        checked={formData.controls?.tools?.displayingElements !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'displayingElements', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Displaying Elements
@@ -729,8 +729,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.recordingElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'recordingElements', e.target.checked)}
+                                                        checked={formData.controls?.tools?.recordingElements !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'recordingElements', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Recording Elements
@@ -738,8 +738,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.advanceElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'advanceElements', e.target.checked)}
+                                                        checked={formData.controls?.tools?.advanceElements !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'advanceElements', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Advance Elements
@@ -747,8 +747,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.addons !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'addons', e.target.checked)}
+                                                        checked={formData.controls?.tools?.addons !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'addons', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Addons
@@ -756,8 +756,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.theme !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'theme', e.target.checked)}
+                                                        checked={formData.controls?.tools?.theme !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'theme', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Theme
@@ -765,8 +765,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.createWithAi !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'createWithAi', e.target.checked)}
+                                                        checked={formData.controls?.tools?.createWithAi !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'createWithAi', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Create With AI
@@ -774,8 +774,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.integrate !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'integrate', e.target.checked)}
+                                                        checked={formData.controls?.tools?.integrate !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'integrate', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Integrate
@@ -783,8 +783,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.import !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'import', e.target.checked)}
+                                                        checked={formData.controls?.tools?.import !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'import', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Import
@@ -792,8 +792,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.saveAsTemplate !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'saveAsTemplate', e.target.checked)}
+                                                        checked={formData.controls?.tools?.saveAsTemplate !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'saveAsTemplate', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Save As Template
@@ -801,8 +801,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.decideActivity !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'decideActivity', e.target.checked)}
+                                                        checked={formData.controls?.tools?.decideActivity !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'decideActivity', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Decide Activity
@@ -810,8 +810,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.templates !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'templates', e.target.checked)}
+                                                        checked={formData.controls?.tools?.templates !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'templates', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Templates
@@ -819,8 +819,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.locationLocked !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'locationLocked', e.target.checked)}
+                                                        checked={formData.controls?.tools?.locationLocked !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'locationLocked', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Location Locked
@@ -828,8 +828,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.logicRules !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'logicRules', e.target.checked)}
+                                                        checked={formData.controls?.tools?.logicRules !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'logicRules', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Logic Rules
@@ -837,8 +837,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.monitoring !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'monitoring', e.target.checked)}
+                                                        checked={formData.controls?.tools?.monitoring !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'monitoring', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                         />
                                                     Monitoring
@@ -846,8 +846,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.connectIt !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'connectIt', e.target.checked)}
+                                                        checked={formData.controls?.tools?.connectIt !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'connectIt', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Connect It
@@ -855,8 +855,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.profileUnderSettings !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'profileUnderSettings', e.target.checked)}
+                                                        checked={formData.controls?.tools?.profileUnderSettings !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'profileUnderSettings', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Profile Under Settings
@@ -864,8 +864,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.moreSettings !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'moreSettings', e.target.checked)}
+                                                        checked={formData.controls?.tools?.moreSettings !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'moreSettings', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     More Settings
@@ -873,8 +873,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.responses !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'responses', e.target.checked)}
+                                                        checked={formData.controls?.tools?.responses !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'responses', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Responses
@@ -882,8 +882,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.collaborate !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'collaborate', e.target.checked)}
+                                                        checked={formData.controls?.tools?.collaborate !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'collaborate', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Collaborate
@@ -891,8 +891,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.manageAccess !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'manageAccess', e.target.checked)}
+                                                        checked={formData.controls?.tools?.manageAccess !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'manageAccess', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Manage Access
@@ -900,8 +900,8 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox"
-                                                        checked={formData.controls?.activities?.publicToWeb !== false}
-                                                        onChange={(e) => handleNestedControlChange('activities', 'publicToWeb', e.target.checked)}
+                                                        checked={formData.controls?.tools?.publicToWeb !== false}
+                                                        onChange={(e) => handleNestedControlChange('tools', 'publicToWeb', e.target.checked)}
                                                         className="rounded text-indigo-650"
                                                     />
                                                     Public To Web

@@ -98,12 +98,13 @@ const SubdomainRedirectHandler = ({ children }) => {
         const hostname = window.location.hostname;
         const path = location.pathname;
 
-        // Skip redirect logic for localhost, local IPs, or direct domain without subdomain
+        // Skip redirect logic for localhost, local IPs, direct domain, or dev subdomain
         const parts = hostname.split('.');
-        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2;
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.');
         if (isLocalHost) {
             return;
         }
+
 
         const subdomain = parts[0].toLowerCase();
         

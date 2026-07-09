@@ -1092,6 +1092,54 @@ export default function AdminFeePortal() {
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
 
+    const [selectedYear, setSelectedYear] = useState('All');
+
+    const availableYears = (() => {
+        const trend = reports?.monthlyTrend || [];
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+
+        const activeYears = trend
+            .filter(item => {
+                const parts = item.month.split(' ');
+                if (parts.length < 2) return false;
+                const [mName, yStr] = parts;
+                const year = parseInt(yStr);
+                const mIndex = new Date(Date.parse(mName + " 1, 2012")).getMonth();
+                return !(year > currentYear || (year === currentYear && mIndex > currentMonth));
+            })
+            .map(item => item.month.split(' ').pop());
+
+        return Array.from(new Set(activeYears)).sort();
+    })();
+
+    const filteredMonthlyTrend = (() => {
+        const trend = reports?.monthlyTrend || [];
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+
+        const activeTrend = trend.filter(item => {
+            const parts = item.month.split(' ');
+            if (parts.length < 2) return true;
+            const [mName, yStr] = parts;
+            const year = parseInt(yStr);
+            const mIndex = new Date(Date.parse(mName + " 1, 2012")).getMonth();
+            
+            if (year > currentYear || (year === currentYear && mIndex > currentMonth)) {
+                return false;
+            }
+            return true;
+        });
+
+        if (selectedYear !== 'All') {
+            return activeTrend.filter(item => item.month.endsWith(selectedYear));
+        }
+
+        return activeTrend;
+    })();
+
     // Pagination states
     const [studentsPage, setStudentsPage] = useState(1);
     const [pendingPage, setPendingPage] = useState(1);
@@ -1311,9 +1359,21 @@ export default function AdminFeePortal() {
 
                 {/* Monthly Trend Chart */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <h3 className="text-slate-800 font-black mb-4">Monthly Revenue Trend</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-slate-800 font-black">Monthly Revenue Trend</h3>
+                        <select
+                            value={selectedYear}
+                            onChange={e => setSelectedYear(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 text-xs font-bold focus:outline-none"
+                        >
+                            <option value="All">All Years</option>
+                            {availableYears.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
                     <ResponsiveContainer width="100%" height={200}>
-                        <AreaChart data={reports?.monthlyTrend || []}>
+                        <AreaChart data={filteredMonthlyTrend}>
                             <defs>
                                 <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -1852,9 +1912,21 @@ export default function AdminFeePortal() {
                     )}
                     {reportTab === 'trend' && (
                         <>
-                            <h3 className="text-white font-black mb-5">Monthly Collection Trend</h3>
+                            <div className="flex justify-between items-center mb-5">
+                                <h3 className="text-white font-black">Monthly Collection Trend</h3>
+                                <select
+                                    value={selectedYear}
+                                    onChange={e => setSelectedYear(e.target.value)}
+                                    className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs font-bold focus:outline-none"
+                                >
+                                    <option value="All">All Years</option>
+                                    {availableYears.map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <ResponsiveContainer width="100%" height={300}>
-                                <AreaChart data={reports?.monthlyTrend || []}>
+                                <AreaChart data={filteredMonthlyTrend}>
                                     <defs>
                                         <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />

@@ -38,7 +38,7 @@ const InstituteDashboard = () => {
     const userInfo = user;
     const navigate = useNavigate();
     
-    const [stats, setStats] = useState({ students: 0, teachers: 0, editors: 0, pendingApps: 0, totalApps: 0 });
+    const [stats, setStats] = useState({ students: 0, teachers: 0, editors: 0, accountants: 0, pendingApps: 0, totalApps: 0 });
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'applications'
@@ -107,10 +107,11 @@ const InstituteDashboard = () => {
             const instId = userInfo?.institute?._id || userInfo?.institute;
             
             // Parallel fetches for efficiency
-            const [studentsRes, teachersRes, editorsRes, appsRes, instRes] = await Promise.all([
+            const [studentsRes, teachersRes, editorsRes, accountantsRes, appsRes, instRes] = await Promise.all([
                 axios.get('/api/users?role=Student'),
                 axios.get('/api/users?role=Teacher'),
                 axios.get('/api/users?role=Editor'),
+                axios.get('/api/users?role=Accountant'),
                 axios.get('/api/setup/institute-applications'),
                 instId ? axios.get(`/api/setup/institutes/${instId}`) : Promise.resolve(null)
             ]);
@@ -122,6 +123,7 @@ const InstituteDashboard = () => {
                 students: studentsRes.data?.length || 0,
                 teachers: teachersRes.data?.length || 0,
                 editors: editorsRes.data?.length || 0,
+                accountants: accountantsRes.data?.length || 0,
                 pendingApps: pendingAppsCount,
                 totalApps: apps.length
             });
@@ -282,7 +284,7 @@ const InstituteDashboard = () => {
                         /* OVERVIEW TAB */
                         <div className="space-y-8 animate-fade-in">
                             {/* Stats Cards Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                                 <StatCard 
                                     title="Students" 
                                     value={stats.students} 
@@ -303,6 +305,13 @@ const InstituteDashboard = () => {
                                     icon={Award} 
                                     color="bg-purple-500 text-purple-500" 
                                     onClick={() => navigate('/institute/editors')} 
+                                />
+                                <StatCard 
+                                    title="Accountants" 
+                                    value={stats.accountants} 
+                                    icon={Users} 
+                                    color="bg-amber-500 text-amber-500" 
+                                    onClick={() => navigate('/institute/accountants')} 
                                 />
                                 <StatCard 
                                     title="Pending Requests" 

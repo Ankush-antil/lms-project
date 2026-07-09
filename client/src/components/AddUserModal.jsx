@@ -196,6 +196,23 @@ const DEFAULT_EDITOR_CONTROLS = {
     }
 };
 
+const DEFAULT_ACCOUNTANT_CONTROLS = {
+    feePortal: {
+        enabled: true,
+        mode: 'hide',
+        note: ''
+    },
+    chat: {
+        enabled: true,
+        mode: 'hide',
+        note: '',
+        subNotes: {},
+        teacher: true,
+        editor: true,
+        students: true
+    }
+};
+
 const getInboxTabLabel = (key) => {
     const labels = {
         upcoming: 'Upcoming',
@@ -323,7 +340,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                 assignedStudents: [],
                 controls: role === 'Student'
                     ? DEFAULT_STUDENT_CONTROLS
-                    : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : DEFAULT_STUDENT_CONTROLS))
+                    : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : (role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS : DEFAULT_STUDENT_CONTROLS)))
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -1884,6 +1901,67 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         );
     };
 
+    const renderAccountantControls = () => {
+        const updateControl = (section, field, value) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                newControls[section] = {
+                    ...newControls[section],
+                    [field]: value
+                };
+                return { ...prev, controls: newControls };
+            });
+        };
+
+        const controls = formData.controls || DEFAULT_ACCOUNTANT_CONTROLS;
+
+        return (
+            <div className="space-y-6 animate-fade-in pb-4">
+                {/* Fee Portal Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_fee"
+                                checked={controls.feePortal?.enabled !== false}
+                                onChange={e => updateControl('feePortal', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_fee" className="text-sm font-black text-slate-800 cursor-pointer select-none">Fee Portal Access</label>
+                        </div>
+                        {controls.feePortal?.enabled === false && (
+                            <select
+                                value={controls.feePortal?.mode || 'hide'}
+                                onChange={e => updateControl('feePortal', 'mode', e.target.value)}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="hide">Hide completely</option>
+                                <option value="disable">Show as disabled</option>
+                            </select>
+                        )}
+                    </div>
+                </div>
+
+                {/* Chat Controls */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="e_ctrl_chat"
+                                checked={controls.chat?.enabled !== false}
+                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
+                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                            />
+                            <label htmlFor="e_ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer select-none">Chat Page</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -2002,7 +2080,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {(role === 'Student' || role === 'Teacher' || role === 'Editor') && !createdUser && (
+                    {(role === 'Student' || role === 'Teacher' || role === 'Editor' || role === 'Accountant') && !createdUser && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -2034,7 +2112,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     {!createdUser ? (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {activeTab === 'controls' ? (
-                                role === 'Student' ? renderStudentControls() : (role === 'Teacher' ? renderTeacherControls() : renderEditorControls())
+                                role === 'Student' ? renderStudentControls() : (role === 'Teacher' ? renderTeacherControls() : (role === 'Editor' ? renderEditorControls() : renderAccountantControls()))
                             ) : (
                                 <div className="grid grid-cols-1 gap-4">
                                     {user?.role === 'Institute' || user?.role === 'Editor' ? (
@@ -2390,7 +2468,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                 </div>
                             )}
 
-                            {activeTab === 'basic' && (role === 'Student' || role === 'Teacher' || role === 'Editor') ? (
+                            {activeTab === 'basic' && (role === 'Student' || role === 'Teacher' || role === 'Editor' || role === 'Accountant') ? (
                                 <button
                                     type="button"
                                     onClick={handleNextTab}

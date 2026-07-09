@@ -204,6 +204,8 @@ const LandingPage = () => {
                 navigate('/editor');
             } else if (user.role === 'Institute') {
                 navigate('/institute');
+            } else if (user.role === 'Accountant') {
+                navigate('/accountant/fee-portal');
             }
         }
     }, [user, loading, navigate]);
@@ -581,6 +583,7 @@ const LandingPage = () => {
             else if (data.role === 'Student') navigate('/student/tests');
             else if (data.role === 'Editor') navigate('/editor');
             else if (data.role === 'Institute') navigate('/institute');
+            else if (data.role === 'Accountant') navigate('/accountant/fee-portal');
 
             setShowLockModal(false);
         } catch (err) {

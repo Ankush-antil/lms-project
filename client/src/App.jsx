@@ -10,6 +10,7 @@ import StudentDetails from './pages/admin/StudentDetails';
 import TeachersList from './pages/admin/TeachersList';
 import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
+import AccountantsList from './pages/admin/AccountantsList';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
 
@@ -120,6 +121,11 @@ function App() {
                                         <EditorsList />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/accountants" element={
+                                    <PrivateRoute role="Institute">
+                                        <AccountantsList />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/institute/courses" element={
                                     <PrivateRoute role="Institute">
                                         <CoursesList />
@@ -205,6 +211,11 @@ function App() {
                                         <EditorsList />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/admin/accountants" element={
+                                    <PrivateRoute role="Admin">
+                                        <AccountantsList />
+                                    </PrivateRoute>
+                                } />
 
                                 <Route path="/admin/courses" element={
                                     <PrivateRoute role="Admin">
@@ -241,6 +252,23 @@ function App() {
                                 <Route path="/admin/fee-portal" element={
                                     <PrivateRoute role="Admin">
                                         <AdminFeePortal />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Accountant Routes */}
+                                <Route path="/accountant" element={
+                                    <PrivateRoute role="Accountant">
+                                        <Navigate to="/accountant/fee-portal" replace />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/accountant/fee-portal" element={
+                                    <PrivateRoute role="Accountant">
+                                        <AdminFeePortal />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/accountant/chat" element={
+                                    <PrivateRoute role="Accountant">
+                                        <ChatPage />
                                     </PrivateRoute>
                                 } />
 

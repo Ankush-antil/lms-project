@@ -96,6 +96,8 @@ export const AuthProvider = ({ children }) => {
             window.location.href = '/editor';
         } else if (userInfo.role === 'Institute') {
             window.location.href = '/institute';
+        } else if (userInfo.role === 'Accountant') {
+            window.location.href = '/accountant/fee-portal';
         } else {
             window.location.href = '/';
         }
@@ -154,6 +156,8 @@ export const AuthProvider = ({ children }) => {
                             window.location.href = '/editor';
                         } else if (nextUser && nextUser.role === 'Institute') {
                             window.location.href = '/institute';
+                        } else if (nextUser && nextUser.role === 'Accountant') {
+                            window.location.href = '/accountant/fee-portal';
                         } else {
                             window.location.href = '/';
                         }

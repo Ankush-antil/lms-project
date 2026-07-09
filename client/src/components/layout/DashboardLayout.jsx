@@ -150,6 +150,7 @@ const menuItems = {
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
+        { name: 'Accountants', icon: Users, path: '/admin/accountants' },
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
@@ -161,6 +162,7 @@ const menuItems = {
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
+        { name: 'Accountants', icon: Users, path: '/institute/accountants' },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/institute/subjects' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
@@ -185,6 +187,10 @@ const menuItems = {
         { name: 'Activities', icon: ClipboardCheck, path: '/editor/activities' },
         { name: 'Activities Builder', icon: ClipboardCheck, path: '/editor/activities-builder' },
         { name: 'Chat', icon: MessageSquare, path: '/editor/chat' },
+    ],
+    Accountant: [
+        { name: 'Fee Portal', icon: CreditCard, path: '/accountant/fee-portal' },
+        { name: 'Chat', icon: MessageSquare, path: '/accountant/chat' },
     ],
     Student: [
         { name: 'My Activities', icon: FileText, path: '/student/tests' },

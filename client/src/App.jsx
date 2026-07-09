@@ -98,16 +98,14 @@ const SubdomainRedirectHandler = ({ children }) => {
         const hostname = window.location.hostname;
         const path = location.pathname;
 
-        // Skip redirect logic for localhost, local IPs, direct domain, or dev subdomain
+        // Skip redirect logic for localhost, local IPs, or dev subdomain (allow root domain digitalstudyacademy.com to redirect)
         const parts = hostname.split('.');
-        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith('dev.');
         if (isLocalHost) {
             return;
         }
 
-
         const subdomain = parts[0].toLowerCase();
-        
         // Public paths allowed without login
         const isPublicPath = path.startsWith('/share/') || path === '/track-applications';
 

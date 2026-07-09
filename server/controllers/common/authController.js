@@ -7,24 +7,28 @@ const generateToken = (id) => {
 };
 
 const getCookieOptions = (req) => {
+    const isProd = req.headers.host && req.headers.host.includes('digitalstudyacademy.com');
     const options = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProd || process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     };
-    if (req.headers.host && req.headers.host.includes('digitalstudyacademy.com')) {
+    if (isProd) {
         options.domain = '.digitalstudyacademy.com';
     }
     return options;
 };
 
 const getLogoutCookieOptions = (req) => {
+    const isProd = req.headers.host && req.headers.host.includes('digitalstudyacademy.com');
     const options = {
         httpOnly: true,
+        secure: isProd || process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
         expires: new Date(0)
     };
-    if (req.headers.host && req.headers.host.includes('digitalstudyacademy.com')) {
+    if (isProd) {
         options.domain = '.digitalstudyacademy.com';
     }
     return options;

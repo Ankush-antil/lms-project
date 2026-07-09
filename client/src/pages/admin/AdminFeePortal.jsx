@@ -375,6 +375,15 @@ const ReceiptModal = ({ receipt, onClose }) => {
 
 /* ─── Student Details Modal ─── */
 const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenReceipt, onDelete, onDeleteTransaction, onDeleteExtraCharge }) => {
+    const { user } = useAuth();
+    const canPerform = (feature, subAction) => {
+        if (user?.role !== 'Accountant') return true;
+        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!ctrl) return true;
+        if (ctrl.enabled === false) return false;
+        return ctrl[subAction] !== false;
+    };
+
     if (!record) return null;
 
     const student = record.student || {};
@@ -467,15 +476,17 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                             {record.extraCharges.map((ec, i) => (
                                                 <div key={ec._id || i} className="flex justify-between items-center py-0.5 border-b border-amber-100/50 last:border-0">
                                                     <span>{ec.label || 'Extra'}: {fmt(ec.amount)}</span>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (onDeleteExtraCharge) onDeleteExtraCharge(student._id, ec._id);
-                                                        }}
-                                                        className="p-1 hover:bg-rose-100/80 rounded text-slate-400 hover:text-rose-600 transition-colors"
-                                                        title="Delete Extra Charge"
-                                                    >
-                                                        <Trash2 size={11} />
-                                                    </button>
+                                                    {canPerform('feePortal', 'editStructure') && (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (onDeleteExtraCharge) onDeleteExtraCharge(student._id, ec._id);
+                                                            }}
+                                                            className="p-1 hover:bg-rose-100/80 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                                                            title="Delete Extra Charge"
+                                                        >
+                                                            <Trash2 size={11} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -506,30 +517,34 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
 
                             {/* Actions */}
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => {
-                                        onCollect(student._id);
-                                        onClose();
-                                    }}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100"
-                                >
-                                    <CreditCard size={14} /> Collect Fee
-                                </button>
+                                {canPerform('feePortal', 'collectFee') && (
+                                    <button
+                                        onClick={() => {
+                                            onCollect(student._id);
+                                            onClose();
+                                        }}
+                                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100"
+                                    >
+                                        <CreditCard size={14} /> Collect Fee
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleSendReminder}
                                     className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                                 >
                                     <MessageSquare size={14} /> Send Reminder
                                 </button>
-                                <button
-                                    onClick={() => {
-                                        if (onDelete) onDelete(student._id);
-                                    }}
-                                    className="px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                                    title="Delete Student"
-                                >
-                                    <Trash2 size={14} /> Delete
-                                </button>
+                                {canPerform('feePortal', 'editStructure') && (
+                                    <button
+                                        onClick={() => {
+                                            if (onDelete) onDelete(student._id);
+                                        }}
+                                        className="px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                        title="Delete Student"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -574,15 +589,17 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                                         >
                                                             <Eye size={13} />
                                                         </button>
-                                                        <button 
-                                                            onClick={() => {
-                                                                if (onDeleteTransaction) onDeleteTransaction(rec._id, student._id);
-                                                            }} 
-                                                            className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600 transition-colors"
-                                                            title="Delete Payment"
-                                                        >
-                                                            <Trash2 size={13} />
-                                                        </button>
+                                                        {canPerform('feePortal', 'deleteTransaction') && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    if (onDeleteTransaction) onDeleteTransaction(rec._id, student._id);
+                                                                }} 
+                                                                className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                                                                title="Delete Payment"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1082,6 +1099,14 @@ export default function AdminFeePortal() {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+
+    const canPerform = (feature, subAction) => {
+        if (user?.role !== 'Accountant') return true;
+        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!ctrl) return true;
+        if (ctrl.enabled === false) return false;
+        return ctrl[subAction] !== false;
+    };
     const [courseFilter, setCourseFilter] = useState('All');
     const [reportTab, setReportTab] = useState('course');
     const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -1091,6 +1116,54 @@ export default function AdminFeePortal() {
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [collectPreselect, setCollectPreselect] = useState('');
     const [recSearch, setRecSearch] = useState(''); // receipts search — must be here (hook rule)
+
+    const [selectedYear, setSelectedYear] = useState('All');
+
+    const availableYears = (() => {
+        const trend = reports?.monthlyTrend || [];
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+
+        const activeYears = trend
+            .filter(item => {
+                const parts = item.month.split(' ');
+                if (parts.length < 2) return false;
+                const [mName, yStr] = parts;
+                const year = parseInt(yStr);
+                const mIndex = new Date(Date.parse(mName + " 1, 2012")).getMonth();
+                return !(year > currentYear || (year === currentYear && mIndex > currentMonth));
+            })
+            .map(item => item.month.split(' ').pop());
+
+        return Array.from(new Set(activeYears)).sort();
+    })();
+
+    const filteredMonthlyTrend = (() => {
+        const trend = reports?.monthlyTrend || [];
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+
+        const activeTrend = trend.filter(item => {
+            const parts = item.month.split(' ');
+            if (parts.length < 2) return true;
+            const [mName, yStr] = parts;
+            const year = parseInt(yStr);
+            const mIndex = new Date(Date.parse(mName + " 1, 2012")).getMonth();
+            
+            if (year > currentYear || (year === currentYear && mIndex > currentMonth)) {
+                return false;
+            }
+            return true;
+        });
+
+        if (selectedYear !== 'All') {
+            return activeTrend.filter(item => item.month.endsWith(selectedYear));
+        }
+
+        return activeTrend;
+    })();
 
     // Pagination states
     const [studentsPage, setStudentsPage] = useState(1);
@@ -1184,6 +1257,9 @@ export default function AdminFeePortal() {
     };
 
     const handleDeleteTransaction = async (transactionId, studentId) => {
+        if (!canPerform('feePortal', 'deleteTransaction')) {
+            return toast.error("You do not have permission to delete transactions");
+        }
         if (!window.confirm("Are you sure you want to delete this payment transaction?")) return;
         try {
             await axios.delete(`/api/fees/admin/transaction/${transactionId}`, { withCredentials: true });
@@ -1311,9 +1387,21 @@ export default function AdminFeePortal() {
 
                 {/* Monthly Trend Chart */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <h3 className="text-slate-800 font-black mb-4">Monthly Revenue Trend</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-slate-800 font-black">Monthly Revenue Trend</h3>
+                        <select
+                            value={selectedYear}
+                            onChange={e => setSelectedYear(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 text-xs font-bold focus:outline-none"
+                        >
+                            <option value="All">All Years</option>
+                            {availableYears.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
                     <ResponsiveContainer width="100%" height={200}>
-                        <AreaChart data={reports?.monthlyTrend || []}>
+                        <AreaChart data={filteredMonthlyTrend}>
                             <defs>
                                 <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -1852,9 +1940,21 @@ export default function AdminFeePortal() {
                     )}
                     {reportTab === 'trend' && (
                         <>
-                            <h3 className="text-white font-black mb-5">Monthly Collection Trend</h3>
+                            <div className="flex justify-between items-center mb-5">
+                                <h3 className="text-white font-black">Monthly Collection Trend</h3>
+                                <select
+                                    value={selectedYear}
+                                    onChange={e => setSelectedYear(e.target.value)}
+                                    className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs font-bold focus:outline-none"
+                                >
+                                    <option value="All">All Years</option>
+                                    {availableYears.map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <ResponsiveContainer width="100%" height={300}>
-                                <AreaChart data={reports?.monthlyTrend || []}>
+                                <AreaChart data={filteredMonthlyTrend}>
                                     <defs>
                                         <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -2070,85 +2170,87 @@ export default function AdminFeePortal() {
                     </div>
                 </div>
 
-                {/* Google Sheets Integration Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
-                                📊 Google Sheets Integration
-                            </h3>
-                            <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
-                        </div>
-                        {syncConfig?.spreadsheetId && (
-                            <a 
-                                href={`https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
-                            >
-                                <FileText size={12} /> Open Sheet ↗
-                            </a>
-                        )}
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
-                            <div className="flex gap-2">
-                                <input
-                                    value={spreadsheetIdInput}
-                                    onChange={e => setSpreadsheetIdInput(e.target.value)}
-                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
-                                    placeholder="Paste Google Spreadsheet ID here"
-                                />
-                                <button
-                                    onClick={saveAllSettings}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
+                {canPerform('feePortal', 'googleSheets') && (
+                    /* Google Sheets Integration Card */
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-slate-800 font-black text-base flex items-center gap-2">
+                                    📊 Google Sheets Integration
+                                </h3>
+                                <p className="text-slate-400 text-xs mt-0.5">Synchronize fee records two-way with Google Sheets</p>
+                            </div>
+                            {syncConfig?.spreadsheetId && (
+                                <a 
+                                    href={`https://docs.google.com/spreadsheets/d/${syncConfig.spreadsheetId}/edit`}
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors"
                                 >
-                                    {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
+                                    <FileText size={12} /> Open Sheet ↗
+                                </a>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Google Spreadsheet ID</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        value={spreadsheetIdInput}
+                                        onChange={e => setSpreadsheetIdInput(e.target.value)}
+                                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                                        placeholder="Paste Google Spreadsheet ID here"
+                                    />
+                                    <button
+                                        onClick={saveAllSettings}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2 text-xs font-bold transition-colors flex-shrink-0"
+                                    >
+                                        {settingsSaved ? '✓ Saved!' : 'Save Sheet ID'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Import & Export Action Buttons */}
+                            <div className="flex items-center gap-3 pt-2">
+                                <button
+                                    onClick={handleImport}
+                                    disabled={syncLoading}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <RefreshCw size={12} className={syncLoading ? 'animate-spin' : ''} />
+                                    Sync & Import from Sheet
+                                </button>
+                                <button
+                                    onClick={downloadExcel}
+                                    className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <Download size={12} />
+                                    Download Excel (.xls)
+                                </button>
+                                <button
+                                    onClick={downloadCSV}
+                                    className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <Download size={12} />
+                                    Download CSV
                                 </button>
                             </div>
-                        </div>
 
-                        {/* Import & Export Action Buttons */}
-                        <div className="flex items-center gap-3 pt-2">
-                            <button
-                                onClick={handleImport}
-                                disabled={syncLoading}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
-                            >
-                                <RefreshCw size={12} className={syncLoading ? 'animate-spin' : ''} />
-                                Sync & Import from Sheet
-                            </button>
-                            <button
-                                onClick={downloadExcel}
-                                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
-                            >
-                                <Download size={12} />
-                                Download Excel (.xls)
-                            </button>
-                            <button
-                                onClick={downloadCSV}
-                                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
-                            >
-                                <Download size={12} />
-                                Download CSV
-                            </button>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">
-                            <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
-                            <ol className="list-decimal pl-4 space-y-1">
-                                <li>Create a new Google Sheet in your account.</li>
-                                <li>
-                                    Share it with editor permissions to email: 
-                                    <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
-                                </li>
-                                <li>Paste the Spreadsheet ID from the URL and click Save.</li>
-                            </ol>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">
+                                <p className="font-bold text-slate-700">How to link your own Google Sheet:</p>
+                                <ol className="list-decimal pl-4 space-y-1">
+                                    <li>Create a new Google Sheet in your account.</li>
+                                    <li>
+                                        Share it with editor permissions to email: 
+                                        <code className="bg-slate-100 text-indigo-600 font-bold px-1 rounded ml-1 select-all">lms-sheets@lms-500307.iam.gserviceaccount.com</code>
+                                    </li>
+                                    <li>Paste the Spreadsheet ID from the URL and click Save.</li>
+                                </ol>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         );
     };
@@ -2200,7 +2302,11 @@ export default function AdminFeePortal() {
                 {/* Left Sidebar */}
                 <div className="w-52 flex-shrink-0 bg-[#0a0f1a] border-r border-white/10 flex flex-col py-4">
                     <nav className="space-y-0.5 px-3 flex-1">
-                        {NAV_ITEMS.map(item => {
+                        {NAV_ITEMS.filter(item => {
+                            if (item.id === 'collect' && !canPerform('feePortal', 'collectFee')) return false;
+                            if (item.id === 'reports' && !canPerform('feePortal', 'viewReports')) return false;
+                            return true;
+                        }).map(item => {
                             const Icon = item.icon;
                             const active = activeTab === item.id;
                             return (

@@ -18,6 +18,14 @@ const ChatPage = () => {
     const { socket, onlineUsers, callUser, setChatNotifications } = useSocket();
     const location = useLocation();
 
+    const canPerform = (feature, subAction) => {
+        if (user?.role !== 'Accountant') return true;
+        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!ctrl) return true;
+        if (ctrl.enabled === false) return false;
+        return ctrl[subAction] !== false;
+    };
+
     const [contacts, setContacts] = useState([]);
     const [selectedContact, setSelectedContact] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -1323,6 +1331,28 @@ const ChatPage = () => {
             return true;
         }
 
+        // Accountant controls
+        if (user.role === 'Accountant') {
+            const chatCtrl = user.accountantProfile?.controls?.chat;
+            if (!chatCtrl) return true;
+            if (chatCtrl.enabled === false) return false;
+
+            const role = contact.role;
+            if (role === 'Admin' || role === 'Institute') {
+                return chatCtrl.chatWithAdmin !== false;
+            }
+            if (role === 'Teacher') {
+                return chatCtrl.chatWithTeacher !== false;
+            }
+            if (role === 'Editor') {
+                return chatCtrl.chatWithEditor !== false;
+            }
+            if (role === 'Student') {
+                return chatCtrl.chatWithStudent !== false;
+            }
+            return true;
+        }
+
         return true;
     };
 
@@ -1338,7 +1368,7 @@ const ChatPage = () => {
                 });
             }
         });
-        if (user?.role === 'Student' || user?.role === 'Teacher' || user?.role === 'Editor') {
+        if (user?.role === 'Student' || user?.role === 'Teacher' || user?.role === 'Editor' || user?.role === 'Accountant') {
             list = list.filter(isContactAllowed);
         }
         return list;

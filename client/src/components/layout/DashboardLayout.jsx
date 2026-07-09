@@ -576,7 +576,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 else if (name === 'student activities') controlKey = 'studentActivities';
                 else if (name === 'evaluate') controlKey = 'evaluate';
                 else if (name === 'snapshots') controlKey = 'snapshots';
-                else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+                else if (name === 'tools') controlKey = 'tools';
                 else if (name === 'chat') controlKey = 'chat';
 
                 if (controlKey) {
@@ -596,7 +596,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 else if (name === 'courses') controlKey = 'courses';
                 else if (name === 'subjects') controlKey = 'subjects';
                 else if (name === 'activities') controlKey = 'activities';
-                else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+                else if (name === 'tools') controlKey = 'tools';
                 else if (name === 'chat') controlKey = 'chat';
 
                 if (controlKey) {
@@ -645,7 +645,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'student activities') controlKey = 'studentActivities';
             else if (name === 'evaluate') controlKey = 'evaluate';
             else if (name === 'snapshots') controlKey = 'snapshots';
-            else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+            else if (name === 'tools') controlKey = 'tools';
             else if (name === 'chat') controlKey = 'chat';
 
             if (controlKey) {
@@ -668,7 +668,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'courses') controlKey = 'courses';
             else if (name === 'subjects') controlKey = 'subjects';
             else if (name === 'activities') controlKey = 'activities';
-            else if (name === 'activities builder') controlKey = 'activitiesBuilder';
+            else if (name === 'tools') controlKey = 'tools';
             else if (name === 'chat') controlKey = 'chat';
 
             if (controlKey) {
@@ -700,8 +700,8 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         if (name === 'courses' || name === 'subjects') {
             return controls.course?.show !== false;
         }
-        if (name === 'activities' || name === 'activities builder') {
-            return controls.activities?.show !== false;
+        if (name === 'tools') {
+            return controls.tools?.show !== false;
         }
         if (name === 'chat') {
             return controls.chat?.show !== false;

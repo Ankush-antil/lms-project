@@ -97,7 +97,7 @@ const DEFAULT_TEACHER_CONTROLS = {
         subNotes: {},
         qrAttendance: true
     },
-    activitiesBuilder: {
+    tools: {
         enabled: true,
         mode: 'hide',
         note: '',
@@ -178,7 +178,7 @@ const DEFAULT_EDITOR_CONTROLS = {
         publicWebTests: true,
         draftTests: true
     },
-    activitiesBuilder: {
+    tools: {
         enabled: true,
         mode: 'hide',
         note: '',
@@ -888,7 +888,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         };
 
         const controls = formData.controls || DEFAULT_TEACHER_CONTROLS;
-        const activitiesAllowed = instituteDetails?.controls?.activities || {};
+        const activitiesAllowed = instituteDetails?.controls?.tools || {};
 
         return (
             <div className="space-y-6 animate-fade-in pb-4">
@@ -1194,23 +1194,23 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                     )}
                 </div>
 
-                {/* 5. Activities Builder Controls (Hierarchical checks from parent Institute) */}
+                {/* 5. Tools Controls (Hierarchical checks from parent Institute) */}
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <input
                                 type="checkbox"
-                                id="t_ctrl_activitiesBuilder"
-                                checked={controls.activitiesBuilder?.enabled !== false}
-                                onChange={e => updateControl('activitiesBuilder', 'enabled', e.target.checked)}
+                                id="t_ctrl_tools"
+                                checked={controls.tools?.enabled !== false}
+                                onChange={e => updateControl('tools', 'enabled', e.target.checked)}
                                 className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
                             />
-                            <label htmlFor="t_ctrl_activitiesBuilder" className="text-sm font-black text-slate-800 cursor-pointer">Activities Builder Page</label>
+                            <label htmlFor="t_ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer">Tools Page</label>
                         </div>
-                        {controls.activitiesBuilder?.enabled === false && (
+                        {controls.tools?.enabled === false && (
                             <select
-                                value={controls.activitiesBuilder?.mode || 'hide'}
-                                onChange={e => updateControl('activitiesBuilder', 'mode', e.target.value)}
+                                value={controls.tools?.mode || 'hide'}
+                                onChange={e => updateControl('tools', 'mode', e.target.value)}
                                 className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
                             >
                                 <option value="hide">Hide completely</option>
@@ -1219,23 +1219,23 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                         )}
                     </div>
 
-                    {controls.activitiesBuilder?.enabled === false && (
+                    {controls.tools?.enabled === false && (
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
                             <input
                                 type="text"
                                 placeholder="Why is this page hidden/disabled?"
-                                value={controls.activitiesBuilder?.note || ''}
-                                onChange={e => updateControl('activitiesBuilder', 'note', e.target.value)}
+                                value={controls.tools?.note || ''}
+                                onChange={e => updateControl('tools', 'note', e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                             />
                         </div>
                     )}
 
-                    {controls.activitiesBuilder?.enabled !== false && (
+                    {controls.tools?.enabled !== false && (
                         <div className="border-t border-slate-200/60 pt-4 space-y-4">
                             <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Activities Builder Sub-features (Inherited from Institute)</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tools Sub-features (Inherited from Institute)</span>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
                                         { id: 'elementsControl', label: 'Elements Control' },
@@ -1268,8 +1268,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 <input
                                                     type="checkbox"
                                                     disabled={!isAllowedByInstitute}
-                                                    checked={isAllowedByInstitute && controls.activitiesBuilder?.[item.id] !== false}
-                                                    onChange={e => updateControl('activitiesBuilder', item.id, e.target.checked)}
+                                                    checked={isAllowedByInstitute && controls.tools?.[item.id] !== false}
+                                                    onChange={e => updateControl('tools', item.id, e.target.checked)}
                                                     className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
                                                 />
                                                 <span className="text-xs font-semibold text-slate-700">
@@ -1771,23 +1771,23 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                     )}
                 </div>
 
-                {/* 6. Activities Builder Controls */}
+                {/* 6. Tools Controls */}
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <input
                                 type="checkbox"
-                                id="e_ctrl_activitiesBuilder"
-                                checked={controls.activitiesBuilder?.enabled !== false}
-                                onChange={e => updateControl('activitiesBuilder', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
+                                id="e_ctrl_tools"
+                                checked={controls.tools?.enabled !== false}
+                                onChange={e => updateControl('tools', 'enabled', e.target.checked)}
+                                className="rounded border-slate-355 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
                             />
-                            <label htmlFor="e_ctrl_activitiesBuilder" className="text-sm font-black text-slate-800 cursor-pointer select-none">Activities Builder Page</label>
+                            <label htmlFor="e_ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer select-none">Tools Page</label>
                         </div>
-                        {controls.activitiesBuilder?.enabled === false && (
+                        {controls.tools?.enabled === false && (
                             <select
-                                value={controls.activitiesBuilder?.mode || 'hide'}
-                                onChange={e => updateControl('activitiesBuilder', 'mode', e.target.value)}
+                                value={controls.tools?.mode || 'hide'}
+                                onChange={e => updateControl('tools', 'mode', e.target.value)}
                                 className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
                             >
                                 <option value="hide">Hide completely</option>
@@ -1795,13 +1795,13 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             </select>
                         )}
                     </div>
-                    {controls.activitiesBuilder?.enabled === false && (
+                    {controls.tools?.enabled === false && (
                         <div className="w-full animate-fade-in">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
                             <input
                                 type="text"
-                                value={controls.activitiesBuilder?.note || ''}
-                                onChange={e => updateControl('activitiesBuilder', 'note', e.target.value)}
+                                value={controls.tools?.note || ''}
+                                onChange={e => updateControl('tools', 'note', e.target.value)}
                                 placeholder="Enter reason"
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                             />

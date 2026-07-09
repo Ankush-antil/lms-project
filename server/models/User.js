@@ -187,7 +187,7 @@ const userSchema = new mongoose.Schema({
                 subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
                 qrAttendance: { type: Boolean, default: true }
             },
-            activitiesBuilder: {
+            tools: {
                 enabled: { type: Boolean, default: true },
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
                 note: { type: String, default: '' },
@@ -270,7 +270,7 @@ const userSchema = new mongoose.Schema({
                 publicWebTests: { type: Boolean, default: true },
                 draftTests: { type: Boolean, default: true }
             },
-            activitiesBuilder: {
+            tools: {
                 enabled: { type: Boolean, default: true },
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
                 note: { type: String, default: '' },

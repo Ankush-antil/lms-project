@@ -20,6 +20,23 @@ const AccountantDashboard = () => {
     const [topPending, setTopPending] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const getControlStatus = (key) => {
+        const controls = user?.accountantProfile?.controls;
+        if (!controls) return { enabled: true };
+        return controls[key] || { enabled: true };
+    };
+
+    const handleFeatureClick = (key, path) => {
+        const ctrl = getControlStatus(key);
+        if (ctrl.enabled === false) {
+            if (ctrl.mode === 'disable') {
+                toast.error(ctrl.note || "This feature has been disabled by the administrator.");
+            }
+            return;
+        }
+        navigate(path);
+    };
+
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -66,12 +83,14 @@ const AccountantDashboard = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={() => navigate('/accountant/fee-portal')}
-                            className="px-5 py-3 bg-white text-slate-900 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                        >
-                            <Coins size={16} className="text-amber-600" /> Collect Fee
-                        </button>
+                        {!(getControlStatus('feePortal').enabled === false && getControlStatus('feePortal').mode === 'hide') && (
+                            <button
+                                onClick={() => handleFeatureClick('feePortal', '/accountant/fee-portal')}
+                                className={`px-5 py-3 bg-white text-slate-900 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${getControlStatus('feePortal').enabled === false ? 'opacity-65 cursor-not-allowed' : ''}`}
+                            >
+                                <Coins size={16} className="text-amber-600" /> Collect Fee
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -261,84 +280,92 @@ const AccountantDashboard = () => {
                 /* WORKSPACE TOOLS TAB */
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
                     {/* Tool 1: Fee Portal */}
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
-                        <div className="absolute top-0 left-0 w-2 h-full bg-amber-500"></div>
-                        <div>
-                            <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                <Coins size={24} />
+                    {!(getControlStatus('feePortal').enabled === false && getControlStatus('feePortal').mode === 'hide') && (
+                        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('feePortal').enabled === false ? 'opacity-60' : ''}`}>
+                            <div className="absolute top-0 left-0 w-2 h-full bg-amber-500"></div>
+                            <div>
+                                <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                    <Coins size={24} />
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Fee Collection Portal</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    Track student fee statuses, record cash/online payments, print receipts, and set up invoice structures.
+                                </p>
                             </div>
-                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Fee Collection Portal</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                Track student fee statuses, record cash/online payments, print receipts, and set up invoice structures.
-                            </p>
+                            <button
+                                onClick={() => handleFeatureClick('feePortal', '/accountant/fee-portal')}
+                                className="text-xs text-amber-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                            >
+                                Open Portal {getControlStatus('feePortal').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => navigate('/accountant/fee-portal')}
-                            className="text-xs text-amber-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
-                        >
-                            Open Portal <ArrowRight size={14} />
-                        </button>
-                    </div>
+                    )}
 
                     {/* Tool 2: Drive Storage */}
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
-                        <div className="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
-                        <div>
-                            <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                <FolderOpen size={24} />
+                    {!(getControlStatus('drive').enabled === false && getControlStatus('drive').mode === 'hide') && (
+                        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('drive').enabled === false ? 'opacity-60' : ''}`}>
+                            <div className="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
+                            <div>
+                                <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                    <FolderOpen size={24} />
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Shared Drive Storage</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    Access the institute's shared files, upload transaction proofs, bank receipts, spreadsheets, and audit documents.
+                                </p>
                             </div>
-                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Shared Drive Storage</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                Access the institute's shared files, upload transaction proofs, bank receipts, spreadsheets, and audit documents.
-                            </p>
+                            <button
+                                onClick={() => handleFeatureClick('drive', '/accountant/drive')}
+                                className="text-xs text-purple-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                            >
+                                Open Drive {getControlStatus('drive').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => navigate('/accountant/drive')}
-                            className="text-xs text-purple-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
-                        >
-                            Open Drive <ArrowRight size={14} />
-                        </button>
-                    </div>
+                    )}
 
                     {/* Tool 3: Personal Notes */}
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
-                        <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
-                        <div>
-                            <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                <FileText size={24} />
+                    {!(getControlStatus('notes').enabled === false && getControlStatus('notes').mode === 'hide') && (
+                        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('notes').enabled === false ? 'opacity-60' : ''}`}>
+                            <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
+                            <div>
+                                <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                    <FileText size={24} />
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Quick Reminders & Notes</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    Take private quick notes, draft audit checklists, log pending queries, or save daily budget drafts.
+                                </p>
                             </div>
-                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Quick Reminders & Notes</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                Take private quick notes, draft audit checklists, log pending queries, or save daily budget drafts.
-                            </p>
+                            <button
+                                onClick={() => handleFeatureClick('notes', '/accountant/notes')}
+                                className="text-xs text-emerald-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                            >
+                                Open Notes {getControlStatus('notes').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => navigate('/accountant/notes')}
-                            className="text-xs text-emerald-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
-                        >
-                            Open Notes <ArrowRight size={14} />
-                        </button>
-                    </div>
+                    )}
 
                     {/* Tool 4: Team Chat Portal */}
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
-                        <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
-                        <div>
-                            <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                <MessageSquare size={24} />
+                    {!(getControlStatus('chat').enabled === false && getControlStatus('chat').mode === 'hide') && (
+                        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('chat').enabled === false ? 'opacity-60' : ''}`}>
+                            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+                            <div>
+                                <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                    <MessageSquare size={24} />
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Internal Chat Room</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    Direct message institute administration, coordinate with teachers, or communicate with students directly.
+                                </p>
                             </div>
-                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Internal Chat Room</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                Direct message institute administration, coordinate with teachers, or communicate with students directly.
-                            </p>
+                            <button
+                                onClick={() => handleFeatureClick('chat', '/accountant/chat')}
+                                className="text-xs text-blue-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                            >
+                                Open Chat {getControlStatus('chat').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => navigate('/accountant/chat')}
-                            className="text-xs text-blue-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
-                        >
-                            Open Chat <ArrowRight size={14} />
-                        </button>
-                    </div>
+                    )}
                 </div>
             )}
         </DashboardLayout>

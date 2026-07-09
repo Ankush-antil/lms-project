@@ -78,15 +78,17 @@ const ChatPage = () => {
         }
     }, [user?._id]);
 
-    // Debounced search across institute directory (for new-chat search mode)
+    // Live debounced search across institute directory (for new-chat search mode)
     useEffect(() => {
         if (!directorySearchQuery.trim()) {
             setDirectorySearchResults([]);
+            setSearchingDirectory(false);
             return;
         }
+        // Show spinner immediately as user types
+        setSearchingDirectory(true);
         const timer = setTimeout(async () => {
             try {
-                setSearchingDirectory(true);
                 const { data } = await axios.get(`/api/chat/directory?search=${encodeURIComponent(directorySearchQuery.trim())}`);
                 setDirectorySearchResults(data);
             } catch (err) {
@@ -94,9 +96,10 @@ const ChatPage = () => {
             } finally {
                 setSearchingDirectory(false);
             }
-        }, 350);
+        }, 200);
         return () => clearTimeout(timer);
     }, [directorySearchQuery]);
+
 
     // Fetch directory for lists flow (still triggered by showListsIntro / showAddUsers) using directorySearch
     useEffect(() => {

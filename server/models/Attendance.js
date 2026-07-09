@@ -39,6 +39,10 @@ const attendanceSchema = new mongoose.Schema({
     teacherNote: {
         type: String,
         default: ''
+    },
+    studentNote: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

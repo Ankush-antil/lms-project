@@ -6,6 +6,30 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+const getCookieOptions = (req) => {
+    const options = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    };
+    if (req.headers.host && req.headers.host.includes('digitalstudyacademy.com')) {
+        options.domain = '.digitalstudyacademy.com';
+    }
+    return options;
+};
+
+const getLogoutCookieOptions = (req) => {
+    const options = {
+        httpOnly: true,
+        expires: new Date(0)
+    };
+    if (req.headers.host && req.headers.host.includes('digitalstudyacademy.com')) {
+        options.domain = '.digitalstudyacademy.com';
+    }
+    return options;
+};
+
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public
@@ -25,12 +49,7 @@ const loginUser = async (req, res) => {
             const token = generateToken(user._id);
 
             // Set Cookie
-            res.cookie('token', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-            });
+            res.cookie('token', token, getCookieOptions(req));
 
             res.json({
                 _id: user._id,
@@ -76,10 +95,7 @@ const getMe = async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Public
 const logoutUser = async (req, res) => {
-    res.cookie('token', '', {
-        httpOnly: true,
-        expires: new Date(0)
-    });
+    res.cookie('token', '', getLogoutCookieOptions(req));
     res.json({ message: 'Logged out successfully' });
 };
 
@@ -119,12 +135,7 @@ const registerUser = async (req, res) => {
         const token = generateToken(user._id);
 
         // Set Cookie
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
+        res.cookie('token', token, getCookieOptions(req));
 
         res.status(201).json({
             _id: user._id,
@@ -139,3 +150,4 @@ const registerUser = async (req, res) => {
 };
 
 module.exports = { loginUser, registerUser, getMe, logoutUser };
+

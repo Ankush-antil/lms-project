@@ -9,6 +9,35 @@ const generateReceiptNo = () => {
     return `RCPT-${year}-${rand}`;
 };
 
+const getSortedMonthlyTrend = (transactions) => {
+    const monthlyTrendList = [];
+    const startYear = 2026;
+    const endYear = 2027;
+    const trendMap = {};
+
+    for (let year = startYear; year <= endYear; year++) {
+        for (let month = 0; month < 12; month++) {
+            const date = new Date(year, month, 1);
+            const label = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+            trendMap[label] = 0;
+            monthlyTrendList.push(label);
+        }
+    }
+
+    transactions.forEach(t => {
+        const tDate = new Date(t.date);
+        const label = tDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        if (trendMap[label] !== undefined) {
+            trendMap[label] += t.amount;
+        }
+    });
+
+    return monthlyTrendList.map(label => ({
+        month: label,
+        amount: trendMap[label]
+    }));
+};
+
 const ensureFeeRecordsExist = async (instituteId) => {
     try {
         const studentsList = await User.find({ institute: instituteId, role: 'Student', isDeleted: { $ne: true } })
@@ -354,16 +383,20 @@ const getReports = asyncHandler(async (req, res) => {
         r.transactions.forEach(t => {
             // Mode
             modeMap[t.paymentMode] = (modeMap[t.paymentMode] || 0) + t.amount;
-            // Monthly
-            const m = new Date(t.date).toLocaleString('default', { month: 'short', year: 'numeric' });
-            monthMap[m] = (monthMap[m] || 0) + t.amount;
+        });
+    });
+
+    const allTx = [];
+    records.forEach(r => {
+        r.transactions.forEach(t => {
+            allTx.push(t);
         });
     });
 
     res.json({
         courseWise: Object.entries(courseMap).map(([course, v]) => ({ course, ...v })),
         paymentModes: Object.entries(modeMap).map(([mode, amount]) => ({ mode, amount })),
-        monthlyTrend: Object.entries(monthMap).map(([month, amount]) => ({ month, amount })).slice(-12)
+        monthlyTrend: getSortedMonthlyTrend(allTx)
     });
 });
 
@@ -503,9 +536,6 @@ const getMergedDashboardData = asyncHandler(async (req, res) => {
 
             // Mode split
             modeMap[t.paymentMode] = (modeMap[t.paymentMode] || 0) + t.amount;
-            // Monthly trend
-            const m = new Date(t.date).toLocaleString('default', { month: 'short', year: 'numeric' });
-            monthMap[m] = (monthMap[m] || 0) + t.amount;
 
             // Receipts list
             receiptsList.push({
@@ -576,7 +606,7 @@ const getMergedDashboardData = asyncHandler(async (req, res) => {
         reports: {
             courseWise: Object.entries(courseMap).map(([course, v]) => ({ course, ...v })),
             paymentModes: Object.entries(modeMap).map(([mode, amount]) => ({ mode, amount })),
-            monthlyTrend: Object.entries(monthMap).map(([month, amount]) => ({ month, amount })).slice(-12)
+            monthlyTrend: getSortedMonthlyTrend(allRecords.flatMap(r => r.transactions))
         }
     });
 });

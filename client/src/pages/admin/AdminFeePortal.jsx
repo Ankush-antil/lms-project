@@ -274,7 +274,7 @@ const ReceiptModal = ({ receipt, onClose }) => {
     const studentName = receipt.studentName || receipt.student?.name || '—';
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             {/* Off-white receipt card */}
             <div className="bg-white rounded-2xl w-full max-w-[440px] shadow-2xl overflow-hidden">
                 {/* Modal top bar — dark header with close */}

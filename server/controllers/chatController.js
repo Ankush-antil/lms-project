@@ -7,80 +7,80 @@ const Institute = require('../models/Institute');
 const Course = require('../models/Course');
 
 
-// @desc    Get contacts list for chat
+// @desc    Get contacts list for chat — only accepted connections + Teacher-Student bypass
 // @route   GET /api/chat/contacts
 // @access  Private
 const getContacts = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
+    const ChatRequest = require('../models/ChatRequest');
 
-    let relatedUserIds = new Set();
+    let contactIds = new Set();
 
-    // 1. Fetch relations based on course/assigned courses
-    if (userRole === 'Student') {
-        const studentCourse = req.user.studentProfile?.course;
+    // 1. Get all accepted ChatRequest connections
+    const acceptedRequests = await ChatRequest.find({
+        $or: [
+            { sender: userId, status: 'accepted' },
+            { receiver: userId, status: 'accepted' }
+        ]
+    });
+    acceptedRequests.forEach(req => {
+        const otherId = req.sender.toString() === userId.toString()
+            ? req.receiver.toString()
+            : req.sender.toString();
+        contactIds.add(otherId);
+    });
+
+    // 2. Teacher-Student bypass: find direct assignments
+    if (userRole === 'Teacher') {
+        // Students assigned to this teacher's courses or directly
+        const teacher = await User.findById(userId);
+        const assignedCourses = teacher?.teacherProfile?.assignedCourses || [];
+        const assignedStudents = teacher?.teacherProfile?.assignedStudents || [];
+
+        if (assignedCourses.length > 0 || assignedStudents.length > 0) {
+            const studentsInCourses = assignedCourses.length > 0 ? await User.find({
+                role: 'Student',
+                'studentProfile.course': { $in: assignedCourses }
+            }).select('_id') : [];
+
+            studentsInCourses.forEach(s => contactIds.add(s._id.toString()));
+            assignedStudents.forEach(sId => contactIds.add(sId.toString()));
+        }
+    } else if (userRole === 'Student') {
+        // Teachers assigned to this student's course
+        const student = await User.findById(userId);
+        const studentCourse = student?.studentProfile?.course;
         if (studentCourse) {
-            // Find teachers teaching this course
-            const teachers = await User.find({
+            const assignedTeachers = await User.find({
                 role: 'Teacher',
-                'teacherProfile.assignedCourses': studentCourse
+                $or: [
+                    { 'teacherProfile.assignedCourses': studentCourse },
+                    { 'teacherProfile.assignedStudents': userId }
+                ]
             }).select('_id');
-            teachers.forEach(t => relatedUserIds.add(t._id.toString()));
+            assignedTeachers.forEach(t => contactIds.add(t._id.toString()));
         }
-        // Also fetch all editors in the student's institute
-        if (req.user.institute) {
-            const editors = await User.find({
-                role: 'Editor',
-                institute: req.user.institute
-            }).select('_id');
-            editors.forEach(ed => relatedUserIds.add(ed._id.toString()));
-        }
-    } else if (userRole === 'Teacher') {
-        if (req.user.institute) {
-            const instituteUsers = await User.find({
-                institute: req.user.institute,
-                _id: { $ne: userId }
-            }).select('_id');
-            instituteUsers.forEach(u => relatedUserIds.add(u._id.toString()));
-        }
-    } else if (userRole === 'Editor' || userRole === 'Institute') {
-        if (req.user.institute) {
-            const instituteUsers = await User.find({
-                institute: req.user.institute,
-                _id: { $ne: userId }
-            }).select('_id');
-            instituteUsers.forEach(u => relatedUserIds.add(u._id.toString()));
-        }
-    } else if (userRole === 'Admin') {
-        const allUsers = await User.find({
-            _id: { $ne: userId },
-            isDeleted: { $ne: true }
-        }).select('_id');
-        allUsers.forEach(u => relatedUserIds.add(u._id.toString()));
     }
 
-    // 2. Fetch history-based relations (anyone we have exchanged messages with)
+    // 3. Also include anyone we already have message history with (legacy/backward-compat)
     const historyMessages = await Message.find({
         $or: [{ sender: userId }, { receiver: userId }]
     }).select('sender receiver');
-
     historyMessages.forEach(msg => {
         const senderStr = msg.sender.toString();
         const receiverStr = msg.receiver.toString();
-        if (senderStr !== userId.toString()) relatedUserIds.add(senderStr);
-        if (receiverStr !== userId.toString()) relatedUserIds.add(receiverStr);
+        if (senderStr !== userId.toString()) contactIds.add(senderStr);
+        if (receiverStr !== userId.toString()) contactIds.add(receiverStr);
     });
 
-    // Convert Set back to Array of ObjectIds
-    const contactIds = Array.from(relatedUserIds).map(id => new mongoose.Types.ObjectId(id));
+    const contactIdArray = Array.from(contactIds).map(id => new mongoose.Types.ObjectId(id));
 
-    // 3. Fetch user details and aggregate messages
     const contacts = await User.find({
-        _id: { $in: contactIds }
+        _id: { $in: contactIdArray }
     }).select('name email role avatar mobileNumber isActive');
 
     const contactsWithMeta = await Promise.all(contacts.map(async (contact) => {
-        // Last message
         const lastMessage = await Message.findOne({
             $or: [
                 { sender: userId, receiver: contact._id },
@@ -88,7 +88,6 @@ const getContacts = asyncHandler(async (req, res) => {
             ]
         }).sort({ createdAt: -1 });
 
-        // Unread messages count sent from this contact to current user
         const unreadCount = await Message.countDocuments({
             sender: contact._id,
             receiver: userId,
@@ -115,7 +114,6 @@ const getContacts = asyncHandler(async (req, res) => {
         };
     }));
 
-    // Sort contacts: contacts with messages first (ordered by last message time DESC), then alphabetical
     contactsWithMeta.sort((a, b) => {
         if (a.lastMessage && b.lastMessage) {
             return new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt);
@@ -127,6 +125,8 @@ const getContacts = asyncHandler(async (req, res) => {
 
     res.json(contactsWithMeta);
 });
+
+
 
 // @desc    Get message history with a user
 // @route   GET /api/chat/messages/:userId
@@ -219,6 +219,44 @@ const sendMessage = asyncHandler(async (req, res) => {
 
     if (!receiver || (!text && !fileUrl)) {
         return res.status(400).json({ message: 'Receiver and either text or file are required' });
+    }
+
+    // 1. Check if assigned Student-Teacher relation (bypasses request check)
+    const isAssignedRelation = async (userAId, userBId) => {
+        const User = require('../models/User');
+        const userA = await User.findById(userAId);
+        const userB = await User.findById(userBId);
+        if (!userA || !userB) return false;
+        if (userA.role === 'Teacher' && userB.role === 'Student') {
+            const studentCourse = userB.studentProfile?.course;
+            const assignedCourses = userA.teacherProfile?.assignedCourses || [];
+            const assignedStudents = userA.teacherProfile?.assignedStudents || [];
+            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
+                   assignedStudents.some(sId => sId.toString() === userBId.toString());
+        }
+        if (userA.role === 'Student' && userB.role === 'Teacher') {
+            const studentCourse = userA.studentProfile?.course;
+            const assignedCourses = userB.teacherProfile?.assignedCourses || [];
+            const assignedStudents = userB.teacherProfile?.assignedStudents || [];
+            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
+                   assignedStudents.some(sId => sId.toString() === userAId.toString());
+        }
+        return false;
+    };
+
+    const isBypassed = await isAssignedRelation(sender, receiver);
+    if (!isBypassed) {
+        const ChatRequest = require('../models/ChatRequest');
+        const request = await ChatRequest.findOne({
+            $or: [
+                { sender, receiver },
+                { sender: receiver, receiver: sender }
+            ],
+            status: 'accepted'
+        });
+        if (!request) {
+            return res.status(403).json({ message: 'You cannot send messages without an accepted chat request' });
+        }
     }
 
     const message = await Message.create({
@@ -424,21 +462,34 @@ const uploadFile = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get all users in the same institute for starting a new chat
-// @route   GET /api/chat/directory
+// @desc    Get all users in the same institute for starting a new chat (search-driven)
+// @route   GET /api/chat/directory?search=...
 // @access  Private
 const getDirectoryUsers = asyncHandler(async (req, res) => {
     const userId = req.user._id;
+    const search = req.query.search?.trim() || '';
+
     if (!req.user.institute) {
         return res.json([]);
     }
 
-    // Find all active users in the same institute, excluding current user
+    // Require at least 1 character to search
+    if (!search) {
+        return res.json([]);
+    }
+
+    const searchRegex = new RegExp(search, 'i');
+
     const users = await User.find({
         institute: req.user.institute,
         _id: { $ne: userId },
-        isActive: true
-    }).select('name email role avatar mobileNumber isActive');
+        isActive: true,
+        $or: [
+            { name: { $regex: searchRegex } },
+            { email: { $regex: searchRegex } },
+            { role: { $regex: searchRegex } }
+        ]
+    }).select('name email role avatar mobileNumber isActive').limit(30);
 
     res.json(users);
 });

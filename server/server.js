@@ -72,6 +72,7 @@ app.use('/api/submissions', require('./routes/submissionRoutes'));
 app.use('/api/public-tests', require('./routes/publicTestRoutes'));
 app.use('/api/calls', require('./routes/teacher/callRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/chat/request', require('./routes/chatRequestRoutes'));
 app.use('/api/ai', require('./routes/common/aiRoutes'));
 app.use('/api/messages', require('./routes/common/messageRoutes'));
 app.use('/api/practice-files', require('./routes/student/practiceFileRoutes'));

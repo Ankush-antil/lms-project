@@ -9,7 +9,8 @@ import toast from 'react-hot-toast';
 import {
     Search, Send, Phone, Video, MessageSquare,
     MoreVertical, User, Circle, ArrowLeft, Pencil,
-    Paperclip, File, Download, X, Loader2
+    Paperclip, File, Download, X, Loader2, Bell,
+    PenSquare, UserX, Lock
 } from 'lucide-react';
 
 const ChatPage = () => {
@@ -30,9 +31,26 @@ const ChatPage = () => {
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [showOriginalMap, setShowOriginalMap] = useState({});
 
-    // Contact filtering and custom lists states
-    const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
+    // Chat Request system states
+    const [chatRequest, setChatRequest] = useState(null);
+    const [loadingRequestStatus, setLoadingRequestStatus] = useState(false);
+    const [requestPermissions, setRequestPermissions] = useState({ audioCall: false, videoCall: false });
+    const [sendingRequest, setSendingRequest] = useState(false);
+    const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+
+    // Incoming chat requests notification
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [showRequestsDropdown, setShowRequestsDropdown] = useState(false);
+    const [loadingPendingRequests, setLoadingPendingRequests] = useState(false);
+
+    // New chat search mode (search directory to find user to chat with)
+    const [searchMode, setSearchMode] = useState(false); // when true show directory search instead of contacts
+    const [directorySearchQuery, setDirectorySearchQuery] = useState('');
+    const [directorySearchResults, setDirectorySearchResults] = useState([]);
+    const [searchingDirectory, setSearchingDirectory] = useState(false);
+
     const [customLists, setCustomLists] = useState([]);
+    const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
 
     // Lists creation flow states
     const [showListsIntro, setShowListsIntro] = useState(false);
@@ -60,13 +78,34 @@ const ChatPage = () => {
         }
     }, [user?._id]);
 
-    // Fetch all users in the institute for starting a new chat or building custom lists
+    // Debounced search across institute directory (for new-chat search mode)
+    useEffect(() => {
+        if (!directorySearchQuery.trim()) {
+            setDirectorySearchResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            try {
+                setSearchingDirectory(true);
+                const { data } = await axios.get(`/api/chat/directory?search=${encodeURIComponent(directorySearchQuery.trim())}`);
+                setDirectorySearchResults(data);
+            } catch (err) {
+                console.error('Directory search error:', err);
+            } finally {
+                setSearchingDirectory(false);
+            }
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [directorySearchQuery]);
+
+    // Fetch directory for lists flow (still triggered by showListsIntro / showAddUsers) using directorySearch
     useEffect(() => {
         if (showListsIntro || showAddUsers) {
             const fetchDirectory = async () => {
                 try {
                     setLoadingDirectory(true);
-                    const { data } = await axios.get('/api/chat/directory');
+                    const q = directorySearch.trim();
+                    const { data } = await axios.get(`/api/chat/directory${q ? `?search=${encodeURIComponent(q)}` : ''}`);
                     setDirectoryUsers(data);
                     setLoadingDirectory(false);
                 } catch (error) {
@@ -77,7 +116,8 @@ const ChatPage = () => {
             };
             fetchDirectory();
         }
-    }, [showListsIntro, showAddUsers]);
+    }, [showListsIntro, showAddUsers, directorySearch]);
+
 
     // Test relevant chat states
     const [selectedTestId, setSelectedTestId] = useState(null);
@@ -164,6 +204,19 @@ const ChatPage = () => {
         }
     };
 
+    // Fetch pending chat requests addressed to me
+    const fetchPendingRequests = async () => {
+        try {
+            setLoadingPendingRequests(true);
+            const { data } = await axios.get('/api/chat/request/pending');
+            setPendingRequests(data);
+        } catch (err) {
+            console.error('Error loading pending requests:', err);
+        } finally {
+            setLoadingPendingRequests(false);
+        }
+    };
+
     useEffect(() => {
         // Capture openContactId (and doubt context) from notification BEFORE fetching
         pendingContactIdRef.current = location.state?.openContactId || null;
@@ -174,9 +227,11 @@ const ChatPage = () => {
             };
         }
         fetchContacts();
+        fetchPendingRequests();
         // Clear all chat notifications — user is now on the chat page
         setChatNotifications([]);
     }, []);
+
 
     // Handle notification click when user is ALREADY on the chat page
     // (component doesn't remount so the above useEffect[] won't run again)
@@ -215,9 +270,23 @@ const ChatPage = () => {
     }, [location.state?.openContactId]); // eslint-disable-line
 
 
+    const fetchRequestStatus = async (contactId) => {
+        try {
+            setLoadingRequestStatus(true);
+            const { data } = await axios.get(`/api/chat/request/status/${contactId}`);
+            setChatRequest(data);
+        } catch (error) {
+            console.error("Error fetching chat request status:", error);
+        } finally {
+            setLoadingRequestStatus(false);
+        }
+    };
+
     // Reset states when contact is selected
     useEffect(() => {
         if (!selectedContact) return;
+        setChatRequest(null);
+        fetchRequestStatus(selectedContact._id);
         setMessages([]); // Clear previous messages
         setLimitDays(3);
         setDoubtLimitDays(3);
@@ -242,9 +311,9 @@ const ChatPage = () => {
         prevDoubtLimitDays.current = 3;
     }, [selectedContact]);
 
-    // Load messages when contact, limitDays, or search queries change
     useEffect(() => {
         if (!selectedContact) return;
+        if (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) return;
 
         const fetchMessages = async () => {
             try {
@@ -285,7 +354,7 @@ const ChatPage = () => {
         };
 
         fetchMessages();
-    }, [selectedContact, limitDays, searchKeyword, searchDate]);
+    }, [selectedContact, limitDays, searchKeyword, searchDate, chatRequest]);
 
     // Load student tests when "Test Relevant Chat" is enabled
     // Works for both Teacher (viewing student's tests) and Student (viewing their own tests)
@@ -948,6 +1017,219 @@ const ChatPage = () => {
         setSelectedQuestionIndex(null);
     };
 
+    const handleSendRequest = async () => {
+        if (!selectedContact) return;
+        try {
+            setSendingRequest(true);
+            const { data } = await axios.post('/api/chat/request', {
+                receiverId: selectedContact._id,
+                permissions: requestPermissions
+            });
+            setChatRequest({ status: 'pending', request: data, canRequest: false });
+            toast.success("Chat request sent successfully!");
+        } catch (error) {
+            console.error("Failed to send chat request:", error);
+            toast.error(error.response?.data?.message || "Failed to send chat request");
+        } finally {
+            setSendingRequest(false);
+        }
+    };
+
+    const handleAcceptRequest = async (reqId) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/accept`);
+            setChatRequest({ status: 'accepted', request: data });
+            toast.success("Chat request accepted!");
+        } catch (error) {
+            console.error("Failed to accept chat request:", error);
+            toast.error("Failed to accept chat request");
+        }
+    };
+
+    const handleRejectRequest = async (reqId) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/reject`);
+            setChatRequest({ status: 'rejected', request: data, canRequest: false, blockTimeLeft: 24 * 60 * 60 * 1000 });
+            toast.success("Chat request rejected");
+        } catch (error) {
+            console.error("Failed to reject chat request:", error);
+            toast.error("Failed to reject chat request");
+        }
+    };
+
+    const handleCancelRequest = async (reqId) => {
+        try {
+            await axios.delete(`/api/chat/request/${reqId}/cancel`);
+            setChatRequest({ status: 'none', canRequest: true });
+            toast.success("Chat request cancelled");
+        } catch (error) {
+            console.error("Failed to cancel chat request:", error);
+            toast.error("Failed to cancel chat request");
+        }
+    };
+
+    const handleUpdatePermissions = async (reqId, newPerms) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/permissions`, newPerms);
+            setChatRequest(prev => ({ ...prev, request: data }));
+            toast.success("Permissions updated successfully!");
+            setShowPermissionsModal(false);
+        } catch (error) {
+            console.error("Failed to update permissions:", error);
+            toast.error("Failed to update permissions");
+        }
+    };
+
+    const renderChatRequestPanel = () => {
+        if (!chatRequest) return null;
+
+        const isOutgoing = chatRequest.request?.sender === user._id;
+        const reqId = chatRequest.request?._id;
+
+        // 1. If Rejection lock is active
+        if (chatRequest.status === 'rejected') {
+            const hoursLeft = chatRequest.blockTimeLeft
+                ? Math.ceil(chatRequest.blockTimeLeft / (1000 * 60 * 60))
+                : 24;
+
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4 border border-rose-100 shadow-sm animate-bounce">
+                        <X size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Request Rejected</h2>
+                    <p className="text-xs font-semibold text-slate-505 max-w-sm mt-2 leading-relaxed">
+                        Your previous chat request was declined by {selectedContact.name}. To prevent spam, you can send another request after {hoursLeft} hours.
+                    </p>
+                </div>
+            );
+        }
+
+        // 2. If Pending (Outgoing)
+        if (chatRequest.status === 'pending' && isOutgoing) {
+            const perms = chatRequest.request.permissions || {};
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-550 rounded-2xl flex items-center justify-center mb-4 border border-amber-100 shadow-sm animate-pulse">
+                        <Loader2 size={28} className="animate-spin" />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Request Pending</h2>
+                    <p className="text-xs font-semibold text-slate-500 max-w-xs mt-2 leading-relaxed">
+                        Your request to start a chat with {selectedContact.name} is waiting for approval.
+                    </p>
+                    <div className="my-5 p-4 bg-white border border-slate-100 rounded-2xl text-left w-full max-w-xs space-y-2">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Requested Permissions:</span>
+                        <div className="text-xs font-bold text-slate-700 flex flex-col gap-1.5">
+                            <span className="flex items-center gap-2">🟢 Chatting Allowed</span>
+                            <span className={`flex items-center gap-2 ${perms.audioCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.audioCall ? '🟢' : '⚪'} Audio Calling
+                            </span>
+                            <span className={`flex items-center gap-2 ${perms.videoCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.videoCall ? '🟢' : '⚪'} Video Calling
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => handleCancelRequest(reqId)}
+                        className="px-6 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-rose-150"
+                    >
+                        Cancel Request
+                    </button>
+                </div>
+            );
+        }
+
+        // 3. If Pending (Incoming)
+        if (chatRequest.status === 'pending' && !isOutgoing) {
+            const perms = chatRequest.request.permissions || {};
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-indigo-50 text-indigo-650 rounded-2xl flex items-center justify-center mb-4 border border-indigo-100 shadow-sm">
+                        <MessageSquare size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Chat Invitation</h2>
+                    <p className="text-xs font-semibold text-slate-505 max-w-xs mt-2 leading-relaxed">
+                        {selectedContact.name} wants to start a conversation with you.
+                    </p>
+                    <div className="my-5 p-4 bg-white border border-slate-100 rounded-2xl text-left w-full max-w-xs space-y-2">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Requested Permissions:</span>
+                        <div className="text-xs font-bold text-slate-700 flex flex-col gap-1.5">
+                            <span className="flex items-center gap-2">🟢 Chatting Allowed</span>
+                            <span className={`flex items-center gap-2 ${perms.audioCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.audioCall ? '🟢' : '⚪'} Audio Calling
+                            </span>
+                            <span className={`flex items-center gap-2 ${perms.videoCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.videoCall ? '🟢' : '⚪'} Video Calling
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => handleAcceptRequest(reqId)}
+                            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                        >
+                            Accept Request
+                        </button>
+                        <button
+                            onClick={() => handleRejectRequest(reqId)}
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-205 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-slate-200"
+                        >
+                            Reject Request
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // 4. If No request exists (none)
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                <div className="w-16 h-16 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center mb-4 border border-slate-200 shadow-inner">
+                    <MessageSquare size={28} />
+                </div>
+                <h2 className="text-lg font-black text-slate-800">Start Conversation</h2>
+                <p className="text-xs font-semibold text-slate-500 max-w-sm mt-2 leading-relaxed">
+                    You need to send a chat request to {selectedContact.name} before you can start messaging or calling.
+                </p>
+                <div className="my-5 p-5 bg-white border border-slate-100 rounded-3xl text-left w-full max-w-xs space-y-4 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block border-b border-slate-100 pb-1.5">Configure Permissions:</span>
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-not-allowed opacity-75">
+                            <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
+                            <span>Allow Chatting</span>
+                        </label>
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={requestPermissions.audioCall}
+                                onChange={e => setRequestPermissions(prev => ({ ...prev, audioCall: e.target.checked }))}
+                                className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                            />
+                            <span>Allow Audio Call</span>
+                        </label>
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={requestPermissions.videoCall}
+                                onChange={e => setRequestPermissions(prev => ({ ...prev, videoCall: e.target.checked }))}
+                                className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                            />
+                            <span>Allow Video Call</span>
+                        </label>
+                    </div>
+                </div>
+                <button
+                    onClick={handleSendRequest}
+                    disabled={sendingRequest}
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-750 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                >
+                    {sendingRequest && <Loader2 size={14} className="animate-spin" />}
+                    Send Chat Request
+                </button>
+            </div>
+        );
+    };
+
     const handleSaveCustomList = () => {
         if (!draftListName.trim() || draftSelectedUsers.length === 0) {
             toast.error("Please provide a name and select at least one user.");
@@ -1230,53 +1512,190 @@ const ChatPage = () => {
                         </div>
                     ) : (
                         <div className="p-4 border-b border-slate-100">
-                            <h1 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <MessageSquare className="text-indigo-600" size={22} />
-                                <span>Messages Directory</span>
-                            </h1>
-                            <div className="relative">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Search conversations..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                />
-                            </div>
-
-                            {/* Contact Filter Tabs & Custom Lists & Create Button */}
-                            <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
-                                {filterTabs.map((tab) => {
-                                    const tabId = typeof tab === 'object' ? tab.id : tab;
-                                    const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
-                                    const isActive = activeFilterTab === tabId;
-                                    return (
+                            {searchMode ? (
+                                /* ── Search Mode: find new user to chat ── */
+                                <div>
+                                    <div className="flex items-center gap-2 mb-3">
                                         <button
-                                            key={tabId}
-                                            type="button"
-                                            onClick={() => setActiveFilterTab(tabId)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
-                                                ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
-                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                                }`}
+                                            onClick={() => {
+                                                setSearchMode(false);
+                                                setDirectorySearchQuery('');
+                                                setDirectorySearchResults([]);
+                                            }}
+                                            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 transition-all cursor-pointer"
+                                            title="Back to conversations"
                                         >
-                                            {tabLabel}
+                                            <ArrowLeft size={16} />
                                         </button>
-                                    );
-                                })}
-                                <button
-                                    onClick={() => {
-                                        setDraftListName('');
-                                        setDraftSelectedUsers([]);
-                                        setShowListsIntro(true);
-                                    }}
-                                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
-                                    title="Create Chat List"
-                                >
-                                    +
-                                </button>
-                            </div>
+                                        <span className="text-sm font-black text-slate-800 flex-1">New Conversation</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Search by name, email or role..."
+                                            value={directorySearchQuery}
+                                            onChange={(e) => setDirectorySearchQuery(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                        />
+                                        {searchingDirectory && (
+                                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-600" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!directorySearchQuery && (
+                                        <p className="text-[10px] text-slate-400 mt-2 text-center">Type a name or email to search</p>
+                                    )}
+                                </div>
+                            ) : (
+                                /* ── Normal Mode: conversations list ── */
+                                <>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2 flex-1">
+                                            <MessageSquare className="text-indigo-600" size={22} />
+                                            <span>Messages</span>
+                                        </h1>
+                                        {/* Pending Requests Bell */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setShowRequestsDropdown(p => !p)}
+                                                className={`relative p-2 rounded-xl transition-all cursor-pointer ${
+                                                    pendingRequests.length > 0
+                                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-600'
+                                                        : 'hover:bg-slate-100 text-slate-500'
+                                                }`}
+                                                title="Chat Requests"
+                                            >
+                                                <Bell size={18} />
+                                                {pendingRequests.length > 0 && (
+                                                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 animate-pulse shadow-sm">
+                                                        {pendingRequests.length}
+                                                    </span>
+                                                )}
+                                            </button>
+                                            {/* Requests Dropdown */}
+                                            {showRequestsDropdown && (
+                                                <div className="absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+                                                        <span className="text-xs font-black text-slate-700">Incoming Requests</span>
+                                                        <button onClick={() => setShowRequestsDropdown(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"><X size={14}/></button>
+                                                    </div>
+                                                    {loadingPendingRequests ? (
+                                                        <div className="p-4 text-center text-xs text-slate-400">
+                                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mx-auto mb-1"></div>
+                                                            Loading...
+                                                        </div>
+                                                    ) : pendingRequests.length === 0 ? (
+                                                        <div className="p-5 text-center text-xs text-slate-400">
+                                                            <Bell size={24} className="mx-auto opacity-20 mb-1" />
+                                                            No pending requests
+                                                        </div>
+                                                    ) : (
+                                                        <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
+                                                            {pendingRequests.map(req => (
+                                                                <div key={req._id} className="p-3 flex items-start gap-2.5">
+                                                                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                                        {req.sender?.avatar ? (
+                                                                            <img src={req.sender.avatar} alt={req.sender.name} className="w-full h-full object-cover" />
+                                                                        ) : req.sender?.name?.[0]?.toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs font-black text-slate-800 truncate">{req.sender?.name}</p>
+                                                                        <p className="text-[10px] text-slate-400 uppercase">{req.sender?.role}</p>
+                                                                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                                                                            {req.permissions?.audioCall && <span className="text-[9px] bg-blue-50 border border-blue-200 text-blue-600 px-1.5 py-0.5 rounded-full font-bold">🎙 Audio</span>}
+                                                                            {req.permissions?.videoCall && <span className="text-[9px] bg-purple-50 border border-purple-200 text-purple-600 px-1.5 py-0.5 rounded-full font-bold">📹 Video</span>}
+                                                                        </div>
+                                                                        <div className="flex gap-1.5 mt-2">
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await axios.put(`/api/chat/request/${req._id}/accept`);
+                                                                                        toast.success(`Accepted ${req.sender?.name}'s request`);
+                                                                                        fetchPendingRequests();
+                                                                                        fetchContacts();
+                                                                                        setShowRequestsDropdown(false);
+                                                                                    } catch(e) { toast.error('Failed to accept'); }
+                                                                                }}
+                                                                                className="flex-1 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all cursor-pointer"
+                                                                            >Accept</button>
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await axios.put(`/api/chat/request/${req._id}/reject`);
+                                                                                        toast(`Rejected ${req.sender?.name}'s request`);
+                                                                                        fetchPendingRequests();
+                                                                                    } catch(e) { toast.error('Failed to reject'); }
+                                                                                }}
+                                                                                className="flex-1 py-1 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 text-[10px] font-black rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                                                            >Reject</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* New Chat icon */}
+                                        <button
+                                            onClick={() => { setSearchMode(true); setDirectorySearchQuery(''); setDirectorySearchResults([]); }}
+                                            className="p-2 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 transition-all cursor-pointer"
+                                            title="Start a new conversation"
+                                        >
+                                            <PenSquare size={18} />
+                                        </button>
+                                    </div>
+
+                                    {/* Search within existing contacts */}
+                                    <div className="relative">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search conversations..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Contact Filter Tabs & Custom Lists & Create Button */}
+                                    <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
+                                        {filterTabs.map((tab) => {
+                                            const tabId = typeof tab === 'object' ? tab.id : tab;
+                                            const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                            const isActive = activeFilterTab === tabId;
+                                            return (
+                                                <button
+                                                    key={tabId}
+                                                    type="button"
+                                                    onClick={() => setActiveFilterTab(tabId)}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
+                                                        ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                        }`}
+                                                >
+                                                    {tabLabel}
+                                                </button>
+                                            );
+                                        })}
+                                        <button
+                                            onClick={() => {
+                                                setDraftListName('');
+                                                setDraftSelectedUsers([]);
+                                                setShowListsIntro(true);
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
+                                            title="Create Chat List"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -1326,6 +1745,45 @@ const ChatPage = () => {
                                     </div>
                                 )}
                             </div>
+                        ) : searchMode ? (
+                            /* ── Directory Search Results ── */
+                            directorySearchQuery.trim() === '' ? (
+                                <div className="p-8 text-center text-slate-400 text-xs select-none">
+                                    <Search size={32} className="mx-auto opacity-20 mb-2" />
+                                    <p>Type above to search people</p>
+                                </div>
+                            ) : searchingDirectory ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                    Searching...
+                                </div>
+                            ) : directorySearchResults.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <UserX size={32} className="mx-auto opacity-20 mb-2" />
+                                    No users found
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-50">
+                                    {directorySearchResults.map(u => (
+                                        <div
+                                            key={u._id}
+                                            onClick={() => { setSearchMode(false); setDirectorySearchQuery(''); setDirectorySearchResults([]); selectContactHandler(u); }}
+                                            className="flex items-center gap-3 p-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-black flex items-center justify-center text-sm flex-shrink-0 overflow-hidden shadow-sm">
+                                                {u.avatar ? <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" /> : u.name?.[0]?.toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-800 truncate">{u.name}</p>
+                                                <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                                            </div>
+                                            <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-full font-bold uppercase flex-shrink-0">
+                                                {u.role}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
                         ) : loadingContacts ? (
                             <div className="p-8 text-center text-slate-400 text-xs">
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -1460,7 +1918,7 @@ const ChatPage = () => {
                                                         setShowSidebarTests(prev => !prev);
                                                     }
                                                 }}
-                                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
+                                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-650 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
                                             >
                                                 {(selectedTestId !== null || selectedInboxId !== null)
                                                     ? 'Show General Chat'
@@ -1481,6 +1939,19 @@ const ChatPage = () => {
                                     >
                                         <Search size={16} />
                                     </button>
+
+                                    {chatRequest?.status === 'accepted' && chatRequest?.sender === String(user?._id) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPermissionsModal(true)}
+                                            className="p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm text-slate-550 flex items-center justify-center"
+                                            title="Update Chat Permissions"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    )}
+
+
                                     {/* Audio Call Button */}
                                     {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
@@ -1489,15 +1960,22 @@ const ChatPage = () => {
                                                     toast.error(chatCtrl.subNotes?.audioCall || chatCtrl.note || "Audio calling is disabled by your administrator.");
                                                     return;
                                                 }
+                                                const hasCallPerm = chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall;
+                                                if (!hasCallPerm) {
+                                                    toast.error("Audio call permissions not granted by user");
+                                                    return;
+                                                }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(chatCtrl && chatCtrl.audioCall === false) 
+                                                ${(chatCtrl && chatCtrl.audioCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall)
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
-                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                                    : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.audioCall === false
                                                 ? (chatCtrl.subNotes?.audioCall || chatCtrl.note || "Voice call is disabled")
-                                                : "Voice Call"
+                                                : (!(chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall)
+                                                    ? "Audio call permissions not granted"
+                                                    : "Voice Call")
                                             }
                                         >
                                             <Phone size={16} />
@@ -1512,15 +1990,22 @@ const ChatPage = () => {
                                                     toast.error(chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video calling is disabled by your administrator.");
                                                     return;
                                                 }
+                                                const hasCallPerm = chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall;
+                                                if (!hasCallPerm) {
+                                                    toast.error("Video call permissions not granted by user");
+                                                    return;
+                                                }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'video');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(chatCtrl && chatCtrl.videoCall === false) 
+                                                ${(chatCtrl && chatCtrl.videoCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall)
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
-                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                                    : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.videoCall === false
                                                 ? (chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video call is disabled")
-                                                : "Video Call"
+                                                : (!(chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall)
+                                                    ? "Video call permissions not granted"
+                                                    : "Video Call")
                                             }
                                         >
                                             <Video size={16} />
@@ -1568,7 +2053,14 @@ const ChatPage = () => {
                                 </div>
                             )}
 
-                            {selectedTestId !== null && selectedQuestionIndex !== null ? (
+                            {loadingRequestStatus ? (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+                                    <Loader2 size={36} className="animate-spin text-indigo-650 mb-3" />
+                                    <p className="text-xs font-bold text-slate-500">Checking chat permissions...</p>
+                                </div>
+                            ) : (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) ? (
+                                renderChatRequestPanel()
+                            ) : (selectedTestId !== null && selectedQuestionIndex !== null ? (
                                 <>
                                     {/* Doubt Question Header */}
                                     <div className="p-3.5 bg-white border-b border-slate-100 flex items-center gap-3 flex-shrink-0 text-left">
@@ -2080,7 +2572,7 @@ const ChatPage = () => {
                                         </button>
                                     </form>
                                 </>
-                            )}
+                            ))}
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col justify-center items-center text-center p-8 select-none">
@@ -2362,7 +2854,76 @@ const ChatPage = () => {
                 </div>,
                 document.body
             )}
-        </DashboardLayout>
+ 
+             {/* 4. Edit Chat Permissions Modal */}
+             {showPermissionsModal && chatRequest?.request && createPortal(
+                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                     <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                         {/* Close button */}
+                         <button
+                             onClick={() => setShowPermissionsModal(false)}
+                             className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                         >
+                             ✕
+                         </button>
+ 
+                         <h3 className="font-extrabold text-slate-800 text-lg mb-2">Update Chat Permissions</h3>
+                         <p className="text-xs text-slate-400 mb-6">Manage allowed interactions for this conversation.</p>
+ 
+                         <div className="space-y-4 mb-6">
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-not-allowed opacity-75">
+                                 <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
+                                 <span>Allow Chatting</span>
+                             </label>
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                 <input
+                                     type="checkbox"
+                                     checked={chatRequest.request.permissions?.audioCall}
+                                     onChange={e => setChatRequest(prev => ({
+                                         ...prev,
+                                         request: {
+                                             ...prev.request,
+                                             permissions: {
+                                                 ...prev.request.permissions,
+                                                 audioCall: e.target.checked
+                                             }
+                                         }
+                                     }))}
+                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                 />
+                                 <span>Allow Audio Call</span>
+                             </label>
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                 <input
+                                     type="checkbox"
+                                     checked={chatRequest.request.permissions?.videoCall}
+                                     onChange={e => setChatRequest(prev => ({
+                                         ...prev,
+                                         request: {
+                                             ...prev.request,
+                                             permissions: {
+                                                 ...prev.request.permissions,
+                                                 videoCall: e.target.checked
+                                             }
+                                         }
+                                     }))}
+                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                 />
+                                 <span>Allow Video Call</span>
+                             </label>
+                         </div>
+ 
+                         <button
+                             onClick={() => handleUpdatePermissions(chatRequest.request._id, chatRequest.request.permissions)}
+                             className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
+                         >
+                             Save Changes
+                         </button>
+                     </div>
+                 </div>,
+                 document.body
+             )}
+         </DashboardLayout>
     );
 };
 

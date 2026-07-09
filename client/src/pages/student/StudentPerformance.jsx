@@ -707,19 +707,19 @@ const StudentPerformance = () => {
                               </div>
                           ) : (
                               <div className="overflow-x-auto">
-                                  <table className="w-full min-w-[900px] border-collapse text-xs">
+                                  <table className="w-full min-w-[1100px] border-collapse text-xs">
                                       <thead>
                                           <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
-                                              <th className="py-2.5 px-3">Date</th>
-                                              <th className="py-2.5 px-3">Mode</th>
-                                              <th className="py-2.5 px-3">Marked By</th>
-                                              <th className="py-2.5 px-3">Student Note</th>
-                                              <th className="py-2.5 px-3">Teacher Note</th>
-                                              <th className="py-2.5 px-3 text-center">Check-In</th>
-                                              <th className="py-2.5 px-3 text-center">Check-Out</th>
-                                              <th className="py-2.5 px-3 text-center">Time Spent</th>
-                                              <th className="py-2.5 px-3 text-center">Selfie Verifications</th>
-                                              <th className="py-2.5 px-3 text-center">Status</th>
+                                              <th className="py-2.5 px-3 whitespace-nowrap">Date</th>
+                                              <th className="py-2.5 px-3 whitespace-nowrap">Mode</th>
+                                              <th className="py-2.5 px-3 whitespace-nowrap">Marked By</th>
+                                              <th className="py-2.5 px-3 whitespace-nowrap">Student Note</th>
+                                              <th className="py-2.5 px-3 whitespace-nowrap">Teacher Note</th>
+                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-In</th>
+                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-Out</th>
+                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Time Spent</th>
+                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Selfie Verifications</th>
+                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
@@ -741,23 +741,23 @@ const StudentPerformance = () => {
                                                       timeSpentStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
                                                   }
                                               }
-
+ 
                                               return (
                                                   <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                                      <td className="py-3 px-3 text-slate-550">
+                                                      <td className="py-3 px-3 text-slate-550 whitespace-nowrap">
                                                           {record.date ? new Date(record.date).toLocaleDateString('en-US', {
                                                               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                                                           }) : ''}
                                                       </td>
-                                                      <td className="py-3 px-3">
+                                                      <td className="py-3 px-3 whitespace-nowrap">
                                                           <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">
                                                               {record.isManual ? 'Manual' : 'QR Scan'}
                                                           </span>
                                                       </td>
-                                                      <td className="py-3 px-3 text-slate-600 font-semibold">
+                                                      <td className="py-3 px-3 text-slate-600 font-semibold whitespace-nowrap">
                                                           {record.isManual ? (record.markedBy || 'Teacher') : 'System (QR)'}
                                                       </td>
-                                                      <td className="py-3 px-3">
+                                                      <td className="py-3 px-3 whitespace-nowrap">
                                                           {record.studentNote ? (
                                                               <button
                                                                   onClick={() => setSelectedNotes({ title: 'Student Note', content: record.studentNote })}
@@ -769,7 +769,7 @@ const StudentPerformance = () => {
                                                               <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
                                                           )}
                                                       </td>
-                                                      <td className="py-3 px-3">
+                                                      <td className="py-3 px-3 whitespace-nowrap">
                                                           {record.teacherNote ? (
                                                               <button
                                                                   onClick={() => setSelectedNotes({ title: 'Teacher Note', content: record.teacherNote })}
@@ -781,16 +781,16 @@ const StudentPerformance = () => {
                                                               <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
                                                           )}
                                                       </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600">
+                                                      <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
                                                           {checkInVal ? new Date(checkInVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                                       </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600">
+                                                      <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
                                                           {checkOutVal ? new Date(checkOutVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                                       </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600 font-bold">
+                                                      <td className="py-3 px-3 text-center text-slate-600 font-bold whitespace-nowrap">
                                                            {timeSpentStr}
                                                       </td>
-                                                      <td className="py-3 px-3 text-center">
+                                                      <td className="py-3 px-3 text-center whitespace-nowrap">
                                                           <div className="flex justify-center items-center gap-2">
                                                               {record.checkInPhoto && (
                                                                   <button
@@ -819,7 +819,7 @@ const StudentPerformance = () => {
                                                               )}
                                                           </div>
                                                       </td>
-                                                      <td className="py-3 px-3 text-center">
+                                                      <td className="py-3 px-3 text-center whitespace-nowrap">
                                                           <span className={`inline-block px-2.5 py-0.5 border rounded-full text-[10px] font-black tracking-wider ${badgeClass}`}>
                                                               {status === 'In' ? 'Checked-In' : status}
                                                           </span>

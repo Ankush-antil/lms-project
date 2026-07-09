@@ -2724,6 +2724,7 @@ Your instructions:
 3. If the user asks to add any add-ons or tools (e.g., "addon bhi add kar do", "calculator", "timer"), include them in the "addons" array for each question. Available addons are: "Translator it", "Help with AI", "Voice typing", "Timer", "Rich Text", "Calculator".
 4. In the "message" field, provide a friendly and helpful response to the user in Hinglish/English.
 5. If the user is just chatting or asking a general question without requesting test questions, you can leave the "questions" array empty.
+6. You MUST strictly set the "type" field of each question to match what the user requested. If the user asks for "short questions", "short answer", or "brief answers", you MUST set the type to "Short Answer" (do NOT use "Fill in the Blanks"). If they ask for multiple choice, use "Multiple Choice". If they ask for checkboxes/multi-select, use "Checkboxes". Only use "Fill in the Blanks" if they explicitly asked for blanks or fill in the blanks.
 
 JSON Output Schema format (strictly return ONLY valid JSON matching this structure, do NOT wrap in markdown code blocks like \`\`\`json):
 {

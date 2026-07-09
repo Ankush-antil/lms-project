@@ -2148,19 +2148,9 @@ const TestBuilder = () => {
     // AI Question Generator States
     const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
     const [aiGeneratorTargetIndex, setAiGeneratorTargetIndex] = useState(null);
-    const [aiChatMessages, setAiChatMessages] = useState(() => {
-        try {
-            const saved = localStorage.getItem(`lms_ai_chat_messages_${id || 'new'}`);
-            if (saved) {
-                return JSON.parse(saved);
-            }
-        } catch (e) {
-            console.error("Failed to load AI chat history from localStorage", e);
-        }
-        return [
-            { sender: 'ai', text: 'Hello! I am your Gemini AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
-        ];
-    });
+    const [aiChatMessages, setAiChatMessages] = useState([
+        { sender: 'ai', text: 'Hello! I am your AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+    ]);
     const [aiChatInput, setAiChatInput] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
     const [activeVideoId, setActiveVideoId] = useState(null);
@@ -2180,19 +2170,42 @@ const TestBuilder = () => {
     const formElementsRef = useRef([]);
     const chatEndRef = useRef(null);
 
+    // Load user-specific and test-specific AI chat history from localStorage
+    useEffect(() => {
+        if (user?._id) {
+            const key = `lms_ai_chat_messages_${user._id}_${id || 'new'}`;
+            try {
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    setAiChatMessages(JSON.parse(saved));
+                } else {
+                    setAiChatMessages([
+                        { sender: 'ai', text: 'Hello! I am your AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+                    ]);
+                }
+            } catch (e) {
+                console.error("Failed to load AI chat history from localStorage", e);
+            }
+        }
+    }, [user?._id, id]);
+
     useEffect(() => {
         if (isAiGeneratorOpen) {
             chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
     }, [aiChatMessages, isAiGeneratorOpen]);
 
+    // Save user-specific and test-specific AI chat history to localStorage
     useEffect(() => {
-        try {
-            localStorage.setItem(`lms_ai_chat_messages_${id || 'new'}`, JSON.stringify(aiChatMessages));
-        } catch (e) {
-            console.error("Failed to save AI chat history to localStorage", e);
+        if (user?._id && aiChatMessages.length > 0) {
+            const key = `lms_ai_chat_messages_${user._id}_${id || 'new'}`;
+            try {
+                localStorage.setItem(key, JSON.stringify(aiChatMessages));
+            } catch (e) {
+                console.error("Failed to save AI chat history to localStorage", e);
+            }
         }
-    }, [aiChatMessages, id]);
+    }, [aiChatMessages, user?._id, id]);
 
     useEffect(() => {
         formElementsRef.current = formElements;

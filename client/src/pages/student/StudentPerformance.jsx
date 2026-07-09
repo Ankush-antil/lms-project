@@ -421,7 +421,11 @@ const StudentPerformance = () => {
                     teacher: { name: 'Dr. Vivek Sharma' }
                 },
                 checkInPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-                checkOutPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200'
+                checkOutPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
+                studentNote: 'Had bad network in room, app check-in was delayed.',
+                teacherNote: 'Approved check-in extension request.',
+                isManual: false,
+                markedBy: 'System (QR Scan)'
             },
             {
                 _id: 'demo-att-2',
@@ -433,7 +437,11 @@ const StudentPerformance = () => {
                     subject: 'Advanced Database Systems',
                     teacher: { name: 'Prof. Anjali Mehta' }
                 },
-                checkInPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200'
+                checkInPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+                studentNote: 'Selfie verification took 3 attempts to succeed.',
+                teacherNote: '',
+                isManual: true,
+                markedBy: 'Prof. Anjali Mehta'
             },
             {
                 _id: 'demo-att-3',
@@ -446,7 +454,11 @@ const StudentPerformance = () => {
                     teacher: { name: 'Dr. Rajesh Verma' }
                 },
                 checkInPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-                checkOutPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200'
+                checkOutPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
+                studentNote: '',
+                teacherNote: 'Scored full marks in the classroom quiz.',
+                isManual: false,
+                markedBy: 'System (QR Scan)'
             },
             {
                 _id: 'demo-att-4',
@@ -455,7 +467,11 @@ const StudentPerformance = () => {
                 session: {
                     subject: 'Cyber Security & Forensic',
                     teacher: { name: 'Prof. Karan Malhotra' }
-                }
+                },
+                studentNote: '',
+                teacherNote: '',
+                isManual: false,
+                markedBy: '—'
             },
             {
                 _id: 'demo-att-5',
@@ -467,7 +483,11 @@ const StudentPerformance = () => {
                     subject: 'Mobile App Development',
                     teacher: { name: 'Dr. Vivek Sharma' }
                 },
-                checkInPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200'
+                checkInPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
+                studentNote: '',
+                teacherNote: '',
+                isManual: true,
+                markedBy: 'Dr. Vivek Sharma'
             }
         ];
     }, [attendanceRecords]);
@@ -634,7 +654,51 @@ const StudentPerformance = () => {
                           </div>
                       </div>
   
-                      <div className="p-6">
+                      <div className="p-6 space-y-6">
+                           {/* 4 Status Cards Row */}
+                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2">
+                               {/* Card 1: Present */}
+                               <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-100">
+                                       <CheckCircle2 size={18} />
+                                   </div>
+                                   <div>
+                                       <h4 className="text-2xl font-black text-emerald-800 tracking-tight">{erpPresent}</h4>
+                                       <p className="text-emerald-600 text-xs font-bold mt-0.5">Present</p>
+                                   </div>
+                               </div>
+                               {/* Card 2: Absent */}
+                               <div className="bg-rose-50/50 border border-rose-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-100">
+                                       <AlertCircle size={18} />
+                                   </div>
+                                   <div>
+                                       <h4 className="text-2xl font-black text-rose-800 tracking-tight">{Math.max(0, erpTotal - erpPresent - 2)}</h4>
+                                       <p className="text-rose-600 text-xs font-bold mt-0.5">Absent</p>
+                                   </div>
+                               </div>
+                               {/* Card 3: Leave */}
+                               <div className="bg-amber-50/50 border border-amber-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-100">
+                                       <FileText size={18} />
+                                   </div>
+                                   <div>
+                                       <h4 className="text-2xl font-black text-amber-800 tracking-tight">2</h4>
+                                       <p className="text-amber-600 text-xs font-bold mt-0.5">Leave</p>
+                                   </div>
+                               </div>
+                               {/* Card 4: Holiday */}
+                               <div className="bg-blue-50/50 border border-blue-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-100">
+                                       <Award size={18} />
+                                   </div>
+                                   <div>
+                                       <h4 className="text-2xl font-black text-blue-800 tracking-tight">0</h4>
+                                       <p className="text-blue-600 text-xs font-bold mt-0.5">Holiday</p>
+                                   </div>
+                               </div>
+                           </div>
+
                           {displayAttendanceRecords.length === 0 ? (
                               <div className="text-center py-8 text-slate-400">
                                   <Calendar size={48} className="mx-auto mb-2 opacity-50" />
@@ -643,14 +707,17 @@ const StudentPerformance = () => {
                               </div>
                           ) : (
                               <div className="overflow-x-auto">
-                                  <table className="w-full min-w-[700px] border-collapse text-xs">
+                                  <table className="w-full min-w-[900px] border-collapse text-xs">
                                       <thead>
                                           <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
                                               <th className="py-2.5 px-3">Date</th>
+                                              <th className="py-2.5 px-3">Mode</th>
+                                              <th className="py-2.5 px-3">Marked By</th>
                                               <th className="py-2.5 px-3">Student Note</th>
                                               <th className="py-2.5 px-3">Teacher Note</th>
                                               <th className="py-2.5 px-3 text-center">Check-In</th>
                                               <th className="py-2.5 px-3 text-center">Check-Out</th>
+                                              <th className="py-2.5 px-3 text-center">Time Spent</th>
                                               <th className="py-2.5 px-3 text-center">Selfie Verifications</th>
                                               <th className="py-2.5 px-3 text-center">Status</th>
                                           </tr>
@@ -661,13 +728,34 @@ const StudentPerformance = () => {
                                               let badgeClass = 'text-red-700 bg-red-50 border-red-150';
                                               if (status === 'Present') badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-150';
                                               else if (status === 'In') badgeClass = 'text-amber-700 bg-amber-50 border-amber-150';
-  
+
+                                              const checkInVal = record.checkInTime;
+                                              const checkOutVal = record.checkOutTime;
+                                              let timeSpentStr = '—';
+                                              if (checkInVal && checkOutVal) {
+                                                  const durationMs = new Date(checkOutVal) - new Date(checkInVal);
+                                                  if (durationMs > 0) {
+                                                      const totalMins = Math.floor(durationMs / 60000);
+                                                      const h = Math.floor(totalMins / 60);
+                                                      const m = totalMins % 60;
+                                                      timeSpentStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                                  }
+                                              }
+
                                               return (
                                                   <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
                                                       <td className="py-3 px-3 text-slate-550">
                                                           {record.date ? new Date(record.date).toLocaleDateString('en-US', {
                                                               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                                                           }) : ''}
+                                                      </td>
+                                                      <td className="py-3 px-3">
+                                                          <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">
+                                                              {record.isManual ? 'Manual' : 'QR Scan'}
+                                                          </span>
+                                                      </td>
+                                                      <td className="py-3 px-3 text-slate-600 font-semibold">
+                                                          {record.isManual ? (record.markedBy || 'Teacher') : 'System (QR)'}
                                                       </td>
                                                       <td className="py-3 px-3">
                                                           {record.studentNote ? (
@@ -694,10 +782,13 @@ const StudentPerformance = () => {
                                                           )}
                                                       </td>
                                                       <td className="py-3 px-3 text-center text-slate-600">
-                                                          {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                          {checkInVal ? new Date(checkInVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                                       </td>
                                                       <td className="py-3 px-3 text-center text-slate-600">
-                                                          {record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                          {checkOutVal ? new Date(checkOutVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                      </td>
+                                                      <td className="py-3 px-3 text-center text-slate-600 font-bold">
+                                                           {timeSpentStr}
                                                       </td>
                                                       <td className="py-3 px-3 text-center">
                                                           <div className="flex justify-center items-center gap-2">

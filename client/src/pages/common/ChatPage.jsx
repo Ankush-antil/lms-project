@@ -9,7 +9,8 @@ import toast from 'react-hot-toast';
 import {
     Search, Send, Phone, Video, MessageSquare,
     MoreVertical, User, Circle, ArrowLeft, Pencil,
-    Paperclip, File, Download, X, Loader2
+    Paperclip, File, Download, X, Loader2, Bell,
+    PenSquare, UserX, Lock
 } from 'lucide-react';
 
 const ChatPage = () => {
@@ -37,8 +38,17 @@ const ChatPage = () => {
     const [sendingRequest, setSendingRequest] = useState(false);
     const [showPermissionsModal, setShowPermissionsModal] = useState(false);
 
-    // Contact filtering and custom lists states
-    const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
+    // Incoming chat requests notification
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [showRequestsDropdown, setShowRequestsDropdown] = useState(false);
+    const [loadingPendingRequests, setLoadingPendingRequests] = useState(false);
+
+    // New chat search mode (search directory to find user to chat with)
+    const [searchMode, setSearchMode] = useState(false); // when true show directory search instead of contacts
+    const [directorySearchQuery, setDirectorySearchQuery] = useState('');
+    const [directorySearchResults, setDirectorySearchResults] = useState([]);
+    const [searchingDirectory, setSearchingDirectory] = useState(false);
+
     const [customLists, setCustomLists] = useState([]);
 
     // Lists creation flow states
@@ -67,13 +77,34 @@ const ChatPage = () => {
         }
     }, [user?._id]);
 
-    // Fetch all users in the institute for starting a new chat or building custom lists
+    // Debounced search across institute directory (for new-chat search mode)
+    useEffect(() => {
+        if (!directorySearchQuery.trim()) {
+            setDirectorySearchResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            try {
+                setSearchingDirectory(true);
+                const { data } = await axios.get(`/api/chat/directory?search=${encodeURIComponent(directorySearchQuery.trim())}`);
+                setDirectorySearchResults(data);
+            } catch (err) {
+                console.error('Directory search error:', err);
+            } finally {
+                setSearchingDirectory(false);
+            }
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [directorySearchQuery]);
+
+    // Fetch directory for lists flow (still triggered by showListsIntro / showAddUsers) using directorySearch
     useEffect(() => {
         if (showListsIntro || showAddUsers) {
             const fetchDirectory = async () => {
                 try {
                     setLoadingDirectory(true);
-                    const { data } = await axios.get('/api/chat/directory');
+                    const q = directorySearch.trim();
+                    const { data } = await axios.get(`/api/chat/directory${q ? `?search=${encodeURIComponent(q)}` : ''}`);
                     setDirectoryUsers(data);
                     setLoadingDirectory(false);
                 } catch (error) {
@@ -84,7 +115,8 @@ const ChatPage = () => {
             };
             fetchDirectory();
         }
-    }, [showListsIntro, showAddUsers]);
+    }, [showListsIntro, showAddUsers, directorySearch]);
+
 
     // Test relevant chat states
     const [selectedTestId, setSelectedTestId] = useState(null);
@@ -171,6 +203,19 @@ const ChatPage = () => {
         }
     };
 
+    // Fetch pending chat requests addressed to me
+    const fetchPendingRequests = async () => {
+        try {
+            setLoadingPendingRequests(true);
+            const { data } = await axios.get('/api/chat/request/pending');
+            setPendingRequests(data);
+        } catch (err) {
+            console.error('Error loading pending requests:', err);
+        } finally {
+            setLoadingPendingRequests(false);
+        }
+    };
+
     useEffect(() => {
         // Capture openContactId (and doubt context) from notification BEFORE fetching
         pendingContactIdRef.current = location.state?.openContactId || null;
@@ -181,9 +226,11 @@ const ChatPage = () => {
             };
         }
         fetchContacts();
+        fetchPendingRequests();
         // Clear all chat notifications — user is now on the chat page
         setChatNotifications([]);
     }, []);
+
 
     // Handle notification click when user is ALREADY on the chat page
     // (component doesn't remount so the above useEffect[] won't run again)
@@ -1464,53 +1511,190 @@ const ChatPage = () => {
                         </div>
                     ) : (
                         <div className="p-4 border-b border-slate-100">
-                            <h1 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <MessageSquare className="text-indigo-600" size={22} />
-                                <span>Messages Directory</span>
-                            </h1>
-                            <div className="relative">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Search conversations..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                />
-                            </div>
-
-                            {/* Contact Filter Tabs & Custom Lists & Create Button */}
-                            <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
-                                {filterTabs.map((tab) => {
-                                    const tabId = typeof tab === 'object' ? tab.id : tab;
-                                    const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
-                                    const isActive = activeFilterTab === tabId;
-                                    return (
+                            {searchMode ? (
+                                /* ── Search Mode: find new user to chat ── */
+                                <div>
+                                    <div className="flex items-center gap-2 mb-3">
                                         <button
-                                            key={tabId}
-                                            type="button"
-                                            onClick={() => setActiveFilterTab(tabId)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
-                                                ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
-                                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                                }`}
+                                            onClick={() => {
+                                                setSearchMode(false);
+                                                setDirectorySearchQuery('');
+                                                setDirectorySearchResults([]);
+                                            }}
+                                            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 transition-all cursor-pointer"
+                                            title="Back to conversations"
                                         >
-                                            {tabLabel}
+                                            <ArrowLeft size={16} />
                                         </button>
-                                    );
-                                })}
-                                <button
-                                    onClick={() => {
-                                        setDraftListName('');
-                                        setDraftSelectedUsers([]);
-                                        setShowListsIntro(true);
-                                    }}
-                                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
-                                    title="Create Chat List"
-                                >
-                                    +
-                                </button>
-                            </div>
+                                        <span className="text-sm font-black text-slate-800 flex-1">New Conversation</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Search by name, email or role..."
+                                            value={directorySearchQuery}
+                                            onChange={(e) => setDirectorySearchQuery(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                        />
+                                        {searchingDirectory && (
+                                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-600" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!directorySearchQuery && (
+                                        <p className="text-[10px] text-slate-400 mt-2 text-center">Type a name or email to search</p>
+                                    )}
+                                </div>
+                            ) : (
+                                /* ── Normal Mode: conversations list ── */
+                                <>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2 flex-1">
+                                            <MessageSquare className="text-indigo-600" size={22} />
+                                            <span>Messages</span>
+                                        </h1>
+                                        {/* Pending Requests Bell */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setShowRequestsDropdown(p => !p)}
+                                                className={`relative p-2 rounded-xl transition-all cursor-pointer ${
+                                                    pendingRequests.length > 0
+                                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-600'
+                                                        : 'hover:bg-slate-100 text-slate-500'
+                                                }`}
+                                                title="Chat Requests"
+                                            >
+                                                <Bell size={18} />
+                                                {pendingRequests.length > 0 && (
+                                                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 animate-pulse shadow-sm">
+                                                        {pendingRequests.length}
+                                                    </span>
+                                                )}
+                                            </button>
+                                            {/* Requests Dropdown */}
+                                            {showRequestsDropdown && (
+                                                <div className="absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+                                                        <span className="text-xs font-black text-slate-700">Incoming Requests</span>
+                                                        <button onClick={() => setShowRequestsDropdown(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"><X size={14}/></button>
+                                                    </div>
+                                                    {loadingPendingRequests ? (
+                                                        <div className="p-4 text-center text-xs text-slate-400">
+                                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mx-auto mb-1"></div>
+                                                            Loading...
+                                                        </div>
+                                                    ) : pendingRequests.length === 0 ? (
+                                                        <div className="p-5 text-center text-xs text-slate-400">
+                                                            <Bell size={24} className="mx-auto opacity-20 mb-1" />
+                                                            No pending requests
+                                                        </div>
+                                                    ) : (
+                                                        <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
+                                                            {pendingRequests.map(req => (
+                                                                <div key={req._id} className="p-3 flex items-start gap-2.5">
+                                                                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                                        {req.sender?.avatar ? (
+                                                                            <img src={req.sender.avatar} alt={req.sender.name} className="w-full h-full object-cover" />
+                                                                        ) : req.sender?.name?.[0]?.toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs font-black text-slate-800 truncate">{req.sender?.name}</p>
+                                                                        <p className="text-[10px] text-slate-400 uppercase">{req.sender?.role}</p>
+                                                                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                                                                            {req.permissions?.audioCall && <span className="text-[9px] bg-blue-50 border border-blue-200 text-blue-600 px-1.5 py-0.5 rounded-full font-bold">🎙 Audio</span>}
+                                                                            {req.permissions?.videoCall && <span className="text-[9px] bg-purple-50 border border-purple-200 text-purple-600 px-1.5 py-0.5 rounded-full font-bold">📹 Video</span>}
+                                                                        </div>
+                                                                        <div className="flex gap-1.5 mt-2">
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await axios.put(`/api/chat/request/${req._id}/accept`);
+                                                                                        toast.success(`Accepted ${req.sender?.name}'s request`);
+                                                                                        fetchPendingRequests();
+                                                                                        fetchContacts();
+                                                                                        setShowRequestsDropdown(false);
+                                                                                    } catch(e) { toast.error('Failed to accept'); }
+                                                                                }}
+                                                                                className="flex-1 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all cursor-pointer"
+                                                                            >Accept</button>
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await axios.put(`/api/chat/request/${req._id}/reject`);
+                                                                                        toast(`Rejected ${req.sender?.name}'s request`);
+                                                                                        fetchPendingRequests();
+                                                                                    } catch(e) { toast.error('Failed to reject'); }
+                                                                                }}
+                                                                                className="flex-1 py-1 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 text-[10px] font-black rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                                                            >Reject</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* New Chat icon */}
+                                        <button
+                                            onClick={() => { setSearchMode(true); setDirectorySearchQuery(''); setDirectorySearchResults([]); }}
+                                            className="p-2 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 transition-all cursor-pointer"
+                                            title="Start a new conversation"
+                                        >
+                                            <PenSquare size={18} />
+                                        </button>
+                                    </div>
+
+                                    {/* Search within existing contacts */}
+                                    <div className="relative">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search conversations..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Contact Filter Tabs & Custom Lists & Create Button */}
+                                    <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
+                                        {filterTabs.map((tab) => {
+                                            const tabId = typeof tab === 'object' ? tab.id : tab;
+                                            const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                            const isActive = activeFilterTab === tabId;
+                                            return (
+                                                <button
+                                                    key={tabId}
+                                                    type="button"
+                                                    onClick={() => setActiveFilterTab(tabId)}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
+                                                        ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                        }`}
+                                                >
+                                                    {tabLabel}
+                                                </button>
+                                            );
+                                        })}
+                                        <button
+                                            onClick={() => {
+                                                setDraftListName('');
+                                                setDraftSelectedUsers([]);
+                                                setShowListsIntro(true);
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
+                                            title="Create Chat List"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -1560,6 +1744,45 @@ const ChatPage = () => {
                                     </div>
                                 )}
                             </div>
+                        ) : searchMode ? (
+                            /* ── Directory Search Results ── */
+                            directorySearchQuery.trim() === '' ? (
+                                <div className="p-8 text-center text-slate-400 text-xs select-none">
+                                    <Search size={32} className="mx-auto opacity-20 mb-2" />
+                                    <p>Type above to search people</p>
+                                </div>
+                            ) : searchingDirectory ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                    Searching...
+                                </div>
+                            ) : directorySearchResults.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <UserX size={32} className="mx-auto opacity-20 mb-2" />
+                                    No users found
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-50">
+                                    {directorySearchResults.map(u => (
+                                        <div
+                                            key={u._id}
+                                            onClick={() => { setSearchMode(false); setDirectorySearchQuery(''); setDirectorySearchResults([]); selectContactHandler(u); }}
+                                            className="flex items-center gap-3 p-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-black flex items-center justify-center text-sm flex-shrink-0 overflow-hidden shadow-sm">
+                                                {u.avatar ? <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" /> : u.name?.[0]?.toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-800 truncate">{u.name}</p>
+                                                <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                                            </div>
+                                            <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-full font-bold uppercase flex-shrink-0">
+                                                {u.role}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
                         ) : loadingContacts ? (
                             <div className="p-8 text-center text-slate-400 text-xs">
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>

@@ -2337,7 +2337,7 @@ const TestBuilder = () => {
             } else if (typeLower === 'matching' || (q.matchingPairs && q.matchingPairs.length > 0)) {
                 label = 'Matching';
                 defaultMatchingPairs = q.matchingPairs || [];
-            } else if (typeLower === 'fill in the blanks' || q.blankAnswers || typeLower.includes('blank')) {
+            } else if (typeLower === 'fill in the blanks' || (Array.isArray(q.blankAnswers) && q.blankAnswers.length > 0) || typeLower.includes('blank')) {
                 label = 'Fill in the Blanks';
                 defaultBlankAnswers = q.blankAnswers || (q.correctAnswer ? [q.correctAnswer] : []);
             } else if (typeLower === 'checkboxes' || typeLower === 'checkbox') {

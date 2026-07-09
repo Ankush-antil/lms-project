@@ -256,7 +256,18 @@ const ReceiptModal = ({ receipt, onClose }) => {
                 <div class="field"><label>Date</label><span>${fmtDate(receipt.date)}</span></div>
                 <div class="field"><label>Mode</label><span>${receipt.paymentMode}</span></div>
                 <div class="field"><label>Collected By</label><span>${receipt.collectedBy || 'Admin'}</span></div>
-                ${receipt.remark ? `<div class="field"><label>Remark</label><span>${receipt.remark}</span></div>` : ''}
+                ${receipt.referenceNo ? `
+                <div class="field" style="grid-column: span 2; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-top:4px;">
+                    <label style="font-size:9px; font-weight:800; color:#64748b; text-transform:uppercase;">
+                        ${receipt.paymentMode === 'Cash' ? 'Notes Breakdown' : 
+                          receipt.paymentMode === 'UPI' ? 'UPI Reference No.' : 
+                          receipt.paymentMode === 'Cheque' ? 'Cheque No.' : 
+                          receipt.paymentMode === 'Bank' ? 'Transaction Ref No.' : 'Reference No.'}
+                    </label>
+                    <span style="font-size:11px; font-weight:700; color:#4f46e5; display:block; margin-top:2px;">${receipt.referenceNo}</span>
+                </div>
+                ` : ''}
+                ${receipt.remark ? `<div class="field" style="grid-column: span 2;"><label>Remark</label><span>${receipt.remark}</span></div>` : ''}
             </div>
             <div class="amount-box">
                 <div class="amount-label">Amount Received</div>
@@ -331,8 +342,20 @@ const ReceiptModal = ({ receipt, onClose }) => {
                                 <p className="text-[10px] text-slate-400 font-bold mb-0.5">Collected By</p>
                                 <p className="text-slate-800 font-black text-sm">{receipt.collectedBy || 'Admin'}</p>
                             </div>
+                            {receipt.referenceNo && (
+                                <div className="col-span-2 bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 mt-1">
+                                    <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold mb-0.5">
+                                        {receipt.paymentMode === 'Cash' && 'Notes Breakdown'}
+                                        {receipt.paymentMode === 'UPI' && 'UPI Reference No.'}
+                                        {receipt.paymentMode === 'Cheque' && 'Cheque No.'}
+                                        {receipt.paymentMode === 'Bank' && 'Transaction Ref No.'}
+                                        {receipt.paymentMode !== 'Cash' && receipt.paymentMode !== 'UPI' && receipt.paymentMode !== 'Cheque' && receipt.paymentMode !== 'Bank' && 'Reference No.'}
+                                    </p>
+                                    <p className="text-indigo-655 font-black text-xs">{receipt.referenceNo}</p>
+                                </div>
+                            )}
                             {receipt.remark && (
-                                <div>
+                                <div className="col-span-2">
                                     <p className="text-[10px] text-slate-400 font-bold mb-0.5">Remark</p>
                                     <p className="text-slate-800 font-black text-sm">{receipt.remark}</p>
                                 </div>
@@ -606,6 +629,29 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [loadingRecord, setLoadingRecord] = useState(false);
 
+    // Cash denominations calculator state
+    const [denominations, setDenominations] = useState({
+        500: 0,
+        200: 0,
+        100: 0,
+        50: 0,
+        20: 0,
+        10: 0
+    });
+
+    // Reset reference number and denominations when payment mode changes
+    useEffect(() => {
+        setRefNo('');
+        setDenominations({
+            500: 0,
+            200: 0,
+            100: 0,
+            50: 0,
+            20: 0,
+            10: 0
+        });
+    }, [mode]);
+
     // Extra charges state
     const [hasExtraCharge, setHasExtraCharge] = useState(false);
     const [extraLabel, setExtraLabel] = useState('');
@@ -699,12 +745,20 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
             };
         }
 
+        let finalRefNo = refNo;
+        if (mode === 'Cash') {
+            finalRefNo = Object.entries(denominations)
+                .filter(([_, count]) => count > 0)
+                .map(([den, count]) => `${den}x${count}`)
+                .join(', ');
+        }
+
         try {
             const res = await axios.post(`/api/fees/admin/collect`, {
                 studentId: selectedId, 
                 amount: Number(amount), 
                 paymentMode: mode, 
-                referenceNo: refNo, 
+                referenceNo: finalRefNo, 
                 remark,
                 extraCharge: extraChargeData
             }, { withCredentials: true });
@@ -901,6 +955,38 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
                     </div>
                 </div>
 
+                {/* Cash Denominations Calculator */}
+                {mode === 'Cash' && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 animate-fade-in">
+                        <span className="text-xs font-bold text-slate-700 block">Cash Denominations Calculator</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                            {[500, 200, 100, 50, 20, 10].map(den => (
+                                <div key={den} className="flex flex-col bg-white border border-slate-150 rounded-xl p-2.5 items-center shadow-sm">
+                                    <span className="text-[10px] font-black text-slate-400">₹{den} Note</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="0"
+                                        value={denominations[den] || ''}
+                                        onChange={e => {
+                                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                                            const updated = { ...denominations, [den]: val };
+                                            setDenominations(updated);
+                                            // Auto calculate total amount
+                                            const total = Object.entries(updated).reduce((sum, [d, count]) => sum + (parseInt(d) * count), 0);
+                                            setAmount(total || '');
+                                        }}
+                                        className="w-full text-center mt-1 border-b border-slate-200 focus:border-indigo-500 text-xs font-bold outline-none"
+                                    />
+                                    <span className="text-[9px] text-slate-400 mt-1 font-bold">
+                                        = ₹{(denominations[den] || 0) * den}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Extra Charge Section */}
                 <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -951,11 +1037,34 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
 
                 {/* Ref + Remark */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Reference No. (Optional)</label>
-                        <input type="text" value={refNo} onChange={e => setRefNo(e.target.value)} placeholder="e.g. UPI ref / cheque no."
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
-                    </div>
+                    {mode !== 'Cash' ? (
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
+                                {mode === 'UPI' && 'UPI Reference No.'}
+                                {mode === 'Cheque' && 'Cheque No.'}
+                                {mode === 'Bank' && 'Transaction Ref No.'}
+                                {mode !== 'UPI' && mode !== 'Cheque' && mode !== 'Bank' && 'Reference No. (Optional)'}
+                            </label>
+                            <input 
+                                type="text" 
+                                value={refNo} 
+                                onChange={e => setRefNo(e.target.value)} 
+                                placeholder={
+                                    mode === 'UPI' ? 'Enter UPI Transaction ID' :
+                                    mode === 'Cheque' ? 'Enter Cheque Number' :
+                                    mode === 'Bank' ? 'Enter Bank Ref/Txn No.' : 'Reference No.'
+                                }
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" 
+                            />
+                        </div>
+                    ) : (
+                        <div className="col-span-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Payment Mode</label>
+                            <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-500 text-sm font-semibold select-none cursor-not-allowed">
+                                Cash (Denied Reference No.)
+                            </div>
+                        </div>
+                    )}
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Remark (Optional)</label>
                         <input type="text" value={remark} onChange={e => setRemark(e.target.value)} placeholder="e.g. First installment"

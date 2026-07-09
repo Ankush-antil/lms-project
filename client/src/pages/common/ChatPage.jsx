@@ -30,6 +30,13 @@ const ChatPage = () => {
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [showOriginalMap, setShowOriginalMap] = useState({});
 
+    // Chat Request system states
+    const [chatRequest, setChatRequest] = useState(null);
+    const [loadingRequestStatus, setLoadingRequestStatus] = useState(false);
+    const [requestPermissions, setRequestPermissions] = useState({ audioCall: false, videoCall: false });
+    const [sendingRequest, setSendingRequest] = useState(false);
+    const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+
     // Contact filtering and custom lists states
     const [activeFilterTab, setActiveFilterTab] = useState('All'); // 'All' | 'Teacher' | 'Editor' | 'Student' | 'list_xxx'
     const [customLists, setCustomLists] = useState([]);
@@ -215,9 +222,23 @@ const ChatPage = () => {
     }, [location.state?.openContactId]); // eslint-disable-line
 
 
+    const fetchRequestStatus = async (contactId) => {
+        try {
+            setLoadingRequestStatus(true);
+            const { data } = await axios.get(`/api/chat/request/status/${contactId}`);
+            setChatRequest(data);
+        } catch (error) {
+            console.error("Error fetching chat request status:", error);
+        } finally {
+            setLoadingRequestStatus(false);
+        }
+    };
+
     // Reset states when contact is selected
     useEffect(() => {
         if (!selectedContact) return;
+        setChatRequest(null);
+        fetchRequestStatus(selectedContact._id);
         setMessages([]); // Clear previous messages
         setLimitDays(3);
         setDoubtLimitDays(3);
@@ -242,9 +263,9 @@ const ChatPage = () => {
         prevDoubtLimitDays.current = 3;
     }, [selectedContact]);
 
-    // Load messages when contact, limitDays, or search queries change
     useEffect(() => {
         if (!selectedContact) return;
+        if (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) return;
 
         const fetchMessages = async () => {
             try {
@@ -285,7 +306,7 @@ const ChatPage = () => {
         };
 
         fetchMessages();
-    }, [selectedContact, limitDays, searchKeyword, searchDate]);
+    }, [selectedContact, limitDays, searchKeyword, searchDate, chatRequest]);
 
     // Load student tests when "Test Relevant Chat" is enabled
     // Works for both Teacher (viewing student's tests) and Student (viewing their own tests)
@@ -948,6 +969,219 @@ const ChatPage = () => {
         setSelectedQuestionIndex(null);
     };
 
+    const handleSendRequest = async () => {
+        if (!selectedContact) return;
+        try {
+            setSendingRequest(true);
+            const { data } = await axios.post('/api/chat/request', {
+                receiverId: selectedContact._id,
+                permissions: requestPermissions
+            });
+            setChatRequest({ status: 'pending', request: data, canRequest: false });
+            toast.success("Chat request sent successfully!");
+        } catch (error) {
+            console.error("Failed to send chat request:", error);
+            toast.error(error.response?.data?.message || "Failed to send chat request");
+        } finally {
+            setSendingRequest(false);
+        }
+    };
+
+    const handleAcceptRequest = async (reqId) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/accept`);
+            setChatRequest({ status: 'accepted', request: data });
+            toast.success("Chat request accepted!");
+        } catch (error) {
+            console.error("Failed to accept chat request:", error);
+            toast.error("Failed to accept chat request");
+        }
+    };
+
+    const handleRejectRequest = async (reqId) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/reject`);
+            setChatRequest({ status: 'rejected', request: data, canRequest: false, blockTimeLeft: 24 * 60 * 60 * 1000 });
+            toast.success("Chat request rejected");
+        } catch (error) {
+            console.error("Failed to reject chat request:", error);
+            toast.error("Failed to reject chat request");
+        }
+    };
+
+    const handleCancelRequest = async (reqId) => {
+        try {
+            await axios.delete(`/api/chat/request/${reqId}/cancel`);
+            setChatRequest({ status: 'none', canRequest: true });
+            toast.success("Chat request cancelled");
+        } catch (error) {
+            console.error("Failed to cancel chat request:", error);
+            toast.error("Failed to cancel chat request");
+        }
+    };
+
+    const handleUpdatePermissions = async (reqId, newPerms) => {
+        try {
+            const { data } = await axios.put(`/api/chat/request/${reqId}/permissions`, newPerms);
+            setChatRequest(prev => ({ ...prev, request: data }));
+            toast.success("Permissions updated successfully!");
+            setShowPermissionsModal(false);
+        } catch (error) {
+            console.error("Failed to update permissions:", error);
+            toast.error("Failed to update permissions");
+        }
+    };
+
+    const renderChatRequestPanel = () => {
+        if (!chatRequest) return null;
+
+        const isOutgoing = chatRequest.request?.sender === user._id;
+        const reqId = chatRequest.request?._id;
+
+        // 1. If Rejection lock is active
+        if (chatRequest.status === 'rejected') {
+            const hoursLeft = chatRequest.blockTimeLeft
+                ? Math.ceil(chatRequest.blockTimeLeft / (1000 * 60 * 60))
+                : 24;
+
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4 border border-rose-100 shadow-sm animate-bounce">
+                        <X size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Request Rejected</h2>
+                    <p className="text-xs font-semibold text-slate-505 max-w-sm mt-2 leading-relaxed">
+                        Your previous chat request was declined by {selectedContact.name}. To prevent spam, you can send another request after {hoursLeft} hours.
+                    </p>
+                </div>
+            );
+        }
+
+        // 2. If Pending (Outgoing)
+        if (chatRequest.status === 'pending' && isOutgoing) {
+            const perms = chatRequest.request.permissions || {};
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-550 rounded-2xl flex items-center justify-center mb-4 border border-amber-100 shadow-sm animate-pulse">
+                        <Loader2 size={28} className="animate-spin" />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Request Pending</h2>
+                    <p className="text-xs font-semibold text-slate-500 max-w-xs mt-2 leading-relaxed">
+                        Your request to start a chat with {selectedContact.name} is waiting for approval.
+                    </p>
+                    <div className="my-5 p-4 bg-white border border-slate-100 rounded-2xl text-left w-full max-w-xs space-y-2">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Requested Permissions:</span>
+                        <div className="text-xs font-bold text-slate-700 flex flex-col gap-1.5">
+                            <span className="flex items-center gap-2">🟢 Chatting Allowed</span>
+                            <span className={`flex items-center gap-2 ${perms.audioCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.audioCall ? '🟢' : '⚪'} Audio Calling
+                            </span>
+                            <span className={`flex items-center gap-2 ${perms.videoCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.videoCall ? '🟢' : '⚪'} Video Calling
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => handleCancelRequest(reqId)}
+                        className="px-6 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-rose-150"
+                    >
+                        Cancel Request
+                    </button>
+                </div>
+            );
+        }
+
+        // 3. If Pending (Incoming)
+        if (chatRequest.status === 'pending' && !isOutgoing) {
+            const perms = chatRequest.request.permissions || {};
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                    <div className="w-16 h-16 bg-indigo-50 text-indigo-650 rounded-2xl flex items-center justify-center mb-4 border border-indigo-100 shadow-sm">
+                        <MessageSquare size={28} />
+                    </div>
+                    <h2 className="text-lg font-black text-slate-800">Chat Invitation</h2>
+                    <p className="text-xs font-semibold text-slate-505 max-w-xs mt-2 leading-relaxed">
+                        {selectedContact.name} wants to start a conversation with you.
+                    </p>
+                    <div className="my-5 p-4 bg-white border border-slate-100 rounded-2xl text-left w-full max-w-xs space-y-2">
+                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Requested Permissions:</span>
+                        <div className="text-xs font-bold text-slate-700 flex flex-col gap-1.5">
+                            <span className="flex items-center gap-2">🟢 Chatting Allowed</span>
+                            <span className={`flex items-center gap-2 ${perms.audioCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.audioCall ? '🟢' : '⚪'} Audio Calling
+                            </span>
+                            <span className={`flex items-center gap-2 ${perms.videoCall ? 'text-slate-700' : 'text-slate-350 line-through'}`}>
+                                {perms.videoCall ? '🟢' : '⚪'} Video Calling
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => handleAcceptRequest(reqId)}
+                            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                        >
+                            Accept Request
+                        </button>
+                        <button
+                            onClick={() => handleRejectRequest(reqId)}
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-205 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-slate-200"
+                        >
+                            Reject Request
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // 4. If No request exists (none)
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 select-none">
+                <div className="w-16 h-16 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center mb-4 border border-slate-200 shadow-inner">
+                    <MessageSquare size={28} />
+                </div>
+                <h2 className="text-lg font-black text-slate-800">Start Conversation</h2>
+                <p className="text-xs font-semibold text-slate-500 max-w-sm mt-2 leading-relaxed">
+                    You need to send a chat request to {selectedContact.name} before you can start messaging or calling.
+                </p>
+                <div className="my-5 p-5 bg-white border border-slate-100 rounded-3xl text-left w-full max-w-xs space-y-4 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block border-b border-slate-100 pb-1.5">Configure Permissions:</span>
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-not-allowed opacity-75">
+                            <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
+                            <span>Allow Chatting</span>
+                        </label>
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={requestPermissions.audioCall}
+                                onChange={e => setRequestPermissions(prev => ({ ...prev, audioCall: e.target.checked }))}
+                                className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                            />
+                            <span>Allow Audio Call</span>
+                        </label>
+                        <label className="flex items-center gap-3 text-xs text-slate-750 font-bold cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={requestPermissions.videoCall}
+                                onChange={e => setRequestPermissions(prev => ({ ...prev, videoCall: e.target.checked }))}
+                                className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                            />
+                            <span>Allow Video Call</span>
+                        </label>
+                    </div>
+                </div>
+                <button
+                    onClick={handleSendRequest}
+                    disabled={sendingRequest}
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-750 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                >
+                    {sendingRequest && <Loader2 size={14} className="animate-spin" />}
+                    Send Chat Request
+                </button>
+            </div>
+        );
+    };
+
     const handleSaveCustomList = () => {
         if (!draftListName.trim() || draftSelectedUsers.length === 0) {
             toast.error("Please provide a name and select at least one user.");
@@ -1460,7 +1694,7 @@ const ChatPage = () => {
                                                         setShowSidebarTests(prev => !prev);
                                                     }
                                                 }}
-                                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
+                                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border bg-white hover:bg-slate-50 text-indigo-650 border-indigo-100 transition-all active:scale-95 shadow-sm mr-1.5"
                                             >
                                                 {(selectedTestId !== null || selectedInboxId !== null)
                                                     ? 'Show General Chat'
@@ -1481,6 +1715,18 @@ const ChatPage = () => {
                                     >
                                         <Search size={16} />
                                     </button>
+
+                                    {chatRequest?.status === 'accepted' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPermissionsModal(true)}
+                                            className="p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm text-slate-550 flex items-center justify-center"
+                                            title="Update Chat Permissions"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    )}
+
                                     {/* Audio Call Button */}
                                     {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
@@ -1489,15 +1735,22 @@ const ChatPage = () => {
                                                     toast.error(chatCtrl.subNotes?.audioCall || chatCtrl.note || "Audio calling is disabled by your administrator.");
                                                     return;
                                                 }
+                                                const hasCallPerm = chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall;
+                                                if (!hasCallPerm) {
+                                                    toast.error("Audio call permissions not granted by user");
+                                                    return;
+                                                }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'audio');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(chatCtrl && chatCtrl.audioCall === false) 
+                                                ${(chatCtrl && chatCtrl.audioCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall)
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
-                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                                    : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.audioCall === false
                                                 ? (chatCtrl.subNotes?.audioCall || chatCtrl.note || "Voice call is disabled")
-                                                : "Voice Call"
+                                                : (!(chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall)
+                                                    ? "Audio call permissions not granted"
+                                                    : "Voice Call")
                                             }
                                         >
                                             <Phone size={16} />
@@ -1512,15 +1765,22 @@ const ChatPage = () => {
                                                     toast.error(chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video calling is disabled by your administrator.");
                                                     return;
                                                 }
+                                                const hasCallPerm = chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall;
+                                                if (!hasCallPerm) {
+                                                    toast.error("Video call permissions not granted by user");
+                                                    return;
+                                                }
                                                 callUser(selectedContact._id, selectedContact.name, selectedContact.role, 'video');
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
-                                                ${(chatCtrl && chatCtrl.videoCall === false) 
+                                                ${(chatCtrl && chatCtrl.videoCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall)
                                                     ? 'opacity-40 cursor-not-allowed text-slate-300' 
-                                                    : 'text-slate-550 hover:bg-slate-50'}`}
+                                                    : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.videoCall === false
                                                 ? (chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video call is disabled")
-                                                : "Video Call"
+                                                : (!(chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall)
+                                                    ? "Video call permissions not granted"
+                                                    : "Video Call")
                                             }
                                         >
                                             <Video size={16} />
@@ -1568,7 +1828,14 @@ const ChatPage = () => {
                                 </div>
                             )}
 
-                            {selectedTestId !== null && selectedQuestionIndex !== null ? (
+                            {loadingRequestStatus ? (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+                                    <Loader2 size={36} className="animate-spin text-indigo-650 mb-3" />
+                                    <p className="text-xs font-bold text-slate-500">Checking chat permissions...</p>
+                                </div>
+                            ) : (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) ? (
+                                renderChatRequestPanel()
+                            ) : (selectedTestId !== null && selectedQuestionIndex !== null ? (
                                 <>
                                     {/* Doubt Question Header */}
                                     <div className="p-3.5 bg-white border-b border-slate-100 flex items-center gap-3 flex-shrink-0 text-left">
@@ -2080,7 +2347,7 @@ const ChatPage = () => {
                                         </button>
                                     </form>
                                 </>
-                            )}
+                            ))}
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col justify-center items-center text-center p-8 select-none">
@@ -2362,7 +2629,76 @@ const ChatPage = () => {
                 </div>,
                 document.body
             )}
-        </DashboardLayout>
+ 
+             {/* 4. Edit Chat Permissions Modal */}
+             {showPermissionsModal && chatRequest?.request && createPortal(
+                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                     <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                         {/* Close button */}
+                         <button
+                             onClick={() => setShowPermissionsModal(false)}
+                             className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                         >
+                             ✕
+                         </button>
+ 
+                         <h3 className="font-extrabold text-slate-800 text-lg mb-2">Update Chat Permissions</h3>
+                         <p className="text-xs text-slate-400 mb-6">Manage allowed interactions for this conversation.</p>
+ 
+                         <div className="space-y-4 mb-6">
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-not-allowed opacity-75">
+                                 <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
+                                 <span>Allow Chatting</span>
+                             </label>
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                 <input
+                                     type="checkbox"
+                                     checked={chatRequest.request.permissions?.audioCall}
+                                     onChange={e => setChatRequest(prev => ({
+                                         ...prev,
+                                         request: {
+                                             ...prev.request,
+                                             permissions: {
+                                                 ...prev.request.permissions,
+                                                 audioCall: e.target.checked
+                                             }
+                                         }
+                                     }))}
+                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                 />
+                                 <span>Allow Audio Call</span>
+                             </label>
+                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                 <input
+                                     type="checkbox"
+                                     checked={chatRequest.request.permissions?.videoCall}
+                                     onChange={e => setChatRequest(prev => ({
+                                         ...prev,
+                                         request: {
+                                             ...prev.request,
+                                             permissions: {
+                                                 ...prev.request.permissions,
+                                                 videoCall: e.target.checked
+                                             }
+                                         }
+                                     }))}
+                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                 />
+                                 <span>Allow Video Call</span>
+                             </label>
+                         </div>
+ 
+                         <button
+                             onClick={() => handleUpdatePermissions(chatRequest.request._id, chatRequest.request.permissions)}
+                             className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
+                         >
+                             Save Changes
+                         </button>
+                     </div>
+                 </div>,
+                 document.body
+             )}
+         </DashboardLayout>
     );
 };
 

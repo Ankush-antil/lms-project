@@ -221,6 +221,44 @@ const sendMessage = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'Receiver and either text or file are required' });
     }
 
+    // 1. Check if assigned Student-Teacher relation (bypasses request check)
+    const isAssignedRelation = async (userAId, userBId) => {
+        const User = require('../models/User');
+        const userA = await User.findById(userAId);
+        const userB = await User.findById(userBId);
+        if (!userA || !userB) return false;
+        if (userA.role === 'Teacher' && userB.role === 'Student') {
+            const studentCourse = userB.studentProfile?.course;
+            const assignedCourses = userA.teacherProfile?.assignedCourses || [];
+            const assignedStudents = userA.teacherProfile?.assignedStudents || [];
+            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
+                   assignedStudents.some(sId => sId.toString() === userBId.toString());
+        }
+        if (userA.role === 'Student' && userB.role === 'Teacher') {
+            const studentCourse = userA.studentProfile?.course;
+            const assignedCourses = userB.teacherProfile?.assignedCourses || [];
+            const assignedStudents = userB.teacherProfile?.assignedStudents || [];
+            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
+                   assignedStudents.some(sId => sId.toString() === userAId.toString());
+        }
+        return false;
+    };
+
+    const isBypassed = await isAssignedRelation(sender, receiver);
+    if (!isBypassed) {
+        const ChatRequest = require('../models/ChatRequest');
+        const request = await ChatRequest.findOne({
+            $or: [
+                { sender, receiver },
+                { sender: receiver, receiver: sender }
+            ],
+            status: 'accepted'
+        });
+        if (!request) {
+            return res.status(403).json({ message: 'You cannot send messages without an accepted chat request' });
+        }
+    }
+
     const message = await Message.create({
         sender,
         receiver,

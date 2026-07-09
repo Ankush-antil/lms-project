@@ -4,7 +4,7 @@ const { protect } = require('../../middleware/authMiddleware');
 
 router.post('/chat', protect, async (req, res, next) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, image } = req.body;
         if (!prompt) {
             return res.status(400).json({ message: 'Prompt is required' });
         }
@@ -17,6 +17,20 @@ router.post('/chat', protect, async (req, res, next) => {
         // Call Groq API using native fetch on OpenAI compatible endpoint
         const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
+        // Select model and format content based on whether an image is provided
+        const model = image ? 'qwen/qwen3.6-27b' : 'llama-3.3-70b-versatile';
+        const messageContent = image 
+            ? [
+                { type: 'text', text: prompt },
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: image
+                    }
+                }
+              ]
+            : prompt;
+
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -24,11 +38,11 @@ router.post('/chat', protect, async (req, res, next) => {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: model,
                 messages: [
                     {
                         role: 'user',
-                        content: prompt
+                        content: messageContent
                     }
                 ],
                 response_format: {

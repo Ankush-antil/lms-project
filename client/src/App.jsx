@@ -20,7 +20,7 @@ import AdminDrive from './pages/admin/AdminDrive';
 import TestsList from './pages/admin/TestsList';
 import TestBuilder from './pages/admin/TestBuilder';
 import EditorDashboard from './pages/editor/EditorDashboard';
-// import ToolsPage from './pages/admin/ToolsPage';
+import ToolsPage from './pages/admin/ToolsPage';
 
 import InstitutesList from './pages/admin/InstitutesList';
 import CoursesList from './pages/admin/CoursesList';
@@ -265,11 +265,26 @@ function App() {
                                         <NotesPage />
                                     </PrivateRoute>
                                 } />
-                                {/* <Route path="/admin/tools" element={
-                            <PrivateRoute role="Admin">
-                                <ToolsPage />
-                            </PrivateRoute>
-                        } /> */}
+                                <Route path="/admin/tools" element={
+                                    <PrivateRoute role="Admin">
+                                        <ToolsPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/tools" element={
+                                    <PrivateRoute role="Institute">
+                                        <ToolsPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/teacher/tools" element={
+                                    <PrivateRoute role="Teacher">
+                                        <ToolsPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/editor/tools" element={
+                                    <PrivateRoute role="Editor">
+                                        <ToolsPage />
+                                    </PrivateRoute>
+                                } />
 
 
                                 <Route path="/admin/activities-builder" element={

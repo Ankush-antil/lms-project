@@ -534,7 +534,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                 >
                                     <MessageSquare size={14} /> Send Reminder
                                 </button>
-                                {canPerform('feePortal', 'editStructure') && (
+                                {user?.role !== 'Accountant' && canPerform('feePortal', 'editStructure') && (
                                     <button
                                         onClick={() => {
                                             if (onDelete) onDelete(student._id);
@@ -589,7 +589,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                                         >
                                                             <Eye size={13} />
                                                         </button>
-                                                        {canPerform('feePortal', 'deleteTransaction') && (
+                                                        {user?.role !== 'Accountant' && canPerform('feePortal', 'deleteTransaction') && (
                                                             <button 
                                                                 onClick={() => {
                                                                     if (onDeleteTransaction) onDeleteTransaction(rec._id, student._id);

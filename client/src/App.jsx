@@ -13,7 +13,6 @@ import EditorsList from './pages/admin/EditorsList';
 import AccountantsList from './pages/admin/AccountantsList';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
-import AccountantsList from './pages/admin/AccountantsList';
 import MarketersList from './pages/admin/MarketersList';
 import AdminDrive from './pages/admin/AdminDrive';
 
@@ -243,11 +242,6 @@ function App() {
                                 <Route path="/admin/chat" element={
                                     <PrivateRoute role="Admin">
                                         <ChatPage />
-                                    </PrivateRoute>
-                                } />
-                                <Route path="/admin/accountants" element={
-                                    <PrivateRoute role="Admin">
-                                        <AccountantsList />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/admin/marketers" element={

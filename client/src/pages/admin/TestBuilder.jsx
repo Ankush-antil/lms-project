@@ -3572,9 +3572,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
     // AI Form Generation Mock
     const handleAiGenerateForm = () => {
         setAiGeneratorTargetIndex(null);
-        setAiChatMessages([
-            { sender: 'ai', text: 'Hello! I am your AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
-        ]);
+        if (aiChatMessages.length <= 1) {
+            setAiChatMessages([
+                { sender: 'ai', text: 'Hello! I am your AI Assistant. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!' }
+            ]);
+        }
         setIsAiGeneratorOpen(true);
     };
 
@@ -4594,10 +4596,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                 } else if (['Fill in the Blanks', 'Fill in the Blank'].includes(el.label)) {
                                                                     defaultType = 'Fill in the Blanks';
                                                                 }
-                                                                setAiChatMessages([
+                                                                setAiChatMessages(prev => [
+                                                                    ...prev,
                                                                     {
                                                                         sender: 'ai',
-                                                                        text: `Hello! I am your Gemini AI Assistant. I see you want to generate questions near a "${defaultType}" question. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!`
+                                                                        text: `I see you want to generate questions near a "${defaultType}" question. Tell me what topic you want questions on, how many, and what type (e.g. MCQ, Short Answer), and I will generate them for you!`
                                                                     }
                                                                 ]);
                                                                 setIsAiGeneratorOpen(true);

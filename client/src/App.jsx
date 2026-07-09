@@ -132,9 +132,15 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         const expectedSubdomain = roleSubdomains[user.role];
 
-        // 1. Handle feature subdomains root routing
+        // 1. Handle feature and role subdomains root routing
         if (path === '/') {
+            if (subdomain === expectedSubdomain) {
+                const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;
+                window.location.href = `${window.location.protocol}//${hostname}${redirectPath}`;
+                return;
+            }
             if (subdomain === 'notes') {
+
                 window.location.href = `${window.location.protocol}//notes.digitalstudyacademy.com/${user.role.toLowerCase()}/notes`;
                 return;
             }

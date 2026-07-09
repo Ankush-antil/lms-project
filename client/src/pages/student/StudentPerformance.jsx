@@ -646,8 +646,9 @@ const StudentPerformance = () => {
                                   <table className="w-full min-w-[700px] border-collapse text-xs">
                                       <thead>
                                           <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
-                                              <th className="py-2.5 px-3">Notes</th>
                                               <th className="py-2.5 px-3">Date</th>
+                                              <th className="py-2.5 px-3">Student Note</th>
+                                              <th className="py-2.5 px-3">Teacher Note</th>
                                               <th className="py-2.5 px-3 text-center">Check-In</th>
                                               <th className="py-2.5 px-3 text-center">Check-Out</th>
                                               <th className="py-2.5 px-3 text-center">Selfie Verifications</th>
@@ -663,22 +664,34 @@ const StudentPerformance = () => {
   
                                               return (
                                                   <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                                      <td className="py-3 px-3">
-                                                          {record.studentNote || record.teacherNote ? (
-                                                              <button
-                                                                  onClick={() => setSelectedNotes(record)}
-                                                                  className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-750 border border-violet-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                                                              >
-                                                                  See Notes
-                                                              </button>
-                                                          ) : (
-                                                              <span className="text-slate-400 italic text-[10px] font-semibold">No Notes</span>
-                                                          )}
-                                                      </td>
-                                                      <td className="py-3 px-3 text-slate-505">
+                                                      <td className="py-3 px-3 text-slate-550">
                                                           {record.date ? new Date(record.date).toLocaleDateString('en-US', {
                                                               weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                                                           }) : ''}
+                                                      </td>
+                                                      <td className="py-3 px-3">
+                                                          {record.studentNote ? (
+                                                              <button
+                                                                  onClick={() => setSelectedNotes({ title: 'Student Note', content: record.studentNote })}
+                                                                  className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-755 border border-violet-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                                              >
+                                                                  See Note
+                                                              </button>
+                                                          ) : (
+                                                              <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
+                                                          )}
+                                                      </td>
+                                                      <td className="py-3 px-3">
+                                                          {record.teacherNote ? (
+                                                              <button
+                                                                  onClick={() => setSelectedNotes({ title: 'Teacher Note', content: record.teacherNote })}
+                                                                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-755 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                                              >
+                                                                  See Note
+                                                              </button>
+                                                          ) : (
+                                                              <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
+                                                          )}
                                                       </td>
                                                       <td className="py-3 px-3 text-center text-slate-600">
                                                           {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
@@ -758,7 +771,7 @@ const StudentPerformance = () => {
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
                     <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
                         <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Attendance Session Notes</h3>
+                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedNotes.title}</h3>
                             <button
                                 onClick={() => setSelectedNotes(null)}
                                 className="text-slate-455 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
@@ -766,17 +779,11 @@ const StudentPerformance = () => {
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-6">
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Student Note</span>
-                                <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs text-slate-700 font-semibold min-h-[40px]">
-                                    {selectedNotes.studentNote || <span className="text-slate-400 italic">No note submitted by student</span>}
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Teacher Remark</span>
-                                <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold min-h-[40px]">
-                                    {selectedNotes.teacherNote || <span className="text-slate-400 italic">No remark added by teacher</span>}
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Content / Remarks</span>
+                                <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl text-xs text-slate-700 font-semibold leading-relaxed whitespace-pre-line">
+                                    {selectedNotes.content}
                                 </div>
                             </div>
                         </div>

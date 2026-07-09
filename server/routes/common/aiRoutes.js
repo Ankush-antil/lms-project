@@ -18,7 +18,7 @@ router.post('/chat', protect, async (req, res, next) => {
         const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
         // Select model and format content based on whether an image is provided
-        const model = image ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile';
+        const model = image ? 'qwen/qwen3.6-27b' : 'llama-3.3-70b-versatile';
         const messageContent = image 
             ? [
                 { type: 'text', text: prompt },

@@ -403,6 +403,74 @@ const StudentPerformance = () => {
         return logs;
     }, [activeDatesMap]);
 
+    // Use dynamic database attendance records if they exist, otherwise fall back to demo records
+    const displayAttendanceRecords = useMemo(() => {
+        if (attendanceRecords && attendanceRecords.length > 0) {
+            return attendanceRecords;
+        }
+        return [
+            {
+                _id: 'demo-att-1',
+                date: new Date().toISOString(),
+                checkInTime: new Date(new Date().setHours(9, 2, 0)).toISOString(),
+                checkOutTime: new Date(new Date().setHours(10, 30, 0)).toISOString(),
+                status: 'Present',
+                session: {
+                    subject: 'Cloud Computing & DevOps (CDA)',
+                    teacher: { name: 'Dr. Vivek Sharma' }
+                },
+                checkInPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+                checkOutPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200'
+            },
+            {
+                _id: 'demo-att-2',
+                date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+                checkInTime: new Date(Date.now() - 24 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
+                checkOutTime: new Date(Date.now() - 24 * 60 * 60 * 1000 + 90 * 60 * 1000).toISOString(),
+                status: 'Present',
+                session: {
+                    subject: 'Advanced Database Systems',
+                    teacher: { name: 'Prof. Anjali Mehta' }
+                },
+                checkInPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200'
+            },
+            {
+                _id: 'demo-att-3',
+                date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                checkInTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 1 * 60 * 1000).toISOString(),
+                checkOutTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 89 * 60 * 1000).toISOString(),
+                status: 'Present',
+                session: {
+                    subject: 'Artificial Intelligence & ML',
+                    teacher: { name: 'Dr. Rajesh Verma' }
+                },
+                checkInPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
+                checkOutPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200'
+            },
+            {
+                _id: 'demo-att-4',
+                date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'Absent',
+                session: {
+                    subject: 'Cyber Security & Forensic',
+                    teacher: { name: 'Prof. Karan Malhotra' }
+                }
+            },
+            {
+                _id: 'demo-att-5',
+                date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+                checkInTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 - 2 * 60 * 1000).toISOString(),
+                checkOutTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 88 * 60 * 1000).toISOString(),
+                status: 'Present',
+                session: {
+                    subject: 'Mobile App Development',
+                    teacher: { name: 'Dr. Vivek Sharma' }
+                },
+                checkInPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200'
+            }
+        ];
+    }, [attendanceRecords]);
+
     if (loading) {
         return (
             <DashboardLayout role="Student" fullWidth={true}>
@@ -566,7 +634,7 @@ const StudentPerformance = () => {
                       </div>
   
                       <div className="p-6">
-                          {attendanceRecords.length === 0 ? (
+                          {displayAttendanceRecords.length === 0 ? (
                               <div className="text-center py-8 text-slate-400">
                                   <Calendar size={48} className="mx-auto mb-2 opacity-50" />
                                   <p className="font-bold text-sm">No live attendance logs found.</p>
@@ -587,7 +655,7 @@ const StudentPerformance = () => {
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                                          {attendanceRecords.map((record, idx) => {
+                                          {displayAttendanceRecords.map((record, idx) => {
                                               const status = record.status || 'Absent';
                                               let badgeClass = 'text-red-700 bg-red-50 border-red-150';
                                               if (status === 'Present') badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-150';
@@ -651,137 +719,6 @@ const StudentPerformance = () => {
                           )}
                       </div>
                   </div>
-  
-                  {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
-                  <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
-                    <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-650 flex items-center justify-center border border-purple-100 shadow-sm">
-                                <CreditCard size={18} />
-                            </div>
-                            <div>
-                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">ERP Financial Ledger & Accounting</h3>
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Semester fee transactions and official receipts</p>
-                            </div>
-                        </div>
-                        {profile?.studentProfile?.feeStatus === 'Pending' ? (
-                            <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-red-200 text-xs font-bold text-red-650">
-                                <span className="w-2 h-2 rounded-full bg-red-500" /> Account Status: <span className="text-red-700 font-black">PENDING DUES</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-655">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Account Status: <span className="text-emerald-700 font-black">CLEARED</span>
-                            </div>
-                        )}
-                    </div>
- 
-                    <div className="p-6 space-y-6">
-                        {/* Summary Stats Row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
-                                <span className="text-slate-450 text-[10px] font-bold uppercase tracking-wider">Total Semester Fee</span>
-                                <h4 className="text-xl font-black text-slate-800 mt-2">₹48,500</h4>
-                                <span className="text-[9px] text-slate-400 font-semibold mt-1">Course: {profile?.studentProfile?.course?.name || 'BCA'} / Semester V</span>
-                            </div>
-                            <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col justify-between">
-                                <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Total Amount Paid</span>
-                                <h4 className="text-xl font-black text-emerald-800 mt-2">
-                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '₹36,000' : '₹48,500'}
-                                </h4>
-                                <span className="text-[9px] text-emerald-600/80 font-semibold mt-1">
-                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '74.2% Paid' : '100% Cleared on 18 Jan 2026'}
-                                </span>
-                            </div>
-                            <div className={`p-4 border rounded-2xl flex flex-col justify-between ${
-                                profile?.studentProfile?.feeStatus === 'Pending' 
-                                    ? 'bg-red-50/40 border-red-100' 
-                                    : 'bg-slate-50 border-slate-105'
-                            }`}>
-                                <span className="text-slate-455 text-[10px] font-bold uppercase tracking-wider">Outstanding Dues</span>
-                                <h4 className="text-xl font-black text-slate-800 mt-2">
-                                    {profile?.studentProfile?.feeStatus === 'Pending' ? '₹12,500' : '₹0'}
-                                </h4>
-                                <span className={`text-[9px] font-extrabold mt-1 ${
-                                    profile?.studentProfile?.feeStatus === 'Pending' ? 'text-red-500' : 'text-emerald-650'
-                                }`}>
-                                    {profile?.studentProfile?.feeStatus === 'Pending' ? 'Please complete payment' : 'No pending dues found'}
-                                </span>
-                            </div>
-                        </div>
- 
-                        {/* Fee Allocation Meter */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-450 uppercase tracking-wider">
-                                <span>Fee Structure breakdown</span>
-                                <span>Total: ₹48,500</span>
-                            </div>
-                            <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden flex">
-                                <div className="h-full bg-indigo-500" style={{ width: '86.6%' }} title="Tuition Fee: ₹42,000 (86.6%)" />
-                                <div className="h-full bg-teal-500" style={{ width: '7.2%' }} title="Lab & Internet Fee: ₹3,500 (7.2%)" />
-                                <div className="h-full bg-purple-500" style={{ width: '6.2%' }} title="Exam & Library Fee: ₹3,000 (6.2%)" />
-                            </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-505 pt-1">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Tuition Fee (₹42,000)
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Lab & Internet Fee (₹3,500)
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Exam & Library Fee (₹3,000)
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Transactions Ledger Table */}
-                        <div className="space-y-3">
-                            <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Official Receipts & Transactions</h4>
-                            <div className="overflow-x-auto">
-                                <table className="w-full min-w-[600px] border-collapse text-xs">
-                                    <thead>
-                                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
-                                            <th className="py-2.5 px-3">Receipt No</th>
-                                            <th className="py-2.5 px-3">Date</th>
-                                            <th className="py-2.5 px-3">Category</th>
-                                            <th className="py-2.5 px-3 text-right">Amount</th>
-                                            <th className="py-2.5 px-3">Payment Mode</th>
-                                            <th className="py-2.5 px-3 text-center">Status</th>
-                                            <th className="py-2.5 px-3 text-center">Receipt</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                                        {[
-                                            { receipt: 'ERP/REC/2026/1024', date: '15 Jan 2026', category: 'Tuition Fee', amount: '₹42,000', mode: 'Net Banking', status: 'SUCCESS' },
-                                            { receipt: 'ERP/REC/2026/1089', date: '16 Jan 2026', category: 'Lab & Internet Fee', amount: '₹3,500', mode: 'UPI / GPay', status: 'SUCCESS' },
-                                            { receipt: 'ERP/REC/2026/1105', date: '18 Jan 2026', category: 'Exam & Library Fee', amount: '₹3,000', mode: 'Credit Card', status: 'SUCCESS' }
-                                        ].map((tx, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{tx.receipt}</td>
-                                                <td className="py-3 px-3 text-slate-500">{tx.date}</td>
-                                                <td className="py-3 px-3 text-slate-800">{tx.category}</td>
-                                                <td className="py-3 px-3 text-right font-black text-slate-850">{tx.amount}</td>
-                                                <td className="py-3 px-3 text-slate-500">{tx.mode}</td>
-                                                <td className="py-3 px-3 text-center">
-                                                    <span className="inline-block px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 font-black rounded-lg text-[9px]">
-                                                        {tx.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-3 text-center">
-                                                    <button
-                                                        onClick={() => toast.success(`Downloading PDF Receipt ${tx.receipt}...`)}
-                                                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-850 underline uppercase tracking-wider"
-                                                    >
-                                                        Download
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             {/* Selfie Preview Modal */}
             {selectedPhoto && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">

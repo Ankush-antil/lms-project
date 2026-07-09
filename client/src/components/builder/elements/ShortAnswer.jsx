@@ -61,25 +61,25 @@ const ShortAnswerBuilder = ({
             })()}
 
             {/* Student Answer Box & Toggle Switches for Text, Audio, and Video Responses */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 border border-slate-200 rounded-xl shadow-sm">
+            <div className="flex flex-wrap gap-2.5 bg-white p-2.5 border border-slate-200 rounded-xl shadow-sm justify-start items-center">
                 
                 {/* Column 1: Text Answer (Type your Answer here) */}
-                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
-                    <div className="flex-1 mr-3 min-w-0">
+                <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-h-[36px] w-fit gap-2">
+                    <div className="mr-1 min-w-[120px] max-w-[150px]">
                         {particulars.enableAnswerBox !== false ? (
                             <input
                                 type="text"
                                 placeholder="Type your Answer here"
                                 readOnly
                                 tabIndex={-1}
-                                className="bg-transparent outline-none w-full text-xs font-bold text-slate-500 pointer-events-none select-none cursor-default"
+                                className="bg-transparent outline-none w-full text-[10px] font-bold text-slate-500 pointer-events-none select-none cursor-default"
                             />
                         ) : (
-                            <div className="text-slate-400 text-xs italic font-bold">Text Box Disabled</div>
+                            <div className="text-slate-400 text-[10px] italic font-bold">Text Box Disabled</div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
-                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">Text</span>
+                    <div className="flex items-center gap-1.5 select-none border-l border-slate-200 pl-2 shrink-0">
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-wide">Text</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
@@ -87,20 +87,20 @@ const ShortAnswerBuilder = ({
                                 onChange={(e) => handleUpdateNestedField('particulars', 'enableAnswerBox', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500"></div>
                         </label>
                     </div>
                 </div>
 
                 {/* Column 2: Audio Answer */}
-                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
-                    <div className="flex items-center gap-2 min-w-0 mr-3">
-                        <div className="w-7 h-7 rounded-lg bg-red-50 text-red-650 flex items-center justify-center shrink-0">
-                            <Mic size={14} />
+                <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-h-[36px] w-fit gap-3">
+                    <div className="flex items-center gap-1.5 min-w-0 mr-1">
+                        <div className="w-6 h-6 rounded bg-red-50 text-red-655 flex items-center justify-center shrink-0">
+                            <Mic size={12} />
                         </div>
-                        <span className="text-xs font-extrabold text-slate-700 truncate">Audio Response</span>
+                        <span className="text-[10px] font-extrabold text-slate-750 truncate">Audio Response</span>
                     </div>
-                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
+                    <div className="flex items-center gap-1.5 select-none border-l border-slate-200 pl-2 shrink-0">
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
@@ -108,28 +108,28 @@ const ShortAnswerBuilder = ({
                                 onChange={(e) => handleUpdateNestedField('particulars', 'enableAudio', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500"></div>
                         </label>
                     </div>
                 </div>
 
                 {/* Column 3: Video Answer */}
-                <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 min-h-[48px]">
-                    <div className="flex items-center gap-2 min-w-0 mr-3">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-650 flex items-center justify-center shrink-0">
-                            <Video size={14} />
+                <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-h-[36px] w-fit gap-3">
+                    <div className="flex items-center gap-1.5 min-w-0 mr-1">
+                        <div className="w-6 h-6 rounded bg-blue-50 text-blue-655 flex items-center justify-center shrink-0">
+                            <Video size={12} />
                         </div>
-                        <span className="text-xs font-extrabold text-slate-700 truncate">Video Response</span>
+                        <span className="text-[10px] font-extrabold text-slate-750 truncate">Video Response</span>
                     </div>
-                    <div className="flex items-center gap-2 select-none border-l border-slate-200 pl-2.5 shrink-0">
-                        <label className="relative inline-flex items-center cursor-pointer">
+                    <div className="flex items-center gap-1.5 select-none border-l border-slate-200 pl-2 shrink-0">
+                        <label className="relative inline-flex inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={particulars.enableVideo === true}
                                 onChange={(e) => handleUpdateNestedField('particulars', 'enableVideo', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                            <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500"></div>
                         </label>
                     </div>
                 </div>

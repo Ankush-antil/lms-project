@@ -31,6 +31,7 @@ const StudentPerformance = () => {
     const [notesCount, setNotesCount] = useState(0);
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [selectedPhoto, setSelectedPhoto] = useState(null);
+    const [selectedNotes, setSelectedNotes] = useState(null);
 
     // College ERP Integration Mock States
     const [isSyncing, setIsSyncing] = useState(false);

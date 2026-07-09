@@ -534,17 +534,6 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                 >
                                     <MessageSquare size={14} /> Send Reminder
                                 </button>
-                                {user?.role !== 'Accountant' && canPerform('feePortal', 'editStructure') && (
-                                    <button
-                                        onClick={() => {
-                                            if (onDelete) onDelete(student._id);
-                                        }}
-                                        className="px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                                        title="Delete Student"
-                                    >
-                                        <Trash2 size={14} /> Delete
-                                    </button>
-                                )}
                             </div>
                         </div>
 
@@ -589,17 +578,6 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                                         >
                                                             <Eye size={13} />
                                                         </button>
-                                                        {user?.role !== 'Accountant' && canPerform('feePortal', 'deleteTransaction') && (
-                                                            <button 
-                                                                onClick={() => {
-                                                                    if (onDeleteTransaction) onDeleteTransaction(rec._id, student._id);
-                                                                }} 
-                                                                className="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600 transition-colors"
-                                                                title="Delete Payment"
-                                                            >
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

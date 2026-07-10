@@ -182,7 +182,6 @@ const menuItems = {
         { name: 'Fee Portal', icon: CreditCard, path: '/institute/fee-portal' },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: '_section_Staff', icon: Briefcase, path: null },
         { name: 'My Staff', icon: Users, path: '/institute/staff' },
     ],
     Teacher: [

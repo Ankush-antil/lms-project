@@ -1,10 +1,7 @@
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ComingSoon from '../../components/common/ComingSoon';
-export const InstituteStaffAttendance = () => (
-    <DashboardLayout role="Institute">
-        <ComingSoon title="Staff Attendance" message="Track attendance of your institute staff. Coming soon!" />
-    </DashboardLayout>
-);
+import InstituteStaffAttendance from './InstituteStaffAttendance';
+export { InstituteStaffAttendance };
 export const InstituteStaffSalary = () => (
     <DashboardLayout role="Institute">
         <ComingSoon title="Staff Salary" message="Manage salary records for your institute staff. Coming soon!" />

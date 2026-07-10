@@ -347,7 +347,19 @@ const userSchema = new mongoose.Schema({
         department: { type: String, default: '' },
         joiningDate: { type: Date, default: Date.now },
         salary: { type: Number, default: 0 },
-        salaryStatus: { type: String, enum: ['Paid', 'Pending', 'Processing'], default: 'Pending' }
+        salaryStatus: { type: String, enum: ['Paid', 'Pending', 'Processing'], default: 'Pending' },
+        physicalAttendance: [{
+            date: { type: String }, // e.g. "2026-06-30"
+            status: { type: String, enum: ['Present', 'Absent', 'Leave', 'Holiday'] },
+            teacherNote: { type: String, default: '' },   // note written by institute
+            leaveNote: { type: String, default: '' },     // staff ka leave application text
+            leaveFile: { type: String, default: '' },     // staff ka leave PDF/file URL
+            leaveStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' }, // leave approval status
+            source: { type: String, enum: ['manual', 'qr', 'biometric'], default: 'manual' },
+            checkInTime: { type: String, default: '' },
+            checkOutTime: { type: String, default: '' },
+            markedBy: { type: String, default: '' }
+        }]
     },
     isActive: { type: Boolean, default: true }
 }, {

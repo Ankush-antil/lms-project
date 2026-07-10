@@ -275,13 +275,11 @@ const CustomTimePicker = ({ value, onChange }) => {
 };
 
 // ─── Main Register Component ──────────────────────────────────────────────────
-const AdminStaffAttendance = () => {
+const InstituteStaffAttendance = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const isViewOnly = user?.role === 'Admin'; // Super admin can only view, not edit
 
     const [staffList, setStaffList] = useState([]);
-    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [records, setRecords] = useState({});
@@ -296,14 +294,12 @@ const AdminStaffAttendance = () => {
     const datePickerRef = useRef(null);
 
     // Filters local input states
-    const [filterInstitute, setFilterInstitute] = useState('All');
     const [searchTermInput, setSearchTermInput] = useState('');
     const [pageSizeInput, setPageSizeInput] = useState('10');
     const pageSize = Math.max(1, parseInt(pageSizeInput, 10) || 10);
     const [currentPage, setCurrentPage] = useState(1);
 
     // Filters active applied states
-    const [activeInstitute, setActiveInstitute] = useState('All');
     const [activeSearch, setActiveSearch] = useState('');
 
     useEffect(() => {
@@ -316,27 +312,23 @@ const AdminStaffAttendance = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const fetchData = async () => {
+    const fetchStaff = async () => {
         try {
             setLoading(true);
             const token = localStorage.getItem('authToken');
-            
-            const [staffRes, instRes] = await Promise.all([
-                axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get('/api/setup/institutes', { headers: { Authorization: `Bearer ${token}` } })
-            ]);
-
-            setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
-            setInstitutes(instRes.data || []);
+            const { data } = await axios.get('/api/users?role=Staff', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setStaffList(Array.isArray(data) ? data : data.users || []);
         } catch (err) {
-            toast.error('Failed to load register data');
+            toast.error('Failed to load staff list');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchData();
+        fetchStaff();
     }, []);
 
     useEffect(() => {
@@ -383,24 +375,15 @@ const AdminStaffAttendance = () => {
         setCurrentPage(1);
     };
 
-    // Institute quick switch — applies immediately
-    const handleInstituteChange = (val) => {
-        setFilterInstitute(val);
-        setActiveInstitute(val);
-        setCurrentPage(1);
-    };
-
     // Filter staff list
     const allFiltered = useMemo(() => {
         return staffList.filter(s => {
-            const instId = s.institute?._id || s.institute || '';
-            const matchInstitute = activeInstitute === 'All' || instId === activeInstitute;
             const matchSearch = !activeSearch ||
                 s.name.toLowerCase().includes(activeSearch.toLowerCase()) ||
                 (s.email && s.email.toLowerCase().includes(activeSearch.toLowerCase()));
-            return matchInstitute && matchSearch;
+            return matchSearch;
         }).sort((a, b) => a.name.localeCompare(b.name));
-    }, [staffList, activeInstitute, activeSearch]);
+    }, [staffList, activeSearch]);
 
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, allFiltered.length);
@@ -482,7 +465,7 @@ const AdminStaffAttendance = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.success(`Staff attendance saved for ${attendanceDate}!`);
-            await fetchData();
+            await fetchStaff();
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to save attendance');
         } finally {
@@ -491,7 +474,7 @@ const AdminStaffAttendance = () => {
     };
 
     return (
-        <DashboardLayout role="Admin" fullWidth={true}>
+        <DashboardLayout role="Institute" fullWidth={true}>
             <div className="space-y-6">
                 
                 {/* Header Section */}
@@ -501,7 +484,7 @@ const AdminStaffAttendance = () => {
                             <Users size={22} />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Staff Attendance Register (Global)</h1>
+                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Staff Attendance Register</h1>
                             <p className="text-xs text-slate-400 font-bold mt-1.5">Mark and manage daily physical attendance logs for all office and lab staff</p>
                         </div>
                     </div>
@@ -513,7 +496,7 @@ const AdminStaffAttendance = () => {
                                 onClick={() => setShowDatePicker(!showDatePicker)}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-700 rounded-2xl text-sm font-black transition shadow-sm cursor-pointer"
                             >
-                                <Calendar size={15} className="text-indigo-655" />
+                                <Calendar size={15} className="text-indigo-650" />
                                 <span>
                                     {new Date(attendanceDate + 'T00:00:00').toLocaleDateString('en-US', {
                                         month: 'short',
@@ -529,77 +512,21 @@ const AdminStaffAttendance = () => {
                             )}
                         </div>
 
-                        {/* Save button — hidden for view-only admin */}
-                        {!isViewOnly ? (
-                            <button
-                                onClick={handleSave}
-                                disabled={submitting}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black transition shadow-md shadow-indigo-100 disabled:opacity-60 cursor-pointer"
-                            >
-                                <Save size={15} />
-                                {submitting ? 'Saving...' : 'Save Register'}
-                            </button>
-                        ) : (
-                            <span className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl text-xs font-black">
-                                👁️ View Only Mode
-                            </span>
-                        )}
+                        <button
+                            onClick={handleSave}
+                            disabled={submitting}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-2xl text-sm font-black transition shadow-md shadow-indigo-100 disabled:opacity-60 cursor-pointer"
+                        >
+                            <Save size={15} />
+                            {submitting ? 'Saving...' : 'Save Register'}
+                        </button>
                     </div>
                 </div>
 
                 {/* Main Search and filters */}
                 <div className="space-y-5">
-
-                    {/* Institute Quick-Select Pills */}
-                    {institutes.length > 0 && (
-                        <div className="flex flex-wrap gap-2 items-center animate-fade-in">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Filter by Institute:</span>
-                            <button
-                                onClick={() => handleInstituteChange('All')}
-                                className={`px-3.5 py-1.5 rounded-full text-xs font-black border transition cursor-pointer ${
-                                    activeInstitute === 'All'
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
-                                }`}
-                            >
-                                🏫 All ({staffList.length})
-                            </button>
-                            {institutes.map(inst => {
-                                const count = staffList.filter(s => (s.institute?._id || s.institute) === inst._id).length;
-                                const isActive = activeInstitute === inst._id;
-                                return (
-                                    <button
-                                        key={inst._id}
-                                        onClick={() => handleInstituteChange(inst._id)}
-                                        className={`px-3.5 py-1.5 rounded-full text-xs font-black border transition cursor-pointer ${
-                                            isActive
-                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
-                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
-                                        }`}
-                                    >
-                                        {inst.name} ({count})
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-
+                    
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 flex flex-wrap gap-4 items-end animate-fade-in">
-                        {/* Institute filter (Only shown to global Admins) */}
-                        <div className="space-y-1.5 flex-1 min-w-[200px]">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Institute</label>
-                            <select
-                                value={filterInstitute}
-                                onChange={e => handleInstituteChange(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-405 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
-                            >
-                                <option value="All">All Institutes</option>
-                                {institutes.map(inst => (
-                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
                         {/* Text Search */}
                         <div className="space-y-1.5 flex-1 min-w-[200px]">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Search Staff</label>
@@ -663,73 +590,71 @@ const AdminStaffAttendance = () => {
 
                     {/* Checklist Table Grid */}
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
-                        {/* Toolbar: Bulk Operations - hidden for view-only admin */}
+                        {/* Toolbar: Bulk Operations */}
                         <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
                                 Results: {allFiltered.length} Staff Members
                             </p>
-                            {!isViewOnly && (
-                                <div className="flex gap-2 flex-wrap items-center">
-                                    <select
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            if (val) {
-                                                setRecords(prev => {
-                                                    const u = { ...prev };
-                                                    displayedItems.forEach(s => {
-                                                        u[s._id] = { ...u[s._id], source: val };
-                                                    });
-                                                    return u;
-                                                });
-                                                e.target.value = '';
-                                            }
-                                        }}
-                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 outline-none cursor-pointer hover:border-slate-300 hover:bg-slate-100 transition"
-                                    >
-                                        <option value="">Set All Mode</option>
-                                        <option value="manual">Manual</option>
-                                        <option value="qr">QR Scan</option>
-                                        <option value="biometric">Biometric</option>
-                                    </select>
-
-                                    <input
-                                        type="text"
-                                        placeholder="Set All Marked By..."
-                                        onChange={e => {
-                                            const val = e.target.value;
+                            <div className="flex gap-2 flex-wrap items-center">
+                                <select
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val) {
                                             setRecords(prev => {
                                                 const u = { ...prev };
                                                 displayedItems.forEach(s => {
-                                                    u[s._id] = { ...u[s._id], markedBy: val };
+                                                    u[s._id] = { ...u[s._id], source: val };
                                                 });
                                                 return u;
                                             });
-                                        }}
-                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none w-40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition placeholder:text-slate-400 placeholder:font-bold"
-                                    />
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 outline-none cursor-pointer hover:border-slate-300 hover:bg-slate-100 transition"
+                                >
+                                    <option value="">Set All Mode</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="qr">QR Scan</option>
+                                    <option value="biometric">Biometric</option>
+                                </select>
 
-                                    {[
-                                        { label: 'All Present', status: 'Present', cls: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
-                                        { label: 'All Absent',  status: 'Absent',  cls: 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' },
-                                        { label: 'All Leave',   status: 'Leave',   cls: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
-                                        { label: 'All Holiday', status: 'Holiday', cls: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
-                                    ].map(({ label, status, cls }) => (
-                                        <button
-                                            key={status}
-                                            onClick={() => {
-                                                if (status === 'Present') {
-                                                    setBulkPresentModal(true);
-                                                } else {
-                                                    markAll(status);
-                                                }
-                                            }}
-                                            className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition cursor-pointer ${cls}`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                                <input
+                                    type="text"
+                                    placeholder="Set All Marked By..."
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setRecords(prev => {
+                                            const u = { ...prev };
+                                            displayedItems.forEach(s => {
+                                                u[s._id] = { ...u[s._id], markedBy: val };
+                                            });
+                                            return u;
+                                        });
+                                    }}
+                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none w-40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition placeholder:text-slate-400 placeholder:font-bold"
+                                />
+
+                                {[
+                                    { label: 'All Present', status: 'Present', cls: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
+                                    { label: 'All Absent',  status: 'Absent',  cls: 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' },
+                                    { label: 'All Leave',   status: 'Leave',   cls: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+                                    { label: 'All Holiday', status: 'Holiday', cls: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
+                                ].map(({ label, status, cls }) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => {
+                                            if (status === 'Present') {
+                                                setBulkPresentModal(true);
+                                            } else {
+                                                markAll(status);
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition cursor-pointer ${cls}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {loading ? (
@@ -738,7 +663,7 @@ const AdminStaffAttendance = () => {
                                 Fetching Register Data...
                             </div>
                         ) : !allFiltered.length ? (
-                            <div className="text-center py-16 text-slate-455">
+                            <div className="text-center py-16 text-slate-450">
                                 <Users size={36} className="mx-auto mb-2.5 opacity-25" />
                                 <p className="text-sm font-bold text-slate-500">No staff members found</p>
                             </div>
@@ -746,17 +671,16 @@ const AdminStaffAttendance = () => {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse min-w-[1100px]">
                                     <thead>
-                                    <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                        <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                                             <th className="py-4 px-6 w-16">No</th>
                                             <th className="py-4 px-6 w-64">Staff Info</th>
-                                            <th className="py-4 px-6 w-48">Institute</th>
-                                            <th className="py-4 px-6 w-48">Designation &amp; Department</th>
+                                            <th className="py-4 px-6 w-48">Designation & Department</th>
                                             <th className="py-4 px-3 text-center w-36">Check-In</th>
                                             <th className="py-4 px-3 text-center w-36">Check-Out</th>
-                                            {!isViewOnly && <th className="py-4 px-3 text-center w-28">Mode</th>}
-                                            {!isViewOnly && <th className="py-4 px-3 text-center w-36">Marked By</th>}
+                                            <th className="py-4 px-3 text-center w-28">Mode</th>
+                                            <th className="py-4 px-3 text-center w-36">Marked By</th>
                                             <th className="py-4 px-3 text-center w-32">Status</th>
-                                            {!isViewOnly && <th className="py-4 px-5 text-left w-60">Admin / Leave Note</th>}
+                                            <th className="py-4 px-5 text-left w-60">Admin / Leave Note</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -818,116 +742,90 @@ const AdminStaffAttendance = () => {
                                                         })()}
                                                     </td>
                                                     <td className="py-4 px-6 text-xs font-bold text-slate-500">
-                                                        {s.institute?.name || 'Main Campus'}
-                                                    </td>
-                                                    <td className="py-4 px-6 text-xs font-bold text-slate-500">
                                                         {s.staffProfile?.designation || 'Staff'} • {s.staffProfile?.department || 'LMS'}
                                                     </td>
 
                                                     {/* Check-In */}
                                                     <td className="py-4 px-3 text-center">
-                                                        {isViewOnly ? (
-                                                            <span className="text-xs font-bold text-slate-600">{rec.checkInTime || '—'}</span>
-                                                        ) : (
-                                                            <CustomTimePicker
-                                                                value={rec.checkInTime || ''}
-                                                                onChange={val => handleTimeChange(s._id, 'checkInTime', val)}
-                                                            />
-                                                        )}
+                                                        <CustomTimePicker
+                                                            value={rec.checkInTime || ''}
+                                                            onChange={val => handleTimeChange(s._id, 'checkInTime', val)}
+                                                        />
                                                     </td>
 
                                                     {/* Check-Out */}
                                                     <td className="py-4 px-3 text-center">
-                                                        {isViewOnly ? (
-                                                            <span className="text-xs font-bold text-slate-600">{rec.checkOutTime || '—'}</span>
-                                                        ) : (
-                                                            <CustomTimePicker
-                                                                value={rec.checkOutTime || ''}
-                                                                onChange={val => handleTimeChange(s._id, 'checkOutTime', val)}
-                                                            />
-                                                        )}
+                                                        <CustomTimePicker
+                                                            value={rec.checkOutTime || ''}
+                                                            onChange={val => handleTimeChange(s._id, 'checkOutTime', val)}
+                                                        />
                                                     </td>
 
-                                                    {/* Mode - hidden in view-only */}
-                                                    {!isViewOnly && (
-                                                        <td className="py-4 px-3 text-center">
-                                                            <select
-                                                                value={rec.source || 'manual'}
-                                                                onChange={e => setRecords(prev => ({
-                                                                    ...prev,
-                                                                    [s._id]: { ...prev[s._id], source: e.target.value }
-                                                                }))}
-                                                                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-600 outline-none cursor-pointer focus:border-indigo-400 transition"
-                                                            >
-                                                                <option value="manual">Manual</option>
-                                                                <option value="qr">QR Scan</option>
-                                                                <option value="biometric">Biometric</option>
-                                                            </select>
-                                                        </td>
-                                                    )}
+                                                    {/* Mode */}
+                                                    <td className="py-4 px-3 text-center">
+                                                        <select
+                                                            value={rec.source || 'manual'}
+                                                            onChange={e => setRecords(prev => ({
+                                                                ...prev,
+                                                                [s._id]: { ...prev[s._id], source: e.target.value }
+                                                            }))}
+                                                            className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-600 outline-none cursor-pointer focus:border-indigo-400 transition"
+                                                        >
+                                                            <option value="manual">Manual</option>
+                                                            <option value="qr">QR Scan</option>
+                                                            <option value="biometric">Biometric</option>
+                                                        </select>
+                                                    </td>
 
-                                                    {/* Marked By - hidden in view-only */}
-                                                    {!isViewOnly && (
-                                                        <td className="py-4 px-3 text-center">
-                                                            <input
-                                                                type="text"
-                                                                value={rec.markedBy || ''}
-                                                                placeholder="e.g. Admin"
-                                                                onChange={e => setRecords(prev => ({
-                                                                    ...prev,
-                                                                    [s._id]: { ...prev[s._id], markedBy: e.target.value }
-                                                                }))}
-                                                                className="w-28 text-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 transition"
-                                                            />
-                                                        </td>
-                                                    )}
+                                                    {/* Marked By */}
+                                                    <td className="py-4 px-3 text-center">
+                                                        <input
+                                                            type="text"
+                                                            value={rec.markedBy || ''}
+                                                            placeholder="e.g. Admin"
+                                                            onChange={e => setRecords(prev => ({
+                                                                ...prev,
+                                                                [s._id]: { ...prev[s._id], markedBy: e.target.value }
+                                                            }))}
+                                                            className="w-28 text-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 transition"
+                                                        />
+                                                    </td>
 
                                                     {/* Status */}
                                                     <td className="py-4 px-3 text-center">
-                                                        {isViewOnly ? (
-                                                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black ${
-                                                                rec.status === 'Present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                                : rec.status === 'Absent' ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                                                : rec.status === 'Leave' ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                                : 'bg-blue-50 text-blue-700 border border-blue-200'
-                                                            }`}>{rec.status}</span>
-                                                        ) : (
-                                                            <select
-                                                                value={rec.status}
-                                                                onChange={e => setStatus(s._id, e.target.value)}
-                                                                className={`font-black text-xs px-2.5 py-1.5 rounded-xl border cursor-pointer outline-none transition w-28 ${
-                                                                    rec.status === 'Present'
-                                                                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                                                                        : rec.status === 'Absent'
-                                                                            ? 'bg-rose-50 border-rose-100 text-rose-700'
-                                                                            : rec.status === 'Leave'
-                                                                                ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                                                                : 'bg-blue-50 border-blue-100 text-blue-700'
-                                                                }`}
-                                                            >
-                                                                <option value="Present">Present</option>
-                                                                <option value="Absent">Absent</option>
-                                                                <option value="Leave">Leave</option>
-                                                                <option value="Holiday">Holiday</option>
-                                                            </select>
-                                                        )}
+                                                        <select
+                                                            value={rec.status}
+                                                            onChange={e => setStatus(s._id, e.target.value)}
+                                                            className={`font-black text-xs px-2.5 py-1.5 rounded-xl border cursor-pointer outline-none transition w-28 ${
+                                                                rec.status === 'Present'
+                                                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                                                    : rec.status === 'Absent'
+                                                                        ? 'bg-rose-50 border-rose-100 text-rose-700'
+                                                                        : rec.status === 'Leave'
+                                                                            ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                                                            : 'bg-blue-50 border-blue-100 text-blue-700'
+                                                            }`}
+                                                        >
+                                                            <option value="Present">Present</option>
+                                                            <option value="Absent">Absent</option>
+                                                            <option value="Leave">Leave</option>
+                                                            <option value="Holiday">Holiday</option>
+                                                        </select>
                                                     </td>
 
-                                                    {/* Notes - hidden in view-only */}
-                                                    {!isViewOnly && (
-                                                        <td className="py-4 px-5">
-                                                            <input
-                                                                type="text"
-                                                                value={rec.note || ''}
-                                                                placeholder="Add remark..."
-                                                                onChange={e => setRecords(prev => ({
-                                                                    ...prev,
-                                                                    [s._id]: { ...prev[s._id], note: e.target.value }
-                                                                }))}
-                                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 transition"
-                                                            />
-                                                        </td>
-                                                    )}
+                                                    {/* Notes */}
+                                                    <td className="py-4 px-5">
+                                                        <input
+                                                            type="text"
+                                                            value={rec.note || ''}
+                                                            placeholder="Add remark..."
+                                                            onChange={e => setRecords(prev => ({
+                                                                ...prev,
+                                                                [s._id]: { ...prev[s._id], note: e.target.value }
+                                                            }))}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 transition"
+                                                        />
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -1011,7 +909,7 @@ const AdminStaffAttendance = () => {
                             <button
                                 type="button"
                                 onClick={() => setBulkPresentModal(false)}
-                                className="flex-1 py-2.5 text-xs font-bold text-slate-655 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+                                className="flex-1 py-2.5 text-xs font-bold text-slate-650 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -1032,7 +930,7 @@ const AdminStaffAttendance = () => {
                 <StaffAttendanceDetailModal
                     staffId={selectedStaffId}
                     onClose={() => setSelectedStaffId(null)}
-                    onDataChange={fetchData}
+                    onDataChange={fetchStaff}
                 />,
                 document.body
             )}
@@ -1040,4 +938,4 @@ const AdminStaffAttendance = () => {
     );
 };
 
-export default AdminStaffAttendance;
+export default InstituteStaffAttendance;

@@ -732,40 +732,63 @@ exports.submitLeaveApplication = async (req, res) => {
 
         const student = await User.findById(studentId);
         if (!student) {
-            return res.status(404).json({ message: 'Student not found' });
+            return res.status(404).json({ message: 'User not found' });
         }
-
-        if (!student.studentProfile) student.studentProfile = {};
-        if (!student.studentProfile.physicalAttendance) student.studentProfile.physicalAttendance = [];
 
         let leaveFileUrl = '';
         if (req.file) {
             leaveFileUrl = `/uploads/leave-applications/${req.file.filename}`;
         }
 
-        const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
-        if (existingIndex > -1) {
-            // Update existing record to set leave status
-            student.studentProfile.physicalAttendance[existingIndex].status = 'Leave';
-            student.studentProfile.physicalAttendance[existingIndex].leaveStatus = 'Pending';
-            student.studentProfile.physicalAttendance[existingIndex].leaveNote = leaveNote || '';
-            if (leaveFileUrl) {
-                student.studentProfile.physicalAttendance[existingIndex].leaveFile = leaveFileUrl;
+        if (student.role === 'Staff') {
+            if (!student.staffProfile) student.staffProfile = {};
+            if (!student.staffProfile.physicalAttendance) student.staffProfile.physicalAttendance = [];
+
+            const existingIndex = student.staffProfile.physicalAttendance.findIndex(a => a.date === date);
+            if (existingIndex > -1) {
+                student.staffProfile.physicalAttendance[existingIndex].status = 'Leave';
+                student.staffProfile.physicalAttendance[existingIndex].leaveStatus = 'Pending';
+                student.staffProfile.physicalAttendance[existingIndex].leaveNote = leaveNote || '';
+                if (leaveFileUrl) {
+                    student.staffProfile.physicalAttendance[existingIndex].leaveFile = leaveFileUrl;
+                }
+            } else {
+                student.staffProfile.physicalAttendance.push({
+                    date,
+                    status: 'Leave',
+                    leaveStatus: 'Pending',
+                    leaveNote: leaveNote || '',
+                    leaveFile: leaveFileUrl,
+                    source: 'manual'
+                });
             }
+            student.markModified('staffProfile.physicalAttendance');
         } else {
-            student.studentProfile.physicalAttendance.push({
-                date,
-                status: 'Leave',
-                leaveStatus: 'Pending',
-                leaveNote: leaveNote || '',
-                leaveFile: leaveFileUrl,
-                source: 'manual'
-            });
+            if (!student.studentProfile) student.studentProfile = {};
+            if (!student.studentProfile.physicalAttendance) student.studentProfile.physicalAttendance = [];
+
+            const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+            if (existingIndex > -1) {
+                student.studentProfile.physicalAttendance[existingIndex].status = 'Leave';
+                student.studentProfile.physicalAttendance[existingIndex].leaveStatus = 'Pending';
+                student.studentProfile.physicalAttendance[existingIndex].leaveNote = leaveNote || '';
+                if (leaveFileUrl) {
+                    student.studentProfile.physicalAttendance[existingIndex].leaveFile = leaveFileUrl;
+                }
+            } else {
+                student.studentProfile.physicalAttendance.push({
+                    date,
+                    status: 'Leave',
+                    leaveStatus: 'Pending',
+                    leaveNote: leaveNote || '',
+                    leaveFile: leaveFileUrl,
+                    source: 'manual'
+                });
+            }
+            student.markModified('studentProfile.physicalAttendance');
         }
 
-        student.markModified('studentProfile.physicalAttendance');
         await student.save();
-
         res.json({ success: true, message: 'Leave application submitted successfully' });
     } catch (error) {
         console.error('Error submitting leave application:', error);
@@ -918,5 +941,125 @@ exports.deleteTeacherPhysicalAttendance = async (req, res) => {
     } catch (error) {
         console.error('Error deleting teacher physical attendance:', error);
         res.status(500).json({ message: 'Failed to delete attendance record' });
+    }
+};
+
+// 17. Get attendance history for a staff member (Institute/Admin view)
+exports.getStaffAttendanceHistory = async (req, res) => {
+    try {
+        const { staffId } = req.params;
+        
+        const staff = await User.findById(staffId).select('name email avatar role staffProfile');
+        if (!staff || staff.role !== 'Staff') {
+            return res.status(404).json({ message: 'Staff member not found' });
+        }
+        
+        const physicalRecords = staff.staffProfile?.physicalAttendance || [];
+        
+        const history = physicalRecords.map(rec => ({
+            _id: rec.date,
+            date: rec.date,
+            status: rec.status,
+            source: rec.source || 'manual',
+            teacherNote: rec.teacherNote || '',
+            leaveNote: rec.leaveNote || '',
+            leaveFile: rec.leaveFile || '',
+            leaveStatus: rec.leaveStatus || 'Pending',
+            checkInTime: rec.checkInTime || '',
+            checkOutTime: rec.checkOutTime || '',
+            markedBy: rec.markedBy || '',
+            session: {
+                subject: 'Duty / Office',
+                teacher: { name: staff.name }
+            }
+        })).sort((a, b) => b.date.localeCompare(a.date));
+        
+        res.json({
+            staff: {
+                _id: staff._id,
+                name: staff.name,
+                email: staff.email,
+                avatar: staff.avatar,
+                designation: staff.staffProfile?.designation,
+                department: staff.staffProfile?.department
+            },
+            history
+        });
+    } catch (error) {
+        console.error('Error fetching staff attendance history:', error);
+        res.status(500).json({ message: 'Failed to fetch attendance history' });
+    }
+};
+
+// 18. Delete a staff's physical attendance for a specific date (Institute/Admin only)
+exports.deleteStaffPhysicalAttendance = async (req, res) => {
+    try {
+        const { staffId, date } = req.params;
+        
+        const staff = await User.findById(staffId);
+        if (!staff || staff.role !== 'Staff') {
+            return res.status(404).json({ message: 'Staff member not found' });
+        }
+        
+        const beforeLen = staff.staffProfile?.physicalAttendance?.length || 0;
+        staff.staffProfile.physicalAttendance = (
+            staff.staffProfile.physicalAttendance || []
+        ).filter(a => a.date !== date);
+        
+        const arrayChanged = staff.staffProfile.physicalAttendance.length !== beforeLen;
+        
+        if (!arrayChanged) {
+            return res.status(404).json({ message: 'No attendance record found for this date' });
+        }
+        
+        staff.markModified('staffProfile.physicalAttendance');
+        await staff.save();
+        
+        res.json({ success: true, message: `Attendance deleted for ${date}` });
+    } catch (error) {
+        console.error('Error deleting staff physical attendance:', error);
+        res.status(500).json({ message: 'Failed to delete attendance record' });
+    }
+};
+
+// 19. Approve or Reject staff leave application (Institute/Admin only)
+exports.approveOrRejectStaffLeave = async (req, res) => {
+    try {
+        const { staffId, date } = req.params;
+        const { approved } = req.body; // Boolean: true -> Approve, false -> Reject
+
+        const staff = await User.findById(staffId);
+        if (!staff || staff.role !== 'Staff') {
+            return res.status(404).json({ message: 'Staff member not found' });
+        }
+
+        if (!staff.staffProfile) staff.staffProfile = {};
+        if (!staff.staffProfile.physicalAttendance) staff.staffProfile.physicalAttendance = [];
+
+        const index = staff.staffProfile.physicalAttendance.findIndex(a => a.date === date);
+        if (index === -1) {
+            return res.status(404).json({ message: 'No attendance record found for this date' });
+        }
+
+        if (approved) {
+            staff.staffProfile.physicalAttendance[index].status = 'Leave';
+            staff.staffProfile.physicalAttendance[index].leaveStatus = 'Approved';
+        } else {
+            staff.staffProfile.physicalAttendance[index].status = 'Absent';
+            staff.staffProfile.physicalAttendance[index].leaveStatus = 'Rejected';
+        }
+
+        staff.markModified('staffProfile.physicalAttendance');
+        await staff.save();
+
+        res.json({
+            success: true,
+            message: `Leave application ${approved ? 'approved' : 'rejected'} for ${date}`,
+            status: staff.staffProfile.physicalAttendance[index].status,
+            leaveStatus: staff.staffProfile.physicalAttendance[index].leaveStatus
+        });
+    } catch (error) {
+        console.error('Error approving/rejecting staff leave:', error);
+        res.status(500).json({ message: 'Failed to update leave application status' });
     }
 };

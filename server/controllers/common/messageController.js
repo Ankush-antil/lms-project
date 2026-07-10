@@ -158,7 +158,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 // @access  Private
 const editMessage = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { text } = req.body;
+    const { text, fileName } = req.body;
     const userId = req.user._id;
 
     try {
@@ -178,6 +178,9 @@ const editMessage = asyncHandler(async (req, res) => {
         }
 
         message.text = text;
+        if (fileName !== undefined) {
+            message.fileName = fileName;
+        }
         const updatedMessage = await message.save();
 
         const populatedMsg = await Message.findById(updatedMessage._id)

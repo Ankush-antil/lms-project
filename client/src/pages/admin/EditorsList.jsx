@@ -18,7 +18,7 @@ const EditorsList = () => {
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [editors, setEditors] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -147,6 +147,36 @@ const EditorsList = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                     />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    {/* Entries selector */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                        <input
+                            type="number"
+                            min={5}
+                            max={filteredEditors.length}
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val)) {
+                                    setItemsPerPage('');
+                                } else {
+                                    const maxVal = filteredEditors.length > 5 ? filteredEditors.length : 5;
+                                    setItemsPerPage(Math.min(val, maxVal));
+                                }
+                            }}
+                            onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 5) {
+                                    setItemsPerPage(10);
+                                }
+                            }}
+                            className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                    </div>
                 </div>
             </div>
 

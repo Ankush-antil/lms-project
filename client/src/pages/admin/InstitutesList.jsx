@@ -18,7 +18,7 @@ const InstitutesList = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -251,9 +251,39 @@ const InstitutesList = () => {
                                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all text-sm"
                             />
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 text-[#0b1329] rounded-lg">
-                            <Building size={16} />
-                            <span className="text-xs font-semibold uppercase tracking-wider">{institutes.length} Institutes</span>
+                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                            {/* Entries selector */}
+                            <div className="flex items-center gap-2 mr-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                                <input
+                                    type="number"
+                                    min={5}
+                                    max={filteredInstitutes.length}
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val)) {
+                                            setItemsPerPage('');
+                                        } else {
+                                            const maxVal = filteredInstitutes.length > 5 ? filteredInstitutes.length : 5;
+                                            setItemsPerPage(Math.min(val, maxVal));
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val) || val < 5) {
+                                            setItemsPerPage(10);
+                                        }
+                                    }}
+                                    className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 text-[#0b1329] rounded-lg">
+                                <Building size={16} />
+                                <span className="text-xs font-semibold uppercase tracking-wider">{institutes.length} Institutes</span>
+                            </div>
                         </div>
                     </div>
 
@@ -697,99 +727,125 @@ const InstitutesList = () => {
                                         <input type="checkbox" checked={controlsData.tools?.show !== false} onChange={e => handleControlChange('tools', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
                                     </div>
                                     {controlsData.tools?.show !== false && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.elementsControl !== false} onChange={e => handleControlChange('tools', 'elementsControl', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Elements Control
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1 pt-1">
+                                            <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={controlsData.tools?.formBuilderTool !== false} 
+                                                    onChange={e => handleControlChange('tools', 'formBuilderTool', e.target.checked)} 
+                                                    className="w-3.5 h-3.5 accent-indigo-600" 
+                                                />
+                                                📝 Form Builder Tool
                                             </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.inputElements !== false} onChange={e => handleControlChange('tools', 'inputElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Input Elements
+                                            <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={controlsData.tools?.databaseCreatorTool !== false} 
+                                                    onChange={e => handleControlChange('tools', 'databaseCreatorTool', e.target.checked)} 
+                                                    className="w-3.5 h-3.5 accent-indigo-600" 
+                                                />
+                                                🗄️ Database Creator Tool
                                             </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.displayingElements !== false} onChange={e => handleControlChange('tools', 'displayingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Displaying Elements
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.recordingElements !== false} onChange={e => handleControlChange('tools', 'recordingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Recording Elements
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.advanceElements !== false} onChange={e => handleControlChange('tools', 'advanceElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Advance Elements
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.addons !== false} onChange={e => handleControlChange('tools', 'addons', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Addons
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.theme !== false} onChange={e => handleControlChange('tools', 'theme', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Theme
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.createWithAi !== false} onChange={e => handleControlChange('tools', 'createWithAi', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Create With AI
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.integrate !== false} onChange={e => handleControlChange('tools', 'integrate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Integrate
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.import !== false} onChange={e => handleControlChange('tools', 'import', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Import
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.saveAsTemplate !== false} onChange={e => handleControlChange('tools', 'saveAsTemplate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Save As Template
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.decideActivity !== false} onChange={e => handleControlChange('tools', 'decideActivity', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Decide Activity
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.templates !== false} onChange={e => handleControlChange('tools', 'templates', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Templates
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.locationLocked !== false} onChange={e => handleControlChange('tools', 'locationLocked', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Location Locked
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.logicRules !== false} onChange={e => handleControlChange('tools', 'logicRules', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Logic Rules
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.monitoring !== false} onChange={e => handleControlChange('tools', 'monitoring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Monitoring
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.connectIt !== false} onChange={e => handleControlChange('tools', 'connectIt', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Connect It
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.profileUnderSettings !== false} onChange={e => handleControlChange('tools', 'profileUnderSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Profile Under Settings
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.moreSettings !== false} onChange={e => handleControlChange('tools', 'moreSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                More Settings
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.responses !== false} onChange={e => handleControlChange('tools', 'responses', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Responses
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.collaborate !== false} onChange={e => handleControlChange('tools', 'collaborate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Collaborate
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.manageAccess !== false} onChange={e => handleControlChange('tools', 'manageAccess', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Manage Access
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                <input type="checkbox" checked={controlsData.tools?.publicToWeb !== false} onChange={e => handleControlChange('tools', 'publicToWeb', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Public To Web
-                                            </label>
+
+                                            {controlsData.tools?.formBuilderTool !== false && (
+                                                <div className="col-span-1 md:col-span-2 mt-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-150/60 space-y-3">
+                                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block mb-1">Form Builder Sub-features</span>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.elementsControl !== false} onChange={e => handleControlChange('tools', 'elementsControl', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Elements Control
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.inputElements !== false} onChange={e => handleControlChange('tools', 'inputElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Input Elements
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.displayingElements !== false} onChange={e => handleControlChange('tools', 'displayingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Displaying Elements
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.recordingElements !== false} onChange={e => handleControlChange('tools', 'recordingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Recording Elements
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.advanceElements !== false} onChange={e => handleControlChange('tools', 'advanceElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Advance Elements
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.addons !== false} onChange={e => handleControlChange('tools', 'addons', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Addons
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.theme !== false} onChange={e => handleControlChange('tools', 'theme', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Theme
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.createWithAi !== false} onChange={e => handleControlChange('tools', 'createWithAi', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Create With AI
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.integrate !== false} onChange={e => handleControlChange('tools', 'integrate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Integrate
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.import !== false} onChange={e => handleControlChange('tools', 'import', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Import
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.saveAsTemplate !== false} onChange={e => handleControlChange('tools', 'saveAsTemplate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Save As Template
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.decideActivity !== false} onChange={e => handleControlChange('tools', 'decideActivity', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Decide Activity
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.templates !== false} onChange={e => handleControlChange('tools', 'templates', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Templates
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.locationLocked !== false} onChange={e => handleControlChange('tools', 'locationLocked', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Location Locked
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.logicRules !== false} onChange={e => handleControlChange('tools', 'logicRules', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Logic Rules
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.monitoring !== false} onChange={e => handleControlChange('tools', 'monitoring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Monitoring
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.connectIt !== false} onChange={e => handleControlChange('tools', 'connectIt', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Connect It
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.profileUnderSettings !== false} onChange={e => handleControlChange('tools', 'profileUnderSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Profile Under Settings
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.moreSettings !== false} onChange={e => handleControlChange('tools', 'moreSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            More Settings
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.responses !== false} onChange={e => handleControlChange('tools', 'responses', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Responses
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.collaborate !== false} onChange={e => handleControlChange('tools', 'collaborate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Collaborate
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.manageAccess !== false} onChange={e => handleControlChange('tools', 'manageAccess', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Manage Access
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
+                                                            <input type="checkbox" checked={controlsData.tools?.publicToWeb !== false} onChange={e => handleControlChange('tools', 'publicToWeb', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+                                                            Public To Web
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -57,6 +57,8 @@ const instituteSchema = new mongoose.Schema({
         },
         tools: {
             show: { type: Boolean, default: true },
+            formBuilderTool: { type: Boolean, default: true },
+            databaseCreatorTool: { type: Boolean, default: true },
             elementsControl: { type: Boolean, default: true },
             inputElements: { type: Boolean, default: true },
             displayingElements: { type: Boolean, default: true },

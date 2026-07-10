@@ -279,10 +279,16 @@ const UsersList = () => {
                         <input
                             type="number"
                             min={5}
+                            max={filteredItems.length}
                             value={itemsPerPage}
                             onChange={(e) => {
                                 const val = parseInt(e.target.value);
-                                setItemsPerPage(isNaN(val) ? '' : val);
+                                if (isNaN(val)) {
+                                    setItemsPerPage('');
+                                } else {
+                                    const maxVal = filteredItems.length > 5 ? filteredItems.length : 5;
+                                    setItemsPerPage(Math.min(val, maxVal));
+                                }
                             }}
                             onBlur={(e) => {
                                 const val = parseInt(e.target.value);

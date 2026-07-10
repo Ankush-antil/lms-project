@@ -296,7 +296,7 @@ const markAsRead = asyncHandler(async (req, res) => {
 // @route   PUT /api/chat/messages/:id
 // @access  Private
 const editMessage = asyncHandler(async (req, res) => {
-    const { text } = req.body;
+    const { text, fileName } = req.body;
     const messageId = req.params.id;
     const userId = req.user._id;
 
@@ -322,6 +322,9 @@ const editMessage = asyncHandler(async (req, res) => {
     }
 
     message.text = text;
+    if (fileName !== undefined) {
+        message.fileName = fileName;
+    }
     await message.save();
 
     res.json(message);

@@ -14,7 +14,7 @@ const SubjectsList = () => {
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     
     // Details Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -273,7 +273,35 @@ const SubjectsList = () => {
                     />
                 </div>
 
-                <div className="flex gap-4 w-full md:w-auto">
+                <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap w-full md:w-auto justify-between md:justify-end">
+                    {/* Entries selector */}
+                    <div className="flex items-center gap-2 mr-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                        <input
+                            type="number"
+                            min={5}
+                            max={filteredSubjects.length}
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val)) {
+                                    setItemsPerPage('');
+                                } else {
+                                    const maxVal = filteredSubjects.length > 5 ? filteredSubjects.length : 5;
+                                    setItemsPerPage(Math.min(val, maxVal));
+                                }
+                            }}
+                            onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (isNaN(val) || val < 5) {
+                                    setItemsPerPage(10);
+                                }
+                            }}
+                            className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                    </div>
+
                     <div className="relative min-w-[180px] w-full md:w-auto">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <select

@@ -204,6 +204,8 @@ const userSchema = new mongoose.Schema({
                 mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
                 note: { type: String, default: '' },
                 subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
+                formBuilderTool: { type: Boolean, default: true },
+                databaseCreatorTool: { type: Boolean, default: true },
                 elementsControl: { type: Boolean, default: true },
                 inputElements: { type: Boolean, default: true },
                 displayingElements: { type: Boolean, default: true },

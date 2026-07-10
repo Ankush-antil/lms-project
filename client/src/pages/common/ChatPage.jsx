@@ -11,7 +11,7 @@ import {
     MoreVertical, User, Circle, ArrowLeft, Pencil,
     Paperclip, File, Download, X, Loader2, Bell,
     PenSquare, UserX, Lock, Trash, Mic, ChevronDown,
-    Info, RefreshCw
+    Info, RefreshCw, Plus
 } from 'lucide-react';
 
 const ChatPage = () => {
@@ -48,6 +48,11 @@ const ChatPage = () => {
     const [showCreateResearchContactModal, setShowCreateResearchContactModal] = useState(false);
     const [newResearchContactName, setNewResearchContactName] = useState('');
     const [savingResearchContact, setSavingResearchContact] = useState(false);
+    const [showWriteNoteModal, setShowWriteNoteModal] = useState(false);
+    const [noteModalTitle, setNoteModalTitle] = useState('');
+    const [noteModalText, setNoteModalText] = useState('');
+    const [viewSelectedNote, setViewSelectedNote] = useState(null);
+    const [showViewNoteModal, setShowViewNoteModal] = useState(false);
     const [researchMessages, setResearchMessages] = useState([]);
     const [loadingResearchMessages, setLoadingResearchMessages] = useState(false);
     const [showRecentDelete, setShowRecentDelete] = useState(false);
@@ -213,6 +218,8 @@ const ChatPage = () => {
 
     // File attachment states & refs
     const [attachedFile, setAttachedFile] = useState(null);
+    const [attachedFileNote, setAttachedFileNote] = useState('');
+    const [showAttachmentNoteInput, setShowAttachmentNoteInput] = useState(false);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState('');
     const fileInputRef = useRef(null);
@@ -367,10 +374,12 @@ const ChatPage = () => {
 
     const handleSendResearchMessage = async (attachment = null) => {
         if (!selectedResearchContact) return;
-        if (!newMessage.trim() && !attachment && !attachedFile) return;
+        if (!newMessage.trim() && !attachment && !attachedFile && !attachedFileNote.trim()) return;
 
-        const msgText = newMessage;
+        const msgText = [newMessage.trim(), attachedFileNote.trim()].filter(Boolean).join('\n');
         setNewMessage('');
+        setAttachedFileNote('');
+        setShowAttachmentNoteInput(false);
 
         const currentAttachment = attachment || attachedFile;
         setAttachedFile(null);
@@ -414,21 +423,91 @@ const ChatPage = () => {
         }
     };
 
-    const handleEditResearchMessage = async (e) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !editingResearchMessageId) return;
+    const handleSendNoteFromModal = async () => {
+        if (!selectedResearchContact) return;
+        if (!noteModalText.trim()) return;
 
-        const messageText = newMessage;
-        setNewMessage('');
+        const msgText = noteModalText.trim();
+        const msgTitle = noteModalTitle.trim() || 'Untitled Note';
+        
+        setNoteModalText('');
+        setNoteModalTitle('');
+        setShowWriteNoteModal(false);
+
+        const payload = {
+            researchContact: selectedResearchContact._id,
+            text: msgText,
+            fileName: msgTitle,
+            fileType: 'note'
+        };
 
         try {
-            const { data } = await axios.put(`/api/research/messages/${editingResearchMessageId}`, {
-                text: messageText
-            });
+            const { data } = await axios.post('/api/research/messages', payload);
+            setResearchMessages(prev => [...prev, data]);
+            scrollToBottom();
+
+            // Refresh contact list metadata
+            setResearchContacts(prev => prev.map(c => {
+                if (c._id === selectedResearchContact._id) {
+                    return {
+                        ...c,
+                        lastMessage: {
+                            text: `📝 ${msgTitle}`,
+                            sender: user._id,
+                            createdAt: data.createdAt
+                        }
+                    };
+                }
+                return c;
+            }));
+            toast.success("Note saved successfully!");
+        } catch (error) {
+            console.error("Failed to send note from modal:", error);
+            toast.error("Failed to send note");
+            setNoteModalText(msgText);
+            setNoteModalTitle(msgTitle);
+            setShowWriteNoteModal(true);
+        }
+    };
+
+    const handleEditResearchMessage = async (e) => {
+        if (e) e.preventDefault();
+        if (!editingResearchMessageId) return;
+
+        const targetMsg = researchMessages.find(m => m._id === editingResearchMessageId);
+        const isNote = targetMsg?.fileType === 'note';
+
+        let payload = {};
+        let textVal = '';
+        if (isNote) {
+            textVal = noteModalText.trim();
+            payload = {
+                text: textVal,
+                fileName: noteModalTitle.trim() || 'Untitled Note'
+            };
+        } else {
+            textVal = newMessage.trim();
+            payload = {
+                text: textVal
+            };
+        }
+
+        if (!textVal) return;
+
+        if (isNote) {
+            setNoteModalText('');
+            setNoteModalTitle('');
+            setShowWriteNoteModal(false);
+        } else {
+            setNewMessage('');
+        }
+
+        try {
+            const { data } = await axios.put(`/api/research/messages/${editingResearchMessageId}`, payload);
 
             setResearchMessages(prev => prev.map(m => m._id === editingResearchMessageId ? data : m));
             setEditingResearchMessageId(null);
-            toast.success("Message edited successfully");
+            toast.success("Note edited successfully");
 
             setResearchContacts(prev => prev.map(c => {
                 if (c._id === selectedResearchContact._id && c.lastMessage) {
@@ -436,7 +515,7 @@ const ChatPage = () => {
                         ...c,
                         lastMessage: {
                             ...c.lastMessage,
-                            text: messageText
+                            text: isNote ? `📝 ${payload.fileName}` : textVal
                         }
                     };
                 }
@@ -445,6 +524,11 @@ const ChatPage = () => {
         } catch (error) {
             console.error("Failed to edit research message:", error);
             toast.error(error.response?.data?.message || "Failed to edit message");
+            if (isNote) {
+                setNoteModalText(payload.text);
+                setNoteModalTitle(payload.fileName);
+                setShowWriteNoteModal(true);
+            }
         }
     };
 
@@ -1330,22 +1414,47 @@ const ChatPage = () => {
         setAttachedFile(null);
         setIsUploadingFile(false);
         setUploadingFileName('');
+        setAttachedFileNote('');
+        setShowAttachmentNoteInput(false);
     };
 
     // Send or edit chat message
     const handleSendMessage = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (editingMessageId) {
-            if (!newMessage.trim()) return;
-            const messageText = newMessage;
-            setNewMessage('');
+            const targetMsg = messages.find(m => m._id === editingMessageId);
+            const isNote = targetMsg?.fileType === 'note';
+
+            let payload = {};
+            let textVal = '';
+            if (isNote) {
+                textVal = noteModalText.trim();
+                payload = {
+                    text: textVal,
+                    fileName: noteModalTitle.trim() || 'Untitled Note'
+                };
+            } else {
+                textVal = newMessage.trim();
+                payload = {
+                    text: textVal
+                };
+            }
+
+            if (!textVal) return;
+
+            if (isNote) {
+                setNoteModalText('');
+                setNoteModalTitle('');
+                setShowWriteNoteModal(false);
+            } else {
+                setNewMessage('');
+            }
+
             try {
                 const originalMsg = messages.find(m => m._id === editingMessageId);
                 const originalTextVal = originalMsg ? (originalMsg.originalText || originalMsg.text) : '';
 
-                const { data } = await axios.put(`/api/chat/messages/${editingMessageId}`, {
-                    text: messageText
-                });
+                const { data } = await axios.put(`/api/chat/messages/${editingMessageId}`, payload);
 
                 setMessages(prev => prev.map(m => m._id === editingMessageId ? data : m));
                 setEditingMessageId(null);
@@ -1354,7 +1463,8 @@ const ChatPage = () => {
                     socket.emit('edit-message', {
                         messageId: editingMessageId,
                         receiverId: selectedContact._id,
-                        text: messageText,
+                        text: textVal,
+                        fileName: isNote ? payload.fileName : undefined,
                         isEdited: true,
                         originalText: originalTextVal
                     });
@@ -1365,7 +1475,7 @@ const ChatPage = () => {
                         return {
                             ...c,
                             lastMessage: {
-                                text: messageText,
+                                text: isNote ? `📝 ${payload.fileName}` : textVal,
                                 sender: user._id,
                                 createdAt: data.updatedAt
                             }
@@ -1378,6 +1488,11 @@ const ChatPage = () => {
             } catch (error) {
                 console.error("Failed to edit message:", error);
                 toast.error("Message could not be edited");
+                if (isNote) {
+                    setNoteModalText(payload.text);
+                    setNoteModalTitle(payload.fileName);
+                    setShowWriteNoteModal(true);
+                }
             }
             return;
         }
@@ -2576,7 +2691,7 @@ const ChatPage = () => {
                                         <Search size={16} />
                                     </button>
 
-                                    {chatRequest?.status === 'accepted' && chatRequest?.request?.sender === String(user?._id) && (
+                                    {contactType !== 'research' && chatRequest?.status === 'accepted' && chatRequest?.request?.sender === String(user?._id) && (
                                         <button
                                             type="button"
                                             onClick={() => setShowPermissionsModal(true)}
@@ -2586,7 +2701,6 @@ const ChatPage = () => {
                                             <Pencil size={16} />
                                         </button>
                                     )}
-
 
                                     {/* Audio Call Button */}
                                     {contactType !== 'research' && (!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
@@ -3034,16 +3148,6 @@ const ChatPage = () => {
                                                         key={msg._id}
                                                         className={`flex items-end gap-2 group ${isSelf ? 'justify-end' : 'justify-start'}`}
                                                     >
-                                                        {isSelf && contactType !== 'research' && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => startEditing(msg)}
-                                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all self-center"
-                                                                title="Edit Message"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                        )}
                                                         <div className={`max-w-[70%] rounded-3xl ${contactType === 'research' ? 'pl-4 pr-8' : 'px-4'} py-2.5 shadow-sm relative group/bubble ${msg.fileUrl && (msg.fileType?.startsWith('audio/') || msg.fileType?.startsWith('video/') || /\.(webm|mp3|wav|ogg|m4a|mp4|mov|avi)$/i.test(msg.fileName))
                                                             ? 'min-w-[280px]'
                                                             : ''
@@ -3051,27 +3155,28 @@ const ChatPage = () => {
                                                                 ? 'bg-indigo-600 text-white rounded-tr-none'
                                                                 : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
                                                             }`}>
-                                                            {contactType === 'research' && (
-                                                                <>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveDropdownMessageId(prev => prev === msg._id ? null : msg._id);
-                                                                        }}
-                                                                        className={`absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover/bubble:opacity-100 transition-opacity z-10 cursor-pointer border-none bg-transparent ${isSelf ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-105'
-                                                                            }`}
-                                                                        title="Message Options"
-                                                                    >
-                                                                        <ChevronDown size={14} />
-                                                                    </button>
+                                                            {/* Message options dropdown */}
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveDropdownMessageId(prev => prev === msg._id ? null : msg._id);
+                                                                    }}
+                                                                    className={`absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover/bubble:opacity-100 transition-opacity z-10 cursor-pointer border-none bg-transparent ${isSelf ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-105'
+                                                                        }`}
+                                                                    title="Message Options"
+                                                                >
+                                                                    <ChevronDown size={14} />
+                                                                </button>
 
-                                                                    {activeDropdownMessageId === msg._id && (
-                                                                        <div
-                                                                            className="absolute top-8 right-2.5 w-36 bg-white border border-slate-150 rounded-2xl shadow-xl py-1.5 z-[999] animate-fade-in text-slate-700 text-left font-bold"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            {!showRecentDelete ? (
+                                                                {activeDropdownMessageId === msg._id && (
+                                                                    <div
+                                                                        className="absolute top-8 right-2.5 w-36 bg-white border border-slate-150 rounded-2xl shadow-xl py-1.5 z-[999] animate-fade-in text-slate-700 text-left font-bold"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {contactType === 'research' ? (
+                                                                            !showRecentDelete ? (
                                                                                 <>
                                                                                     <button
                                                                                         type="button"
@@ -3090,7 +3195,13 @@ const ChatPage = () => {
                                                                                             onClick={() => {
                                                                                                 setActiveDropdownMessageId(null);
                                                                                                 setEditingResearchMessageId(msg._id);
-                                                                                                setNewMessage(msg.text);
+                                                                                                if (msg.fileType === 'note') {
+                                                                                                    setNoteModalTitle(msg.fileName || '');
+                                                                                                    setNoteModalText(msg.text || '');
+                                                                                                    setShowWriteNoteModal(true);
+                                                                                                } else {
+                                                                                                    setNewMessage(msg.text || '');
+                                                                                                }
                                                                                             }}
                                                                                             className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
                                                                                         >
@@ -3146,46 +3257,111 @@ const ChatPage = () => {
                                                                                         Delete Forever
                                                                                     </button>
                                                                                 </>
+                                                                            )
+                                                                        ) : (
+                                                                            // Standard LMS Chat Message options (Only Info, and Edit if self. NO delete option)
+                                                                            <>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setActiveDropdownMessageId(null);
+                                                                                        showMessageInfo(msg);
+                                                                                    }}
+                                                                                    className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
+                                                                                >
+                                                                                    <Info size={12} className="text-slate-400" />
+                                                                                    Message Info
+                                                                                </button>
+                                                                                {isSelf && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            if (msg.fileType === 'note') {
+                                                                                                setEditingMessageId(msg._id);
+                                                                                                setNoteModalTitle(msg.fileName || '');
+                                                                                                setNoteModalText(msg.text || '');
+                                                                                                setShowWriteNoteModal(true);
+                                                                                            } else {
+                                                                                                startEditing(msg);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <Pencil size={12} className="text-slate-400" />
+                                                                                        Edit Message
+                                                                                    </button>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                            {msg.fileType === 'note' ? (
+                                                                <div className="flex flex-col gap-2 min-w-[240px] text-left">
+                                                                    <div className="flex items-center gap-2 border-b border-white/10 pb-1.5 mb-1 select-none">
+                                                                        <span className="text-base">📝</span>
+                                                                        <h4 className="font-extrabold text-xs tracking-tight truncate flex-1 uppercase">
+                                                                            {msg.fileName || 'Untitled Note'}
+                                                                        </h4>
+                                                                    </div>
+                                                                    <p className="text-xs opacity-90 line-clamp-3 leading-relaxed font-semibold break-words">
+                                                                        {msg.text}
+                                                                    </p>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setViewSelectedNote(msg);
+                                                                            setShowViewNoteModal(true);
+                                                                        }}
+                                                                        className={`mt-2 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer border border-transparent shadow-sm active:scale-95 ${
+                                                                            isSelf 
+                                                                                ? 'bg-white text-indigo-700 hover:bg-slate-50' 
+                                                                                : 'bg-indigo-600 text-white hover:bg-indigo-750'
+                                                                        }`}
+                                                                    >
+                                                                        View Full Note
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    {msg.fileUrl && (
+                                                                        <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
+                                                                            {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
+                                                                                <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
+                                                                            ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
+                                                                                <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
+                                                                            ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                                    <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
+                                                                                </a>
+                                                                            ) : (
+                                                                                <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                                                                                    <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
+                                                                                    <div className="flex-1 min-w-0 text-left">
+                                                                                        <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
+                                                                                        <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
+                                                                                    </div>
+                                                                                    <a
+                                                                                        href={msg.fileUrl}
+                                                                                        download={msg.fileName}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-650'}`}
+                                                                                        title="Download file"
+                                                                                    >
+                                                                                        <Download size={16} />
+                                                                                    </a>
+                                                                                </div>
                                                                             )}
                                                                         </div>
                                                                     )}
+                                                                    {msg.text && <p className="text-sm font-medium leading-relaxed break-words whitespace-pre-wrap">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
                                                                 </>
                                                             )}
-                                                            {msg.fileUrl && (
-                                                                <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
-                                                                    {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
-                                                                        <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
-                                                                    ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
-                                                                        <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
-                                                                    ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
-                                                                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                                            <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
-                                                                        </a>
-                                                                    ) : (
-                                                                        <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
-                                                                            <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
-                                                                            <div className="flex-1 min-w-0 text-left">
-                                                                                <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
-                                                                                <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
-                                                                            </div>
-                                                                            <a
-                                                                                href={msg.fileUrl}
-                                                                                download={msg.fileName}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-650'}`}
-                                                                                title="Download file"
-                                                                            >
-                                                                                <Download size={16} />
-                                                                            </a>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
 
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
-                                                                <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left">
+                                                                <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left whitespace-pre-wrap">
                                                                     <span className="font-bold block text-[9px] uppercase tracking-wider text-indigo-300 mb-0.5">Original message</span>
                                                                     {renderMessageTextWithLinks(msg.originalText, searchKeyword, isSelf)}
                                                                 </div>
@@ -3270,25 +3446,61 @@ const ChatPage = () => {
 
                                     {/* Attachment Preview Box */}
                                     {(isUploadingFile || attachedFile) && (
-                                        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 animate-fade-in flex-shrink-0">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                {isUploadingFile ? (
-                                                    <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
-                                                ) : (
-                                                    <File size={16} className="text-indigo-600 flex-shrink-0" />
-                                                )}
-                                                <span className="text-xs font-semibold text-slate-900 truncate text-left">
-                                                    {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
-                                                </span>
+                                        <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex flex-col gap-2.5 animate-fade-in flex-shrink-0">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    {isUploadingFile ? (
+                                                        <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
+                                                    ) : (
+                                                        <File size={16} className="text-indigo-600 flex-shrink-0" />
+                                                    )}
+                                                    <span className="text-xs font-bold text-slate-800 truncate text-left">
+                                                        {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {!isUploadingFile && !showAttachmentNoteInput && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowAttachmentNoteInput(true)}
+                                                            className="flex items-center gap-1 py-1.5 px-3 bg-indigo-55/60 hover:bg-indigo-100 text-indigo-650 rounded-xl text-[10px] font-extrabold transition-all border border-indigo-100 shadow-sm cursor-pointer"
+                                                            title="Add note to this attachment"
+                                                        >
+                                                            <Plus size={12} />
+                                                            <span>Add Note</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={clearAttachment}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-150 transition-colors cursor-pointer"
+                                                        title="Remove attachment"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={clearAttachment}
-                                                className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors"
-                                                title="Remove attachment"
-                                            >
-                                                <X size={14} />
-                                            </button>
+                                            {showAttachmentNoteInput && (
+                                                <div className="flex gap-2 animate-fade-in">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Write notes or description for this attachment..."
+                                                        value={attachedFileNote}
+                                                        onChange={(e) => setAttachedFileNote(e.target.value)}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-xl py-2 px-3.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400 placeholder:font-semibold"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowAttachmentNoteInput(false);
+                                                            setAttachedFileNote('');
+                                                        }}
+                                                        className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-655 rounded-xl text-xs font-black uppercase transition-all cursor-pointer"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -3304,36 +3516,44 @@ const ChatPage = () => {
                                         >
                                             <button
                                                 type="button"
+                                                onClick={() => {
+                                                    setNoteModalText('');
+                                                    setNoteModalTitle('');
+                                                    setShowWriteNoteModal(true);
+                                                }}
+                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 cursor-pointer"
+                                                title="Write Note"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => fileInputRef.current?.click()}
                                                 disabled={isUploadingFile}
-                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
+                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50 cursor-pointer"
                                                 title="Attach File"
                                             >
                                                 <Paperclip size={16} />
                                             </button>
-                                            {contactType === 'research' && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={isAudioRecording ? stopAudioRecording : startAudioRecording}
-                                                        className={`p-3 border rounded-2xl transition-all active:scale-95 shadow-sm flex-shrink-0 ${isAudioRecording
-                                                            ? 'border-red-550 text-slate-800 animate-pulse bg-white'
-                                                            : 'text-slate-550 border-slate-100 bg-white hover:bg-slate-50 hover:text-indigo-650'
-                                                            }`}
-                                                        title={isAudioRecording ? "Stop & Send Audio" : "Record Voice Message"}
-                                                    >
-                                                        <Mic size={16} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowVideoOptionsModal(true)}
-                                                        className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0"
-                                                        title="Record Video Message"
-                                                    >
-                                                        <Video size={16} />
-                                                    </button>
-                                                </>
-                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={isAudioRecording ? stopAudioRecording : startAudioRecording}
+                                                className={`p-3 border rounded-2xl transition-all active:scale-95 shadow-sm flex-shrink-0 ${isAudioRecording
+                                                    ? 'border-red-550 text-slate-800 animate-pulse bg-white'
+                                                    : 'text-slate-550 border-slate-100 bg-white hover:bg-slate-50 hover:text-indigo-650'
+                                                    }`}
+                                                title={isAudioRecording ? "Stop & Send Audio" : "Record Voice Message"}
+                                            >
+                                                <Mic size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowVideoOptionsModal(true)}
+                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 cursor-pointer"
+                                                title="Record Video Message"
+                                            >
+                                                <Video size={16} />
+                                            </button>
                                             {isAudioRecording ? (
                                                 <div className="flex-1 bg-red-50 border border-red-100 rounded-2xl py-3 px-4 flex items-center justify-between gap-3 text-xs font-bold text-red-600">
                                                     <span className="flex items-center gap-2">
@@ -3343,7 +3563,7 @@ const ChatPage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={cancelAudioRecording}
-                                                        className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all"
+                                                        className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer"
                                                     >
                                                         Cancel
                                                     </button>
@@ -3351,10 +3571,10 @@ const ChatPage = () => {
                                             ) : (
                                                 <input
                                                     type="text"
-                                                    placeholder={contactType === 'research' ? "Type note, message or paste link here..." : "Type message here..."}
+                                                    placeholder="Type note, message or paste link here..."
                                                     value={newMessage}
                                                     onChange={handleInputChange}
-                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-455"
                                                 />
                                             )}
                                             <button
@@ -3857,6 +4077,118 @@ const ChatPage = () => {
                                 className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {/* 7. Write Note Modal (Multiline Text Note) */}
+            {showWriteNoteModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        <button
+                            onClick={() => {
+                                setShowWriteNoteModal(false);
+                                setEditingResearchMessageId(null);
+                            }}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
+                        >
+                            ✕
+                        </button>
+                        
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1.5 text-left flex items-center gap-2">
+                            <span>📝</span>
+                            <span>{editingResearchMessageId ? 'Edit Personal Note' : 'Write Personal Note'}</span>
+                        </h3>
+                        <p className="text-xs text-slate-400 mb-5 text-left font-semibold">
+                            Compose a detailed note. You can press Enter to add new paragraphs.
+                        </p>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Note Title / Heading</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Science Project notes, URL list..."
+                                    value={noteModalTitle}
+                                    onChange={(e) => setNoteModalTitle(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all placeholder:text-slate-400 placeholder:font-semibold"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Note Content</label>
+                                <textarea
+                                    autoFocus
+                                    required
+                                    placeholder="Type your personal research note, copy-paste long texts, code, or links here..."
+                                    value={noteModalText}
+                                    onChange={(e) => setNoteModalText(e.target.value)}
+                                    className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all resize-none placeholder:text-slate-400 placeholder:font-semibold"
+                                />
+                            </div>
+                            
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowWriteNoteModal(false);
+                                        setEditingResearchMessageId(null);
+                                    }}
+                                    className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-655 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center font-bold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={editingResearchMessageId ? () => handleEditResearchMessage() : handleSendNoteFromModal}
+                                    disabled={!noteModalText.trim()}
+                                    className="py-3 px-6 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    <span>{editingResearchMessageId ? 'Save Note' : 'Send Note'}</span>
+                                    {editingResearchMessageId ? <Pencil size={14} /> : <Send size={14} className="fill-current" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 8. View Note Modal (Read-only Note Display) */}
+            {showViewNoteModal && viewSelectedNote && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-xl rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative max-h-[85vh]">
+                        <button
+                            onClick={() => {
+                                setShowViewNoteModal(false);
+                                setViewSelectedNote(null);
+                            }}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
+                        >
+                            ✕
+                        </button>
+                        
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1 flex items-center gap-2 border-b border-slate-100 pb-3 pr-8 text-left uppercase tracking-tight">
+                            <span>📝</span>
+                            <span className="truncate flex-1">{viewSelectedNote.fileName || 'Untitled Note'}</span>
+                        </h3>
+
+                        <div className="flex-1 overflow-y-auto my-4 pr-1 text-left whitespace-pre-wrap text-sm font-semibold text-slate-700 leading-relaxed max-h-[50vh] break-words">
+                            {renderMessageTextWithLinks(viewSelectedNote.text, searchKeyword, viewSelectedNote.sender === user._id || viewSelectedNote.owner === user._id)}
+                        </div>
+
+                        <div className="flex justify-end border-t border-slate-100 pt-4 mt-auto">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowViewNoteModal(false);
+                                    setViewSelectedNote(null);
+                                }}
+                                className="py-3 px-6 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
+                            >
+                                Close Note
                             </button>
                         </div>
                     </div>

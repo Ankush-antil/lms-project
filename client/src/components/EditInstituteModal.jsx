@@ -697,217 +697,243 @@ const EditInstituteModal = ({ isOpen, onClose, refreshData, institute }) => {
                                                 className="rounded text-indigo-650"
                                             />
                                         </div>
-                                        {formData.controls?.tools?.show !== false && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
-                                                <label className="flex items-center gap-2 text-xs text-slate-650 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.elementsControl !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'elementsControl', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Elements Control
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.inputElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'inputElements', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Input Elements
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.displayingElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'displayingElements', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Displaying Elements
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.recordingElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'recordingElements', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Recording Elements
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.advanceElements !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'advanceElements', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Advance Elements
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.addons !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'addons', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Addons
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.theme !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'theme', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Theme
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.createWithAi !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'createWithAi', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Create With AI
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.integrate !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'integrate', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Integrate
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.import !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'import', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Import
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.saveAsTemplate !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'saveAsTemplate', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Save As Template
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.decideActivity !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'decideActivity', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Decide Activity
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.templates !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'templates', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Templates
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.locationLocked !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'locationLocked', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Location Locked
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.logicRules !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'logicRules', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Logic Rules
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.monitoring !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'monitoring', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                        />
-                                                    Monitoring
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.connectIt !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'connectIt', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Connect It
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.profileUnderSettings !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'profileUnderSettings', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Profile Under Settings
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.moreSettings !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'moreSettings', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    More Settings
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.responses !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'responses', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Responses
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.collaborate !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'collaborate', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Collaborate
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.manageAccess !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'manageAccess', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Manage Access
-                                                </label>
-                                                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={formData.controls?.tools?.publicToWeb !== false}
-                                                        onChange={(e) => handleNestedControlChange('tools', 'publicToWeb', e.target.checked)}
-                                                        className="rounded text-indigo-650"
-                                                    />
-                                                    Public To Web
-                                                </label>
-                                            </div>
-                                        )}
+                                         {formData.controls?.tools?.show !== false && (
+                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1 pt-1">
+                                                 <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
+                                                     <input 
+                                                         type="checkbox"
+                                                         checked={formData.controls?.tools?.formBuilderTool !== false}
+                                                         onChange={(e) => handleNestedControlChange('tools', 'formBuilderTool', e.target.checked)}
+                                                         className="rounded text-indigo-650"
+                                                     />
+                                                     📝 Form Builder Tool
+                                                 </label>
+                                                 <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
+                                                     <input 
+                                                         type="checkbox"
+                                                         checked={formData.controls?.tools?.databaseCreatorTool !== false}
+                                                         onChange={(e) => handleNestedControlChange('tools', 'databaseCreatorTool', e.target.checked)}
+                                                         className="rounded text-indigo-650"
+                                                     />
+                                                     🗄️ Database Creator Tool
+                                                 </label>
+
+                                                 {formData.controls?.tools?.formBuilderTool !== false && (
+                                                     <div className="col-span-1 md:col-span-2 mt-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-150/60 space-y-3">
+                                                         <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block mb-1">Form Builder Sub-features</span>
+                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.elementsControl !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'elementsControl', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Elements Control
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.inputElements !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'inputElements', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Input Elements
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.displayingElements !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'displayingElements', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Displaying Elements
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.recordingElements !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'recordingElements', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Recording Elements
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.advanceElements !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'advanceElements', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Advance Elements
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.addons !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'addons', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Addons
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.theme !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'theme', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Theme
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.createWithAi !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'createWithAi', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Create With AI
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.integrate !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'integrate', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Integrate
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.import !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'import', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Import
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.saveAsTemplate !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'saveAsTemplate', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Save As Template
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.decideActivity !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'decideActivity', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Decide Activity
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.templates !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'templates', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Templates
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.locationLocked !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'locationLocked', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Location Locked
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.logicRules !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'logicRules', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Logic Rules
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.monitoring !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'monitoring', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Monitoring
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.connectIt !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'connectIt', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Connect It
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.profileUnderSettings !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'profileUnderSettings', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Profile Under Settings
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.moreSettings !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'moreSettings', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 More Settings
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.responses !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'responses', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Responses
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.collaborate !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'collaborate', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Collaborate
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.manageAccess !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'manageAccess', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Manage Access
+                                                             </label>
+                                                             <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none">
+                                                                 <input 
+                                                                     type="checkbox"
+                                                                     checked={formData.controls?.tools?.publicToWeb !== false}
+                                                                     onChange={(e) => handleNestedControlChange('tools', 'publicToWeb', e.target.checked)}
+                                                                     className="rounded text-indigo-650"
+                                                                 />
+                                                                 Public To Web
+                                                             </label>
+                                                         </div>
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         )}
                                     </div>
 
                                     {/* Chat */}

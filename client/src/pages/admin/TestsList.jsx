@@ -33,7 +33,7 @@ const TestsList = () => {
     const [filterInstitute, setFilterInstitute] = useState('All');
     const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -2037,6 +2037,35 @@ const TestsList = () => {
 
                 {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
                     <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                        {/* Entries selector */}
+                        <div className="flex items-center gap-2 mr-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                            <input
+                                type="number"
+                                min={5}
+                                max={activeTab === 'public' ? filteredPublicTests.length : filteredTests.length}
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    const maxLen = activeTab === 'public' ? filteredPublicTests.length : filteredTests.length;
+                                    if (isNaN(val)) {
+                                        setItemsPerPage('');
+                                    } else {
+                                        const maxVal = maxLen > 5 ? maxLen : 5;
+                                        setItemsPerPage(Math.min(val, maxVal));
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (isNaN(val) || val < 5) {
+                                        setItemsPerPage(10);
+                                    }
+                                }}
+                                className="w-16 bg-slate-55 border border-slate-200 rounded-xl py-1.5 px-3 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all"
+                            />
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                        </div>
+
                         {/* Institute Filter */}
                         {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
                             <div className="relative min-w-[130px] flex-1 sm:flex-initial">

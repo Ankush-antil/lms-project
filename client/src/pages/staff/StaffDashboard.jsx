@@ -25,8 +25,8 @@ const StaffDashboard = () => {
     ];
 
     return (
-        <DashboardLayout role="Staff">
-            <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
+        <DashboardLayout role="Staff" fullWidth={true}>
+            <div>
 
                 {/* Welcome Banner */}
                 <div style={{

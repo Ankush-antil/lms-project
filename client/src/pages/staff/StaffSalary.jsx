@@ -20,8 +20,8 @@ const statusStyle = {
 
 const StaffSalary = () => {
     return (
-        <DashboardLayout role="Staff">
-            <div style={{ padding: '32px', maxWidth: '900px', margin: '0 auto' }}>
+        <DashboardLayout role="Staff" fullWidth={true}>
+            <div>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
                     <div style={{

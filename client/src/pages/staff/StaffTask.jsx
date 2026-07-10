@@ -20,8 +20,8 @@ const columns = [
 
 const StaffTask = () => {
     return (
-        <DashboardLayout role="Staff">
-            <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto' }}>
+        <DashboardLayout role="Staff" fullWidth={true}>
+            <div>
                 {/* Header */}
                 <div style={{ marginBottom: '28px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>

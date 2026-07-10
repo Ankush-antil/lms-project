@@ -46,9 +46,10 @@ const InstituteStaff = () => {
             const { data } = await axios.get('/api/users?role=Staff', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setStaffList(Array.isArray(data) ? data : data.users || []);
+            const fetched = Array.isArray(data) ? data : data.users || [];
+            setStaffList([...fetched, ...DUMMY_STAFF]);
         } catch {
-            setStaffList([]);
+            setStaffList(DUMMY_STAFF);
         } finally {
             setLoading(false);
         }
@@ -92,7 +93,23 @@ const InstituteStaff = () => {
             const token = localStorage.getItem('authToken');
             
             if (editingStaff) {
-                // Update existing staff
+                if (editingStaff._id.startsWith('d')) {
+                    // Update dummy staff locally in state
+                    setStaffList(prev => prev.map(s => s._id === editingStaff._id ? {
+                        ...s,
+                        name: form.name,
+                        email: form.email,
+                        staffProfile: { designation: form.designation, department: form.department }
+                    } : s));
+                    toast.success('Staff member updated (Local)!');
+                    setShowModal(false);
+                    setForm({ name: '', email: '', password: '', designation: '', department: '' });
+                    setEditingStaff(null);
+                    setSubmitting(false);
+                    return;
+                }
+
+                // Update existing database staff
                 const updatePayload = {
                     name: form.name,
                     email: form.email,
@@ -106,7 +123,7 @@ const InstituteStaff = () => {
                 });
                 toast.success('Staff member updated!');
             } else {
-                // Create new staff
+                // Create new database staff
                 await axios.post('/api/users', {
                     name: form.name,
                     email: form.email,
@@ -130,6 +147,12 @@ const InstituteStaff = () => {
 
     const handleDeleteStaff = async (staffId) => {
         if (!window.confirm('Are you sure you want to delete this staff member?')) return;
+        if (staffId.startsWith('d')) {
+            // Delete dummy staff locally in state
+            setStaffList(prev => prev.filter(s => s._id !== staffId));
+            toast.success('Staff member deleted (Local)!');
+            return;
+        }
         try {
             const token = localStorage.getItem('authToken');
             await axios.delete(`/api/users/${staffId}`, {

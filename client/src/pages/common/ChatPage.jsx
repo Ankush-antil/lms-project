@@ -49,7 +49,10 @@ const ChatPage = () => {
     const [newResearchContactName, setNewResearchContactName] = useState('');
     const [savingResearchContact, setSavingResearchContact] = useState(false);
     const [showWriteNoteModal, setShowWriteNoteModal] = useState(false);
+    const [noteModalTitle, setNoteModalTitle] = useState('');
     const [noteModalText, setNoteModalText] = useState('');
+    const [viewSelectedNote, setViewSelectedNote] = useState(null);
+    const [showViewNoteModal, setShowViewNoteModal] = useState(false);
     const [researchMessages, setResearchMessages] = useState([]);
     const [loadingResearchMessages, setLoadingResearchMessages] = useState(false);
     const [showRecentDelete, setShowRecentDelete] = useState(false);
@@ -425,12 +428,17 @@ const ChatPage = () => {
         if (!noteModalText.trim()) return;
 
         const msgText = noteModalText.trim();
+        const msgTitle = noteModalTitle.trim() || 'Untitled Note';
+        
         setNoteModalText('');
+        setNoteModalTitle('');
         setShowWriteNoteModal(false);
 
         const payload = {
             researchContact: selectedResearchContact._id,
-            text: msgText
+            text: msgText,
+            fileName: msgTitle,
+            fileType: 'note'
         };
 
         try {
@@ -444,7 +452,7 @@ const ChatPage = () => {
                     return {
                         ...c,
                         lastMessage: {
-                            text: msgText,
+                            text: `📝 ${msgTitle}`,
                             sender: user._id,
                             createdAt: data.createdAt
                         }
@@ -457,25 +465,49 @@ const ChatPage = () => {
             console.error("Failed to send note from modal:", error);
             toast.error("Failed to send note");
             setNoteModalText(msgText);
+            setNoteModalTitle(msgTitle);
             setShowWriteNoteModal(true);
         }
     };
 
     const handleEditResearchMessage = async (e) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !editingResearchMessageId) return;
+        if (e) e.preventDefault();
+        if (!editingResearchMessageId) return;
 
-        const messageText = newMessage;
-        setNewMessage('');
+        const targetMsg = researchMessages.find(m => m._id === editingResearchMessageId);
+        const isNote = targetMsg?.fileType === 'note';
+
+        let payload = {};
+        let textVal = '';
+        if (isNote) {
+            textVal = noteModalText.trim();
+            payload = {
+                text: textVal,
+                fileName: noteModalTitle.trim() || 'Untitled Note'
+            };
+        } else {
+            textVal = newMessage.trim();
+            payload = {
+                text: textVal
+            };
+        }
+
+        if (!textVal) return;
+
+        if (isNote) {
+            setNoteModalText('');
+            setNoteModalTitle('');
+            setShowWriteNoteModal(false);
+        } else {
+            setNewMessage('');
+        }
 
         try {
-            const { data } = await axios.put(`/api/research/messages/${editingResearchMessageId}`, {
-                text: messageText
-            });
+            const { data } = await axios.put(`/api/research/messages/${editingResearchMessageId}`, payload);
 
             setResearchMessages(prev => prev.map(m => m._id === editingResearchMessageId ? data : m));
             setEditingResearchMessageId(null);
-            toast.success("Message edited successfully");
+            toast.success("Note edited successfully");
 
             setResearchContacts(prev => prev.map(c => {
                 if (c._id === selectedResearchContact._id && c.lastMessage) {
@@ -483,7 +515,7 @@ const ChatPage = () => {
                         ...c,
                         lastMessage: {
                             ...c.lastMessage,
-                            text: messageText
+                            text: isNote ? `📝 ${payload.fileName}` : textVal
                         }
                     };
                 }
@@ -492,6 +524,11 @@ const ChatPage = () => {
         } catch (error) {
             console.error("Failed to edit research message:", error);
             toast.error(error.response?.data?.message || "Failed to edit message");
+            if (isNote) {
+                setNoteModalText(payload.text);
+                setNoteModalTitle(payload.fileName);
+                setShowWriteNoteModal(true);
+            }
         }
     };
 
@@ -3138,7 +3175,13 @@ const ChatPage = () => {
                                                                                             onClick={() => {
                                                                                                 setActiveDropdownMessageId(null);
                                                                                                 setEditingResearchMessageId(msg._id);
-                                                                                                setNewMessage(msg.text);
+                                                                                                if (msg.fileType === 'note') {
+                                                                                                    setNoteModalTitle(msg.fileName || '');
+                                                                                                    setNoteModalText(msg.text || '');
+                                                                                                    setShowWriteNoteModal(true);
+                                                                                                } else {
+                                                                                                    setNewMessage(msg.text || '');
+                                                                                                }
                                                                                             }}
                                                                                             className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
                                                                                         >
@@ -3199,38 +3242,68 @@ const ChatPage = () => {
                                                                     )}
                                                                 </>
                                                             )}
-                                                            {msg.fileUrl && (
-                                                                <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
-                                                                    {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
-                                                                        <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
-                                                                    ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
-                                                                        <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
-                                                                    ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
-                                                                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                                            <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
-                                                                        </a>
-                                                                    ) : (
-                                                                        <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
-                                                                            <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
-                                                                            <div className="flex-1 min-w-0 text-left">
-                                                                                <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
-                                                                                <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
-                                                                            </div>
-                                                                            <a
-                                                                                href={msg.fileUrl}
-                                                                                download={msg.fileName}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-650'}`}
-                                                                                title="Download file"
-                                                                            >
-                                                                                <Download size={16} />
-                                                                            </a>
+                                                            {msg.fileType === 'note' ? (
+                                                                <div className="flex flex-col gap-2 min-w-[240px] text-left">
+                                                                    <div className="flex items-center gap-2 border-b border-white/10 pb-1.5 mb-1 select-none">
+                                                                        <span className="text-base">📝</span>
+                                                                        <h4 className="font-extrabold text-xs tracking-tight truncate flex-1 uppercase">
+                                                                            {msg.fileName || 'Untitled Note'}
+                                                                        </h4>
+                                                                    </div>
+                                                                    <p className="text-xs opacity-90 line-clamp-3 leading-relaxed font-semibold break-words">
+                                                                        {msg.text}
+                                                                    </p>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setViewSelectedNote(msg);
+                                                                            setShowViewNoteModal(true);
+                                                                        }}
+                                                                        className={`mt-2 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer border border-transparent shadow-sm active:scale-95 ${
+                                                                            isSelf 
+                                                                                ? 'bg-white text-indigo-700 hover:bg-slate-50' 
+                                                                                : 'bg-indigo-600 text-white hover:bg-indigo-750'
+                                                                        }`}
+                                                                    >
+                                                                        View Full Note
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    {msg.fileUrl && (
+                                                                        <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
+                                                                            {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
+                                                                                <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
+                                                                            ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
+                                                                                <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
+                                                                            ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                                    <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
+                                                                                </a>
+                                                                            ) : (
+                                                                                <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                                                                                    <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
+                                                                                    <div className="flex-1 min-w-0 text-left">
+                                                                                        <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
+                                                                                        <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
+                                                                                    </div>
+                                                                                    <a
+                                                                                        href={msg.fileUrl}
+                                                                                        download={msg.fileName}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-650'}`}
+                                                                                        title="Download file"
+                                                                                    >
+                                                                                        <Download size={16} />
+                                                                                    </a>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     )}
-                                                                </div>
+                                                                    {msg.text && <p className="text-sm font-medium leading-relaxed break-words whitespace-pre-wrap">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
+                                                                </>
                                                             )}
-                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words whitespace-pre-wrap">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
 
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
                                                                 <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left whitespace-pre-wrap">
@@ -3965,7 +4038,10 @@ const ChatPage = () => {
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white w-full max-w-lg rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
                         <button
-                            onClick={() => setShowWriteNoteModal(false)}
+                            onClick={() => {
+                                setShowWriteNoteModal(false);
+                                setEditingResearchMessageId(null);
+                            }}
                             className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
                         >
                             ✕
@@ -3973,40 +4049,97 @@ const ChatPage = () => {
                         
                         <h3 className="font-extrabold text-slate-800 text-lg mb-1.5 text-left flex items-center gap-2">
                             <span>📝</span>
-                            <span>Write Personal Note</span>
+                            <span>{editingResearchMessageId ? 'Edit Personal Note' : 'Write Personal Note'}</span>
                         </h3>
                         <p className="text-xs text-slate-400 mb-5 text-left font-semibold">
                             Compose a detailed note. You can press Enter to add new paragraphs.
                         </p>
 
                         <div className="space-y-4">
-                            <textarea
-                                autoFocus
-                                required
-                                placeholder="Type your personal research note, copy-paste long texts, code, or links here..."
-                                value={noteModalText}
-                                onChange={(e) => setNoteModalText(e.target.value)}
-                                className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all resize-none placeholder:text-slate-400 placeholder:font-semibold"
-                            />
+                            <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Note Title / Heading</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Science Project notes, URL list..."
+                                    value={noteModalTitle}
+                                    onChange={(e) => setNoteModalTitle(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all placeholder:text-slate-400 placeholder:font-semibold"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5 text-left">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Note Content</label>
+                                <textarea
+                                    autoFocus
+                                    required
+                                    placeholder="Type your personal research note, copy-paste long texts, code, or links here..."
+                                    value={noteModalText}
+                                    onChange={(e) => setNoteModalText(e.target.value)}
+                                    className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all resize-none placeholder:text-slate-400 placeholder:font-semibold"
+                                />
+                            </div>
                             
                             <div className="flex gap-3 justify-end">
                                 <button
                                     type="button"
-                                    onClick={() => setShowWriteNoteModal(false)}
+                                    onClick={() => {
+                                        setShowWriteNoteModal(false);
+                                        setEditingResearchMessageId(null);
+                                    }}
                                     className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-655 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center font-bold"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={handleSendNoteFromModal}
+                                    onClick={editingResearchMessageId ? () => handleEditResearchMessage() : handleSendNoteFromModal}
                                     disabled={!noteModalText.trim()}
                                     className="py-3 px-6 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    <span>Send Note</span>
-                                    <Send size={14} className="fill-current" />
+                                    <span>{editingResearchMessageId ? 'Save Note' : 'Send Note'}</span>
+                                    {editingResearchMessageId ? <Pencil size={14} /> : <Send size={14} className="fill-current" />}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 8. View Note Modal (Read-only Note Display) */}
+            {showViewNoteModal && viewSelectedNote && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-xl rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative max-h-[85vh]">
+                        <button
+                            onClick={() => {
+                                setShowViewNoteModal(false);
+                                setViewSelectedNote(null);
+                            }}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
+                        >
+                            ✕
+                        </button>
+                        
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1 flex items-center gap-2 border-b border-slate-100 pb-3 pr-8 text-left uppercase tracking-tight">
+                            <span>📝</span>
+                            <span className="truncate flex-1">{viewSelectedNote.fileName || 'Untitled Note'}</span>
+                        </h3>
+
+                        <div className="flex-1 overflow-y-auto my-4 pr-1 text-left whitespace-pre-wrap text-sm font-semibold text-slate-700 leading-relaxed max-h-[50vh] break-words">
+                            {renderMessageTextWithLinks(viewSelectedNote.text, searchKeyword, viewSelectedNote.sender === user._id || viewSelectedNote.owner === user._id)}
+                        </div>
+
+                        <div className="flex justify-end border-t border-slate-100 pt-4 mt-auto">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowViewNoteModal(false);
+                                    setViewSelectedNote(null);
+                                }}
+                                className="py-3 px-6 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
+                            >
+                                Close Note
+                            </button>
                         </div>
                     </div>
                 </div>,

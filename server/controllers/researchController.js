@@ -132,7 +132,7 @@ const sendResearchMessage = asyncHandler(async (req, res) => {
 // @route   PUT /api/research/messages/:messageId
 // @access  Private
 const editResearchMessage = asyncHandler(async (req, res) => {
-    const { text } = req.body;
+    const { text, fileName } = req.body;
     const { messageId } = req.params;
     const userId = req.user._id;
 
@@ -156,6 +156,9 @@ const editResearchMessage = asyncHandler(async (req, res) => {
 
     message.originalText = message.text;
     message.text = text;
+    if (fileName !== undefined) {
+        message.fileName = fileName;
+    }
     message.isEdited = true;
     message.editCount = 1;
 

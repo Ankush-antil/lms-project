@@ -2691,7 +2691,7 @@ const ChatPage = () => {
                                         <Search size={16} />
                                     </button>
 
-                                    {chatRequest?.status === 'accepted' && chatRequest?.request?.sender === String(user?._id) && (
+                                    {contactType !== 'research' && chatRequest?.status === 'accepted' && chatRequest?.request?.sender === String(user?._id) && (
                                         <button
                                             type="button"
                                             onClick={() => setShowPermissionsModal(true)}

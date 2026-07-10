@@ -444,13 +444,17 @@ const updateUser = asyncHandler(async (req, res) => {
 // @access  Private/Admin, Editor, Institute, Teacher
 const markPhysicalAttendance = asyncHandler(async (req, res) => {
     const student = await User.findById(req.params.id);
-    if (!student || student.role !== 'Student') {
+    if (!student || (student.role !== 'Student' && student.role !== 'Teacher')) {
         res.status(404);
-        throw new Error('Student not found');
+        throw new Error('User not found');
     }
 
     // Verify authorized access
     if (req.user.role === 'Teacher') {
+        if (student.role !== 'Student') {
+            res.status(403);
+            throw new Error('Not authorized to mark attendance for this user');
+        }
         // Teacher must teach in student's course
         const teacher = await User.findById(req.user._id);
         const courseId = student.studentProfile?.course;
@@ -462,11 +466,11 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
     } else if (req.user.role === 'Institute' || req.user.role === 'Editor') {
         if (student.institute?.toString() !== req.user.institute?.toString()) {
             res.status(403);
-            throw new Error('Not authorized to mark attendance for this student');
+            throw new Error('Not authorized to mark attendance for this user');
         }
     }
 
-    const { date, status, teacherNote } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent" / "Leave" / "Holiday"
+    const { date, status, teacherNote, checkInTime, checkOutTime, source, markedBy } = req.body; // e.g. date: "2026-06-30", status: "Present" / "Absent" / "Leave" / "Holiday"
     if (!date || !status) {
         res.status(400);
         throw new Error('Please provide both date and status');
@@ -477,28 +481,68 @@ const markPhysicalAttendance = asyncHandler(async (req, res) => {
         throw new Error('Invalid status');
     }
 
-    if (!student.studentProfile) {
-        student.studentProfile = {};
-    }
-    if (!student.studentProfile.physicalAttendance) {
-        student.studentProfile.physicalAttendance = [];
-    }
-
-    // Check if attendance already exists for this date
-    const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
-    if (existingIndex !== -1) {
-        student.studentProfile.physicalAttendance[existingIndex].status = status;
-        student.studentProfile.physicalAttendance[existingIndex].source = 'manual';
-        if (teacherNote !== undefined) {
-            student.studentProfile.physicalAttendance[existingIndex].teacherNote = teacherNote;
+    if (student.role === 'Student') {
+        if (!student.studentProfile) {
+            student.studentProfile = {};
         }
-    } else {
-        student.studentProfile.physicalAttendance.push({ date, status, teacherNote: teacherNote || '', source: 'manual' });
+        if (!student.studentProfile.physicalAttendance) {
+            student.studentProfile.physicalAttendance = [];
+        }
+
+        // Check if attendance already exists for this date
+        const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+        if (existingIndex !== -1) {
+            student.studentProfile.physicalAttendance[existingIndex].status = status;
+            student.studentProfile.physicalAttendance[existingIndex].source = source || 'manual';
+            if (teacherNote !== undefined) student.studentProfile.physicalAttendance[existingIndex].teacherNote = teacherNote;
+            if (checkInTime !== undefined) student.studentProfile.physicalAttendance[existingIndex].checkInTime = checkInTime;
+            if (checkOutTime !== undefined) student.studentProfile.physicalAttendance[existingIndex].checkOutTime = checkOutTime;
+            if (markedBy !== undefined) student.studentProfile.physicalAttendance[existingIndex].markedBy = markedBy;
+        } else {
+            student.studentProfile.physicalAttendance.push({
+                date, status,
+                teacherNote: teacherNote || '',
+                source: source || 'manual',
+                checkInTime: checkInTime || '',
+                checkOutTime: checkOutTime || '',
+                markedBy: markedBy || ''
+            });
+        }
+
+        student.markModified('studentProfile.physicalAttendance');
+    } else if (student.role === 'Teacher') {
+        if (!student.teacherProfile) {
+            student.teacherProfile = {};
+        }
+        if (!student.teacherProfile.physicalAttendance) {
+            student.teacherProfile.physicalAttendance = [];
+        }
+
+        // Check if attendance already exists for this date
+        const existingIndex = student.teacherProfile.physicalAttendance.findIndex(a => a.date === date);
+        if (existingIndex !== -1) {
+            student.teacherProfile.physicalAttendance[existingIndex].status = status;
+            student.teacherProfile.physicalAttendance[existingIndex].source = source || 'manual';
+            if (teacherNote !== undefined) student.teacherProfile.physicalAttendance[existingIndex].teacherNote = teacherNote;
+            if (checkInTime !== undefined) student.teacherProfile.physicalAttendance[existingIndex].checkInTime = checkInTime;
+            if (checkOutTime !== undefined) student.teacherProfile.physicalAttendance[existingIndex].checkOutTime = checkOutTime;
+            if (markedBy !== undefined) student.teacherProfile.physicalAttendance[existingIndex].markedBy = markedBy;
+        } else {
+            student.teacherProfile.physicalAttendance.push({
+                date, status,
+                teacherNote: teacherNote || '',
+                source: source || 'manual',
+                checkInTime: checkInTime || '',
+                checkOutTime: checkOutTime || '',
+                markedBy: markedBy || ''
+            });
+        }
+
+        student.markModified('teacherProfile.physicalAttendance');
     }
 
-    student.markModified('studentProfile.physicalAttendance');
     await student.save();
-    res.json({ success: true, physicalAttendance: student.studentProfile.physicalAttendance });
+    res.json({ success: true, physicalAttendance: student.role === 'Student' ? student.studentProfile.physicalAttendance : student.teacherProfile.physicalAttendance });
 });
 
 // @desc    Delete student physical attendance record
@@ -606,16 +650,17 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
 
     try {
         for (const record of attendanceRecords) {
-            const { studentId, status, note } = record;
+            const { studentId, status, note, checkInTime, checkOutTime, source, markedBy } = record;
             if (!studentId || !status) continue;
 
             const student = await User.findById(studentId);
-            if (!student || student.role !== 'Student') continue;
+            if (!student || (student.role !== 'Student' && student.role !== 'Teacher')) continue;
 
             // Verify authority
             if (req.user.role === 'Institute' || req.user.role === 'Editor') {
                 if (student.institute?.toString() !== req.user.institute?.toString()) continue;
             } else if (req.user.role === 'Teacher') {
+                if (student.role !== 'Student') continue; // Teachers can only mark students
                 // Check course assignment matching
                 const teacher = await User.findById(req.user._id);
                 const courseId = student.studentProfile?.course;
@@ -623,29 +668,64 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
                 if (!teachesCourse) continue;
             }
 
-            if (!student.studentProfile) {
-                student.studentProfile = {};
-            }
-            if (!student.studentProfile.physicalAttendance) {
-                student.studentProfile.physicalAttendance = [];
-            }
-
-            const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
-            if (existingIndex !== -1) {
-                student.studentProfile.physicalAttendance[existingIndex].status = status;
-                student.studentProfile.physicalAttendance[existingIndex].source = 'manual';
-                if (note !== undefined) {
-                    student.studentProfile.physicalAttendance[existingIndex].teacherNote = note;
+            if (student.role === 'Student') {
+                if (!student.studentProfile) {
+                    student.studentProfile = {};
                 }
-            } else {
-                student.studentProfile.physicalAttendance.push({
-                    date, status,
-                    teacherNote: note || '',
-                    source: 'manual'
-                });
+                if (!student.studentProfile.physicalAttendance) {
+                    student.studentProfile.physicalAttendance = [];
+                }
+
+                const existingIndex = student.studentProfile.physicalAttendance.findIndex(a => a.date === date);
+                if (existingIndex !== -1) {
+                    student.studentProfile.physicalAttendance[existingIndex].status = status;
+                    student.studentProfile.physicalAttendance[existingIndex].source = source || 'manual';
+                    if (note !== undefined) student.studentProfile.physicalAttendance[existingIndex].teacherNote = note;
+                    if (checkInTime !== undefined) student.studentProfile.physicalAttendance[existingIndex].checkInTime = checkInTime;
+                    if (checkOutTime !== undefined) student.studentProfile.physicalAttendance[existingIndex].checkOutTime = checkOutTime;
+                    if (markedBy !== undefined) student.studentProfile.physicalAttendance[existingIndex].markedBy = markedBy;
+                } else {
+                    student.studentProfile.physicalAttendance.push({
+                        date, status,
+                        teacherNote: note || '',
+                        source: source || 'manual',
+                        checkInTime: checkInTime || '',
+                        checkOutTime: checkOutTime || '',
+                        markedBy: markedBy || ''
+                    });
+                }
+
+                student.markModified('studentProfile.physicalAttendance');
+            } else if (student.role === 'Teacher') {
+                if (!student.teacherProfile) {
+                    student.teacherProfile = {};
+                }
+                if (!student.teacherProfile.physicalAttendance) {
+                    student.teacherProfile.physicalAttendance = [];
+                }
+
+                const existingIndex = student.teacherProfile.physicalAttendance.findIndex(a => a.date === date);
+                if (existingIndex !== -1) {
+                    student.teacherProfile.physicalAttendance[existingIndex].status = status;
+                    student.teacherProfile.physicalAttendance[existingIndex].source = source || 'manual';
+                    if (note !== undefined) student.teacherProfile.physicalAttendance[existingIndex].teacherNote = note;
+                    if (checkInTime !== undefined) student.teacherProfile.physicalAttendance[existingIndex].checkInTime = checkInTime;
+                    if (checkOutTime !== undefined) student.teacherProfile.physicalAttendance[existingIndex].checkOutTime = checkOutTime;
+                    if (markedBy !== undefined) student.teacherProfile.physicalAttendance[existingIndex].markedBy = markedBy;
+                } else {
+                    student.teacherProfile.physicalAttendance.push({
+                        date, status,
+                        teacherNote: note || '',
+                        source: source || 'manual',
+                        checkInTime: checkInTime || '',
+                        checkOutTime: checkOutTime || '',
+                        markedBy: markedBy || ''
+                    });
+                }
+
+                student.markModified('teacherProfile.physicalAttendance');
             }
 
-            student.markModified('studentProfile.physicalAttendance');
             await student.save();
         }
 

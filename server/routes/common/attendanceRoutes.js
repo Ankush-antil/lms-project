@@ -18,7 +18,9 @@ const {
     submitLeaveApplication,
     approveOrRejectLeave,
     getAutoConfig,
-    saveAutoConfig
+    saveAutoConfig,
+    getTeacherAttendanceHistory,
+    deleteTeacherPhysicalAttendance
 } = require('../../controllers/common/attendanceController');
 
 // Teacher routes
@@ -36,6 +38,10 @@ router.post('/auto-config', protect, saveAutoConfig);
 router.get('/student/:studentId/history', protect, getStudentAttendanceHistory);
 router.delete('/student/:studentId/date/:date', protect, deletePhysicalAttendance);
 router.post('/student/:studentId/date/:date/leave-approve', protect, approveOrRejectLeave);
+
+// Admin / Institute / Accountant — teacher attendance history, delete
+router.get('/teacher/:teacherId/history', protect, getTeacherAttendanceHistory);
+router.delete('/teacher/:teacherId/date/:date', protect, deleteTeacherPhysicalAttendance);
 
 // Student routes
 router.get('/my-records', protect, getMyAttendanceRecords);

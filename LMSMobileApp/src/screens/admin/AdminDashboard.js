@@ -47,6 +47,7 @@ const AdminDashboard = ({ navigation }) => {
             ? [
                 { label: 'Students', icon: 'person', screen: 'StudentsList', color: colors.student, bg: '#eef2ff' },
                 { label: 'Teachers', icon: 'people', screen: 'TeachersList', color: colors.teacher, bg: '#ecfdf5' },
+                { label: 'Teacher Attendance', icon: 'calendar-outline', screen: 'TeacherAttendanceRegister', color: colors.teacher, bg: '#e6f4ea' },
                 { label: 'Editors', icon: 'create-outline', screen: 'EditorsList', color: colors.accent, bg: '#eef2ff' },
                 { label: 'Courses', icon: 'book', screen: 'CoursesList', color: colors.warning, bg: '#fef3c7' },
                 { label: 'Tests', icon: 'document-text', screen: 'TestsList', color: colors.admin, bg: '#fef2f2' },
@@ -54,6 +55,7 @@ const AdminDashboard = ({ navigation }) => {
             : [
                 { label: 'Students', icon: 'person', screen: 'StudentsList', color: colors.student, bg: '#eef2ff' },
                 { label: 'Teachers', icon: 'people', screen: 'TeachersList', color: colors.teacher, bg: '#ecfdf5' },
+                { label: 'Teacher Attendance', icon: 'calendar-outline', screen: 'TeacherAttendanceRegister', color: colors.teacher, bg: '#e6f4ea' },
                 { label: 'Editors', icon: 'create-outline', screen: 'EditorsList', color: colors.accent, bg: '#eef2ff' },
                 { label: 'Courses', icon: 'book', screen: 'CoursesList', color: colors.warning, bg: '#fef3c7' },
                 { label: 'Tests', icon: 'document-text', screen: 'TestsList', color: colors.admin, bg: '#fef2f2' },

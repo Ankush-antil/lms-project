@@ -209,6 +209,16 @@ const TeacherDashboard = ({ navigation }) => {
                             </View>
                             <Text style={styles.actionLabel}>Attendance</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => navigation.navigate('TeacherSnapshots')}
+                            activeOpacity={0.8}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: '#eef2ff' }]}>
+                                <Ionicons name="clipboard-outline" size={22} color={colors.accent} />
+                            </View>
+                            <Text style={styles.actionLabel}>Snapshots</Text>
+                        </TouchableOpacity>
                     </View>
                 </SectionCard>
 

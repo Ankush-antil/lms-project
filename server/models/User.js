@@ -68,7 +68,10 @@ const userSchema = new mongoose.Schema({
             leaveNote: { type: String, default: '' },     // student ka leave application text
             leaveFile: { type: String, default: '' },     // student ka leave PDF/file URL
             leaveStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' }, // leave approval status
-            source: { type: String, enum: ['manual', 'qr'], default: 'manual' } // kahan se aayi attendance
+            source: { type: String, enum: ['manual', 'qr', 'biometric'], default: 'manual' }, // kahan se aayi attendance
+            checkInTime: { type: String, default: '' },
+            checkOutTime: { type: String, default: '' },
+            markedBy: { type: String, default: '' }
         }],
         controls: {
             myActivity: {
@@ -134,6 +137,15 @@ const userSchema = new mongoose.Schema({
         },
         assignedSections: [{ type: String }],
         assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        physicalAttendance: [{
+            date: { type: String }, // e.g. "2026-06-30"
+            status: { type: String, enum: ['Present', 'Absent', 'Leave', 'Holiday'] },
+            teacherNote: { type: String, default: '' },
+            source: { type: String, enum: ['manual', 'qr', 'biometric'], default: 'manual' },
+            checkInTime: { type: String, default: '' },
+            checkOutTime: { type: String, default: '' },
+            markedBy: { type: String, default: '' }
+        }],
         autoQRConfig: {
             enabled: { type: Boolean, default: false },
             course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },

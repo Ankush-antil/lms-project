@@ -35,6 +35,7 @@ import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherSnapshots from './pages/teacher/TeacherSnapshots';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
+import TeacherAttendanceRegister from './pages/admin/TeacherAttendanceRegister';
 import TeacherDrive from './pages/teacher/TeacherDrive';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/common/ChatPage';

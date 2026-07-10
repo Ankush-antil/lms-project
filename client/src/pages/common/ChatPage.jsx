@@ -48,6 +48,8 @@ const ChatPage = () => {
     const [showCreateResearchContactModal, setShowCreateResearchContactModal] = useState(false);
     const [newResearchContactName, setNewResearchContactName] = useState('');
     const [savingResearchContact, setSavingResearchContact] = useState(false);
+    const [showWriteNoteModal, setShowWriteNoteModal] = useState(false);
+    const [noteModalText, setNoteModalText] = useState('');
     const [researchMessages, setResearchMessages] = useState([]);
     const [loadingResearchMessages, setLoadingResearchMessages] = useState(false);
     const [showRecentDelete, setShowRecentDelete] = useState(false);
@@ -415,6 +417,47 @@ const ChatPage = () => {
             if (currentAttachment && !attachment) {
                 setAttachedFile(currentAttachment);
             }
+        }
+    };
+
+    const handleSendNoteFromModal = async () => {
+        if (!selectedResearchContact) return;
+        if (!noteModalText.trim()) return;
+
+        const msgText = noteModalText.trim();
+        setNoteModalText('');
+        setShowWriteNoteModal(false);
+
+        const payload = {
+            researchContact: selectedResearchContact._id,
+            text: msgText
+        };
+
+        try {
+            const { data } = await axios.post('/api/research/messages', payload);
+            setResearchMessages(prev => [...prev, data]);
+            scrollToBottom();
+
+            // Refresh contact list metadata
+            setResearchContacts(prev => prev.map(c => {
+                if (c._id === selectedResearchContact._id) {
+                    return {
+                        ...c,
+                        lastMessage: {
+                            text: msgText,
+                            sender: user._id,
+                            createdAt: data.createdAt
+                        }
+                    };
+                }
+                return c;
+            }));
+            toast.success("Note saved successfully!");
+        } catch (error) {
+            console.error("Failed to send note from modal:", error);
+            toast.error("Failed to send note");
+            setNoteModalText(msgText);
+            setShowWriteNoteModal(true);
         }
     };
 
@@ -3187,10 +3230,10 @@ const ChatPage = () => {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
+                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words whitespace-pre-wrap">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
 
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
-                                                                <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left">
+                                                                <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left whitespace-pre-wrap">
                                                                     <span className="font-bold block text-[9px] uppercase tracking-wider text-indigo-300 mb-0.5">Original message</span>
                                                                     {renderMessageTextWithLinks(msg.originalText, searchKeyword, isSelf)}
                                                                 </div>
@@ -3343,11 +3386,24 @@ const ChatPage = () => {
                                             onSubmit={handleComposerSubmit}
                                             className="p-4 bg-white border-t border-slate-100 flex gap-2 items-center flex-shrink-0"
                                         >
+                                            {contactType === 'research' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNoteModalText('');
+                                                        setShowWriteNoteModal(true);
+                                                    }}
+                                                    className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 cursor-pointer"
+                                                    title="Write Note"
+                                                >
+                                                    <Plus size={16} />
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => fileInputRef.current?.click()}
                                                 disabled={isUploadingFile}
-                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
+                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50 cursor-pointer"
                                                 title="Attach File"
                                             >
                                                 <Paperclip size={16} />
@@ -3899,6 +3955,58 @@ const ChatPage = () => {
                             >
                                 Cancel
                             </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {/* 7. Write Note Modal (Multiline Text Note) */}
+            {showWriteNoteModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        <button
+                            onClick={() => setShowWriteNoteModal(false)}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
+                        >
+                            ✕
+                        </button>
+                        
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1.5 text-left flex items-center gap-2">
+                            <span>📝</span>
+                            <span>Write Personal Note</span>
+                        </h3>
+                        <p className="text-xs text-slate-400 mb-5 text-left font-semibold">
+                            Compose a detailed note. You can press Enter to add new paragraphs.
+                        </p>
+
+                        <div className="space-y-4">
+                            <textarea
+                                autoFocus
+                                required
+                                placeholder="Type your personal research note, copy-paste long texts, code, or links here..."
+                                value={noteModalText}
+                                onChange={(e) => setNoteModalText(e.target.value)}
+                                className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all resize-none placeholder:text-slate-400 placeholder:font-semibold"
+                            />
+                            
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWriteNoteModal(false)}
+                                    className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-655 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center font-bold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSendNoteFromModal}
+                                    disabled={!noteModalText.trim()}
+                                    className="py-3 px-6 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    <span>Send Note</span>
+                                    <Send size={14} className="fill-current" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,

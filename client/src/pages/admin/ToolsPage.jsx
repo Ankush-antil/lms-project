@@ -56,7 +56,7 @@ const ToolsPage = () => {
 
     const getToolsControls = () => {
         if (!user) return {};
-        if (user.role === 'Admin') {
+        if (user.role === 'Admin' || user.role === 'Institute') {
             return user.institute?.controls?.tools || {};
         }
         const role = user.role;

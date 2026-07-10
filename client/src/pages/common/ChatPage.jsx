@@ -11,7 +11,7 @@ import {
     MoreVertical, User, Circle, ArrowLeft, Pencil,
     Paperclip, File, Download, X, Loader2, Bell,
     PenSquare, UserX, Lock, Trash, Mic, ChevronDown,
-    Info, RefreshCw
+    Info, RefreshCw, Plus
 } from 'lucide-react';
 
 const ChatPage = () => {
@@ -213,6 +213,8 @@ const ChatPage = () => {
 
     // File attachment states & refs
     const [attachedFile, setAttachedFile] = useState(null);
+    const [attachedFileNote, setAttachedFileNote] = useState('');
+    const [showAttachmentNoteInput, setShowAttachmentNoteInput] = useState(false);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState('');
     const fileInputRef = useRef(null);
@@ -367,10 +369,12 @@ const ChatPage = () => {
 
     const handleSendResearchMessage = async (attachment = null) => {
         if (!selectedResearchContact) return;
-        if (!newMessage.trim() && !attachment && !attachedFile) return;
+        if (!newMessage.trim() && !attachment && !attachedFile && !attachedFileNote.trim()) return;
 
-        const msgText = newMessage;
+        const msgText = [newMessage.trim(), attachedFileNote.trim()].filter(Boolean).join('\n');
         setNewMessage('');
+        setAttachedFileNote('');
+        setShowAttachmentNoteInput(false);
 
         const currentAttachment = attachment || attachedFile;
         setAttachedFile(null);
@@ -1330,6 +1334,8 @@ const ChatPage = () => {
         setAttachedFile(null);
         setIsUploadingFile(false);
         setUploadingFileName('');
+        setAttachedFileNote('');
+        setShowAttachmentNoteInput(false);
     };
 
     // Send or edit chat message
@@ -2587,7 +2593,6 @@ const ChatPage = () => {
                                         </button>
                                     )}
 
-
                                     {/* Audio Call Button */}
                                     {contactType !== 'research' && (!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
@@ -3270,25 +3275,61 @@ const ChatPage = () => {
 
                                     {/* Attachment Preview Box */}
                                     {(isUploadingFile || attachedFile) && (
-                                        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 animate-fade-in flex-shrink-0">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                {isUploadingFile ? (
-                                                    <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
-                                                ) : (
-                                                    <File size={16} className="text-indigo-600 flex-shrink-0" />
-                                                )}
-                                                <span className="text-xs font-semibold text-slate-900 truncate text-left">
-                                                    {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
-                                                </span>
+                                        <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex flex-col gap-2.5 animate-fade-in flex-shrink-0">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    {isUploadingFile ? (
+                                                        <Loader2 size={16} className="animate-spin text-indigo-600 flex-shrink-0" />
+                                                    ) : (
+                                                        <File size={16} className="text-indigo-600 flex-shrink-0" />
+                                                    )}
+                                                    <span className="text-xs font-bold text-slate-800 truncate text-left">
+                                                        {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {contactType === 'research' && !isUploadingFile && !showAttachmentNoteInput && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowAttachmentNoteInput(true)}
+                                                            className="flex items-center gap-1 py-1.5 px-3 bg-indigo-55/60 hover:bg-indigo-100 text-indigo-650 rounded-xl text-[10px] font-extrabold transition-all border border-indigo-100 shadow-sm cursor-pointer"
+                                                            title="Add note to this attachment"
+                                                        >
+                                                            <Plus size={12} />
+                                                            <span>Add Note</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={clearAttachment}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-150 transition-colors cursor-pointer"
+                                                        title="Remove attachment"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={clearAttachment}
-                                                className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors"
-                                                title="Remove attachment"
-                                            >
-                                                <X size={14} />
-                                            </button>
+                                            {showAttachmentNoteInput && (
+                                                <div className="flex gap-2 animate-fade-in">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Write notes or description for this attachment..."
+                                                        value={attachedFileNote}
+                                                        onChange={(e) => setAttachedFileNote(e.target.value)}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-xl py-2 px-3.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400 placeholder:font-semibold"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowAttachmentNoteInput(false);
+                                                            setAttachedFileNote('');
+                                                        }}
+                                                        className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-xl text-xs font-black uppercase transition-all cursor-pointer"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

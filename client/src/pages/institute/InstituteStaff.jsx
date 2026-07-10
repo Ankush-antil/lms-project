@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
     Users, Search, UserPlus, X, Eye, EyeOff, Calendar, DollarSign,
-    CheckSquare, Plus, Check, Clock, AlertCircle, Trash2
+    CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Pencil
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -15,6 +16,9 @@ const InstituteStaff = () => {
     const [showPass, setShowPass] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance, salary, task
+    
+    // Form & Edit state
+    const [editingStaff, setEditingStaff] = useState(null); // null = Add, object = Edit
     const [form, setForm] = useState({ name: '', email: '', password: '', designation: '', department: '' });
 
     // Sub-modules state
@@ -52,30 +56,89 @@ const InstituteStaff = () => {
 
     useEffect(() => { fetchStaff(); }, []);
 
-    const handleAdd = async (e) => {
+    // Open Modal for Add
+    const handleOpenAdd = () => {
+        setEditingStaff(null);
+        setForm({ name: '', email: '', password: '', designation: '', department: '' });
+        setShowModal(true);
+    };
+
+    // Open Modal for Edit
+    const handleOpenEdit = (staff) => {
+        setEditingStaff(staff);
+        setForm({
+            name: staff.name || '',
+            email: staff.email || '',
+            password: '', // Keep password blank unless changing
+            designation: staff.staffProfile?.designation || '',
+            department: staff.staffProfile?.department || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.name || !form.email || !form.password) {
-            toast.error('Name, email and password are required');
+        if (!form.name || !form.email) {
+            toast.error('Name and email are required');
             return;
         }
+        if (!editingStaff && !form.password) {
+            toast.error('Password is required to add new staff');
+            return;
+        }
+
         setSubmitting(true);
         try {
             const token = localStorage.getItem('authToken');
-            await axios.post('/api/users', {
-                name: form.name,
-                email: form.email,
-                password: form.password,
-                role: 'Staff',
-                staffProfile: { designation: form.designation, department: form.department }
-            }, { headers: { Authorization: `Bearer ${token}` } });
-            toast.success('Staff member added!');
+            
+            if (editingStaff) {
+                // Update existing staff
+                const updatePayload = {
+                    name: form.name,
+                    email: form.email,
+                    staffProfile: { designation: form.designation, department: form.department }
+                };
+                if (form.password) {
+                    updatePayload.password = form.password;
+                }
+                await axios.put(`/api/users/${editingStaff._id}`, updatePayload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                toast.success('Staff member updated!');
+            } else {
+                // Create new staff
+                await axios.post('/api/users', {
+                    name: form.name,
+                    email: form.email,
+                    password: form.password,
+                    role: 'Staff',
+                    staffProfile: { designation: form.designation, department: form.department }
+                }, { headers: { Authorization: `Bearer ${token}` } });
+                toast.success('Staff member added!');
+            }
+
             setShowModal(false);
             setForm({ name: '', email: '', password: '', designation: '', department: '' });
+            setEditingStaff(null);
             fetchStaff();
         } catch (err) {
-            toast.error(err?.response?.data?.message || 'Failed to add staff');
+            toast.error(err?.response?.data?.message || 'Failed to save staff details');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDeleteStaff = async (staffId) => {
+        if (!window.confirm('Are you sure you want to delete this staff member?')) return;
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.delete(`/api/users/${staffId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success('Staff member deleted successfully!');
+            fetchStaff();
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Failed to delete staff');
         }
     };
 
@@ -129,7 +192,7 @@ const InstituteStaff = () => {
                                     fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', fontFamily: 'inherit'
                                 }} />
                             </div>
-                            <button onClick={() => setShowModal(true)} style={{
+                            <button onClick={handleOpenAdd} style={{
                                 display: 'flex', alignItems: 'center', gap: '7px',
                                 background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff',
                                 border: 'none', borderRadius: '12px', padding: '9px 18px',
@@ -188,14 +251,14 @@ const InstituteStaff = () => {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Status'].map(h => (
+                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {displayList.length === 0 ? (
-                                            <tr><td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                            <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                         ) : displayList.map((s, i) => (
                                             <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
                                                 onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
@@ -216,6 +279,26 @@ const InstituteStaff = () => {
                                                     <span style={{ background: s.isActive !== false ? '#dcfce7' : '#fee2e2', color: s.isActive !== false ? '#16a34a' : '#dc2626', borderRadius: '999px', padding: '3px 10px', fontSize: '0.65rem', fontWeight: 900 }}>
                                                         {s.isActive !== false ? 'Active' : 'Inactive'}
                                                     </span>
+                                                </td>
+                                                <td style={{ padding: '13px 16px' }}>
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <button 
+                                                            onClick={() => handleOpenEdit(s)}
+                                                            title="Edit Details"
+                                                            style={{ padding: '6px', border: 'none', background: '#f1f5f9', borderRadius: '8px', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        >
+                                                            <Pencil size={13} />
+                                                        </button>
+                                                        {s._id && (
+                                                            <button 
+                                                                onClick={() => handleDeleteStaff(s._id)}
+                                                                title="Delete Staff"
+                                                                style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -428,17 +511,19 @@ const InstituteStaff = () => {
                 )}
             </div>
 
-            {/* Add Staff Modal */}
-            {showModal && (
+            {/* Add/Edit Staff Modal (Rendered globally using React Portal) */}
+            {showModal && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '100px 20px 40px', overflowY: 'auto' }}>
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '460px', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', margin: '0 auto', position: 'relative' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>Add Staff Member</h2>
-                            <button onClick={() => setShowModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                                {editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}
+                            </h2>
+                            <button onClick={() => { setShowModal(false); setEditingStaff(null); }} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <X size={16} style={{ color: '#64748b' }} />
                             </button>
                         </div>
-                        <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             {[
                                 { label: 'Full Name *', key: 'name', type: 'text', placeholder: 'e.g. Ravi Kumar' },
                                 { label: 'Email *', key: 'email', type: 'email', placeholder: 'e.g. ravi@institute.com' },
@@ -455,10 +540,12 @@ const InstituteStaff = () => {
                                 </div>
                             ))}
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>Password *</label>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>
+                                    Password {editingStaff ? '(Leave blank to keep current)' : '*'}
+                                </label>
                                 <div style={{ position: 'relative' }}>
                                     <input
-                                        type={showPass ? 'text' : 'password'} placeholder="Min 6 characters" value={form.password}
+                                        type={showPass ? 'text' : 'password'} placeholder={editingStaff ? 'Enter new password if changing' : 'Min 6 characters'} value={form.password}
                                         onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                                         style={{ width: '100%', padding: '10px 40px 10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
                                     />
@@ -472,11 +559,12 @@ const InstituteStaff = () => {
                                 color: '#fff', border: 'none', borderRadius: '14px', fontSize: '0.9rem', fontWeight: 900,
                                 cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'inherit'
                             }}>
-                                {submitting ? 'Adding...' : 'Add Staff Member'}
+                                {submitting ? 'Saving...' : (editingStaff ? 'Update Details' : 'Add Staff Member')}
                             </button>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

@@ -10,7 +10,8 @@ import {
     Search, Send, Phone, Video, MessageSquare,
     MoreVertical, User, Circle, ArrowLeft, Pencil,
     Paperclip, File, Download, X, Loader2, Bell,
-    PenSquare, UserX, Lock
+    PenSquare, UserX, Lock, Trash, Mic, ChevronDown,
+    Info, RefreshCw
 } from 'lucide-react';
 
 const ChatPage = () => {
@@ -38,6 +39,63 @@ const ChatPage = () => {
     const [mobileActiveTab, setMobileActiveTab] = useState('list'); // 'list' | 'chat'
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [showOriginalMap, setShowOriginalMap] = useState({});
+
+    // Research Contact Feature states
+    const [contactType, setContactType] = useState('lms'); // 'lms' | 'research'
+    const [researchContacts, setResearchContacts] = useState([]);
+    const [selectedResearchContact, setSelectedResearchContact] = useState(null);
+    const [loadingResearchContacts, setLoadingResearchContacts] = useState(false);
+    const [showCreateResearchContactModal, setShowCreateResearchContactModal] = useState(false);
+    const [newResearchContactName, setNewResearchContactName] = useState('');
+    const [savingResearchContact, setSavingResearchContact] = useState(false);
+    const [researchMessages, setResearchMessages] = useState([]);
+    const [loadingResearchMessages, setLoadingResearchMessages] = useState(false);
+    const [showRecentDelete, setShowRecentDelete] = useState(false);
+    const [deletedResearchMessages, setDeletedResearchMessages] = useState([]);
+    const [loadingDeletedResearchMessages, setLoadingDeletedResearchMessages] = useState(false);
+
+    // Audio recording state
+    const [isAudioRecording, setIsAudioRecording] = useState(false);
+    const [audioTimer, setAudioTimer] = useState(0);
+    const audioRecorderRef = useRef(null);
+    const audioStreamRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const audioIntervalRef = useRef(null);
+
+    // Video recording state
+    const [showVideoRecordModal, setShowVideoRecordModal] = useState(false);
+    const [isVideoRecording, setIsVideoRecording] = useState(false);
+    const [videoTimer, setVideoTimer] = useState(0);
+    const videoRecorderRef = useRef(null);
+    const videoStreamRef = useRef(null);
+    const videoChunksRef = useRef([]);
+    const videoIntervalRef = useRef(null);
+    const videoPreviewRef = useRef(null);
+
+    const [editingResearchMessageId, setEditingResearchMessageId] = useState(null);
+
+    // Video options modal states & refs
+    const [showVideoOptionsModal, setShowVideoOptionsModal] = useState(false);
+    const videoFileInputRef = useRef(null);
+
+    // Dropdown options state
+    const [activeDropdownMessageId, setActiveDropdownMessageId] = useState(null);
+
+    useEffect(() => {
+        const handleOutsideClick = () => {
+            setActiveDropdownMessageId(null);
+        };
+        window.addEventListener('click', handleOutsideClick);
+        return () => window.removeEventListener('click', handleOutsideClick);
+    }, []);
+
+    const showMessageInfo = (msg) => {
+        const infoText = `Message Info:
+• Sent: ${new Date(msg.createdAt).toLocaleString()}
+• Edited: ${msg.isEdited ? 'Yes (Once)' : 'No'}
+• Type: ${msg.fileUrl ? (msg.fileType || 'File') : 'Text Note'}${msg.fileName ? `\n• Name: ${msg.fileName}` : ''}`;
+        alert(infoText);
+    };
 
     // Chat Request system states
     const [chatRequest, setChatRequest] = useState(null);
@@ -212,6 +270,440 @@ const ChatPage = () => {
             console.error("Error loading chat contacts:", error);
             toast.error("Failed to load contacts");
             setLoadingContacts(false);
+        }
+    };
+
+    const fetchResearchContacts = async () => {
+        try {
+            setLoadingResearchContacts(true);
+            const { data } = await axios.get('/api/research/contacts');
+            setResearchContacts(data);
+            setLoadingResearchContacts(false);
+        } catch (error) {
+            console.error("Error loading research contacts:", error);
+            toast.error("Failed to load research contacts");
+            setLoadingResearchContacts(false);
+        }
+    };
+
+    const fetchResearchMessages = async () => {
+        if (!selectedResearchContact) return;
+        try {
+            setLoadingResearchMessages(true);
+            const { data } = await axios.get(`/api/research/messages/${selectedResearchContact._id}`);
+            setResearchMessages(data);
+        } catch (error) {
+            console.error("Error fetching research messages:", error);
+            toast.error("Failed to load messages");
+        } finally {
+            setLoadingResearchMessages(false);
+        }
+    };
+
+    const fetchDeletedResearchMessages = async () => {
+        if (!selectedResearchContact) return;
+        try {
+            setLoadingDeletedResearchMessages(true);
+            const { data } = await axios.get(`/api/research/messages/${selectedResearchContact._id}/deleted`);
+            setDeletedResearchMessages(data);
+        } catch (error) {
+            console.error("Error fetching deleted research messages:", error);
+            toast.error("Failed to load deleted messages");
+        } finally {
+            setLoadingDeletedResearchMessages(false);
+        }
+    };
+
+    // Fetch research contacts when contactType is toggled to research
+    useEffect(() => {
+        if (contactType === 'research') {
+            fetchResearchContacts();
+            setSelectedContact(null);
+            setSelectedResearchContact(null);
+            setShowRecentDelete(false);
+        } else {
+            fetchContacts();
+            setSelectedContact(null);
+            setSelectedResearchContact(null);
+        }
+    }, [contactType]);
+
+    // Fetch messages when a research contact or showRecentDelete changes
+    useEffect(() => {
+        if (selectedResearchContact) {
+            if (showRecentDelete) {
+                fetchDeletedResearchMessages();
+            } else {
+                fetchResearchMessages();
+            }
+            setSearchKeyword('');
+            setSearchDate('');
+            setShowSearch(false);
+            setAttachedFile(null);
+            setIsUploadingFile(false);
+            setNewMessage('');
+            setTimeout(scrollToBottom, 100);
+        }
+    }, [selectedResearchContact, showRecentDelete]);
+
+    const handleCreateResearchContact = async (e) => {
+        e.preventDefault();
+        if (!newResearchContactName.trim()) return;
+        try {
+            setSavingResearchContact(true);
+            const { data } = await axios.post('/api/research/contacts', { name: newResearchContactName.trim() });
+            toast.success("Research contact created!");
+            setNewResearchContactName('');
+            setShowCreateResearchContactModal(false);
+            fetchResearchContacts();
+            setSelectedResearchContact(data);
+        } catch (error) {
+            console.error("Failed to create contact:", error);
+            toast.error(error.response?.data?.message || "Failed to create contact");
+        } finally {
+            setSavingResearchContact(false);
+        }
+    };
+
+    const handleSendResearchMessage = async (attachment = null) => {
+        if (!selectedResearchContact) return;
+        if (!newMessage.trim() && !attachment && !attachedFile) return;
+
+        const msgText = newMessage;
+        setNewMessage('');
+
+        const currentAttachment = attachment || attachedFile;
+        setAttachedFile(null);
+
+        const payload = {
+            researchContact: selectedResearchContact._id,
+            text: msgText
+        };
+
+        if (currentAttachment) {
+            payload.fileUrl = currentAttachment.fileUrl;
+            payload.fileName = currentAttachment.fileName;
+            payload.fileType = currentAttachment.fileType;
+        }
+
+        try {
+            const { data } = await axios.post('/api/research/messages', payload);
+            setResearchMessages(prev => [...prev, data]);
+            scrollToBottom();
+
+            // Refresh contact list metadata
+            setResearchContacts(prev => prev.map(c => {
+                if (c._id === selectedResearchContact._id) {
+                    return {
+                        ...c,
+                        lastMessage: {
+                            text: msgText || (data.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document'),
+                            sender: user._id,
+                            createdAt: data.createdAt
+                        }
+                    };
+                }
+                return c;
+            }));
+        } catch (error) {
+            console.error("Failed to send research message:", error);
+            toast.error("Failed to send message");
+            if (currentAttachment && !attachment) {
+                setAttachedFile(currentAttachment);
+            }
+        }
+    };
+
+    const handleEditResearchMessage = async (e) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !editingResearchMessageId) return;
+
+        const messageText = newMessage;
+        setNewMessage('');
+
+        try {
+            const { data } = await axios.put(`/api/research/messages/${editingResearchMessageId}`, {
+                text: messageText
+            });
+
+            setResearchMessages(prev => prev.map(m => m._id === editingResearchMessageId ? data : m));
+            setEditingResearchMessageId(null);
+            toast.success("Message edited successfully");
+
+            setResearchContacts(prev => prev.map(c => {
+                if (c._id === selectedResearchContact._id && c.lastMessage) {
+                    return {
+                        ...c,
+                        lastMessage: {
+                            ...c.lastMessage,
+                            text: messageText
+                        }
+                    };
+                }
+                return c;
+            }));
+        } catch (error) {
+            console.error("Failed to edit research message:", error);
+            toast.error(error.response?.data?.message || "Failed to edit message");
+        }
+    };
+
+    const handleDeleteResearchMessage = async (messageId) => {
+        try {
+            await axios.delete(`/api/research/messages/${messageId}`);
+            setResearchMessages(prev => prev.filter(m => m._id !== messageId));
+            toast.success("Message moved to Recent Deletes");
+            fetchResearchContacts(); // refresh metadata for lastMessage
+        } catch (error) {
+            console.error("Failed to delete research message:", error);
+            toast.error("Failed to delete message");
+        }
+    };
+
+    const handleRestoreResearchMessage = async (messageId) => {
+        try {
+            await axios.post(`/api/research/messages/${messageId}/restore`);
+            setDeletedResearchMessages(prev => prev.filter(m => m._id !== messageId));
+            toast.success("Message restored!");
+            fetchResearchContacts(); // refresh metadata
+        } catch (error) {
+            console.error("Failed to restore message:", error);
+            toast.error("Failed to restore message");
+        }
+    };
+
+    const handlePermanentDeleteResearchMessage = async (messageId) => {
+        const confirmDelete = window.confirm("Are you sure you want to permanently delete this message? This cannot be undone.");
+        if (!confirmDelete) return;
+
+        try {
+            await axios.delete(`/api/research/messages/${messageId}/permanent`);
+            setDeletedResearchMessages(prev => prev.filter(m => m._id !== messageId));
+            toast.success("Message permanently deleted!");
+            fetchResearchContacts(); // refresh metadata
+        } catch (error) {
+            console.error("Failed to permanently delete message:", error);
+            toast.error("Failed to delete message permanently");
+        }
+    };
+
+    // Voice recording helpers
+    const startAudioRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioStreamRef.current = stream;
+            const mediaRecorder = new MediaRecorder(stream);
+            audioRecorderRef.current = mediaRecorder;
+
+            audioChunksRef.current = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('file', blob, 'voice-recording.webm');
+
+                try {
+                    setIsUploadingFile(true);
+                    setUploadingFileName('voice-recording.webm');
+                    const { data } = await axios.post('/api/chat/upload', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+
+                    setAttachedFile({
+                        fileUrl: data.fileUrl,
+                        fileName: data.fileName,
+                        fileType: data.fileType
+                    });
+                    toast.success("Voice recording completed! Click Send to submit.");
+                } catch (err) {
+                    console.error("Audio upload error:", err);
+                    toast.error("Failed to upload audio recording");
+                } finally {
+                    setIsUploadingFile(false);
+                }
+            };
+
+            mediaRecorder.start();
+            setIsAudioRecording(true);
+            setAudioTimer(0);
+            audioIntervalRef.current = setInterval(() => {
+                setAudioTimer(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Failed to start audio recording:", err);
+            toast.error("Could not access microphone");
+        }
+    };
+
+    const stopAudioRecording = () => {
+        if (audioRecorderRef.current && audioRecorderRef.current.state === 'recording') {
+            audioRecorderRef.current.stop();
+        }
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+        clearInterval(audioIntervalRef.current);
+        setIsAudioRecording(false);
+    };
+
+    const cancelAudioRecording = () => {
+        if (audioRecorderRef.current && audioRecorderRef.current.state === 'recording') {
+            audioRecorderRef.current.onstop = null; // discard recording
+            audioRecorderRef.current.stop();
+        }
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+        clearInterval(audioIntervalRef.current);
+        setIsAudioRecording(false);
+    };
+
+    // Video Recording helpers
+    const startCameraPreview = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            videoStreamRef.current = stream;
+            if (videoPreviewRef.current) {
+                videoPreviewRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Camera access error:", err);
+            toast.error("Could not access camera/microphone");
+            setShowVideoRecordModal(false);
+        }
+    };
+
+    const stopCameraPreview = () => {
+        if (videoStreamRef.current) {
+            videoStreamRef.current.getTracks().forEach(track => track.stop());
+            videoStreamRef.current = null;
+        }
+        if (videoPreviewRef.current) {
+            videoPreviewRef.current.srcObject = null;
+        }
+    };
+
+    useEffect(() => {
+        if (showVideoRecordModal) {
+            startCameraPreview();
+        } else {
+            stopCameraPreview();
+        }
+        return () => stopCameraPreview();
+    }, [showVideoRecordModal]);
+
+    const startVideoRecording = () => {
+        if (!videoStreamRef.current) return;
+        const mediaRecorder = new MediaRecorder(videoStreamRef.current);
+        videoRecorderRef.current = mediaRecorder;
+        videoChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                videoChunksRef.current.push(e.data);
+            }
+        };
+
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
+            const formData = new FormData();
+            formData.append('file', blob, 'video-recording.webm');
+
+            try {
+                setIsUploadingFile(true);
+                setUploadingFileName('video-recording.webm');
+                const { data } = await axios.post('/api/chat/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                setAttachedFile({
+                    fileUrl: data.fileUrl,
+                    fileName: data.fileName,
+                    fileType: data.fileType
+                });
+                toast.success("Video recording completed! Click Send to submit.");
+                setShowVideoRecordModal(false);
+            } catch (err) {
+                console.error("Video upload error:", err);
+                toast.error("Failed to upload video recording");
+            } finally {
+                setIsUploadingFile(false);
+            }
+        };
+
+        mediaRecorder.start();
+        setIsVideoRecording(true);
+        setVideoTimer(0);
+        videoIntervalRef.current = setInterval(() => {
+            setVideoTimer(prev => prev + 1);
+        }, 1000);
+    };
+
+    const stopVideoRecording = () => {
+        if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
+            videoRecorderRef.current.stop();
+        }
+        stopCameraPreview();
+        clearInterval(videoIntervalRef.current);
+        setIsVideoRecording(false);
+    };
+
+    const closeVideoRecording = () => {
+        if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
+            videoRecorderRef.current.onstop = null; // discard
+            videoRecorderRef.current.stop();
+        }
+        stopCameraPreview();
+        clearInterval(videoIntervalRef.current);
+        setIsVideoRecording(false);
+        setShowVideoRecordModal(false);
+    };
+
+    // Helper to render URL text with links
+    const renderMessageTextWithLinks = (text, keyword, isSelf) => {
+        if (!text) return null;
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const parts = text.split(urlRegex);
+        return parts.map((part, index) => {
+            if (part.match(urlRegex)) {
+                return (
+                    <a
+                        key={index}
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`underline font-bold break-all ${isSelf ? 'text-cyan-200 hover:text-cyan-100' : 'text-indigo-650 hover:text-indigo-800'}`}
+                    >
+                        {part}
+                    </a>
+                );
+            }
+            return renderHighlightedText(part, keyword);
+        });
+    };
+
+    // Filter research contacts based on search keyword
+    const filteredResearchContacts = useMemo(() => {
+        return researchContacts.filter(contact =>
+            contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [researchContacts, searchTerm]);
+
+    const handleComposerSubmit = (e) => {
+        e.preventDefault();
+        if (contactType === 'research') {
+            if (editingResearchMessageId) {
+                handleEditResearchMessage(e);
+            } else {
+                handleSendResearchMessage();
+            }
+        } else {
+            handleSendMessage(e);
         }
     };
 
@@ -1273,7 +1765,7 @@ const ChatPage = () => {
 
     const isContactAllowed = (contact) => {
         if (!user) return true;
-        
+
         // Student controls
         if (user.role === 'Student') {
             const chatCtrl = user.studentProfile?.controls?.chat;
@@ -1440,6 +1932,15 @@ const ChatPage = () => {
 
     // Filter messages for General vs Test
     const generalMessages = messages.filter(m => !m.test);
+
+    const activeDisplayMessages = contactType === 'research'
+        ? (showRecentDelete ? deletedResearchMessages : researchMessages)
+        : generalMessages;
+
+    const messagesLoading = contactType === 'research'
+        ? (showRecentDelete ? loadingDeletedResearchMessages : loadingResearchMessages)
+        : loadingMessages;
+
     const testMessages = messages.filter(m => m.test);
 
     // Group test messages by test and question index
@@ -1475,12 +1976,12 @@ const ChatPage = () => {
     // So we ALSO need to check per-test via the new endpoint in the grid view
     // We use a helper that fetches doubt counts per test lazily (done inside the grid render)
 
-    const chatCtrl = user?.role === 'Student' 
-        ? user?.studentProfile?.controls?.chat 
-        : (user?.role === 'Teacher' 
-            ? user?.teacherProfile?.controls?.chat 
-            : (user?.role === 'Editor' 
-                ? user?.editorProfile?.controls?.chat 
+    const chatCtrl = user?.role === 'Student'
+        ? user?.studentProfile?.controls?.chat
+        : (user?.role === 'Teacher'
+            ? user?.teacherProfile?.controls?.chat
+            : (user?.role === 'Editor'
+                ? user?.editorProfile?.controls?.chat
                 : null));
     const isChatDisabled = (user?.role === 'Student' || user?.role === 'Teacher' || user?.role === 'Editor') && chatCtrl?.enabled === false;
     const chatMode = chatCtrl?.mode || 'hide';
@@ -1510,7 +2011,7 @@ const ChatPage = () => {
         <DashboardLayout role={user?.role} fullWidth={true}>
             <div className={`relative flex bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-140px)] min-h-[500px] ${isChatDisabled ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                 {isChatDisabled && (
-                    <div 
+                    <div
                         title={chatCtrl?.note || 'Chat features are Disabled'}
                         className="absolute inset-0 bg-slate-50/10 backdrop-blur-[0.5px] z-50 flex items-center justify-center pointer-events-auto cursor-not-allowed"
                     >
@@ -1560,7 +2061,7 @@ const ChatPage = () => {
                                         >
                                             <ArrowLeft size={16} />
                                         </button>
-                                        <span className="text-sm font-black text-slate-800 flex-1">New Conversation</span>
+                                        <span className="text-sm font-black text-slate-800 flex-1">Send Chat Request</span>
                                     </div>
                                     <div className="relative">
                                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
@@ -1586,19 +2087,30 @@ const ChatPage = () => {
                                 /* ── Normal Mode: conversations list ── */
                                 <>
                                     <div className="flex items-center gap-2 mb-3">
-                                        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2 flex-1">
+                                        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2 pr-2">
                                             <MessageSquare className="text-indigo-600" size={22} />
-                                            <span>Messages</span>
+                                            <span className="hidden sm:inline">Messages</span>
                                         </h1>
+
+                                        {/* Contact Type Dropdown */}
+                                        <div className="flex-1 min-w-[110px]">
+                                            <select
+                                                value={contactType}
+                                                onChange={(e) => setContactType(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 cursor-pointer hover:bg-slate-100 transition-all"
+                                            >
+                                                <option value="lms">LMS Contact</option>
+                                                <option value="research">Personal Contact</option>
+                                            </select>
+                                        </div>
                                         {/* Pending Requests Bell */}
                                         <div className="relative">
                                             <button
                                                 onClick={() => setShowRequestsDropdown(p => !p)}
-                                                className={`relative p-2 rounded-xl transition-all cursor-pointer ${
-                                                    pendingRequests.length > 0
-                                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-600'
-                                                        : 'hover:bg-slate-100 text-slate-500'
-                                                }`}
+                                                className={`relative p-2 rounded-xl transition-all cursor-pointer ${pendingRequests.length > 0
+                                                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-600'
+                                                    : 'hover:bg-slate-100 text-slate-500'
+                                                    }`}
                                                 title="Chat Requests"
                                             >
                                                 <Bell size={18} />
@@ -1613,7 +2125,7 @@ const ChatPage = () => {
                                                 <div className="absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
                                                     <div className="p-3 border-b border-slate-100 flex items-center justify-between">
                                                         <span className="text-xs font-black text-slate-700">Incoming Requests</span>
-                                                        <button onClick={() => setShowRequestsDropdown(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"><X size={14}/></button>
+                                                        <button onClick={() => setShowRequestsDropdown(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"><X size={14} /></button>
                                                     </div>
                                                     {loadingPendingRequests ? (
                                                         <div className="p-4 text-center text-xs text-slate-400">
@@ -1650,7 +2162,7 @@ const ChatPage = () => {
                                                                                         fetchPendingRequests();
                                                                                         fetchContacts();
                                                                                         setShowRequestsDropdown(false);
-                                                                                    } catch(e) { toast.error('Failed to accept'); }
+                                                                                    } catch (e) { toast.error('Failed to accept'); }
                                                                                 }}
                                                                                 className="flex-1 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all cursor-pointer"
                                                                             >Accept</button>
@@ -1660,7 +2172,7 @@ const ChatPage = () => {
                                                                                         await axios.put(`/api/chat/request/${req._id}/reject`);
                                                                                         toast(`Rejected ${req.sender?.name}'s request`);
                                                                                         fetchPendingRequests();
-                                                                                    } catch(e) { toast.error('Failed to reject'); }
+                                                                                    } catch (e) { toast.error('Failed to reject'); }
                                                                                 }}
                                                                                 className="flex-1 py-1 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 text-[10px] font-black rounded-xl border border-slate-200 transition-all cursor-pointer"
                                                                             >Reject</button>
@@ -1695,38 +2207,50 @@ const ChatPage = () => {
                                         />
                                     </div>
 
-                                    {/* Contact Filter Tabs & Custom Lists & Create Button */}
-                                    <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
-                                        {filterTabs.map((tab) => {
-                                            const tabId = typeof tab === 'object' ? tab.id : tab;
-                                            const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
-                                            const isActive = activeFilterTab === tabId;
-                                            return (
-                                                <button
-                                                    key={tabId}
-                                                    type="button"
-                                                    onClick={() => setActiveFilterTab(tabId)}
-                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
-                                                        ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
-                                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                                        }`}
-                                                >
-                                                    {tabLabel}
-                                                </button>
-                                            );
-                                        })}
+                                    {contactType === 'research' && (
                                         <button
-                                            onClick={() => {
-                                                setDraftListName('');
-                                                setDraftSelectedUsers([]);
-                                                setShowListsIntro(true);
-                                            }}
-                                            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
-                                            title="Create Chat List"
+                                            type="button"
+                                            onClick={() => setShowCreateResearchContactModal(true)}
+                                            className="w-full mt-3 py-2 px-4 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
                                         >
-                                            +
+                                            + Create Contact
                                         </button>
-                                    </div>
+                                    )}
+
+                                    {/* Contact Filter Tabs & Custom Lists & Create Button */}
+                                    {contactType === 'lms' && (
+                                        <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
+                                            {filterTabs.map((tab) => {
+                                                const tabId = typeof tab === 'object' ? tab.id : tab;
+                                                const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                                const isActive = activeFilterTab === tabId;
+                                                return (
+                                                    <button
+                                                        key={tabId}
+                                                        type="button"
+                                                        onClick={() => setActiveFilterTab(tabId)}
+                                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${isActive
+                                                            ? 'bg-indigo-600 border-indigo-650 text-white shadow-md shadow-indigo-150/30'
+                                                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                            }`}
+                                                    >
+                                                        {tabLabel}
+                                                    </button>
+                                                );
+                                            })}
+                                            <button
+                                                onClick={() => {
+                                                    setDraftListName('');
+                                                    setDraftSelectedUsers([]);
+                                                    setShowListsIntro(true);
+                                                }}
+                                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer font-black text-sm shrink-0 ml-auto"
+                                                title="Create Chat List"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -1817,6 +2341,59 @@ const ChatPage = () => {
                                     ))}
                                 </div>
                             )
+                        ) : contactType === 'research' ? (
+                            loadingResearchContacts ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                                    Loading personal contacts...
+                                </div>
+                            ) : filteredResearchContacts.length > 0 ? (
+                                filteredResearchContacts.map((c) => {
+                                    const isSelected = selectedResearchContact?._id === c._id;
+                                    return (
+                                        <div
+                                            key={c._id}
+                                            className={`flex flex-col transition-colors border-b border-slate-100/50 relative ${isSelected ? 'bg-indigo-50/20' : 'hover:bg-slate-50/30'}`}
+                                        >
+                                            <div
+                                                onClick={() => {
+                                                    setSelectedResearchContact(c);
+                                                    setMobileActiveTab('chat');
+                                                    setShowRecentDelete(false);
+                                                }}
+                                                className="p-4 flex items-center gap-3 cursor-pointer"
+                                            >
+                                                <div className="relative flex-shrink-0">
+                                                    <div className="w-11 h-11 rounded-full bg-indigo-150 text-indigo-700 flex items-center justify-center font-black overflow-hidden shadow-sm">
+                                                        {c.name[0]?.toUpperCase()}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-0.5">
+                                                        <h3 className="font-semibold text-slate-800 text-sm truncate pr-2">{c.name}</h3>
+                                                        <span className="text-[10px] font-bold text-slate-400">
+                                                            {c.lastMessage ? formatContactDate(c.lastMessage.createdAt) : ''}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 truncate pr-6">
+                                                        {c.lastMessage ? (
+                                                            c.lastMessage.text || (c.lastMessage.fileType?.startsWith('audio/') ? '🎙 Voice message' : c.lastMessage.fileType?.startsWith('video/') ? '📹 Video message' : c.lastMessage.fileType?.startsWith('image/') ? '📷 Photo' : '📁 Document')
+                                                        ) : (
+                                                            <span className="italic opacity-60">No messages yet</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="p-8 text-center text-slate-400 text-xs select-none">
+                                    <MessageSquare size={36} className="mx-auto opacity-20 mb-2" />
+                                    No research contacts found. Create one above to start.
+                                </div>
+                            )
                         ) : loadingContacts ? (
                             <div className="p-8 text-center text-slate-400 text-xs">
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -1901,7 +2478,7 @@ const ChatPage = () => {
                 {/* Right Side Pane: Conversation Window */}
                 <div className={`flex-1 flex flex-col bg-slate-50/50 ${mobileActiveTab === 'list' ? 'hidden md:flex' : 'flex'
                     }`}>
-                    {selectedContact ? (
+                    {(contactType === 'research' ? selectedResearchContact : selectedContact) ? (
                         <>
                             {/* Active Chat Header */}
                             <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0">
@@ -1914,32 +2491,57 @@ const ChatPage = () => {
                                     </button>
                                     <div className="relative flex-shrink-0">
                                         <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 flex items-center justify-center font-black overflow-hidden shadow-sm">
-                                            {selectedContact.avatar ? (
+                                            {contactType === 'research' ? (
+                                                selectedResearchContact.name[0]?.toUpperCase()
+                                            ) : selectedContact.avatar ? (
                                                 <img src={selectedContact.avatar} alt={selectedContact.name} className="w-full h-full object-cover" />
                                             ) : (
                                                 selectedContact.name[0]?.toUpperCase()
                                             )}
                                         </div>
-                                        {isContactOnline(selectedContact._id) ? (
-                                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
-                                        ) : (
-                                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-350 rounded-full border-2 border-white"></span>
+                                        {contactType !== 'research' && (
+                                            isContactOnline(selectedContact._id) ? (
+                                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
+                                            ) : (
+                                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-350 rounded-full border-2 border-white"></span>
+                                            )
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <h2 className="font-bold text-slate-800 text-sm truncate">{selectedContact.name}</h2>
+                                        <h2 className="font-bold text-slate-800 text-sm truncate">
+                                            {contactType === 'research' ? selectedResearchContact.name : selectedContact.name}
+                                        </h2>
                                         <p className="text-[10px] text-slate-400 font-semibold truncate flex items-center gap-1">
-                                            <span className="uppercase">{selectedContact.role}</span>
-                                            <Circle size={4} className="fill-slate-400 text-slate-400" />
-                                            <span>{isContactOnline(selectedContact._id) ? 'Online Now' : 'Offline'}</span>
+                                            {contactType === 'research' ? (
+                                                <span>Personal Research Space {showRecentDelete && '• Trash'}</span>
+                                            ) : (
+                                                <>
+                                                    <span className="uppercase">{selectedContact.role}</span>
+                                                    <Circle size={4} className="fill-slate-400 text-slate-400" />
+                                                    <span>{isContactOnline(selectedContact._id) ? 'Online Now' : 'Offline'}</span>
+                                                </>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
 
                                 {/* Call Quick Action System */}
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    {((user.role === 'Teacher' && selectedContact.role === 'Student') ||
-                                        (user.role === 'Student' && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin'))) && (
+                                    {contactType === 'research' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRecentDelete(p => !p)}
+                                            className={`p-2.5 rounded-xl transition-all active:scale-95 shadow-sm border ${showRecentDelete
+                                                ? 'bg-rose-50 border-rose-200 text-rose-600'
+                                                : 'bg-white border-slate-100 text-slate-550 hover:bg-slate-50'
+                                                }`}
+                                            title={showRecentDelete ? "Back to Chat" : "Recent Deletes / Trash"}
+                                        >
+                                            {showRecentDelete ? <X size={16} /> : <Trash size={16} />}
+                                        </button>
+                                    ) : (
+                                        ((user.role === 'Teacher' && selectedContact.role === 'Student') ||
+                                            (user.role === 'Student' && (selectedContact.role === 'Teacher' || selectedContact.role === 'Admin'))) && (
                                             <button
                                                 onClick={() => {
                                                     if (selectedTestId !== null || selectedInboxId !== null) {
@@ -1961,7 +2563,8 @@ const ChatPage = () => {
                                                     )
                                                 }
                                             </button>
-                                        )}
+                                        )
+                                    )}
                                     <button
                                         onClick={() => setShowSearch(prev => !prev)}
                                         className={`p-2.5 rounded-xl transition-all active:scale-95 shadow-sm border ${showSearch
@@ -1973,11 +2576,11 @@ const ChatPage = () => {
                                         <Search size={16} />
                                     </button>
 
-                                    {chatRequest?.status === 'accepted' && chatRequest?.sender === String(user?._id) && (
+                                    {chatRequest?.status === 'accepted' && chatRequest?.request?.sender === String(user?._id) && (
                                         <button
                                             type="button"
                                             onClick={() => setShowPermissionsModal(true)}
-                                            className="p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm text-slate-550 flex items-center justify-center"
+                                            className="p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm text-slate-555 flex items-center justify-center"
                                             title="Update Chat Permissions"
                                         >
                                             <Pencil size={16} />
@@ -1986,7 +2589,7 @@ const ChatPage = () => {
 
 
                                     {/* Audio Call Button */}
-                                    {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
+                                    {contactType !== 'research' && (!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.audioCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
                                             onClick={() => {
                                                 if (chatCtrl && chatCtrl.audioCall === false) {
@@ -2002,7 +2605,7 @@ const ChatPage = () => {
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
                                                 ${(chatCtrl && chatCtrl.audioCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.audioCall)
-                                                    ? 'opacity-40 cursor-not-allowed text-slate-300' 
+                                                    ? 'opacity-40 cursor-not-allowed text-slate-300'
                                                     : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.audioCall === false
                                                 ? (chatCtrl.subNotes?.audioCall || chatCtrl.note || "Voice call is disabled")
@@ -2016,7 +2619,7 @@ const ChatPage = () => {
                                     )}
 
                                     {/* Video Call Button */}
-                                    {(!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.videoCall !== false || chatCtrl?.mode === 'disable') && (
+                                    {contactType !== 'research' && (!user || (user.role !== 'Student' && user.role !== 'Teacher') || chatCtrl?.videoCall !== false || chatCtrl?.mode === 'disable') && (
                                         <button
                                             onClick={() => {
                                                 if (chatCtrl && chatCtrl.videoCall === false) {
@@ -2032,7 +2635,7 @@ const ChatPage = () => {
                                             }}
                                             className={`p-2.5 border border-slate-100 rounded-xl transition-all active:scale-95 shadow-sm bg-white 
                                                 ${(chatCtrl && chatCtrl.videoCall === false) || !(chatRequest?.isBypassed || chatRequest?.request?.permissions?.videoCall)
-                                                    ? 'opacity-40 cursor-not-allowed text-slate-300' 
+                                                    ? 'opacity-40 cursor-not-allowed text-slate-300'
                                                     : 'text-slate-555 hover:bg-slate-50'}`}
                                             title={chatCtrl && chatCtrl.videoCall === false
                                                 ? (chatCtrl.subNotes?.videoCall || chatCtrl.note || "Video call is disabled")
@@ -2091,7 +2694,7 @@ const ChatPage = () => {
                                     <Loader2 size={36} className="animate-spin text-indigo-650 mb-3" />
                                     <p className="text-xs font-bold text-slate-500">Checking chat permissions...</p>
                                 </div>
-                            ) : (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) ? (
+                            ) : (contactType !== 'research' && chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) ? (
                                 renderChatRequestPanel()
                             ) : (selectedTestId !== null && selectedQuestionIndex !== null ? (
                                 <>
@@ -2138,13 +2741,20 @@ const ChatPage = () => {
                                                 const isSelf = msg.sender === user._id;
                                                 return (
                                                     <div key={msg._id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${isSelf
-                                                            ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
+                                                        <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 shadow-sm ${msg.fileUrl && (msg.fileType?.startsWith('audio/') || msg.fileType?.startsWith('video/') || /\.(webm|mp3|wav|ogg|m4a|mp4|mov|avi)$/i.test(msg.fileName))
+                                                            ? 'min-w-[280px]'
+                                                            : ''
+                                                            } ${isSelf
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                                : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
                                                             }`}>
                                                             {msg.fileUrl && (
                                                                 <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
-                                                                    {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                    {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
+                                                                        <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
+                                                                    ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
+                                                                        <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
+                                                                    ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
                                                                         <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
                                                                             <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
                                                                         </a>
@@ -2201,7 +2811,7 @@ const ChatPage = () => {
                                                 ) : (
                                                     <File size={16} className="text-indigo-600 flex-shrink-0" />
                                                 )}
-                                                <span className="text-xs font-semibold text-slate-600 truncate text-left">
+                                                <span className="text-xs font-semibold text-slate-900 truncate text-left">
                                                     {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
                                                 </span>
                                             </div>
@@ -2340,7 +2950,7 @@ const ChatPage = () => {
                                         if (inboxTests.length === 0) {
                                             return (
                                                 <div className="py-20 text-center text-slate-400 text-xs">
-                                                     No tests with active doubts found in this inbox.
+                                                    No tests with active doubts found in this inbox.
                                                 </div>
                                             );
                                         }
@@ -2411,20 +3021,20 @@ const ChatPage = () => {
                                 <>
                                     {/* Message scrolling panel */}
                                     <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
-                                        {loadingMessages ? (
+                                        {messagesLoading ? (
                                             <div className="py-20 text-center text-slate-450 text-xs">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
                                                 Fetching chat history...
                                             </div>
-                                        ) : generalMessages.length > 0 ? (
-                                            generalMessages.map((msg) => {
-                                                const isSelf = msg.sender === user._id;
+                                        ) : activeDisplayMessages.length > 0 ? (
+                                            activeDisplayMessages.map((msg) => {
+                                                const isSelf = msg.sender === user._id || msg.owner === user._id;
                                                 return (
                                                     <div
                                                         key={msg._id}
                                                         className={`flex items-end gap-2 group ${isSelf ? 'justify-end' : 'justify-start'}`}
                                                     >
-                                                        {isSelf && (
+                                                        {isSelf && contactType !== 'research' && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => startEditing(msg)}
@@ -2434,19 +3044,126 @@ const ChatPage = () => {
                                                                 <Pencil size={14} />
                                                             </button>
                                                         )}
-                                                        <div className={`max-w-[70%] rounded-3xl px-4 py-2.5 shadow-sm ${isSelf
-                                                            ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
+                                                        <div className={`max-w-[70%] rounded-3xl ${contactType === 'research' ? 'pl-4 pr-8' : 'px-4'} py-2.5 shadow-sm relative group/bubble ${msg.fileUrl && (msg.fileType?.startsWith('audio/') || msg.fileType?.startsWith('video/') || /\.(webm|mp3|wav|ogg|m4a|mp4|mov|avi)$/i.test(msg.fileName))
+                                                            ? 'min-w-[280px]'
+                                                            : ''
+                                                            } ${isSelf
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                                                : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'
                                                             }`}>
+                                                            {contactType === 'research' && (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveDropdownMessageId(prev => prev === msg._id ? null : msg._id);
+                                                                        }}
+                                                                        className={`absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover/bubble:opacity-100 transition-opacity z-10 cursor-pointer border-none bg-transparent ${isSelf ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-105'
+                                                                            }`}
+                                                                        title="Message Options"
+                                                                    >
+                                                                        <ChevronDown size={14} />
+                                                                    </button>
+
+                                                                    {activeDropdownMessageId === msg._id && (
+                                                                        <div
+                                                                            className="absolute top-8 right-2.5 w-36 bg-white border border-slate-150 rounded-2xl shadow-xl py-1.5 z-[999] animate-fade-in text-slate-700 text-left font-bold"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            {!showRecentDelete ? (
+                                                                                <>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            showMessageInfo(msg);
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <Info size={12} className="text-slate-400" />
+                                                                                        Message Info
+                                                                                    </button>
+                                                                                    {(!msg.isEdited || msg.editCount < 1) && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                setActiveDropdownMessageId(null);
+                                                                                                setEditingResearchMessageId(msg._id);
+                                                                                                setNewMessage(msg.text);
+                                                                                            }}
+                                                                                            className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
+                                                                                        >
+                                                                                            <Pencil size={12} className="text-slate-400" />
+                                                                                            Edit Note
+                                                                                        </button>
+                                                                                    )}
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            handleDeleteResearchMessage(msg._id);
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-rose-50 text-red-650 flex items-center gap-2 cursor-pointer font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <Trash size={12} className="text-red-400" />
+                                                                                        Move to Trash
+                                                                                    </button>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            showMessageInfo(msg);
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-slate-50 flex items-center gap-2 cursor-pointer text-slate-700 font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <Info size={12} className="text-slate-400" />
+                                                                                        Message Info
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            handleRestoreResearchMessage(msg._id);
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-emerald-50 text-emerald-650 flex items-center gap-2 cursor-pointer font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <RefreshCw size={12} className="text-emerald-400" />
+                                                                                        Restore Message
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setActiveDropdownMessageId(null);
+                                                                                            handlePermanentDeleteResearchMessage(msg._id);
+                                                                                        }}
+                                                                                        className="w-full px-3.5 py-2 text-[11px] hover:bg-rose-50 text-red-650 flex items-center gap-2 cursor-pointer font-bold border-none bg-transparent"
+                                                                                    >
+                                                                                        <Trash size={12} className="text-red-400" />
+                                                                                        Delete Forever
+                                                                                    </button>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
                                                             {msg.fileUrl && (
                                                                 <div className="mb-2 max-w-xs overflow-hidden rounded-2xl border border-slate-100/10">
-                                                                    {msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
+                                                                    {msg.fileType?.startsWith('video/') || /\.(mp4|mov|avi)$/i.test(msg.fileName) || (msg.fileName && msg.fileName.includes('video-recording')) ? (
+                                                                        <video controls src={msg.fileUrl} className="w-full max-h-48 rounded-xl bg-black" />
+                                                                    ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
+                                                                        <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
+                                                                    ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
                                                                         <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
                                                                             <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
                                                                         </a>
                                                                     ) : (
                                                                         <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
-                                                                            <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-600'} />
+                                                                            <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
                                                                             <div className="flex-1 min-w-0 text-left">
                                                                                 <p className="text-xs font-bold truncate">{msg.fileName || 'Attachment'}</p>
                                                                                 <span className="text-[10px] opacity-75 uppercase">{msg.fileType ? msg.fileType.split('/')[1] : 'FILE'}</span>
@@ -2456,7 +3173,7 @@ const ChatPage = () => {
                                                                                 download={msg.fileName}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-600'}`}
+                                                                                className={`p-1.5 rounded-xl hover:bg-black/10 transition-colors ${isSelf ? 'text-white' : 'text-slate-650'}`}
                                                                                 title="Download file"
                                                                             >
                                                                                 <Download size={16} />
@@ -2465,12 +3182,12 @@ const ChatPage = () => {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderHighlightedText(msg.text, searchKeyword)}</p>}
+                                                            {msg.text && <p className="text-sm font-medium leading-relaxed break-words">{renderMessageTextWithLinks(msg.text, searchKeyword, isSelf)}</p>}
 
                                                             {isSelf && msg.isEdited && showOriginalMap[msg._id] && (
                                                                 <div className="text-[11px] text-indigo-105 bg-indigo-750/30 border border-indigo-500/10 rounded-2xl p-2 mt-1.5 break-words text-left">
                                                                     <span className="font-bold block text-[9px] uppercase tracking-wider text-indigo-300 mb-0.5">Original message</span>
-                                                                    {renderHighlightedText(msg.originalText, searchKeyword)}
+                                                                    {renderMessageTextWithLinks(msg.originalText, searchKeyword, isSelf)}
                                                                 </div>
                                                             )}
 
@@ -2507,13 +3224,13 @@ const ChatPage = () => {
                                             <div className="text-center py-20 select-none">
                                                 <MessageSquare size={48} className="mx-auto text-slate-200 mb-3" />
                                                 <h4 className="font-bold text-slate-700 text-sm">
-                                                    {(searchKeyword || searchDate) ? "No messages found" : "Start conversation!"}
+                                                    {showRecentDelete ? "Trash is empty" : ((searchKeyword || searchDate) ? "No messages found" : "Start conversation!")}
                                                 </h4>
                                                 <p className="text-slate-400 text-xs mt-1">
-                                                    {(searchKeyword || searchDate)
+                                                    {showRecentDelete ? "Deleted messages will automatically be permanently deleted after 10 days." : ((searchKeyword || searchDate)
                                                         ? "Try clearing your search filters to see all messages."
-                                                        : `Send a message to start conversation with ${selectedContact.name}.`
-                                                    }
+                                                        : `Send a message to start conversation in ${contactType === 'research' ? selectedResearchContact.name : selectedContact.name}.`
+                                                    )}
                                                 </p>
                                             </div>
                                         )}
@@ -2560,7 +3277,7 @@ const ChatPage = () => {
                                                 ) : (
                                                     <File size={16} className="text-indigo-600 flex-shrink-0" />
                                                 )}
-                                                <span className="text-xs font-semibold text-slate-650 truncate text-left">
+                                                <span className="text-xs font-semibold text-slate-900 truncate text-left">
                                                     {isUploadingFile ? `Uploading ${uploadingFileName}...` : attachedFile.fileName}
                                                 </span>
                                             </div>
@@ -2576,34 +3293,79 @@ const ChatPage = () => {
                                     )}
 
                                     {/* Message composer box */}
-                                    <form
-                                        onSubmit={handleSendMessage}
-                                        className="p-4 bg-white border-t border-slate-100 flex gap-3 items-center flex-shrink-0"
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={isUploadingFile}
-                                            className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
-                                            title="Attach File"
+                                    {showRecentDelete ? (
+                                        <div className="p-4 bg-rose-50 border-t border-rose-100 text-center text-xs font-bold text-rose-600 flex-shrink-0">
+                                            ⚠️ You are viewing trash. Please exit trash to send messages.
+                                        </div>
+                                    ) : (
+                                        <form
+                                            onSubmit={handleComposerSubmit}
+                                            className="p-4 bg-white border-t border-slate-100 flex gap-2 items-center flex-shrink-0"
                                         >
-                                            <Paperclip size={16} />
-                                        </button>
-                                        <input
-                                            type="text"
-                                            placeholder="Type message here..."
-                                            value={newMessage}
-                                            onChange={handleInputChange}
-                                            className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={(!newMessage.trim() && !attachedFile) || isUploadingFile}
-                                            className="p-3.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
-                                        >
-                                            <Send size={16} className="fill-current" />
-                                        </button>
-                                    </form>
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploadingFile}
+                                                className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-650 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0 disabled:opacity-50"
+                                                title="Attach File"
+                                            >
+                                                <Paperclip size={16} />
+                                            </button>
+                                            {contactType === 'research' && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={isAudioRecording ? stopAudioRecording : startAudioRecording}
+                                                        className={`p-3 border rounded-2xl transition-all active:scale-95 shadow-sm flex-shrink-0 ${isAudioRecording
+                                                            ? 'border-red-550 text-slate-800 animate-pulse bg-white'
+                                                            : 'text-slate-550 border-slate-100 bg-white hover:bg-slate-50 hover:text-indigo-650'
+                                                            }`}
+                                                        title={isAudioRecording ? "Stop & Send Audio" : "Record Voice Message"}
+                                                    >
+                                                        <Mic size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowVideoOptionsModal(true)}
+                                                        className="p-3 text-slate-550 hover:bg-slate-50 hover:text-indigo-600 border border-slate-100 rounded-2xl transition-all active:scale-95 shadow-sm bg-white flex-shrink-0"
+                                                        title="Record Video Message"
+                                                    >
+                                                        <Video size={16} />
+                                                    </button>
+                                                </>
+                                            )}
+                                            {isAudioRecording ? (
+                                                <div className="flex-1 bg-red-50 border border-red-100 rounded-2xl py-3 px-4 flex items-center justify-between gap-3 text-xs font-bold text-red-600">
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 bg-red-650 rounded-full animate-ping"></span>
+                                                        Recording: {audioTimer}s
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={cancelAudioRecording}
+                                                        className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    placeholder={contactType === 'research' ? "Type note, message or paste link here..." : "Type message here..."}
+                                                    value={newMessage}
+                                                    onChange={handleInputChange}
+                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                />
+                                            )}
+                                            <button
+                                                type="submit"
+                                                disabled={(!newMessage.trim() && !attachedFile) || isUploadingFile || isAudioRecording}
+                                                className="p-3.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
+                                            >
+                                                <Send size={16} className="fill-current" />
+                                            </button>
+                                        </form>
+                                    )}
                                 </>
                             ))}
                         </>
@@ -2624,6 +3386,13 @@ const ChatPage = () => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
+                className="hidden"
+            />
+            <input
+                type="file"
+                ref={videoFileInputRef}
+                onChange={handleFileChange}
+                accept="video/*"
                 className="hidden"
             />
 
@@ -2887,76 +3656,214 @@ const ChatPage = () => {
                 </div>,
                 document.body
             )}
- 
-             {/* 4. Edit Chat Permissions Modal */}
-             {showPermissionsModal && chatRequest?.request && createPortal(
-                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-                     <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
-                         {/* Close button */}
-                         <button
-                             onClick={() => setShowPermissionsModal(false)}
-                             className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
-                         >
-                             ✕
-                         </button>
- 
-                         <h3 className="font-extrabold text-slate-800 text-lg mb-2">Update Chat Permissions</h3>
-                         <p className="text-xs text-slate-400 mb-6">Manage allowed interactions for this conversation.</p>
- 
-                         <div className="space-y-4 mb-6">
-                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-not-allowed opacity-75">
-                                 <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
-                                 <span>Allow Chatting</span>
-                             </label>
-                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
-                                 <input
-                                     type="checkbox"
-                                     checked={chatRequest.request.permissions?.audioCall}
-                                     onChange={e => setChatRequest(prev => ({
-                                         ...prev,
-                                         request: {
-                                             ...prev.request,
-                                             permissions: {
-                                                 ...prev.request.permissions,
-                                                 audioCall: e.target.checked
-                                             }
-                                         }
-                                     }))}
-                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
-                                 />
-                                 <span>Allow Audio Call</span>
-                             </label>
-                             <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
-                                 <input
-                                     type="checkbox"
-                                     checked={chatRequest.request.permissions?.videoCall}
-                                     onChange={e => setChatRequest(prev => ({
-                                         ...prev,
-                                         request: {
-                                             ...prev.request,
-                                             permissions: {
-                                                 ...prev.request.permissions,
-                                                 videoCall: e.target.checked
-                                             }
-                                         }
-                                     }))}
-                                     className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
-                                 />
-                                 <span>Allow Video Call</span>
-                             </label>
-                         </div>
- 
-                         <button
-                             onClick={() => handleUpdatePermissions(chatRequest.request._id, chatRequest.request.permissions)}
-                             className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
-                         >
-                             Save Changes
-                         </button>
-                     </div>
-                 </div>,
-                 document.body
-             )}
-         </DashboardLayout>
+
+            {/* 4. Edit Chat Permissions Modal */}
+            {showPermissionsModal && chatRequest?.request && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowPermissionsModal(false)}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                        >
+                            ✕
+                        </button>
+
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-2">Update Chat Permissions</h3>
+                        <p className="text-xs text-slate-400 mb-6">Manage allowed interactions for this conversation.</p>
+
+                        <div className="space-y-4 mb-6">
+                            <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-not-allowed opacity-75">
+                                <input type="checkbox" checked={true} disabled={true} className="w-4.5 h-4.5 rounded text-indigo-650 cursor-not-allowed" />
+                                <span>Allow Chatting</span>
+                            </label>
+                            <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={chatRequest.request.permissions?.audioCall}
+                                    onChange={e => setChatRequest(prev => ({
+                                        ...prev,
+                                        request: {
+                                            ...prev.request,
+                                            permissions: {
+                                                ...prev.request.permissions,
+                                                audioCall: e.target.checked
+                                            }
+                                        }
+                                    }))}
+                                    className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                />
+                                <span>Allow Audio Call</span>
+                            </label>
+                            <label className="flex items-center gap-3 text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={chatRequest.request.permissions?.videoCall}
+                                    onChange={e => setChatRequest(prev => ({
+                                        ...prev,
+                                        request: {
+                                            ...prev.request,
+                                            permissions: {
+                                                ...prev.request.permissions,
+                                                videoCall: e.target.checked
+                                            }
+                                        }
+                                    }))}
+                                    className="w-4.5 h-4.5 rounded text-indigo-650 cursor-pointer"
+                                />
+                                <span>Allow Video Call</span>
+                            </label>
+                        </div>
+
+                        <button
+                            onClick={() => handleUpdatePermissions(chatRequest.request._id, chatRequest.request.permissions)}
+                            className="w-full py-3 bg-emerald-550 hover:bg-emerald-650 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center font-bold"
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 5. Create Research Contact Modal */}
+            {showCreateResearchContactModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        <button
+                            onClick={() => setShowCreateResearchContactModal(false)}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                        >
+                            ✕
+                        </button>
+
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-2 text-left">Create personal Contact</h3>
+                        <p className="text-xs text-slate-400 mb-6 text-left">Create a personal space for your research notes and records.</p>
+
+                        <form onSubmit={handleCreateResearchContact} className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block text-left">Contact Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    placeholder="e.g. My Math Notes, Voice Diary..."
+                                    value={newResearchContactName}
+                                    onChange={(e) => setNewResearchContactName(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={savingResearchContact || !newResearchContactName.trim()}
+                                className="w-full py-3 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center disabled:opacity-50"
+                            >
+                                {savingResearchContact ? 'Saving...' : 'Save Contact'}
+                            </button>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Video Option Selection Modal */}
+            {showVideoOptionsModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative">
+                        <button
+                            onClick={() => setShowVideoOptionsModal(false)}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer"
+                        >
+                            ✕
+                        </button>
+
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-2 text-left">Video Message Options</h3>
+                        <p className="text-xs text-slate-400 mb-6 text-left">Choose whether to upload an existing video or record from camera.</p>
+
+                        <div className="space-y-3.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowVideoOptionsModal(false);
+                                    videoFileInputRef.current?.click();
+                                }}
+                                className="w-full py-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                📁 Upload Video File
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowVideoOptionsModal(false);
+                                    setShowVideoRecordModal(true);
+                                }}
+                                className="w-full py-3.5 bg-indigo-650 hover:bg-indigo-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                            >
+                                📹 Record from Camera
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 6. Video Recording Modal */}
+            {showVideoRecordModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-200 shadow-2xl p-6 flex flex-col relative overflow-hidden">
+                        <button
+                            onClick={closeVideoRecording}
+                            className="absolute top-4 right-4 w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all font-black text-sm cursor-pointer z-10"
+                        >
+                            ✕
+                        </button>
+                        <h3 className="font-extrabold text-slate-800 text-base mb-4 text-left">Record Video Message</h3>
+
+                        <div className="relative aspect-video bg-black rounded-2xl overflow-hidden mb-5 border border-slate-250 shadow-inner flex items-center justify-center">
+                            <video
+                                ref={videoPreviewRef}
+                                autoPlay
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover"
+                            />
+                            {isVideoRecording && (
+                                <div className="absolute top-3 left-3 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1.5 animate-pulse">
+                                    <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                    REC {videoTimer}s
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3">
+                            {!isVideoRecording ? (
+                                <button
+                                    onClick={startVideoRecording}
+                                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center"
+                                >
+                                    Start Recording
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={stopVideoRecording}
+                                    className="flex-1 py-3 bg-red-650 hover:bg-red-750 text-black rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer text-center animate-pulse"
+                                >
+                                    Stop & Send
+                                </button>
+                            )}
+                            <button
+                                onClick={closeVideoRecording}
+                                className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </DashboardLayout>
     );
 };
 

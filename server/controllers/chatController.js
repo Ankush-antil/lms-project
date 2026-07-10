@@ -469,10 +469,6 @@ const getDirectoryUsers = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const search = req.query.search?.trim() || '';
 
-    if (!req.user.institute) {
-        return res.json([]);
-    }
-
     // Require at least 1 character to search
     if (!search) {
         return res.json([]);
@@ -480,8 +476,7 @@ const getDirectoryUsers = asyncHandler(async (req, res) => {
 
     const searchRegex = new RegExp(search, 'i');
 
-    const users = await User.find({
-        institute: req.user.institute,
+    const query = {
         _id: { $ne: userId },
         isActive: true,
         $or: [
@@ -489,7 +484,16 @@ const getDirectoryUsers = asyncHandler(async (req, res) => {
             { email: { $regex: searchRegex } },
             { role: { $regex: searchRegex } }
         ]
-    }).select('name email role avatar mobileNumber isActive').limit(30);
+    };
+
+    // Restrict by institute unless user is Admin
+    if (req.user.role !== 'Admin' && req.user.institute) {
+        query.institute = req.user.institute;
+    }
+
+    const users = await User.find(query)
+        .select('name email role avatar mobileNumber isActive')
+        .limit(30);
 
     res.json(users);
 });

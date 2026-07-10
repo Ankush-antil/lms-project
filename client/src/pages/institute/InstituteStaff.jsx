@@ -187,8 +187,8 @@ const InstituteStaff = () => {
     const displayList = filtered.length > 0 ? filtered : (search ? [] : DUMMY_STAFF);
 
     return (
-        <DashboardLayout role="Institute">
-            <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
+        <DashboardLayout role="Institute" fullWidth={true}>
+            <div style={{ padding: '32px', width: '100%', boxSizing: 'border-box' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

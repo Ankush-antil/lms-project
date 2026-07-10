@@ -91,7 +91,7 @@ const ToolsPage = () => {
             disabledNote: formBuilderNote,
             action: () => toast('Database Creator Coming Soon', { icon: '🗄️' }) 
         }
-    ];
+    ].filter(tool => !tool.disabled);
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
@@ -108,22 +108,34 @@ const ToolsPage = () => {
                     </p>
                 </div>
 
-                {/* Grid layout containing only the two tools */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto py-4">
-                    {toolsList.map((tool, index) => (
-                        <ToolCard
-                            key={index}
-                            icon={tool.icon}
-                            title={tool.title}
-                            description={tool.description}
-                            color={tool.color}
-                            isComingSoon={tool.isComingSoon}
-                            disabled={tool.disabled}
-                            disabledNote={tool.disabledNote}
-                            onClick={tool.action}
-                        />
-                    ))}
-                </div>
+                {/* Grid layout containing the active tools */}
+                {toolsList.length === 0 ? (
+                    <div className="text-center py-12 bg-white rounded-3xl border border-slate-200/60 max-w-md mx-auto p-8 shadow-sm">
+                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">
+                            🔒
+                        </div>
+                        <h3 className="font-extrabold text-slate-800 text-lg">Access Deactivated</h3>
+                        <p className="text-slate-400 font-semibold text-xs mt-2 leading-relaxed">
+                            {formBuilderNote}
+                        </p>
+                    </div>
+                ) : (
+                    <div className={`grid grid-cols-1 ${toolsList.length === 1 ? 'max-w-md' : 'md:grid-cols-2 max-w-3xl'} gap-8 mx-auto py-4`}>
+                        {toolsList.map((tool, index) => (
+                            <ToolCard
+                                key={index}
+                                icon={tool.icon}
+                                title={tool.title}
+                                description={tool.description}
+                                color={tool.color}
+                                isComingSoon={tool.isComingSoon}
+                                disabled={tool.disabled}
+                                disabledNote={tool.disabledNote}
+                                onClick={tool.action}
+                            />
+                        ))}
+                    </div>
+                )}
 
             </div>
         </DashboardLayout>

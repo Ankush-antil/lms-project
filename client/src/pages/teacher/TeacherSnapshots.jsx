@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -96,7 +96,7 @@ const CalendarPicker = ({ selectedDate, onChange }) => {
     }
 
     return (
-        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between px-1">
                 <button type="button" onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-500 cursor-pointer transition">
                     <ChevronLeft size={16} />
@@ -110,7 +110,7 @@ const CalendarPicker = ({ selectedDate, onChange }) => {
             </div>
             
             <div className="grid grid-cols-7 gap-y-1 text-center">
-                {daysOfWeek.map(d => (
+                {months && daysOfWeek.map(d => (
                     <div key={d} className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-1">
                         {d}
                     </div>
@@ -182,6 +182,158 @@ const MiniCalendar = ({ date, onSelect }) => {
     );
 };
 
+// Custom Time Picker Component
+const TimePickerPopover = ({ value, onChange, onClose }) => {
+    let initialHr = '09';
+    let initialMin = '00';
+    let initialPeriod = 'AM';
+    if (value) {
+        const [h24, m] = value.split(':');
+        const hNum = parseInt(h24, 10);
+        initialMin = m || '00';
+        if (hNum >= 12) {
+            initialPeriod = 'PM';
+            initialHr = hNum === 12 ? '12' : String(hNum - 12).padStart(2, '0');
+        } else {
+            initialPeriod = 'AM';
+            initialHr = hNum === 0 ? '12' : String(hNum).padStart(2, '0');
+        }
+    }
+
+    const [hr, setHr] = useState(initialHr);
+    const [min, setMin] = useState(initialMin);
+    const [period, setPeriod] = useState(initialPeriod);
+
+    const handleOk = () => {
+        let hNum = parseInt(hr, 10);
+        if (period === 'PM' && hNum < 12) hNum += 12;
+        if (period === 'AM' && hNum === 12) hNum = 0;
+        const formattedTime = `${String(hNum).padStart(2, '0')}:${min}`;
+        onChange(formattedTime);
+        onClose();
+    };
+
+    const handleClear = () => {
+        onChange('');
+        onClose();
+    };
+
+    return (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-slate-200 rounded-3xl shadow-2xl p-4 z-[9999] min-w-[220px] text-slate-700 animate-fade-in">
+            <div className="flex gap-2 justify-center items-center mb-4">
+                <select 
+                    value={hr} 
+                    onChange={e => setHr(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-sm font-bold outline-none cursor-pointer"
+                >
+                    {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                    ))}
+                </select>
+
+                <span className="font-bold text-slate-400">:</span>
+
+                <select 
+                    value={min} 
+                    onChange={e => setMin(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-sm font-bold outline-none cursor-pointer max-h-40"
+                >
+                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                    ))}
+                </select>
+
+                <select 
+                    value={period} 
+                    onChange={e => setPeriod(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-sm font-bold outline-none cursor-pointer"
+                >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 py-1.5 text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleOk}
+                        className="flex-1 py-1.5 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-md shadow-indigo-100 cursor-pointer"
+                    >
+                        OK
+                    </button>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleClear}
+                    className="w-full py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-100 transition cursor-pointer"
+                >
+                    Not Confirmed
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const CustomTimePicker = ({ value, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    let displayStr = 'Not Confirmed';
+    if (value) {
+        const [h24, m] = value.split(':');
+        const hNum = parseInt(h24, 10);
+        const min = m || '00';
+        if (hNum >= 12) {
+            const h12 = hNum === 12 ? 12 : hNum - 12;
+            displayStr = `${String(h12).padStart(2, '0')}:${min} PM`;
+        } else {
+            const h12 = hNum === 0 ? 12 : hNum;
+            displayStr = `${String(h12).padStart(2, '0')}:${min} AM`;
+        }
+    }
+
+    return (
+        <div className="relative inline-block" ref={containerRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition cursor-pointer w-28 text-center outline-none ${
+                    value 
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold hover:bg-indigo-100'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 placeholder:font-bold hover:bg-slate-100'
+                }`}
+            >
+                {displayStr}
+            </button>
+            {isOpen && (
+                <TimePickerPopover 
+                    value={value} 
+                    onChange={onChange} 
+                    onClose={() => setIsOpen(false)} 
+                />
+            )}
+        </div>
+    );
+};
+
 const TeacherSnapshots = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -190,21 +342,37 @@ const TeacherSnapshots = () => {
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [records, setRecords] = useState({});
     const [submitting, setSubmitting] = useState(false);
-    const [noteModal, setNoteModal] = useState(null);
-    const [noteText, setNoteText] = useState('');
+    const [bulkPresentModal, setBulkPresentModal] = useState(false);
+    const [bulkCheckIn, setBulkCheckIn] = useState('09:00');
+    const [bulkCheckOut, setBulkCheckOut] = useState('17:00');
     const [selectedStudentId, setSelectedStudentId] = useState(null);
     const todayStr = new Date().toISOString().split('T')[0];
+
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const datePickerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+                setShowDatePicker(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Filters local input states
     const [filterCourse, setFilterCourse] = useState('All');
     const [filterSection, setFilterSection] = useState('All');
     const [searchTermInput, setSearchTermInput] = useState('');
+    const [pageSizeInput, setPageSizeInput] = useState('10');
+    const pageSize = Math.max(1, parseInt(pageSizeInput, 10) || 10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Filters active applied states
     const [activeCourse, setActiveCourse] = useState('All');
     const [activeSection, setActiveSection] = useState('All');
     const [activeSearch, setActiveSearch] = useState('');
-
     const fetchStudents = async () => {
         try {
             setLoading(true);
@@ -225,12 +393,39 @@ const TeacherSnapshots = () => {
         students.forEach(s => {
             const existing = s.studentProfile?.physicalAttendance?.find(a => a.date === attendanceDate);
             init[s._id] = {
-                status: existing?.status || 'Present',
-                note: existing?.teacherNote || ''
+                status: existing ? (existing.status || 'Present') : 'Absent',
+                note: existing?.teacherNote || '',
+                studentNote: existing?.leaveNote || '',
+                checkInTime: existing?.checkInTime || '',
+                checkOutTime: existing?.checkOutTime || '',
+                source: existing?.source || 'manual',
+                markedBy: existing?.markedBy || ''
             };
         });
         setRecords(init);
     }, [students, attendanceDate]);
+
+    const handleTimeChange = (id, field, value) => {
+        setRecords(prev => {
+            const currentRec = prev[id] || {
+                status: 'Absent',
+                note: '',
+                checkInTime: '',
+                checkOutTime: '',
+                source: 'manual',
+                markedBy: ''
+            };
+            const updatedRec = { ...currentRec, [field]: value };
+            
+            if (!updatedRec.checkInTime && !updatedRec.checkOutTime) {
+                updatedRec.status = 'Absent';
+            } else {
+                updatedRec.status = 'Present';
+            }
+            
+            return { ...prev, [id]: updatedRec };
+        });
+    };
 
     // Unique sections and courses list extracted dynamically
     const coursesList = useMemo(() => {
@@ -257,10 +452,11 @@ const TeacherSnapshots = () => {
         setActiveCourse(filterCourse);
         setActiveSection(filterSection);
         setActiveSearch(searchTermInput);
+        setCurrentPage(1);
     };
 
     // Filter students by active course/section/search criteria
-    const filtered = useMemo(() => {
+    const allFiltered = useMemo(() => {
         const list = students.filter(s => {
             const courseName = s.studentProfile?.course?.name || '';
             const sectionName = s.studentProfile?.section || '';
@@ -273,25 +469,34 @@ const TeacherSnapshots = () => {
                 (s.studentProfile?.rollNumber && s.studentProfile.rollNumber.toLowerCase().includes(activeSearch.toLowerCase()));
             
             return matchCourse && matchSection && matchSearch;
-        });
-        return list.sort((a, b) => a.name.localeCompare(b.name));
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        return list;
     }, [students, activeCourse, activeSection, activeSearch]);
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, allFiltered.length);
+    const displayedItems = useMemo(() => {
+        return allFiltered.slice(startIndex, endIndex);
+    }, [allFiltered, startIndex, endIndex]);
+
+    const totalPages = Math.ceil(allFiltered.length / pageSize);
 
     const stats = useMemo(() => {
         // Calculate stats only for active filtered students
-        const filteredIds = new Set(filtered.map(s => s._id));
+        const filteredIds = new Set(allFiltered.map(s => s._id));
         const vals = Object.entries(records)
             .filter(([id]) => filteredIds.has(id))
             .map(([, data]) => data);
             
         return {
-            total: filtered.length,
+            total: allFiltered.length,
             present: vals.filter(r => r.status === 'Present' || r.status === 'In').length,
             absent:  vals.filter(r => r.status === 'Absent').length,
             leave:   vals.filter(r => r.status === 'Leave').length,
             holiday: vals.filter(r => r.status === 'Holiday').length,
         };
-    }, [records, filtered]);
+    }, [records, allFiltered]);
 
     const setStatus = (id, status) =>
         setRecords(prev => ({ ...prev, [id]: { ...prev[id], status } }));
@@ -299,30 +504,31 @@ const TeacherSnapshots = () => {
     const markAll = (status) =>
         setRecords(prev => {
             const u = { ...prev };
-            filtered.forEach(s => { u[s._id] = { ...u[s._id], status }; });
+            displayedItems.forEach(s => {
+                u[s._id] = {
+                    ...u[s._id],
+                    status,
+                    checkInTime: '',
+                    checkOutTime: ''
+                };
+            });
             return u;
         });
 
-    const openNoteModal = (id) => {
-        setNoteText(records[id]?.note || '');
-        setNoteModal(id);
-    };
-
-    const saveNote = async () => {
-        try {
-            const currentStatus = records[noteModal]?.status || 'Absent';
-            await axios.post(`/api/users/${noteModal}/physical-attendance`, {
-                date: attendanceDate,
-                status: currentStatus,
-                teacherNote: noteText
+    const applyBulkPresent = () => {
+        setRecords(prev => {
+            const u = { ...prev };
+            displayedItems.forEach(s => {
+                u[s._id] = {
+                    ...u[s._id],
+                    status: 'Present',
+                    checkInTime: bulkCheckIn,
+                    checkOutTime: bulkCheckOut
+                };
             });
-            setRecords(prev => ({ ...prev, [noteModal]: { ...prev[noteModal], note: noteText } }));
-            toast.success('Note saved successfully!');
-            setNoteModal(null);
-            setNoteText('');
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to save note');
-        }
+            return u;
+        });
+        setBulkPresentModal(false);
     };
 
     const handleSave = async () => {
@@ -335,7 +541,11 @@ const TeacherSnapshots = () => {
             const attendanceRecords = Object.entries(records).map(([studentId, data]) => ({
                 studentId,
                 status: data.status,
-                note: data.note
+                note: data.note,
+                checkInTime: data.checkInTime,
+                checkOutTime: data.checkOutTime,
+                source: data.source,
+                markedBy: data.markedBy
             }));
             await axios.post('/api/users/bulk-physical-attendance', {
                 date: attendanceDate,
@@ -405,7 +615,30 @@ const TeacherSnapshots = () => {
                         </h1>
                         <p className="text-slate-400 text-sm mt-0.5">Mark daily attendance for all students in your class</p>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        {/* Select Date Dropdown Button */}
+                        <div className="relative" ref={datePickerRef}>
+                            <button
+                                type="button"
+                                onClick={() => setShowDatePicker(!showDatePicker)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-700 rounded-2xl text-sm font-black transition shadow-sm cursor-pointer"
+                            >
+                                <Calendar size={15} className="text-indigo-600" />
+                                <span>
+                                    {new Date(attendanceDate + 'T00:00:00').toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                    })}
+                                </span>
+                            </button>
+                            {showDatePicker && (
+                                <div className="absolute right-0 top-full mt-2 z-50 min-w-[280px]">
+                                    <CalendarPicker selectedDate={attendanceDate} onChange={(d) => { setAttendanceDate(d); setShowDatePicker(false); }} />
+                                </div>
+                            )}
+                        </div>
+
                         {(!isSubDisabled('qrAttendance') || getSubMode() === 'disable') && (
                             <button
                                 disabled={isSubDisabled('qrAttendance')}
@@ -432,32 +665,8 @@ const TeacherSnapshots = () => {
                     </div>
                 </div>
 
-                {/* Two-Column Page Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    
-                    {/* Left Column: Calendar Picker */}
-                    <div className="lg:col-span-4 space-y-5">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                            <Calendar size={13} /> Select Date
-                        </h3>
-                        <CalendarPicker selectedDate={attendanceDate} onChange={setAttendanceDate} />
-                        
-                        {/* Selected Date Summary Display */}
-                        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 text-center space-y-1">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Date</p>
-                            <p className="text-lg font-black text-indigo-750">
-                                {new Date(attendanceDate + 'T00:00:00').toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Right Column: Students List & Filter Bar */}
-                    <div className="lg:col-span-8 space-y-5">
+                {/* Full Width Page Content */}
+                <div className="space-y-5">
                         
                         {/* Search and filter toolbar */}
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 flex flex-wrap gap-4 items-end">
@@ -508,11 +717,26 @@ const TeacherSnapshots = () => {
                                 </div>
                             </div>
 
-                            {/* Search Button - Icon only */}
+                            {/* Entries limit input */}
+                            <div className="space-y-1.5 flex-1 min-w-[120px]">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Show Entries</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={pageSizeInput}
+                                    onChange={e => {
+                                        setPageSizeInput(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition text-center"
+                                />
+                            </div>
+
+                            {/* Search Button */}
                             <button
                                 onClick={handleSearchClick}
-                                className="h-[42px] w-[42px] flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition shadow-md shadow-emerald-100 cursor-pointer shrink-0"
-                                title="Search"
+                                className="h-[42px] w-[42px] flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition shadow-md shadow-indigo-100 cursor-pointer shrink-0 outline-none"
+                                title="Show Students"
                              >
                                 <Search size={18} />
                             </button>
@@ -543,9 +767,47 @@ const TeacherSnapshots = () => {
                             {/* Toolbar: Bulk mark choices */}
                             <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
                                 <p className="text-xs font-black text-slate-440 uppercase tracking-widest">
-                                    Results: {filtered.length} Students
+                                    Results: {allFiltered.length} Students
                                 </p>
-                                <div className="flex gap-2 flex-wrap">
+                                <div className="flex gap-2 flex-wrap items-center">
+                                    <select
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            if (val) {
+                                                setRecords(prev => {
+                                                    const u = { ...prev };
+                                                    displayedItems.forEach(s => {
+                                                        u[s._id] = { ...u[s._id], source: val };
+                                                    });
+                                                    return u;
+                                                });
+                                                e.target.value = '';
+                                            }
+                                        }}
+                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 outline-none cursor-pointer hover:border-slate-300 hover:bg-slate-100 transition"
+                                    >
+                                        <option value="">Set All Mode</option>
+                                        <option value="manual">Manual</option>
+                                        <option value="qr">QR Scan</option>
+                                        <option value="biometric">Biometric</option>
+                                    </select>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Set All Marked By..."
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setRecords(prev => {
+                                                const u = { ...prev };
+                                                displayedItems.forEach(s => {
+                                                    u[s._id] = { ...u[s._id], markedBy: val };
+                                                });
+                                                return u;
+                                            });
+                                        }}
+                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none w-40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition placeholder:text-slate-400 placeholder:font-bold"
+                                    />
+
                                     {[
                                         { label: 'All Present', status: 'Present', cls: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
                                         { label: 'All Absent',  status: 'Absent',  cls: 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' },
@@ -554,7 +816,13 @@ const TeacherSnapshots = () => {
                                     ].map(({ label, status, cls }) => (
                                         <button
                                             key={status}
-                                            onClick={() => markAll(status)}
+                                            onClick={() => {
+                                                if (status === 'Present') {
+                                                    setBulkPresentModal(true);
+                                                } else {
+                                                    markAll(status);
+                                                }
+                                            }}
                                             className={`px-3 py-1.5 border rounded-lg text-xs font-bold transition cursor-pointer ${cls}`}
                                         >
                                             {label}
@@ -563,7 +831,7 @@ const TeacherSnapshots = () => {
                                 </div>
                             </div>
 
-                            {!filtered.length ? (
+                            {!allFiltered.length ? (
                                 <div className="text-center py-16 text-slate-450">
                                     <Users size={36} className="mx-auto mb-2.5 opacity-25" />
                                     <p className="text-sm font-bold text-slate-500">No students match your filter criteria</p>
@@ -571,25 +839,36 @@ const TeacherSnapshots = () => {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
+                                    <table className="w-full text-left border-collapse min-w-[1100px]">
                                         <thead>
                                             <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                                                 <th className="py-4 px-6">Roll No</th>
                                                 <th className="py-4 px-6">Student Info</th>
-                                                {['Present', 'Absent', 'Leave', 'Holiday'].map(st => (
-                                                    <th key={st} className="py-4 px-3 text-center w-20">{st}</th>
-                                                ))}
-                                                <th className="py-4 px-5 text-center w-20">Note</th>
+                                                <th className="py-4 px-3 text-center">Check-In</th>
+                                                <th className="py-4 px-3 text-center">Check-Out</th>
+                                                <th className="py-4 px-3 text-center">Mode</th>
+                                                <th className="py-4 px-3 text-center">Marked By</th>
+                                                <th className="py-4 px-3 text-center w-28">Status</th>
+                                                <th className="py-4 px-3 text-left">Student Note</th>
+                                                <th className="py-4 px-3 text-left w-48">Teacher Note</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {filtered.map((s, index) => {
-                                                const rec = records[s._id] || { status: 'Absent', note: '' };
-                                                const roll = index + 1;
+                                            {displayedItems.map((s, index) => {
+                                                const rec = records[s._id] || {
+                                                    status: 'Absent',
+                                                    note: '',
+                                                    studentNote: '',
+                                                    checkInTime: '',
+                                                    checkOutTime: '',
+                                                    source: 'manual',
+                                                    markedBy: ''
+                                                };
+                                                const roll = startIndex + index + 1;
                                                 
                                                 return (
                                                     <tr key={s._id} className="hover:bg-slate-50/30 transition">
-                                                        <td className="py-4 px-6 text-xs font-black text-slate-450">{roll}</td>
+                                                        <td className="py-4 px-6 text-xs font-black text-slate-455">{roll}</td>
                                                         <td className="py-4 px-6">
                                                             <div className="flex flex-col min-w-0">
                                                                 <button
@@ -602,36 +881,91 @@ const TeacherSnapshots = () => {
                                                              </div>
                                                         </td>
 
-                                                        {['Present', 'Absent', 'Leave', 'Holiday'].map(st => (
-                                                            <td key={st} className="py-4 px-3 text-center">
-                                                                <button
-                                                                    onClick={() => setStatus(s._id, st)}
-                                                                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center mx-auto transition-all cursor-pointer ${
-                                                                        rec.status === st
-                                                                            ? st === 'Present'  ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-100 scale-110'
-                                                                            : st === 'Absent'   ? 'border-rose-500 bg-rose-500 shadow-lg shadow-rose-100 scale-110'
-                                                                            : st === 'Leave'    ? 'border-amber-500 bg-amber-500 shadow-lg shadow-amber-100 scale-110'
-                                                                                                : 'border-blue-500 bg-blue-500 shadow-lg shadow-blue-100 scale-110'
-                                                                            : 'border-slate-200 bg-white hover:border-slate-400'
-                                                                    }`}
-                                                                >
-                                                                    {rec.status === st && <div className="w-3 h-3 rounded-full bg-white" />}
-                                                                </button>
-                                                            </td>
-                                                        ))}
+                                                        {/* Check-In Time */}
+                                                        <td className="py-4 px-3 text-center">
+                                                            <CustomTimePicker
+                                                                value={rec.checkInTime || ''}
+                                                                onChange={val => handleTimeChange(s._id, 'checkInTime', val)}
+                                                            />
+                                                        </td>
 
-                                                        <td className="py-4 px-5 text-center">
-                                                            <button
-                                                                onClick={() => { setNoteModal(s._id); setNoteText(rec.note || ''); }}
-                                                                title="Add teacher note"
-                                                                className={`w-8 h-8 rounded-xl border flex items-center justify-center mx-auto transition cursor-pointer ${
-                                                                    rec.note
-                                                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-655'
+                                                        {/* Check-Out Time */}
+                                                        <td className="py-4 px-3 text-center">
+                                                            <CustomTimePicker
+                                                                value={rec.checkOutTime || ''}
+                                                                onChange={val => handleTimeChange(s._id, 'checkOutTime', val)}
+                                                            />
+                                                        </td>
+
+                                                        {/* Mode */}
+                                                        <td className="py-4 px-3 text-center">
+                                                            <select
+                                                                value={rec.source || 'manual'}
+                                                                onChange={e => setRecords(prev => ({
+                                                                    ...prev,
+                                                                    [s._id]: { ...prev[s._id], source: e.target.value }
+                                                                }))}
+                                                                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-[11px] font-bold focus:border-indigo-400 outline-none transition cursor-pointer"
+                                                            >
+                                                                <option value="manual">Manual</option>
+                                                                <option value="qr">QR Scan</option>
+                                                                <option value="biometric">Biometric</option>
+                                                            </select>
+                                                        </td>
+
+                                                        {/* Marked By */}
+                                                        <td className="py-4 px-3 text-center">
+                                                            <input
+                                                                type="text"
+                                                                value={rec.markedBy || ''}
+                                                                placeholder="e.g. Teacher"
+                                                                onChange={e => setRecords(prev => ({
+                                                                    ...prev,
+                                                                    [s._id]: { ...prev[s._id], markedBy: e.target.value }
+                                                                }))}
+                                                                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:border-indigo-400 outline-none w-28 text-center transition"
+                                                            />
+                                                        </td>
+
+                                                        {/* Status */}
+                                                        <td className="py-4 px-3 text-center">
+                                                            <select
+                                                                value={rec.status || 'Present'}
+                                                                onChange={e => setRecords(prev => ({
+                                                                    ...prev,
+                                                                    [s._id]: { ...prev[s._id], status: e.target.value }
+                                                                }))}
+                                                                className={`border-2 rounded-xl px-2 py-1.5 text-xs font-black outline-none transition cursor-pointer ${
+                                                                    rec.status === 'Present' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' :
+                                                                    rec.status === 'Absent' ? 'border-rose-500 bg-rose-50 text-rose-700' :
+                                                                    rec.status === 'Leave' ? 'border-amber-500 bg-amber-50 text-amber-700' :
+                                                                    'border-blue-500 bg-blue-50 text-blue-700'
                                                                 }`}
                                                             >
-                                                                <FileText size={14} />
-                                                            </button>
+                                                                <option value="Present">Present</option>
+                                                                <option value="Absent">Absent</option>
+                                                                <option value="Leave">Leave</option>
+                                                                <option value="Holiday">Holiday</option>
+                                                            </select>
+                                                        </td>
+
+                                                        {/* Student Note */}
+                                                        <td className="py-4 px-3 text-xs text-slate-500 font-bold max-w-[120px] truncate" title={rec.studentNote || ''}>
+                                                            {rec.studentNote || '—'}
+                                                        </td>
+
+                                                        {/* Teacher Note */}
+                                                        <td className="py-4 px-3 text-left">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Teacher Note..."
+                                                                value={rec.note || ''}
+                                                                onChange={e => setRecords(prev => ({
+                                                                    ...prev,
+                                                                    [s._id]: { ...prev[s._id], note: e.target.value }
+                                                                }))}
+                                                                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none w-44 text-left transition placeholder:text-slate-350"
+                                                            />
                                                         </td>
                                                     </tr>
                                                 );
@@ -641,10 +975,58 @@ const TeacherSnapshots = () => {
                                 </div>
                             )}
 
+                            {/* Pagination Controls */}
+                            {allFiltered.length > 0 && (
+                                <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/10">
+                                    <p className="text-xs text-slate-400 font-bold">
+                                        Showing {allFiltered.length === 0 ? 0 : startIndex + 1} to {endIndex} of {allFiltered.length} entries
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-black text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                                        >
+                                            Previous
+                                        </button>
+                                        
+                                        {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                                            .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                            .map((p, index, arr) => {
+                                                const showEllipsis = index > 0 && p - arr[index - 1] > 1;
+                                                return (
+                                                    <React.Fragment key={p}>
+                                                        {showEllipsis && <span className="text-slate-400 text-xs px-1 font-bold">...</span>}
+                                                        <button
+                                                            onClick={() => setCurrentPage(p)}
+                                                            className={`w-8 h-8 rounded-full text-xs font-bold transition cursor-pointer ${
+                                                                currentPage === p
+                                                                    ? 'bg-indigo-650 text-white font-black shadow-md shadow-indigo-150'
+                                                                    : 'text-slate-650 hover:bg-slate-100'
+                                                            }`}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    </React.Fragment>
+                                                );
+                                            })
+                                        }
+
+                                        <button
+                                            disabled={currentPage === totalPages || totalPages === 0}
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-black text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Bottom Save bar */}
                             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
                                 <p className="text-xs text-slate-400 font-semibold">
-                                    {attendanceDate} · {filtered.length} students showing
+                                    {attendanceDate} · {allFiltered.length} students showing
                                 </p>
                                 <button
                                     onClick={handleSave}
@@ -655,39 +1037,58 @@ const TeacherSnapshots = () => {
                                     {submitting ? 'Saving...' : 'Save Register'}
                                 </button>
                             </div>
-                        </div>                    </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* Teacher Note Modal */}
-            {noteModal && (
+            {/* Bulk Present Modal */}
+            {bulkPresentModal && (
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                    onClick={e => { if (e.target === e.currentTarget) setNoteModal(null); }}
+                    className="fixed inset-0 z-[9999] flex items-start justify-center pt-24 bg-black/45 backdrop-blur-sm"
+                    onClick={e => { if (e.target === e.currentTarget) setBulkPresentModal(false); }}
                 >
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md p-6">
-                        <h3 className="font-bold text-slate-800 text-base mb-1 flex items-center gap-2">
-                            <FileText size={17} className="text-indigo-500" /> Teacher Note
+                    <div className="bg-white rounded-[32px] border border-slate-200 shadow-2xl w-full max-w-sm p-6 overflow-hidden relative group">
+                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                        <h3 className="font-black text-slate-800 text-lg mb-1 flex items-center gap-2">
+                            Set Check-In & Check-Out Times
                         </h3>
-                        <p className="text-slate-400 text-xs mb-4">
-                            {students.find(s => s._id === noteModal)?.name} — {attendanceDate}
+                        <p className="text-slate-400 text-xs mb-6 font-bold">
+                            Marking all students as Present. Please set their default check-in and check-out times:
                         </p>
-                        <textarea
-                            autoFocus
-                            rows={4}
-                            value={noteText}
-                            onChange={e => setNoteText(e.target.value)}
-                            placeholder="e.g. Medical leave approved, arrived late..."
-                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
-                        />
-                        <div className="flex gap-3 justify-end mt-4">
-                            <button onClick={() => setNoteModal(null)}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer">
+                        
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Check-In Time</label>
+                                <input
+                                    type="time"
+                                    value={bulkCheckIn}
+                                    onChange={e => setBulkCheckIn(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Check-Out Time</label>
+                                <input
+                                    type="time"
+                                    value={bulkCheckOut}
+                                    onChange={e => setBulkCheckOut(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setBulkPresentModal(false)}
+                                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black transition cursor-pointer"
+                            >
                                 Cancel
                             </button>
-                            <button onClick={saveNote}
-                                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm">
-                                Save Note
+                            <button
+                                onClick={applyBulkPresent}
+                                className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-black transition cursor-pointer shadow-md shadow-emerald-100"
+                            >
+                                Apply to All
                             </button>
                         </div>
                     </div>

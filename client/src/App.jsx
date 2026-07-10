@@ -35,6 +35,7 @@ import EvaluatePage from './pages/teacher/EvaluatePage';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherSnapshots from './pages/teacher/TeacherSnapshots';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
+import TeacherAttendanceRegister from './pages/admin/TeacherAttendanceRegister';
 import TeacherDrive from './pages/teacher/TeacherDrive';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/common/ChatPage';
@@ -345,11 +346,11 @@ function App() {
                                         <MarketersList />
                                     </PrivateRoute>
                                 } />
-                                <Route path="/admin/attendance-portal" element={
-                                    <PrivateRoute role="Admin">
-                                        <TeacherAttendance />
-                                    </PrivateRoute>
-                                } />
+                                 <Route path="/admin/attendance-portal" element={
+                                     <PrivateRoute role={['Admin', 'Institute', 'Accountant']}>
+                                         <TeacherAttendanceRegister />
+                                     </PrivateRoute>
+                                 } />
                                 <Route path="/admin/drive" element={
                                     <PrivateRoute role="Admin">
                                         <AdminDrive />

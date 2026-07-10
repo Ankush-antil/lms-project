@@ -850,3 +850,73 @@ exports.saveAutoConfig = async (req, res) => {
         res.status(500).json({ message: 'Failed to save auto QR config' });
     }
 };
+
+// 15. Get attendance history for a teacher (Admin/Institute view)
+exports.getTeacherAttendanceHistory = async (req, res) => {
+    try {
+        const { teacherId } = req.params;
+        
+        const teacher = await User.findById(teacherId).select('name email avatar teacherProfile');
+        if (!teacher || teacher.role !== 'Teacher') {
+            return res.status(404).json({ message: 'Teacher not found' });
+        }
+        
+        const physicalRecords = teacher.teacherProfile?.physicalAttendance || [];
+        
+        const history = physicalRecords.map(rec => ({
+            _id: rec.date,
+            date: rec.date,
+            status: rec.status,
+            source: rec.source || 'manual',
+            teacherNote: rec.teacherNote || '',
+            session: {
+                subject: 'Duty / Class',
+                teacher: { name: teacher.name }
+            }
+        })).sort((a, b) => b.date.localeCompare(a.date));
+        
+        res.json({
+            teacher: {
+                _id: teacher._id,
+                name: teacher.name,
+                email: teacher.email,
+                avatar: teacher.avatar
+            },
+            history
+        });
+    } catch (error) {
+        console.error('Error fetching teacher attendance history:', error);
+        res.status(500).json({ message: 'Failed to fetch attendance history' });
+    }
+};
+
+// 16. Delete a teacher's physical attendance for a specific date (Admin/Institute only)
+exports.deleteTeacherPhysicalAttendance = async (req, res) => {
+    try {
+        const { teacherId, date } = req.params;
+        
+        const teacher = await User.findById(teacherId);
+        if (!teacher || teacher.role !== 'Teacher') {
+            return res.status(404).json({ message: 'Teacher not found' });
+        }
+        
+        const beforeLen = teacher.teacherProfile?.physicalAttendance?.length || 0;
+        teacher.teacherProfile.physicalAttendance = (
+            teacher.teacherProfile.physicalAttendance || []
+        ).filter(a => a.date !== date);
+        
+        const arrayChanged = teacher.teacherProfile.physicalAttendance.length !== beforeLen;
+        
+        if (!arrayChanged) {
+            return res.status(404).json({ message: 'No attendance record found for this date' });
+        }
+        
+        teacher.markModified('teacherProfile.physicalAttendance');
+        await teacher.save();
+        
+        res.json({ success: true, message: `Attendance deleted for ${date}` });
+    } catch (error) {
+        console.error('Error deleting teacher physical attendance:', error);
+        res.status(500).json({ message: 'Failed to delete attendance record' });
+    }
+};

@@ -170,6 +170,7 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
+        { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Accountants', icon: Users, path: '/institute/accountants' },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
@@ -205,6 +206,7 @@ const menuItems = {
     Accountant: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/accountant' },
         { name: 'Fee Portal', icon: CreditCard, path: '/accountant/fee-portal' },
+        { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Drive', icon: HardDrive, path: '/accountant/drive' },
         { name: 'Notes', icon: StickyNote, path: '/accountant/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/accountant/chat' },

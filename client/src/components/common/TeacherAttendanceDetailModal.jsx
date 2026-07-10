@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
-    X, Calendar, CheckCircle, XCircle, FileText, Sun, QrCode,
+    X, Calendar, CheckCircle, XCircle, FileText, Sun,
     Edit3, Trash2, ChevronLeft, ChevronRight, User, Image as ImageIcon,
-    Save, ExternalLink, Clock, BookOpen
+    Save, Clock, BookOpen
 } from 'lucide-react';
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ const CalendarHeatmap = ({ history, viewMonth, onMonthChange }) => {
     const bgMap = { Present: 'bg-emerald-500', Absent: 'bg-rose-500', Leave: 'bg-amber-500', Holiday: 'bg-blue-500' };
 
     return (
-        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 shadow-sm">
             <div className="flex items-center justify-between mb-3">
                 <button onClick={() => onMonthChange(new Date(year, month - 1, 1))}
                     className="w-7 h-7 rounded-full hover:bg-white border border-transparent hover:border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer">
@@ -110,7 +110,7 @@ const CalendarHeatmap = ({ history, viewMonth, onMonthChange }) => {
 };
 
 // ─── Main Modal ────────────────────────────────────────────────────────────────
-const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
+const TeacherAttendanceDetailModal = ({ teacherId, onClose, onDataChange }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [viewMonth, setViewMonth] = useState(new Date());
@@ -123,14 +123,14 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
     const fetchHistory = useCallback(async () => {
         try {
             setLoading(true);
-            const { data: res } = await axios.get(`/api/attendance/student/${studentId}/history`);
+            const { data: res } = await axios.get(`/api/attendance/teacher/${teacherId}/history`);
             setData(res);
         } catch {
             toast.error('Failed to load attendance history');
         } finally {
             setLoading(false);
         }
-    }, [studentId]);
+    }, [teacherId]);
 
     useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
@@ -145,7 +145,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
         try {
             setSavingNote(true);
             const record = data.history.find(r => r.date === date);
-            await axios.post(`/api/users/${studentId}/physical-attendance`, {
+            await axios.post(`/api/users/${teacherId}/physical-attendance`, {
                 date,
                 status: record?.status || 'Present',
                 teacherNote: noteText
@@ -165,7 +165,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
         if (!window.confirm(`"${date}" ki attendance delete karna chahte hain?`)) return;
         try {
             setDeletingDate(date);
-            await axios.delete(`/api/attendance/student/${studentId}/date/${date}`);
+            await axios.delete(`/api/attendance/teacher/${teacherId}/date/${date}`);
             toast.success('Attendance deleted');
             await fetchHistory();
             if (onDataChange) onDataChange();
@@ -173,17 +173,6 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
             toast.error(err.response?.data?.message || 'Failed to delete');
         } finally {
             setDeletingDate(null);
-        }
-    };
-
-    const handleLeaveApproval = async (date, approved) => {
-        try {
-            await axios.post(`/api/attendance/student/${studentId}/date/${date}/leave-approve`, { approved });
-            toast.success(`Leave application ${approved ? 'approved' : 'rejected'}`);
-            await fetchHistory();
-            if (onDataChange) onDataChange();
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to update leave status');
         }
     };
 
@@ -196,23 +185,23 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
 
     return (
         <>
-            <div className="fixed inset-0 z-[9995] flex items-center justify-center animate-fade-in" style={{ animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1) both' }}>
+            <div className="fixed inset-0 z-[9995] flex items-center justify-center" style={{ animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1) both' }}>
                 <div className="bg-white w-full h-full flex flex-col overflow-hidden">
 
                 {/* Header */}
                 <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-slate-800 text-white shrink-0">
                     <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg overflow-hidden border-2 border-white/30 shrink-0">
-                        {data?.student?.avatar
-                            ? <img src={data.student.avatar} alt="" className="w-full h-full object-cover" />
+                        {data?.teacher?.avatar
+                            ? <img src={data.teacher.avatar} alt="" className="w-full h-full object-cover" />
                             : <User size={20} />}
                     </div>
                     <div className="flex-1 min-w-0">
                         <h2 className="font-black text-base leading-tight truncate">
-                            {loading ? 'Loading...' : (data?.student?.name || 'Student')}
+                            {loading ? 'Loading...' : (data?.teacher?.name || 'Faculty Member')}
                         </h2>
-                        {!loading && data?.student && (
+                        {!loading && data?.teacher && (
                             <p className="text-white/60 text-xs font-medium mt-0.5">
-                                {data.student.email}{data.student.section ? ` · Section ${data.student.section}` : ''}
+                                {data.teacher.email} · Faculty Member
                             </p>
                         )}
                     </div>
@@ -257,7 +246,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
 
                                 {/* Attendance percentage ring */}
                                 {stats && stats.present + stats.absent > 0 && (
-                                    <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+                                    <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Attendance Rate</p>
                                         <div className="relative w-20 h-20 mx-auto">
                                             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
@@ -282,15 +271,15 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                             </div>
 
                             {/* Right — Records list */}
-                            <div className="flex-1 overflow-y-auto p-8">
+                            <div className="flex-1 overflow-y-auto p-8 bg-slate-50/10">
                                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <Calendar size={13} /> Date-wise Records ({data?.history?.length || 0})
                                 </h3>
 
                                 {!data?.history?.length ? (
-                                    <div className="text-center py-10 text-slate-400">
-                                        <Calendar size={32} className="mx-auto mb-2 opacity-30" />
-                                        <p className="text-sm font-medium">No attendance records found</p>
+                                    <div className="text-center py-16 text-slate-400">
+                                        <Calendar size={36} className="mx-auto mb-2.5 opacity-25" />
+                                        <p className="text-sm font-bold">No attendance records found</p>
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto border border-slate-200 rounded-3xl bg-white shadow-sm">
@@ -300,8 +289,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                     <th className="py-3.5 px-4 whitespace-nowrap">Date</th>
                                                     <th className="py-3.5 px-4 whitespace-nowrap">Mode</th>
                                                     <th className="py-3.5 px-4 whitespace-nowrap">Marked By</th>
-                                                    <th className="py-3.5 px-4 whitespace-nowrap">Student Note</th>
-                                                    <th className="py-3.5 px-4 whitespace-nowrap">Teacher Note</th>
+                                                    <th className="py-3.5 px-4 whitespace-nowrap">Admin Note</th>
                                                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Check-In</th>
                                                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Check-Out</th>
                                                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Time Spent</th>
@@ -347,19 +335,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="py-4 px-4 text-slate-500 font-semibold whitespace-nowrap">
-                                                                    {rec.source === 'qr' ? 'System (QR)' : rec.source === 'biometric' ? 'Biometric Device' : (rec.markedBy || 'Teacher')}
-                                                                </td>
-                                                                <td className="py-4 px-4 whitespace-nowrap">
-                                                                    {rec.leaveNote ? (
-                                                                        <button
-                                                                            onClick={() => setSelectedPhoto({ title: 'Student Leave / Note Description', content: rec.leaveNote, type: 'note' })}
-                                                                            className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-150 rounded-lg text-[10px] font-black tracking-wider transition-colors cursor-pointer"
-                                                                        >
-                                                                            See Note
-                                                                        </button>
-                                                                    ) : (
-                                                                        <span className="text-slate-350 italic text-[10px] font-medium">No Note</span>
-                                                                    )}
+                                                                    {rec.source === 'qr' ? 'System (QR)' : rec.source === 'biometric' ? 'Biometric Device' : (rec.markedBy || 'Admin')}
                                                                 </td>
                                                                 <td className="py-4 px-4 whitespace-nowrap">
                                                                     {rec.teacherNote ? (
@@ -396,7 +372,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                                         {rec.checkOutPhoto ? (
                                                                             <button
                                                                                 onClick={() => setSelectedPhoto({ title: 'Check-Out Verification Selfie', url: rec.checkOutPhoto, type: 'photo' })}
-                                                                                className="w-6.5 h-6.5 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-550 hover:bg-slate-50 cursor-pointer shadow-sm"
+                                                                                className="w-6.5 h-6.5 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-555 hover:bg-slate-50 cursor-pointer shadow-sm"
                                                                                 title="Check-Out Selfie"
                                                                             >
                                                                                 <ImageIcon size={11} />
@@ -413,7 +389,7 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                                     <div className="flex justify-center items-center gap-1">
                                                                         <button
                                                                             onClick={() => { setEditingNoteFor(isEditing ? null : rec.date); setNoteText(rec.teacherNote || ''); }}
-                                                                            title="Add Note"
+                                                                            title="Admin Note"
                                                                             className={`w-7 h-7 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                                                                                 rec.teacherNote ? 'bg-indigo-50 border-indigo-200 text-indigo-650' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
                                                                             }`}
@@ -430,71 +406,27 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                                 </td>
                                                             </tr>
 
-                                                            {/* Expandable row for inline Note Editing or Leave Application */}
-                                                            {(isEditing || rec.leaveNote || rec.leaveFile) && (
+                                                            {/* Expandable row for inline Note Editing */}
+                                                            {isEditing && (
                                                                 <tr>
-                                                                    <td colSpan={11} className="py-3.5 px-6 bg-slate-50/40 border-b border-slate-100">
+                                                                    <td colSpan={10} className="py-3.5 px-6 bg-slate-50/40 border-b border-slate-100">
                                                                         <div className="flex flex-col gap-2">
-                                                                            {/* Inline Note Editor */}
-                                                                            {isEditing && (
-                                                                                <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-sm max-w-xl text-left">
-                                                                                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider mb-2">Teacher Note Editor (Student visible)</p>
-                                                                                    <textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus
-                                                                                        placeholder="Enter note details..."
-                                                                                        className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white transition" />
-                                                                                    <div className="flex gap-2 justify-end mt-2">
-                                                                                        <button onClick={() => setEditingNoteFor(null)}
-                                                                                            className="text-xs px-3 py-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition cursor-pointer font-bold">
-                                                                                            Cancel
-                                                                                        </button>
-                                                                                        <button onClick={() => handleSaveTeacherNote(rec.date)} disabled={savingNote}
-                                                                                            className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black transition cursor-pointer flex items-center gap-1 disabled:opacity-60 shadow-sm shadow-indigo-100">
-                                                                                            <Save size={11} /> {savingNote ? 'Saving...' : 'Save Note'}
-                                                                                        </button>
-                                                                                    </div>
+                                                                            <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-sm max-w-xl text-left">
+                                                                                <p className="text-[10px] font-black text-indigo-650 uppercase tracking-wider mb-2">Admin Note Editor (Faculty visible)</p>
+                                                                                <textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus
+                                                                                    placeholder="Enter note details..."
+                                                                                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white transition" />
+                                                                                <div className="flex gap-2 justify-end mt-2">
+                                                                                    <button onClick={() => setEditingNoteFor(null)}
+                                                                                        className="text-xs px-3 py-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition cursor-pointer font-bold">
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                    <button onClick={() => handleSaveTeacherNote(rec.date)} disabled={savingNote}
+                                                                                        className="text-xs px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg font-black transition cursor-pointer flex items-center gap-1 disabled:opacity-60 shadow-sm shadow-indigo-100">
+                                                                                        <Save size={11} /> {savingNote ? 'Saving...' : 'Save Note'}
+                                                                                    </button>
                                                                                 </div>
-                                                                            )}
-
-                                                                            {/* Leave Application Details */}
-                                                                            {(rec.leaveNote || rec.leaveFile) && (
-                                                                                <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-4.5 flex flex-col gap-2.5 max-w-xl text-left">
-                                                                                    <div className="flex justify-between items-center">
-                                                                                        <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Leave Application Details</p>
-                                                                                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                                                                                            rec.leaveStatus === 'Approved' ? 'bg-emerald-50 border-emerald-205 text-emerald-805' :
-                                                                                            rec.leaveStatus === 'Rejected' ? 'bg-rose-50 border-rose-205 text-rose-805' :
-                                                                                            'bg-amber-50 border-amber-205 text-amber-805 animate-pulse'
-                                                                                        }`}>
-                                                                                            {rec.leaveStatus || 'Pending'}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    {rec.leaveNote && <p className="text-xs text-slate-700 font-semibold leading-normal">{rec.leaveNote}</p>}
-                                                                                    <div className="flex items-center justify-between gap-3 mt-1 flex-wrap">
-                                                                                        {rec.leaveFile && (
-                                                                                            <a href={rec.leaveFile} target="_blank" rel="noopener noreferrer"
-                                                                                                className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-white border border-amber-200 rounded-lg px-3 py-1 transition hover:bg-amber-50 shadow-sm">
-                                                                                                <ExternalLink size={10} /> View Document Attachment
-                                                                                            </a>
-                                                                                        )}
-                                                                                        {(!rec.leaveStatus || rec.leaveStatus === 'Pending') && (
-                                                                                            <div className="flex gap-2 ml-auto">
-                                                                                                <button
-                                                                                                    onClick={() => handleLeaveApproval(rec.date, true)}
-                                                                                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm shadow-emerald-100"
-                                                                                                >
-                                                                                                    Approve
-                                                                                                </button>
-                                                                                                <button
-                                                                                                    onClick={() => handleLeaveApproval(rec.date, false)}
-                                                                                                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm shadow-rose-100"
-                                                                                                >
-                                                                                                    Reject
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
+                                                                            </div>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -544,4 +476,4 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
     );
 };
 
-export default StudentAttendanceDetailModal;
+export default TeacherAttendanceDetailModal;

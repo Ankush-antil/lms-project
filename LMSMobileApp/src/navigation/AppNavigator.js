@@ -33,9 +33,11 @@ import WebCallingPage from '../screens/student/tools/WebCallingPage';
 import TeacherDashboard from '../screens/teacher/TeacherDashboard';
 import EvaluatePage from '../screens/teacher/EvaluatePage';
 import ContactStudents from '../screens/teacher/ContactStudents';
+import TeacherSnapshotsScreen from '../screens/teacher/TeacherSnapshotsScreen';
 
 // Admin
 import AdminDashboard from '../screens/admin/AdminDashboard';
+import TeacherAttendanceRegisterScreen from '../screens/admin/TeacherAttendanceRegisterScreen';
 import { StudentsList, TeachersList, EditorsList } from '../screens/admin/UserListScreen';
 import TestsList from '../screens/admin/TestsList';
 import TestBuilder from '../screens/admin/TestBuilder';
@@ -82,6 +84,7 @@ const TeacherStack = () => (
         <Stack.Screen name="ContactStudents" component={ContactStudents} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="TeacherAttendance" component={TeacherAttendanceScreen} />
+        <Stack.Screen name="TeacherSnapshots" component={TeacherSnapshotsScreen} />
     </Stack.Navigator>
 );
 
@@ -102,6 +105,7 @@ const AdminStack = () => (
         <Stack.Screen name="CreateCourse" component={CreateCourseScreen} />
         <Stack.Screen name="CreateInstitute" component={CreateInstituteScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="TeacherAttendanceRegister" component={TeacherAttendanceRegisterScreen} />
     </Stack.Navigator>
 );
 

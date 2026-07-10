@@ -1277,50 +1277,94 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                     {controls.tools?.enabled !== false && (
                         <div className="border-t border-slate-200/60 pt-4 space-y-4">
                             <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tools Sub-features (Inherited from Institute)</span>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: 'elementsControl', label: 'Elements Control' },
-                                        { id: 'inputElements', label: 'Input Elements' },
-                                        { id: 'displayingElements', label: 'Displaying Elements' },
-                                        { id: 'recordingElements', label: 'Recording Elements' },
-                                        { id: 'advanceElements', label: 'Advance Elements' },
-                                        { id: 'addons', label: 'Add-ons' },
-                                        { id: 'theme', label: 'Theme Styling' },
-                                        { id: 'createWithAi', label: 'Create with AI' },
-                                        { id: 'integrate', label: 'Integrate' },
-                                        { id: 'import', label: 'Import Options' },
-                                        { id: 'saveAsTemplate', label: 'Save As Template' },
-                                        { id: 'decideActivity', label: 'Decide Activity' },
-                                        { id: 'templates', label: 'Use Templates' },
-                                        { id: 'locationLocked', label: 'Location Lock' },
-                                        { id: 'logicRules', label: 'Logic Rules' },
-                                        { id: 'monitoring', label: 'Proctoring/Monitoring' },
-                                        { id: 'connectIt', label: 'Connect It' },
-                                        { id: 'profileUnderSettings', label: 'Settings Profile' },
-                                        { id: 'moreSettings', label: 'More Settings' },
-                                        { id: 'responses', label: 'View Responses' },
-                                        { id: 'collaborate', label: 'Collaborate' },
-                                        { id: 'manageAccess', label: 'Manage Access' },
-                                        { id: 'publicToWeb', label: 'Publish to Web' }
-                                    ].map(item => {
-                                        const isAllowedByInstitute = activitiesAllowed[item.id] !== false;
-                                        return (
-                                            <label key={item.id} className={`flex items-center gap-2 cursor-pointer select-none ${!isAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={!isAllowedByInstitute}
-                                                    checked={isAllowedByInstitute && controls.tools?.[item.id] !== false}
-                                                    onChange={e => updateControl('tools', item.id, e.target.checked)}
-                                                    className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                                />
-                                                <span className="text-xs font-semibold text-slate-700">
-                                                    {item.label} {!isAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider block leading-none mt-0.5">(Disabled by Admin)</span>}
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tools Pages (Inherited from Institute)</span>
+                                
+                                {(() => {
+                                    const isFormBuilderAllowedByInstitute = activitiesAllowed.formBuilderTool !== false;
+                                    const isDatabaseAllowedByInstitute = activitiesAllowed.databaseCreatorTool !== false;
+                                    return (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                <label className={`flex items-center gap-2 cursor-pointer select-none p-2 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-all ${!isFormBuilderAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={!isFormBuilderAllowedByInstitute}
+                                                        checked={isFormBuilderAllowedByInstitute && controls.tools?.formBuilderTool !== false}
+                                                        onChange={e => updateControl('tools', 'formBuilderTool', e.target.checked)}
+                                                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                    />
+                                                    <span className="text-xs font-black text-slate-800 flex flex-col">
+                                                        <span>📝 Form Builder Tool</span>
+                                                        {!isFormBuilderAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider leading-none mt-0.5">(Disabled by Admin)</span>}
+                                                    </span>
+                                                </label>
+
+                                                <label className={`flex items-center gap-2 cursor-pointer select-none p-2 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-all ${!isDatabaseAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={!isDatabaseAllowedByInstitute}
+                                                        checked={isDatabaseAllowedByInstitute && controls.tools?.databaseCreatorTool !== false}
+                                                        onChange={e => updateControl('tools', 'databaseCreatorTool', e.target.checked)}
+                                                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                    />
+                                                    <span className="text-xs font-black text-slate-800 flex flex-col">
+                                                        <span>🗄️ Database Creator Tool</span>
+                                                        {!isDatabaseAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider leading-none mt-0.5">(Disabled by Admin)</span>}
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            {isFormBuilderAllowedByInstitute && controls.tools?.formBuilderTool !== false && (
+                                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-150/60 space-y-3">
+                                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block mb-1">Form Builder Sub-features</span>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {[
+                                                            { id: 'elementsControl', label: 'Elements Control' },
+                                                            { id: 'inputElements', label: 'Input Elements' },
+                                                            { id: 'displayingElements', label: 'Displaying Elements' },
+                                                            { id: 'recordingElements', label: 'Recording Elements' },
+                                                            { id: 'advanceElements', label: 'Advance Elements' },
+                                                            { id: 'addons', label: 'Add-ons' },
+                                                            { id: 'theme', label: 'Theme Styling' },
+                                                            { id: 'createWithAi', label: 'Create with AI' },
+                                                            { id: 'integrate', label: 'Integrate' },
+                                                            { id: 'import', label: 'Import Options' },
+                                                            { id: 'saveAsTemplate', label: 'Save As Template' },
+                                                            { id: 'decideActivity', label: 'Decide Activity' },
+                                                            { id: 'templates', label: 'Use Templates' },
+                                                            { id: 'locationLocked', label: 'Location Lock' },
+                                                            { id: 'logicRules', label: 'Logic Rules' },
+                                                            { id: 'monitoring', label: 'Proctoring/Monitoring' },
+                                                            { id: 'connectIt', label: 'Connect It' },
+                                                            { id: 'profileUnderSettings', label: 'Settings Profile' },
+                                                            { id: 'moreSettings', label: 'More Settings' },
+                                                            { id: 'responses', label: 'View Responses' },
+                                                            { id: 'collaborate', label: 'Collaborate' },
+                                                            { id: 'manageAccess', label: 'Manage Access' },
+                                                            { id: 'publicToWeb', label: 'Publish to Web' }
+                                                        ].map(item => {
+                                                            const isAllowedByInstitute = activitiesAllowed[item.id] !== false;
+                                                            return (
+                                                                <label key={item.id} className={`flex items-center gap-2 cursor-pointer select-none ${!isAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        disabled={!isAllowedByInstitute}
+                                                                        checked={isAllowedByInstitute && controls.tools?.[item.id] !== false}
+                                                                        onChange={e => updateControl('tools', item.id, e.target.checked)}
+                                                                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                                    />
+                                                                    <span className="text-xs font-semibold text-slate-700">
+                                                                        {item.label} {!isAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider block leading-none mt-0.5">(Disabled by Admin)</span>}
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}

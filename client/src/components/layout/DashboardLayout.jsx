@@ -183,9 +183,6 @@ const menuItems = {
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
         { name: '_section_Staff', icon: Briefcase, path: null },
         { name: 'My Staff', icon: Users, path: '/institute/staff' },
-        { name: 'Staff Attendance', icon: Calendar, path: '/institute/staff/attendance' },
-        { name: 'Staff Salary', icon: DollarSign, path: '/institute/staff/salary' },
-        { name: 'Staff Task', icon: CheckSquare, path: '/institute/staff/task' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

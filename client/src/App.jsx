@@ -56,6 +56,17 @@ import SharedAudioPage from './pages/SharedAudioPage';
 import SharedVideoPage from './pages/SharedVideoPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
 import ApplicationsTrackingPage from './pages/ApplicationsTrackingPage';
+import ComingSoon from './components/common/ComingSoon';
+import StaffDashboard from './pages/staff/StaffDashboard';
+import StaffTask from './pages/staff/StaffTask';
+import StaffAttendance from './pages/staff/StaffAttendance';
+import StaffSalary from './pages/staff/StaffSalary';
+import StaffList from './pages/admin/StaffList';
+import AdminStaffAttendance from './pages/admin/AdminStaffAttendance';
+import AdminStaffSalary from './pages/admin/AdminStaffSalary';
+import AdminStaffTask from './pages/admin/AdminStaffTask';
+import InstituteStaff from './pages/institute/InstituteStaff';
+import { InstituteStaffAttendance, InstituteStaffSalary, InstituteStaffTask } from './pages/institute/InstituteStaffPages';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
@@ -126,7 +137,8 @@ const SubdomainRedirectHandler = ({ children }) => {
             Editor: 'editor',
             Institute: 'institute',
             Accountant: 'account',
-            Marketer: 'marketer'
+            Marketer: 'marketer',
+            Staff: 'staff'
         };
 
         const expectedSubdomain = roleSubdomains[user.role];
@@ -273,6 +285,27 @@ function App() {
                                     </PrivateRoute>
                                 } />
 
+                                <Route path="/institute/staff" element={
+                                    <PrivateRoute role="Institute">
+                                        <InstituteStaff />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/staff/attendance" element={
+                                    <PrivateRoute role="Institute">
+                                        <InstituteStaffAttendance />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/staff/salary" element={
+                                    <PrivateRoute role="Institute">
+                                        <InstituteStaffSalary />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/staff/task" element={
+                                    <PrivateRoute role="Institute">
+                                        <InstituteStaffTask />
+                                    </PrivateRoute>
+                                } />
+
                                 {/* Admin Routes */}
                                 <Route path="/admin" element={
                                     <PrivateRoute role="Admin">
@@ -346,11 +379,11 @@ function App() {
                                         <MarketersList />
                                     </PrivateRoute>
                                 } />
-                                 <Route path="/admin/attendance-portal" element={
-                                     <PrivateRoute role={['Admin', 'Institute', 'Accountant']}>
-                                         <TeacherAttendanceRegister />
-                                     </PrivateRoute>
-                                 } />
+                                <Route path="/admin/attendance-portal" element={
+                                    <PrivateRoute role="Admin">
+                                        <ComingSoon title="Coming Soon" message="The Attendance Portal is under development and will be available shortly. Stay tuned!" />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/admin/drive" element={
                                     <PrivateRoute role="Admin">
                                         <AdminDrive />
@@ -395,7 +428,28 @@ function App() {
                                 } />
                                 <Route path="/admin/fee-portal" element={
                                     <PrivateRoute role="Admin">
-                                        <AdminFeePortal />
+                                        <ComingSoon title="Coming Soon" message="The Fee Portal is under development and will be available shortly. Stay tuned!" />
+                                    </PrivateRoute>
+                                } />
+
+                                <Route path="/admin/staff" element={
+                                    <PrivateRoute role="Admin">
+                                        <StaffList />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/staff/attendance" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminStaffAttendance />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/staff/salary" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminStaffSalary />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/admin/staff/task" element={
+                                    <PrivateRoute role="Admin">
+                                        <AdminStaffTask />
                                     </PrivateRoute>
                                 } />
 
@@ -624,6 +678,43 @@ function App() {
                                 <Route path="/student/performance" element={
                                     <PrivateRoute role="Student">
                                         <StudentPerformance />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Staff Routes */}
+                                <Route path="/staff" element={
+                                    <PrivateRoute role="Staff">
+                                        <StaffDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/task" element={
+                                    <PrivateRoute role="Staff">
+                                        <StaffTask />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/attendance" element={
+                                    <PrivateRoute role="Staff">
+                                        <StaffAttendance />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/salary" element={
+                                    <PrivateRoute role="Staff">
+                                        <StaffSalary />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/chat" element={
+                                    <PrivateRoute role="Staff">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/notes" element={
+                                    <PrivateRoute role="Staff">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/staff/drive" element={
+                                    <PrivateRoute role="Staff">
+                                        <AdminDrive />
                                     </PrivateRoute>
                                 } />
 

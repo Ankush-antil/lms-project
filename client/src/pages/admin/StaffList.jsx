@@ -75,7 +75,7 @@ const StaffList = () => {
 
     return (
         <DashboardLayout role="Admin" fullWidth={true}>
-            <div style={{ padding: '32px', width: '100%', boxSizing: 'border-box' }}>
+            <div>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

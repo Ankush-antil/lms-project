@@ -227,20 +227,20 @@ const sendMessage = asyncHandler(async (req, res) => {
         const userA = await User.findById(userAId);
         const userB = await User.findById(userBId);
         if (!userA || !userB) return false;
-        if (userA.role === 'Teacher' && userB.role === 'Student') {
-            const studentCourse = userB.studentProfile?.course;
-            const assignedCourses = userA.teacherProfile?.assignedCourses || [];
-            const assignedStudents = userA.teacherProfile?.assignedStudents || [];
-            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
-                   assignedStudents.some(sId => sId.toString() === userBId.toString());
+        
+        const bypassRoles = ['Admin', 'Institute', 'Accountant'];
+
+        // Administrative roles bypass
+        if (bypassRoles.includes(userA.role) || bypassRoles.includes(userB.role)) return true;
+
+        // Teacher-Student bypass
+        if (
+            (userA.role === 'Teacher' && userB.role === 'Student') ||
+            (userA.role === 'Student' && userB.role === 'Teacher')
+        ) {
+            return true;
         }
-        if (userA.role === 'Student' && userB.role === 'Teacher') {
-            const studentCourse = userA.studentProfile?.course;
-            const assignedCourses = userB.teacherProfile?.assignedCourses || [];
-            const assignedStudents = userB.teacherProfile?.assignedStudents || [];
-            return (studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString())) ||
-                   assignedStudents.some(sId => sId.toString() === userAId.toString());
-        }
+
         return false;
     };
 

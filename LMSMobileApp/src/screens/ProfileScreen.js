@@ -10,7 +10,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
 const ProfileScreen = ({ navigation }) => {
-    const { user, logout, refreshUser } = useAuth();
+    const { user, logout, refreshUser, savedAccounts, switchAccount } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(false);
@@ -48,6 +48,9 @@ const ProfileScreen = ({ navigation }) => {
         if (role === 'Student') return colors.student;
         if (role === 'Teacher') return colors.teacher;
         if (role === 'Admin') return colors.admin;
+        if (role === 'Institute') return colors.warning;
+        if (role === 'Accountant') return '#78350f';
+        if (role === 'Editor') return colors.accent;
         return colors.accent;
     };
 
@@ -190,6 +193,36 @@ const ProfileScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 )}
 
+                {/* Switch Role / Switch Account */}
+                {savedAccounts && savedAccounts.length > 1 && (
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Switch Role / Account</Text>
+                        {savedAccounts.map((acc, index) => {
+                            const isCurrent = acc.user?.email === user?.email;
+                            if (isCurrent) return null;
+                            return (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.accountSwitchItem}
+                                    onPress={() => switchAccount(acc.token, acc.user)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={styles.accountInfoLeft}>
+                                        <View style={[styles.avatarCircleSmall, { backgroundColor: getRoleColor(acc.user?.role) }]}>
+                                            <Text style={styles.avatarCircleTextSmall}>{acc.user?.name?.[0]}</Text>
+                                        </View>
+                                        <View>
+                                            <Text style={styles.accountNameSmall}>{acc.user?.name}</Text>
+                                            <Text style={styles.accountSubSmall}>{acc.user?.role} • {acc.user?.email}</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="swap-horizontal" size={18} color={colors.accent} />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </SectionCard>
+                )}
+
                 {/* Logout */}
                 <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
                     <Ionicons name="log-out-outline" size={18} color={colors.danger} />
@@ -297,6 +330,42 @@ const styles = StyleSheet.create({
         borderColor: '#fecaca',
     },
     logoutBtnText: { color: colors.danger, fontSize: fontSizes.lg, fontWeight: '700' },
+    accountSwitchItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    accountInfoLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    avatarCircleSmall: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarCircleTextSmall: {
+        color: colors.white,
+        fontSize: fontSizes.sm,
+        fontWeight: '800',
+    },
+    accountNameSmall: {
+        fontSize: fontSizes.sm,
+        fontWeight: '800',
+        color: colors.text,
+    },
+    accountSubSmall: {
+        fontSize: 10,
+        color: colors.textMuted,
+        fontWeight: 'bold',
+        marginTop: 1,
+    },
 });
 
 export default ProfileScreen;

@@ -22,6 +22,7 @@ import TakeTestScreen from '../screens/student/TakeTestScreen';
 import ViewTestResult from '../screens/student/ViewTestResult';
 import ContactTeacher from '../screens/student/ContactTeacher';
 import StudentAttendanceHistoryScreen from '../screens/student/StudentAttendanceHistoryScreen';
+import StudentFeePortalScreen from '../screens/student/StudentFeePortalScreen';
 import StudentPracticeTools from '../screens/student/StudentPracticeTools';
 import VoiceRecorderPage from '../screens/student/tools/VoiceRecorderPage';
 import VideoRecorderPage from '../screens/student/tools/VideoRecorderPage';
@@ -35,10 +36,14 @@ import EvaluatePage from '../screens/teacher/EvaluatePage';
 import ContactStudents from '../screens/teacher/ContactStudents';
 import TeacherSnapshotsScreen from '../screens/teacher/TeacherSnapshotsScreen';
 
+// Accountant
+import AccountantDashboard from '../screens/accountant/AccountantDashboard';
+import AccountantFeePortal from '../screens/accountant/AccountantFeePortal';
+
 // Admin
 import AdminDashboard from '../screens/admin/AdminDashboard';
 import TeacherAttendanceRegisterScreen from '../screens/admin/TeacherAttendanceRegisterScreen';
-import { StudentsList, TeachersList, EditorsList } from '../screens/admin/UserListScreen';
+import { StudentsList, TeachersList, EditorsList, AccountantsList, MarketersList } from '../screens/admin/UserListScreen';
 import TestsList from '../screens/admin/TestsList';
 import TestBuilder from '../screens/admin/TestBuilder';
 import UserDetailScreen from '../screens/admin/UserDetailScreen';
@@ -46,6 +51,12 @@ import CreateUserScreen from '../screens/admin/CreateUserScreen';
 import CreateCourseScreen from '../screens/admin/CreateCourseScreen';
 import CreateInstituteScreen from '../screens/admin/CreateInstituteScreen';
 import InstituteDetailScreen from '../screens/admin/InstituteDetailScreen';
+import UserDirectoryScreen from '../screens/admin/UserDirectoryScreen';
+import SubjectsListScreen from '../screens/admin/SubjectsListScreen';
+import ChatScreen from '../screens/admin/ChatScreen';
+import DriveScreen from '../screens/admin/DriveScreen';
+import NotesScreen from '../screens/admin/NotesScreen';
+import AdminFeePortal from '../screens/admin/AdminFeePortal';
 
 const Stack = createNativeStackNavigator();
 
@@ -72,6 +83,9 @@ const StudentStack = () => (
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="ScanAttendance" component={ScanAttendanceScreen} />
         <Stack.Screen name="StudentAttendanceHistory" component={StudentAttendanceHistoryScreen} />
+        <Stack.Screen name="StudentFeePortal" component={StudentFeePortalScreen} />
+        <Stack.Screen name="Drive" component={DriveScreen} />
+        <Stack.Screen name="Notes" component={NotesScreen} />
     </Stack.Navigator>
 );
 
@@ -85,6 +99,9 @@ const TeacherStack = () => (
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="TeacherAttendance" component={TeacherAttendanceScreen} />
         <Stack.Screen name="TeacherSnapshots" component={TeacherSnapshotsScreen} />
+        <Stack.Screen name="TestBuilder" component={TestBuilder} />
+        <Stack.Screen name="Drive" component={DriveScreen} />
+        <Stack.Screen name="Notes" component={NotesScreen} />
     </Stack.Navigator>
 );
 
@@ -95,6 +112,8 @@ const AdminStack = () => (
         <Stack.Screen name="StudentsList" component={StudentsList} />
         <Stack.Screen name="TeachersList" component={TeachersList} />
         <Stack.Screen name="EditorsList" component={EditorsList} />
+        <Stack.Screen name="AccountantsList" component={AccountantsList} />
+        <Stack.Screen name="MarketersList" component={MarketersList} />
         <Stack.Screen name="CoursesList" component={CoursesList} />
         <Stack.Screen name="InstitutesList" component={InstitutesList} />
         <Stack.Screen name="TestsList" component={TestsList} />
@@ -106,6 +125,22 @@ const AdminStack = () => (
         <Stack.Screen name="CreateInstitute" component={CreateInstituteScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="TeacherAttendanceRegister" component={TeacherAttendanceRegisterScreen} />
+        <Stack.Screen name="UserDirectory" component={UserDirectoryScreen} />
+        <Stack.Screen name="SubjectsList" component={SubjectsListScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="Drive" component={DriveScreen} />
+        <Stack.Screen name="Notes" component={NotesScreen} />
+        <Stack.Screen name="AdminFeePortal" component={AdminFeePortal} />
+        <Stack.Screen name="AccountantFeePortal" component={AccountantFeePortal} />
+    </Stack.Navigator>
+);
+
+// ─── Accountant Stack ─────────────────────────────────────────────────────────────
+const AccountantStack = () => (
+    <Stack.Navigator screenOptions={screenOptions}>
+        <Stack.Screen name="AccountantDashboard" component={AccountantDashboard} />
+        <Stack.Screen name="AccountantFeePortal" component={AccountantFeePortal} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
 );
 
@@ -135,6 +170,9 @@ const AppNavigator = () => {
                 ) : user.role === 'Teacher' ? (
                     // Teacher
                     <Stack.Screen name="TeacherRoot" component={TeacherStack} />
+                ) : user.role === 'Accountant' ? (
+                    // Accountant
+                    <Stack.Screen name="AccountantRoot" component={AccountantStack} />
                 ) : (user.role === 'Admin' || user.role === 'Editor' || user.role === 'Institute') ? (
                     // Admin/Editor/Institute
                     <Stack.Screen name="AdminRoot" component={AdminStack} />

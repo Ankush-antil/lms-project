@@ -19,7 +19,7 @@ const CreateUserScreen = ({ navigation, route }) => {
     const { user } = useAuth();
     const isInstitute = user?.role === 'Institute';
 
-    const defaultRole = route.params?.role || 'Student'; // Can be Student or Teacher
+    const defaultRole = route.params?.role || 'Student';
     const [role, setRole] = useState(defaultRole);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -49,7 +49,9 @@ const CreateUserScreen = ({ navigation, route }) => {
                 setInstitutes(instRes.data || []);
                 setCourses(courseRes.data || []);
                 
-                if (isInstitute && user?.institute) {
+                if (route.params?.instituteId) {
+                    setSelectedInstitute(route.params.instituteId);
+                } else if (isInstitute && user?.institute) {
                     const instId = typeof user.institute === 'object' ? user.institute._id : user.institute;
                     setSelectedInstitute(instId);
                 }
@@ -98,7 +100,17 @@ const CreateUserScreen = ({ navigation, route }) => {
         }
     };
 
-    const activeColor = role === 'Student' ? colors.student : (role === 'Teacher' ? colors.teacher : colors.accent);
+    const getRoleColor = (r) => {
+        switch (r) {
+            case 'Teacher': return colors.teacher || '#10b981';
+            case 'Editor': return colors.accent || '#6366f1';
+            case 'Accountant': return '#b45309';
+            case 'Marketer': return '#0f766e';
+            default: return colors.student || '#3b82f6';
+        }
+    };
+
+    const activeColor = getRoleColor(role);
 
     return (
         <View style={styles.container}>
@@ -106,35 +118,22 @@ const CreateUserScreen = ({ navigation, route }) => {
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                 {/* Role Switcher */}
-                <View style={styles.roleContainer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.roleTab,
-                            role === 'Student' && { backgroundColor: colors.student, borderColor: colors.student }
-                        ]}
-                        onPress={() => setRole('Student')}
-                    >
-                        <Text style={[styles.roleTabText, role === 'Student' && styles.activeTabText]}>Student</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.roleTab,
-                            role === 'Teacher' && { backgroundColor: colors.teacher, borderColor: colors.teacher }
-                        ]}
-                        onPress={() => setRole('Teacher')}
-                    >
-                        <Text style={[styles.roleTabText, role === 'Teacher' && styles.activeTabText]}>Teacher</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.roleTab,
-                            role === 'Editor' && { backgroundColor: colors.accent, borderColor: colors.accent }
-                        ]}
-                        onPress={() => setRole('Editor')}
-                    >
-                        <Text style={[styles.roleTabText, role === 'Editor' && styles.activeTabText]}>Editor</Text>
-                    </TouchableOpacity>
-                </View>
+                {!route.params?.role && (
+                    <View style={styles.roleContainer}>
+                        {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer'].map(r => (
+                            <TouchableOpacity
+                                key={r}
+                                style={[
+                                    styles.roleTab,
+                                    role === r && { backgroundColor: getRoleColor(r), borderColor: getRoleColor(r) }
+                                ]}
+                                onPress={() => setRole(r)}
+                            >
+                                <Text style={[styles.roleTabText, role === r && styles.activeTabText]}>{r}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
 
                 {/* Form Fields */}
                 <SectionCard>
@@ -208,7 +207,7 @@ const CreateUserScreen = ({ navigation, route }) => {
                     <Text style={styles.sectionTitle}>Profile & Setup</Text>
 
                     {/* Institute Dropdown */}
-                    {!isInstitute && (
+                    {!isInstitute && !route.params?.instituteId && (
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Select Institute *</Text>
                             <TouchableOpacity
@@ -247,41 +246,43 @@ const CreateUserScreen = ({ navigation, route }) => {
                     )}
 
                     {/* Course Dropdown */}
-                    <View style={styles.formGroup}>
-                        <Text style={styles.label}>Assign Course</Text>
-                        <TouchableOpacity
-                            style={styles.dropdownTrigger}
-                            onPress={() => setShowCourseSelect(!showCourseSelect)}
-                        >
-                            <Text style={selectedCourse ? styles.dropdownSelected : styles.dropdownPlaceholder}>
-                                {courses.find(c => c._id === selectedCourse)?.name || 'Choose Course'}
-                            </Text>
-                            <Ionicons name={showCourseSelect ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
-                        </TouchableOpacity>
+                    {(role === 'Student' || role === 'Teacher') && (
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Assign Course</Text>
+                            <TouchableOpacity
+                                style={styles.dropdownTrigger}
+                                onPress={() => setShowCourseSelect(!showCourseSelect)}
+                            >
+                                <Text style={selectedCourse ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                                    {courses.find(c => c._id === selectedCourse)?.name || 'Choose Course'}
+                                </Text>
+                                <Ionicons name={showCourseSelect ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
+                            </TouchableOpacity>
 
-                        {showCourseSelect && (
-                            <View style={styles.dropdownMenu}>
-                                {loadingDropdowns ? (
-                                    <ActivityIndicator size="small" color={colors.primary} style={styles.pv} />
-                                ) : courses.length > 0 ? (
-                                    courses.map(c => (
-                                        <TouchableOpacity
-                                            key={c._id}
-                                            style={styles.dropdownItem}
-                                            onPress={() => {
-                                                setSelectedCourse(c._id);
-                                                setShowCourseSelect(false);
-                                            }}
-                                        >
-                                            <Text style={styles.itemText}>{c.name}</Text>
-                                        </TouchableOpacity>
-                                    ))
-                                ) : (
-                                    <Text style={styles.noData}>No courses found</Text>
-                                )}
-                            </View>
-                        )}
-                    </View>
+                            {showCourseSelect && (
+                                <View style={styles.dropdownMenu}>
+                                    {loadingDropdowns ? (
+                                        <ActivityIndicator size="small" color={colors.primary} style={styles.pv} />
+                                    ) : courses.length > 0 ? (
+                                        courses.map(c => (
+                                            <TouchableOpacity
+                                                key={c._id}
+                                                style={styles.dropdownItem}
+                                                onPress={() => {
+                                                    setSelectedCourse(c._id);
+                                                    setShowCourseSelect(false);
+                                                }}
+                                            >
+                                                <Text style={styles.itemText}>{c.name}</Text>
+                                            </TouchableOpacity>
+                                        ))
+                                    ) : (
+                                        <Text style={styles.noData}>No courses found</Text>
+                                    )}
+                                </View>
+                            )}
+                        </View>
+                    )}
 
                     {/* Subject (Student-specific) */}
                     {role === 'Student' && (

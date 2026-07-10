@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
-export const AppHeader = ({ title, showBack = false, rightAction, rightIcon }) => {
+export const AppHeader = ({ title, showBack = false, rightAction, rightIcon, rightLongAction }) => {
     const navigation = useNavigation();
 
     return (
@@ -34,7 +34,13 @@ export const AppHeader = ({ title, showBack = false, rightAction, rightIcon }) =
                 )}
                 <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
                 {rightAction ? (
-                    <TouchableOpacity onPress={rightAction} style={styles.rightBtn} activeOpacity={0.7}>
+                    <TouchableOpacity 
+                        onPress={rightAction} 
+                        onLongPress={rightLongAction}
+                        delayLongPress={500}
+                        style={styles.rightBtn} 
+                        activeOpacity={0.7}
+                    >
                         <Ionicons name={rightIcon || 'ellipsis-vertical'} size={20} color={colors.white} />
                     </TouchableOpacity>
                 ) : (

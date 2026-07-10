@@ -23,7 +23,7 @@ const LoginScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const { login, savedAccounts, switchAccount } = useAuth();
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -140,21 +140,37 @@ const LoginScreen = ({ navigation }) => {
                         )}
                     </TouchableOpacity>
 
-                    {/* Role Hint Cards */}
-                    <View style={styles.hintRow}>
-                        <View style={[styles.hintChip, { backgroundColor: '#eef2ff' }]}>
-                            <Ionicons name="person" size={12} color={colors.student} />
-                            <Text style={[styles.hintText, { color: colors.student }]}>Student</Text>
+                    {/* Saved Accounts Switcher */}
+                    {savedAccounts && savedAccounts.length > 0 && (
+                        <View style={styles.savedAccountsContainer}>
+                            <Text style={styles.savedTitle}>Saved Accounts (Quick Switch)</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedScroll}>
+                                {savedAccounts.map((acc, index) => {
+                                    const getRoleColor = (role) => {
+                                        if (role === 'Student') return colors.student;
+                                        if (role === 'Teacher') return colors.teacher;
+                                        if (role === 'Admin') return colors.admin;
+                                        if (role === 'Accountant') return '#78350f';
+                                        return colors.accent;
+                                    };
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={styles.savedAccountCard}
+                                            onPress={() => switchAccount(acc.token, acc.user)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <View style={[styles.savedAvatar, { backgroundColor: getRoleColor(acc.user?.role) }]}>
+                                                <Text style={styles.savedAvatarText}>{acc.user?.name?.[0]}</Text>
+                                            </View>
+                                            <Text style={styles.savedName} numberOfLines={1}>{acc.user?.name?.split(' ')[0]}</Text>
+                                            <Text style={styles.savedRole} numberOfLines={1}>{acc.user?.role}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
                         </View>
-                        <View style={[styles.hintChip, { backgroundColor: '#ecfdf5' }]}>
-                            <Ionicons name="people" size={12} color={colors.teacher} />
-                            <Text style={[styles.hintText, { color: colors.teacher }]}>Teacher</Text>
-                        </View>
-                        <View style={[styles.hintChip, { backgroundColor: '#fef2f2' }]}>
-                            <Ionicons name="shield-checkmark" size={12} color={colors.admin} />
-                            <Text style={[styles.hintText, { color: colors.admin }]}>Admin</Text>
-                        </View>
-                    </View>
+                    )}
                 </View>
 
                 <Text style={styles.footer}>LMS Portal • v1.0.0</Text>
@@ -350,6 +366,59 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSizes.xs,
         marginVertical: spacing.lg,
+    },
+    savedAccountsContainer: {
+        marginTop: spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: colors.borderLight,
+        paddingTop: spacing.md,
+    },
+    savedTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: spacing.sm,
+        textAlign: 'center',
+    },
+    savedScroll: {
+        gap: 10,
+        paddingVertical: 4,
+    },
+    savedAccountCard: {
+        width: 85,
+        alignItems: 'center',
+        backgroundColor: colors.bgSecondary,
+        borderRadius: borderRadius.md,
+        padding: 8,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    savedAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    savedAvatarText: {
+        color: colors.white,
+        fontSize: fontSizes.md,
+        fontWeight: 'bold',
+    },
+    savedName: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.text,
+        textAlign: 'center',
+    },
+    savedRole: {
+        fontSize: 8,
+        fontWeight: '700',
+        color: colors.textMuted,
+        marginTop: 1,
     },
 });
 

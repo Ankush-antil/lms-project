@@ -22,9 +22,10 @@ const computeSection = async (courseId) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-    const { role, course } = req.query;
+    const { role, course, institute } = req.query;
     const query = { isDeleted: { $ne: true } };
     if (role) query.role = role;
+    if (institute) query.institute = institute;
     if (course) {
         if (role === 'Student') {
             query['studentProfile.course'] = course;

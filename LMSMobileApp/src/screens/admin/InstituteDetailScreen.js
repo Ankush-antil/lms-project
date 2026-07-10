@@ -17,21 +17,29 @@ import { Ionicons } from '@expo/vector-icons';
 const InstituteDetailScreen = ({ route, navigation }) => {
     const { instituteId } = route.params;
     const [institute, setInstitute] = useState(null);
+    const [instituteUsers, setInstituteUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [usersLoading, setUsersLoading] = useState(true);
     const [newPassword, setNewPassword] = useState('');
     const [updatingPassword, setUpdatingPassword] = useState(false);
 
     const fetchInstituteDetails = async () => {
         try {
             setLoading(true);
-            const { data } = await axios.get(`/setup/institutes/${instituteId}`);
-            setInstitute(data);
+            setUsersLoading(true);
+            const [instRes, usersRes] = await Promise.all([
+                axios.get(`/setup/institutes/${instituteId}`),
+                axios.get(`/users?institute=${instituteId}`)
+            ]);
+            setInstitute(instRes.data);
+            setInstituteUsers(usersRes.data?.users || usersRes.data || []);
         } catch (e) {
             console.error('Error fetching institute details:', e);
             Alert.alert('Error', 'Institute details load nahi ho paye');
             navigation.goBack();
         } finally {
             setLoading(false);
+            setUsersLoading(false);
         }
     };
 
@@ -90,6 +98,16 @@ const InstituteDetailScreen = ({ route, navigation }) => {
     const themeColor = colors.accent;
     const themeBg = '#eef2ff';
 
+    const getRoleColor = (role) => {
+        switch (role) {
+            case 'Teacher': return colors.teacher || '#10b981';
+            case 'Editor': return colors.accent || '#6366f1';
+            case 'Accountant': return '#b45309';
+            case 'Marketer': return '#0f766e';
+            default: return colors.student || '#3b82f6';
+        }
+    };
+
     return (
         <View style={styles.container}>
             <AppHeader title="Institute Details" showBack />
@@ -140,6 +158,46 @@ const InstituteDetailScreen = ({ route, navigation }) => {
                             <Text style={styles.noCoursesText}>No Courses Created yet</Text>
                         )}
                     </View>
+                </SectionCard>
+
+                {/* Associated Users / Staff */}
+                <SectionCard>
+                    <Text style={styles.sectionTitle}>Associated Users & Staff</Text>
+                    {usersLoading ? (
+                        <ActivityIndicator size="small" color={themeColor} style={{ marginVertical: 12 }} />
+                    ) : instituteUsers.length === 0 ? (
+                        <Text style={styles.noCoursesText}>No users registered under this institute yet.</Text>
+                    ) : (
+                        <View style={{ gap: spacing.md }}>
+                            {['Teacher', 'Student', 'Editor', 'Accountant', 'Marketer'].map(role => {
+                                const roleUsers = instituteUsers.filter(u => u.role === role);
+                                if (roleUsers.length === 0) return null;
+
+                                return (
+                                    <View key={role} style={styles.roleGroup}>
+                                        <Text style={styles.roleGroupTitle}>{role}s ({roleUsers.length})</Text>
+                                        {roleUsers.map(u => (
+                                            <TouchableOpacity
+                                                key={u._id}
+                                                style={styles.userItemRow}
+                                                onPress={() => navigation.navigate('UserDetail', { userId: u._id })}
+                                                activeOpacity={0.8}
+                                            >
+                                                <View style={[styles.miniAvatar, { backgroundColor: getRoleColor(role) }]}>
+                                                    <Text style={styles.miniAvatarText}>{u.name?.[0]?.toUpperCase()}</Text>
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={styles.userItemName}>{u.name}</Text>
+                                                    <Text style={styles.userItemEmail}>{u.email}</Text>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
                 </SectionCard>
 
                 {/* Update Password */}
@@ -349,6 +407,47 @@ const styles = StyleSheet.create({
         color: colors.white,
         fontSize: fontSizes.md,
         fontWeight: '700',
+    },
+    roleGroup: {
+        marginTop: 6,
+    },
+    roleGroupTitle: {
+        fontSize: fontSizes.xs,
+        fontWeight: 'bold',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    userItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    miniAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    miniAvatarText: {
+        fontSize: fontSizes.sm,
+        fontWeight: 'bold',
+        color: colors.white,
+    },
+    userItemName: {
+        fontSize: fontSizes.sm,
+        fontWeight: '600',
+        color: colors.text,
+    },
+    userItemEmail: {
+        fontSize: 10,
+        color: colors.textMuted,
+        marginTop: 1,
     },
 });
 

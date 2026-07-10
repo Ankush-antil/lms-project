@@ -14,15 +14,47 @@ import { useAuth } from '../../context/AuthContext';
 import { AppHeader, StatCard, SectionCard, LoadingScreen, EmptyState, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import ProfileBottomSheet from '../../components/common/ProfileBottomSheet';
 
 const StudentDashboard = ({ navigation }) => {
-    const { user, logout } = useAuth();
+    const { user, logout, savedAccounts, switchAccount } = useAuth();
+    const lastTapRef = React.useRef(0);
+    const tapTimeoutRef = React.useRef(null);
+    const scrollRef = React.useRef(null);
     const [profile, setProfile] = useState(null);
     const [tests, setTests] = useState([]);
     const [submissions, setSubmissions] = useState([]);
     const [missedCalls, setMissedCalls] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [switcherVisible, setSwitcherVisible] = useState(false);
+
+    const handleQuickSwitch = async () => {
+        if (savedAccounts && savedAccounts.length > 1) {
+            const currentIndex = savedAccounts.findIndex(acc => acc.user?.email === user?.email);
+            const nextIndex = (currentIndex + 1) % savedAccounts.length;
+            const nextAcc = savedAccounts[nextIndex];
+            if (nextAcc) {
+                await switchAccount(nextAcc.token, nextAcc.user);
+            }
+        } else {
+            Alert.alert('No other saved accounts', 'Please login to another account first to use quick switch.');
+        }
+    };
+
+    const handleProfilePress = () => {
+        const now = Date.now();
+        const DOUBLE_PRESS_DELAY = 300;
+        if (now - lastTapRef.current < DOUBLE_PRESS_DELAY) {
+            if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+            handleQuickSwitch();
+        } else {
+            lastTapRef.current = now;
+            tapTimeoutRef.current = setTimeout(() => {
+                navigation.navigate('Profile');
+            }, DOUBLE_PRESS_DELAY);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -71,26 +103,46 @@ const StudentDashboard = ({ navigation }) => {
         <View style={styles.container}>
             <AppHeader
                 title="Student Dashboard"
-                rightIcon="log-out-outline"
-                rightAction={logout}
+                rightIcon="person-circle-outline"
+                rightAction={handleProfilePress}
+                rightLongAction={() => setSwitcherVisible(true)}
             />
+
+            {/* Quick Actions Top Tab Bar */}
+            <View style={styles.topTabBar}>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('StudentAttendanceHistory')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="bar-chart-outline" size={20} color="#8b5cf6" />
+                    <Text style={styles.tabLabel}>Analytics</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('Drive')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="cloud-upload-outline" size={20} color="#06b6d4" />
+                    <Text style={styles.tabLabel}>Drive</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('Notes')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="create-outline" size={20} color="#ec4899" />
+                    <Text style={styles.tabLabel}>Notes</Text>
+                </TouchableOpacity>
+            </View>
+
             <ScrollView
+                ref={scrollRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
             >
-                {/* Welcome Banner */}
-                <View style={styles.welcomeBanner}>
-                    <View style={styles.welcomeLeft}>
-                        <Text style={styles.welcomeGreeting}>👋 Hello, {firstName}!</Text>
-                        <Text style={styles.welcomeSub}>Track your progress below</Text>
-                    </View>
-                    <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{profile?.name?.[0] || 'S'}</Text>
-                    </View>
-                </View>
-
                 {/* Tags */}
                 <View style={styles.tagsRow}>
                     {profile?.studentProfile?.subject && (
@@ -119,76 +171,24 @@ const StudentDashboard = ({ navigation }) => {
                     />
                 </View>
 
-                {/* Chat with Teachers Quick Banner */}
-                <TouchableOpacity
-                    style={styles.chatBanner}
-                    onPress={() => navigation.navigate('ContactTeacher')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.chatBannerLeft}>
-                        <View style={styles.chatIconCircle}>
-                            <Ionicons name="chatbubbles" size={22} color={colors.white} />
-                        </View>
-                        <View>
-                            <Text style={styles.chatBannerTitle}>Contact Teachers</Text>
-                            <Text style={styles.chatBannerSub}>Chat, call, and video call your teachers</Text>
-                        </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.accent} />
-                </TouchableOpacity>
+                {/* Dashboard banners moved to sticky bottom tab bar */}
 
-                {/* Student Practice Tools Quick Banner */}
+                {/* Fee Portal Quick Banner */}
                 <TouchableOpacity
-                    style={[styles.chatBanner, { backgroundColor: '#ecfdf5', borderColor: '#d1fae5' }]}
-                    onPress={() => navigation.navigate('StudentPracticeTools')}
+                    style={[styles.chatBanner, { backgroundColor: '#fef8e7', borderColor: '#fef0d1', marginBottom: spacing.md }]}
+                    onPress={() => navigation.navigate('StudentFeePortal')}
                     activeOpacity={0.85}
                 >
                     <View style={styles.chatBannerLeft}>
-                        <View style={[styles.chatIconCircle, { backgroundColor: colors.success }]}>
-                            <Ionicons name="construct" size={22} color={colors.white} />
+                        <View style={[styles.chatIconCircle, { backgroundColor: '#f59e0b' }]}>
+                            <Ionicons name="card" size={22} color={colors.white} />
                         </View>
                         <View>
-                            <Text style={styles.chatBannerTitle}>Tools</Text>
-                            <Text style={styles.chatBannerSub}>Audio, Video, Screenshot, Calling Logs</Text>
+                            <Text style={styles.chatBannerTitle}>Fee Portal</Text>
+                            <Text style={styles.chatBannerSub}>View ledger statements & download receipts</Text>
                         </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.success} />
-                </TouchableOpacity>
-
-                {/* Scan QR Code Card */}
-                <TouchableOpacity
-                    style={[styles.chatBanner, { backgroundColor: '#fef2f2', borderColor: '#fee2e2', marginBottom: spacing.sm }]}
-                    onPress={() => navigation.navigate('ScanAttendance')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.chatBannerLeft}>
-                        <View style={[styles.chatIconCircle, { backgroundColor: '#ef4444' }]}>
-                            <Ionicons name="qr-code" size={22} color={colors.white} />
-                        </View>
-                        <View>
-                            <Text style={styles.chatBannerTitle}>Scan QR Code</Text>
-                            <Text style={styles.chatBannerSub}>Scan class QR to mark your attendance</Text>
-                        </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#ef4444" />
-                </TouchableOpacity>
-
-                {/* Attendance History Card */}
-                <TouchableOpacity
-                    style={[styles.chatBanner, { backgroundColor: '#eef2ff', borderColor: '#e0e7ff' }]}
-                    onPress={() => navigation.navigate('StudentAttendanceHistory')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.chatBannerLeft}>
-                        <View style={[styles.chatIconCircle, { backgroundColor: '#4f46e5' }]}>
-                            <Ionicons name="calendar" size={22} color={colors.white} />
-                        </View>
-                        <View>
-                            <Text style={styles.chatBannerTitle}>Attendance History</Text>
-                            <Text style={styles.chatBannerSub}>View logs, teacher notes & leave approvals</Text>
-                        </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#4f46e5" />
+                    <Ionicons name="chevron-forward" size={20} color="#f59e0b" />
                 </TouchableOpacity>
 
                 {/* Missed Calls */}
@@ -293,6 +293,56 @@ const StudentDashboard = ({ navigation }) => {
                     </View>
                 </SectionCard>
             </ScrollView>
+
+            {/* Sticky Bottom Tab Bar (YouTube/Facebook Style) */}
+            <View style={styles.bottomTabBar}>
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="home" size={20} color={colors.accent} />
+                    <Text style={[styles.bottomTabLabel, { color: colors.accent }]}>Home</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('ContactTeacher')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="chatbubbles" size={20} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Contact</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('ScanAttendance')}
+                    activeOpacity={0.75}
+                >
+                    <View style={styles.plusBtnCircle}>
+                        <Ionicons name="qr-code" size={20} color={colors.white} />
+                    </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('StudentTests')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="clipboard" size={20} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Activities</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('StudentPracticeTools')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="construct" size={20} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Tools</Text>
+                </TouchableOpacity>
+            </View>
+            <ProfileBottomSheet visible={switcherVisible} onClose={() => setSwitcherVisible(false)} />
         </View>
     );
 };
@@ -300,7 +350,72 @@ const StudentDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     scroll: { flex: 1 },
-    scrollContent: { padding: spacing.md, paddingBottom: 32 },
+    scrollContent: { padding: spacing.md, paddingBottom: 80 },
+    topTabBar: {
+        flexDirection: 'row',
+        backgroundColor: colors.bgCard,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+        paddingVertical: 8,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+    },
+    tabBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+        gap: 3,
+    },
+    tabLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: colors.textSecondary,
+        textAlign: 'center',
+    },
+    bottomTabBar: {
+        flexDirection: 'row',
+        backgroundColor: colors.bgCard,
+        borderTopWidth: 1.5,
+        borderTopColor: colors.borderLight,
+        paddingVertical: 8,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        height: 60,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    bottomTabBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    bottomTabLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textSecondary,
+        marginTop: 2,
+    },
+    plusBtnCircle: {
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: colors.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -18,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+    },
     welcomeBanner: {
         flexDirection: 'row',
         justifyContent: 'space-between',

@@ -107,6 +107,14 @@ const createUser = asyncHandler(async (req, res) => {
         userFields.accountantProfile = {
             controls: req.body.controls
         };
+    } else if (role === 'Staff') {
+        userFields.staffProfile = {
+            designation: req.body.staffProfile?.designation || '',
+            department: req.body.staffProfile?.department || '',
+            joiningDate: req.body.staffProfile?.joiningDate || new Date(),
+            salary: req.body.staffProfile?.salary || 0,
+            salaryStatus: req.body.staffProfile?.salaryStatus || 'Pending'
+        };
     }
 
     const user = await User.create(userFields);
@@ -406,6 +414,14 @@ const updateUser = asyncHandler(async (req, res) => {
                         });
                     }
                 }
+            }
+        } else if (user.role === 'Staff') {
+            if (!user.staffProfile) user.staffProfile = {};
+            if (req.body.staffProfile) {
+                user.staffProfile.designation = req.body.staffProfile.designation !== undefined ? req.body.staffProfile.designation : user.staffProfile.designation;
+                user.staffProfile.department = req.body.staffProfile.department !== undefined ? req.body.staffProfile.department : user.staffProfile.department;
+                user.staffProfile.salary = req.body.staffProfile.salary !== undefined ? req.body.staffProfile.salary : user.staffProfile.salary;
+                user.staffProfile.salaryStatus = req.body.staffProfile.salaryStatus !== undefined ? req.body.staffProfile.salaryStatus : user.staffProfile.salaryStatus;
             }
         }
 

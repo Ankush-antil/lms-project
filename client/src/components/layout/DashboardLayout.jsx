@@ -6,7 +6,7 @@ import {
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
-    Calculator, Megaphone, Calendar, StickyNote
+    Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -158,8 +158,12 @@ const menuItems = {
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
         { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
         { name: 'Fees Portal', icon: CreditCard, path: '/admin/fee-portal' },
-
         { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
+        { name: '_section_Staff', icon: Briefcase, path: null },
+        { name: 'All Staff', icon: Users, path: '/admin/staff' },
+        { name: 'Staff Attendance', icon: Calendar, path: '/admin/staff/attendance' },
+        { name: 'Staff Salary', icon: DollarSign, path: '/admin/staff/salary' },
+        { name: 'Staff Task', icon: CheckSquare, path: '/admin/staff/task' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
         { name: 'Chat', icon: MessageSquare, path: '/admin/chat' },
@@ -179,7 +183,12 @@ const menuItems = {
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
         { name: 'Fee Portal', icon: CreditCard, path: '/institute/fee-portal' },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
-        { name: 'Notes', icon: StickyNote, path: '/institute/notes' }
+        { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
+        { name: '_section_Staff', icon: Briefcase, path: null },
+        { name: 'My Staff', icon: Users, path: '/institute/staff' },
+        { name: 'Staff Attendance', icon: Calendar, path: '/institute/staff/attendance' },
+        { name: 'Staff Salary', icon: DollarSign, path: '/institute/staff/salary' },
+        { name: 'Staff Task', icon: CheckSquare, path: '/institute/staff/task' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
@@ -218,6 +227,15 @@ const menuItems = {
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
         { name: 'Drive', icon: HardDrive, path: '/student/drive' },
         { name: 'Notes', icon: StickyNote, path: '/student/notes' },
+    ],
+    Staff: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/staff' },
+        { name: 'Task', icon: CheckSquare, path: '/staff/task' },
+        { name: 'Attendance', icon: Calendar, path: '/staff/attendance' },
+        { name: 'Salary', icon: DollarSign, path: '/staff/salary' },
+        { name: 'Chat', icon: MessageSquare, path: '/staff/chat' },
+        { name: 'Notes', icon: StickyNote, path: '/staff/notes' },
+        { name: 'Drive', icon: HardDrive, path: '/staff/drive' },
     ]
 };
 
@@ -637,6 +655,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     });
 
     const isMenuItemAllowed = (item) => {
+        if (item.name.startsWith('_section_')) return true;
         // Super Admins bypass all controls
         if (user?.role === 'Admin') return true;
 
@@ -759,10 +778,6 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 
     const handleItemClick = (item) => {
         if (item.disabled) return;
-        if (user?.role === 'Admin' && ['fees portal', 'attendance portal'].includes(item.name.toLowerCase())) {
-            toast('Coming Soon', { icon: '⏳' });
-            return;
-        }
         navigate(item.path);
     };
 
@@ -789,6 +804,20 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
                     {filteredItems.map((item) => {
+                        if (item.name.startsWith('_section_')) {
+                            const label = item.name.replace('_section_', '');
+                            if (collapsed) {
+                                return (
+                                    <div key={item.name} className="border-t border-slate-800/80 my-4 mx-2" />
+                                );
+                            }
+                            return (
+                                <div key={item.name} className="pt-5 pb-1.5 px-4 flex items-center gap-2 select-none">
+                                    {item.icon && <item.icon size={12} className="text-slate-500" />}
+                                    <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">{label}</span>
+                                </div>
+                            );
+                        }
                         const active = isActive(item.path);
                         return (
                             <button
@@ -833,6 +862,15 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 <div className={`absolute left-0 top-0 bottom-0 w-64 bg-[#0b1329] shadow-2xl p-6 flex flex-col transition-transform duration-300 text-white ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <nav className="flex-1 space-y-2">
                         {filteredItems.map((item) => {
+                            if (item.name.startsWith('_section_')) {
+                                const label = item.name.replace('_section_', '');
+                                return (
+                                    <div key={item.name} className="pt-4 pb-1.5 px-4 flex items-center gap-2 select-none border-b border-slate-800/40 mb-1 mt-3">
+                                        {item.icon && <item.icon size={13} className="text-slate-400" />}
+                                        <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{label}</span>
+                                    </div>
+                                );
+                            }
                             const active = isActive(item.path);
                             return (
                                 <button

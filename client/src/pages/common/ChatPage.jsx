@@ -3298,30 +3298,27 @@ const ChatPage = () => {
                                                                 )}
                                                             </>
                                                             {msg.fileType === 'note' ? (
-                                                                <div className="flex flex-col gap-2 min-w-[240px] text-left">
-                                                                    <div className="flex items-center gap-2 border-b border-white/10 pb-1.5 mb-1 select-none">
-                                                                        <span className="text-base">📝</span>
+                                                                <div className="flex flex-col gap-1 min-w-[220px] text-left">
+                                                                    <div className="flex items-center gap-2 select-none">
+                                                                        <span className="text-base flex-shrink-0">📝</span>
                                                                         <h4 className="font-extrabold text-xs tracking-tight truncate flex-1 uppercase">
                                                                             {msg.fileName || 'Untitled Note'}
                                                                         </h4>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setViewSelectedNote(msg);
+                                                                                setShowViewNoteModal(true);
+                                                                            }}
+                                                                            className={`flex-shrink-0 py-0.5 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border active:scale-95 ${
+                                                                                isSelf
+                                                                                    ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
+                                                                                    : 'bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-700'
+                                                                            }`}
+                                                                        >
+                                                                            View
+                                                                        </button>
                                                                     </div>
-                                                                    <p className="text-xs opacity-90 line-clamp-3 leading-relaxed font-semibold break-words">
-                                                                        {msg.text}
-                                                                    </p>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setViewSelectedNote(msg);
-                                                                            setShowViewNoteModal(true);
-                                                                        }}
-                                                                        className={`mt-2 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer border border-transparent shadow-sm active:scale-95 ${
-                                                                            isSelf 
-                                                                                ? 'bg-white text-indigo-700 hover:bg-slate-50' 
-                                                                                : 'bg-indigo-600 text-white hover:bg-indigo-750'
-                                                                        }`}
-                                                                    >
-                                                                        View Full Note
-                                                                    </button>
                                                                 </div>
                                                             ) : (
                                                                 <>

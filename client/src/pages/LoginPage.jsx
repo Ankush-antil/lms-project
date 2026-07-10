@@ -29,6 +29,7 @@ const LoginPage = () => {
             else if (data.role === 'Editor') navigate('/editor');
             else if (data.role === 'Institute') navigate('/institute');
             else if (data.role === 'Accountant') navigate('/accountant');
+            else if (data.role === 'Staff') navigate('/staff');
 
             setLoading(false);
         } catch (err) {

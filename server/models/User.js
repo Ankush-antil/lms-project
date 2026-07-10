@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer'],
+        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff'],
         default: 'Student'
     },
     institute: {
@@ -329,6 +329,13 @@ const userSchema = new mongoose.Schema({
                 deleteNotes: { type: Boolean, default: true }
             }
         }
+    },
+    staffProfile: {
+        designation: { type: String, default: '' },
+        department: { type: String, default: '' },
+        joiningDate: { type: Date, default: Date.now },
+        salary: { type: Number, default: 0 },
+        salaryStatus: { type: String, enum: ['Paid', 'Pending', 'Processing'], default: 'Pending' }
     },
     isActive: { type: Boolean, default: true }
 }, {

@@ -349,6 +349,7 @@ const userSchema = new mongoose.Schema({
         salary: { type: Number, default: 0 },
         salaryStatus: { type: String, enum: ['Paid', 'Pending', 'Processing'], default: 'Pending' },
         minusPoints: { type: Number, default: 0 },
+        plusPoints: { type: Number, default: 0 },
         physicalAttendance: [{
             date: { type: String }, // e.g. "2026-06-30"
             status: { type: String, enum: ['Present', 'Absent', 'Leave', 'Holiday'] },

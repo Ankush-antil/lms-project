@@ -296,7 +296,12 @@ function App() {
                                     </PrivateRoute>
                                 } />
 
-                                <Route path="/institute/staff" element={
+                                 <Route path="/institute/users" element={
+                                     <PrivateRoute role="Institute">
+                                         <UsersList />
+                                     </PrivateRoute>
+                                 } />
+                                 <Route path="/institute/staff" element={
                                     <PrivateRoute role="Institute">
                                         <InstituteStaff />
                                     </PrivateRoute>

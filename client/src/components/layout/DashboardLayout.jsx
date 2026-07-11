@@ -177,6 +177,7 @@ const menuItems = {
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
 
         { name: '_section_Users', icon: Users, path: null },
+        { name: 'Users', icon: User, path: '/institute/users' },
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },

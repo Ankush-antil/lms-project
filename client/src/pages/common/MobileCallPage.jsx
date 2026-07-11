@@ -21,21 +21,10 @@ const MobileCallPage = () => {
     const hasInitiatedRef = useRef(false);
     const prevCallStateRef = useRef('idle');
 
+    console.log('[MobileCall] Render - initializing:', initializing, 'authLoading:', authLoading, 'user:', !!user, 'socketConnected:', socket?.connected);
+
     // 1. Extract and inject Auth Token
     useEffect(() => {
-        const query = new URLSearchParams(window.location.search);
-        const token = query.get('token');
-        
-        if (token) {
-            const currentToken = localStorage.getItem('authToken');
-            if (currentToken !== token) {
-                console.log('[MobileCall] Injecting new auth token to localStorage');
-                localStorage.setItem('authToken', token);
-                // Reload page to force AuthProvider to initialize with the new token
-                window.location.reload();
-                return;
-            }
-        }
         setInitializing(false);
     }, []);
 
@@ -78,6 +67,15 @@ const MobileCallPage = () => {
             setStatusMessage('Answering incoming call...');
             console.log('[MobileCall] Auto-answering call');
             const callLogId = query.get('callLogId') || '';
+            const offerParam = query.get('offer');
+            let parsedOffer = null;
+            if (offerParam) {
+                try {
+                    parsedOffer = JSON.parse(decodeURIComponent(offerParam));
+                } catch (e) {
+                    console.error('[MobileCall] Error parsing offer query param:', e);
+                }
+            }
             acceptCall({
                 targetId,
                 targetName,
@@ -85,7 +83,7 @@ const MobileCallPage = () => {
                 callLogId,
                 isCaller: false,
                 callType,
-                offer: window.mobileOffer || null
+                offer: parsedOffer || window.mobileOffer || null
             });
         }
     }, [initializing, authLoading, user, socket, socket?.connected]);

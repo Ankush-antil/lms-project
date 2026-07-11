@@ -61,6 +61,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const tokenParam = queryParams.get('token');
+        if (tokenParam) {
+            console.log('[AuthContext] Auto-authenticating from URL token parameter');
+            localStorage.setItem('authToken', tokenParam);
+        }
         fetchUser();
     }, []);
 
@@ -107,7 +113,7 @@ export const AuthProvider = ({ children }) => {
         
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
-        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.') || hostname.includes('pinggy') || hostname.includes('lhr.life') || hostname.includes('loca.lt') || hostname.includes('serveo');
 
         if (isLocalHost) {
             window.location.href = redirectPath;

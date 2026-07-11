@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -192,36 +192,90 @@ export const SocketProvider = ({ children }) => {
 
     const debugInjection = `
         (function() {
+            // ── Step 0: Inject auth token into localStorage IMMEDIATELY ──
+            // This runs before React app loads, ensuring axios interceptor finds the token
+            try {
+                var _params = new URLSearchParams(window.location.search);
+                var _token = _params.get('token');
+                if (_token) {
+                    localStorage.setItem('authToken', _token);
+                    // Also expose on window so React can use it as fallback
+                    window.__mobileAuthToken = _token;
+                }
+            } catch(_e) {}
+
             var origLog = console.log;
             var origError = console.error;
             var origWarn = console.warn;
             
             console.log = function() {
                 var args = Array.prototype.slice.call(arguments);
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOG', message: args.join(' ') }));
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOG', message: args.join(' ') }));
+                }
                 origLog.apply(console, arguments);
             };
             
             console.error = function() {
                 var args = Array.prototype.slice.call(arguments);
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ERROR', message: args.join(' ') }));
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ERROR', message: args.join(' ') }));
+                }
                 origError.apply(console, arguments);
             };
 
             console.warn = function() {
                 var args = Array.prototype.slice.call(arguments);
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WARN', message: args.join(' ') }));
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WARN', message: args.join(' ') }));
+                }
                 origWarn.apply(console, arguments);
             };
 
             window.onerror = function(message, source, lineno, colno, error) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                    type: 'ERROR', 
-                    message: message + ' at ' + (source || '').split('/').pop() + ':' + lineno 
-                }));
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                        type: 'ERROR', 
+                        message: message + ' at ' + (source || '').split('/').pop() + ':' + lineno 
+                    }));
+                }
                 return false;
             };
-            origLog('Logger bridge injected.');
+            console.log('Logger bridge injected.');
+
+            // Tunnel Warning Auto-Bypass
+            setInterval(function() {
+                var links = document.getElementsByTagName('a');
+                for (var i = 0; i < links.length; i++) {
+                    var text = links[i].innerText.toLowerCase();
+                    if (text.indexOf('proceed') !== -1 || text.indexOf('continue') !== -1 || text.indexOf('visit site') !== -1 || text.indexOf('click here') !== -1 || text.indexOf('enter site') !== -1 || text.indexOf('enter') !== -1) {
+                        origLog('[WebView] Clicking warning bypass link: ' + links[i].innerText);
+                        links[i].click();
+                    }
+                }
+                var buttons = document.getElementsByTagName('button');
+                for (var i = 0; i < buttons.length; i++) {
+                    var text = buttons[i].innerText.toLowerCase();
+                    if (text.indexOf('proceed') !== -1 || text.indexOf('continue') !== -1 || text.indexOf('visit site') !== -1 || text.indexOf('click here') !== -1 || text.indexOf('enter site') !== -1 || text.indexOf('enter') !== -1) {
+                        origLog('[WebView] Clicking warning bypass button: ' + buttons[i].innerText);
+                        buttons[i].click();
+                    }
+                }
+            }, 500);
+
+            // Diagnostic probe: fires at 3s and 6s to report internal state
+            function runDiagnostic(label) {
+                try {
+                    var token = localStorage.getItem('authToken') || localStorage.getItem('token') || 'NONE';
+                    var bodyText = (document.body ? document.body.innerText : 'NO BODY').substring(0, 120).replace(/\n/g, ' ');
+                    var scripts = document.querySelectorAll('script[src]').length;
+                    console.log('[DIAG-' + label + '] token=' + (token !== 'NONE' ? token.substring(0,20)+'...' : 'NONE') + ' scripts=' + scripts + ' body=' + bodyText);
+                } catch(e) {
+                    console.log('[DIAG-' + label + '] Error: ' + e.message);
+                }
+            }
+            setTimeout(function() { runDiagnostic('3s'); }, 3000);
+            setTimeout(function() { runDiagnostic('6s'); }, 6000);
         })();
         true;
     `;
@@ -401,12 +455,11 @@ export const SocketProvider = ({ children }) => {
             playSound('ringtone');
         });
 
-        // Call Accepted Event
         s.on('call-accepted', async ({ callLogId }) => {
             console.log('[SOCKET] Call accepted by peer. Requesting permissions...');
             await requestCallPermissions();
             stopVibration();
-            stopSound();
+            await stopSound();
             setCallState('connected');
             setCallInfo(prev => ({ ...prev, callLogId }));
         });
@@ -494,7 +547,7 @@ export const SocketProvider = ({ children }) => {
         console.log('[CALL] Accepting call from:', callInfo.targetId);
         await requestCallPermissions();
         stopVibration();
-        stopSound();
+        await stopSound();
         setCallState('connected');
     };
 
@@ -527,6 +580,26 @@ export const SocketProvider = ({ children }) => {
         return `${m}:${s}`;
     };
 
+    const [activeWebViewSource, setActiveWebViewSource] = useState(null);
+
+    useEffect(() => {
+        if (callState === 'idle') {
+            setActiveWebViewSource(null);
+        } else if ((callState === 'dialing' || callState === 'incoming' || callState === 'connected') && !activeWebViewSource && authToken && callInfo.targetId) {
+            const sourceUrl = `${BASE_URL}/mobile-call?token=${authToken}&callLogId=${callInfo.callLogId || ''}&targetId=${callInfo.targetId}&targetName=${encodeURIComponent(callInfo.targetName)}&targetRole=${callInfo.targetRole}&callType=${callInfo.callType}&isCaller=${callInfo.isCaller}${callInfo.offer ? `&offer=${encodeURIComponent(JSON.stringify(callInfo.offer))}` : ''}`;
+            console.log('[SOCKET] Freezing WebView source to prevent reload:', sourceUrl.split('?')[0]);
+            
+            setActiveWebViewSource({
+                uri: sourceUrl,
+                headers: {
+                    'pinggy-skip-browser-warning': 'true',
+                    'X-Pinggy-No-Screen': 'true',
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
+        }
+    }, [callState, authToken, callInfo.targetId, activeWebViewSource]);
+
     return (
         <SocketContext.Provider value={{
             socket,
@@ -549,13 +622,13 @@ export const SocketProvider = ({ children }) => {
             >
                 <View style={styles.callContainer}>
                     {/* WebRTC P2P WebView call container */}
-                    {(callState === 'connected' || callState === 'dialing') && authToken ? (
+                    {(callState === 'connected' || callState === 'dialing') && activeWebViewSource ? (
                         <WebView
                             ref={webViewRef}
-                            key={`webview-${callInfo.callLogId || 'default'}`}
-                            source={{
-                                uri: `${BASE_URL}/mobile-call?token=${authToken}&callLogId=${callInfo.callLogId}&targetId=${callInfo.targetId}&targetName=${encodeURIComponent(callInfo.targetName)}&targetRole=${callInfo.targetRole}&callType=${callInfo.callType}&isCaller=${callInfo.isCaller}`
-                            }}
+                            key={`webview-${callInfo.targetId || 'default'}`}
+                            source={activeWebViewSource}
+                            cacheEnabled={false}
+                            cacheMode="LOAD_NO_CACHE"
                             style={(callState === 'connected' && callInfo.callType === 'video') ? styles.videoWebView : styles.hiddenWebView}
                             mediaPlaybackRequiresUserAction={false}
                             allowsInlineMediaPlayback={true}
@@ -568,8 +641,30 @@ export const SocketProvider = ({ children }) => {
                             mediaCapturePermissionGrantType="grant"
                             injectedJavaScriptBeforeContentLoaded={debugInjection + `\nwindow.mobileOffer = ${JSON.stringify(callInfo.offer || null)};\ntrue;`}
                             onMessage={handleWebViewMessage}
+                            onNavigationStateChange={(navState) => {
+                                console.log('[WebView Nav]', navState.url);
+                                setDebugLogs(prev => [...prev, `[NAV] Loading: ${navState.url.split('?')[0].slice(-45)}`]);
+                            }}
                             onPermissionRequest={(event) => {
                                 event.grant(event.resources);
+                            }}
+                            onLoadStart={() => {
+                                console.log('[WebView] onLoadStart');
+                                setDebugLogs(prev => [...prev, '[SYSTEM] WebView Loading Start...']);
+                            }}
+                            onLoadEnd={() => {
+                                console.log('[WebView] onLoadEnd');
+                                setDebugLogs(prev => [...prev, '[SYSTEM] WebView Loading End.']);
+                            }}
+                            onError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.warn('[WebView Error]', nativeEvent);
+                                setDebugLogs(prev => [...prev, `[ERROR] WebView Error: ${nativeEvent.description} (${nativeEvent.code})`]);
+                            }}
+                            onHttpError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.warn('[WebView HTTP Error]', nativeEvent);
+                                setDebugLogs(prev => [...prev, `[ERROR] WebView HTTP Error: Status ${nativeEvent.statusCode}`]);
                             }}
                         />
                     ) : null}

@@ -114,7 +114,7 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         // Skip redirect logic for localhost, local IPs, or dev subdomain (allow root domain digitalstudyacademy.com to redirect)
         const parts = hostname.split('.');
-        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith('dev.');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith('dev.') || hostname.includes('pinggy') || hostname.includes('lhr.life') || hostname.includes('loca.lt') || hostname.includes('serveo');
         if (isLocalHost) {
             return;
         }
@@ -182,7 +182,7 @@ const SubdomainRedirectHandler = ({ children }) => {
             return;
         }
 
-        if (subdomain === 'landing' || (expectedSubdomain && subdomain !== expectedSubdomain)) {
+        if ((subdomain === 'landing' || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
             if (expectedSubdomain) {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
                 const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;

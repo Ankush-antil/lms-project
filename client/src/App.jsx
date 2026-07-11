@@ -66,6 +66,7 @@ import AdminStaffAttendance from './pages/admin/AdminStaffAttendance';
 import AdminStaffSalary from './pages/admin/AdminStaffSalary';
 import AdminStaffTask from './pages/admin/AdminStaffTask';
 import InstituteStaff from './pages/institute/InstituteStaff';
+import StaffTaskDetailPage from './pages/institute/StaffTaskDetailPage';
 import { InstituteStaffAttendance, InstituteStaffSalary, InstituteStaffTask } from './pages/institute/InstituteStaffPages';
 import { UserProfileProvider } from './components/common/UserProfileContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -303,6 +304,11 @@ function App() {
                                 <Route path="/institute/staff/task" element={
                                     <PrivateRoute role="Institute">
                                         <InstituteStaffTask />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/institute/staff-task-detail/:staffName" element={
+                                    <PrivateRoute role="Institute">
+                                        <StaffTaskDetailPage />
                                     </PrivateRoute>
                                 } />
 

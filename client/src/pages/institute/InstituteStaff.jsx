@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
     Users, Search, UserPlus, X, Eye, EyeOff, Calendar, DollarSign,
     CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Pencil,
     UserCheck, History, Save, ChevronLeft, ChevronRight, FileText, Sun,
-    CheckCircle, XCircle, Bell
+    CheckCircle, XCircle, Bell, Send, Shield, ShieldCheck, ShieldX, ShieldAlert,
+    AlertTriangle, PauseCircle, TrendingUp
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -296,6 +298,7 @@ const InstituteStaff = () => {
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [taskModalMode, setTaskModalMode] = useState('add'); // 'add' or 'edit'
     const [taskModalStaff, setTaskModalStaff] = useState('');
+    const [isStaffPreselected, setIsStaffPreselected] = useState(false);
     const [taskModalRows, setTaskModalRows] = useState([
         { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' },
         { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' }
@@ -312,17 +315,45 @@ const InstituteStaff = () => {
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     const [filterParticularDate, setFilterParticularDate] = useState('');
+    const [taskVerificationFilter, setTaskVerificationFilter] = useState('');
+    const [taskStatusFilter, setTaskStatusFilter] = useState(''); // pending, progress (inprogress), completed (done)
 
     const [previewDateFilter, setPreviewDateFilter] = useState('year'); // 'today', 'month', 'range', 'year', 'particular'
     const [previewStartDate, setPreviewStartDate] = useState('');
     const [previewEndDate, setPreviewEndDate] = useState('');
     const [previewParticularDate, setPreviewParticularDate] = useState('');
+    const [previewVerificationFilter, setPreviewVerificationFilter] = useState('');
+    const [previewStatusFilter, setPreviewStatusFilter] = useState('');
 
     // Separate filter for Self-Created section inside preview modal
     const [selfPreviewDateFilter, setSelfPreviewDateFilter] = useState('year');
     const [selfPreviewStartDate, setSelfPreviewStartDate] = useState('');
     const [selfPreviewEndDate, setSelfPreviewEndDate] = useState('');
     const [selfPreviewParticularDate, setSelfPreviewParticularDate] = useState('');
+    const [selfPreviewVerificationFilter, setSelfPreviewVerificationFilter] = useState('');
+    const [selfPreviewStatusFilter, setSelfPreviewStatusFilter] = useState('');
+
+    const navigate = useNavigate();
+
+    // Notifications bell states
+    const [showNotificationsPopover, setShowNotificationsPopover] = useState(false);
+    const notificationsBellRef = useRef(null);
+    const [seenNotificationIds, setSeenNotificationIds] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('seen_task_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        if (showNotificationsPopover) {
+            const pendingIds = tasks.filter(t => t.status === 'done' && (!t.verificationStatus || t.verificationStatus === 'under_verification')).map(t => t.id);
+            const newSeen = Array.from(new Set([...seenNotificationIds, ...pendingIds]));
+            setSeenNotificationIds(newSeen);
+            localStorage.setItem('seen_task_notifications', JSON.stringify(newSeen));
+        }
+    }, [showNotificationsPopover, tasks]);
 
     // Staff attendance register states
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -350,6 +381,9 @@ const InstituteStaff = () => {
         const handleClickOutside = (event) => {
             if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
                 setShowDatePicker(false);
+            }
+            if (notificationsBellRef.current && !notificationsBellRef.current.contains(event.target)) {
+                setShowNotificationsPopover(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -705,12 +739,14 @@ const InstituteStaff = () => {
         }
     };
 
-    const openAddTaskModal = () => {
+    const openAddTaskModal = (defaultStaffName = '') => {
         setTaskModalMode('add');
-        setTaskModalStaff('');
+        const hasStaff = typeof defaultStaffName === 'string' && defaultStaffName !== '';
+        setTaskModalStaff(hasStaff ? defaultStaffName : '');
+        setIsStaffPreselected(hasStaff);
         setTaskModalRows([
-            { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' },
-            { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' },
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
         ]);
         setShowTaskModal(true);
     };
@@ -718,12 +754,14 @@ const InstituteStaff = () => {
     const openEditTaskModal = (task) => {
         setTaskModalMode('edit');
         setTaskModalStaff(task.staffName);
+        setIsStaffPreselected(true);
         setEditingTaskId(task.id);
         setTaskModalRows([
             {
                 title: task.title,
                 description: task.description || '',
                 priority: task.priority || 'Medium',
+                assignedDate: task.assignedDate || task.createdAt || new Date().toISOString().split('T')[0],
                 due: task.due || '',
                 reminderTime: task.reminderTime || '',
                 remark: task.remark || ''
@@ -735,7 +773,7 @@ const InstituteStaff = () => {
     const addTaskRow = () => {
         setTaskModalRows(prev => [
             ...prev,
-            { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
         ]);
     };
 
@@ -773,6 +811,7 @@ const InstituteStaff = () => {
                 title: row.title,
                 description: row.description,
                 priority: row.priority,
+                assignedDate: row.assignedDate || new Date().toISOString().split('T')[0],
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
@@ -791,6 +830,7 @@ const InstituteStaff = () => {
                 title: row.title,
                 description: row.description,
                 priority: row.priority,
+                assignedDate: row.assignedDate || new Date().toISOString().split('T')[0],
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
@@ -1504,33 +1544,154 @@ const InstituteStaff = () => {
                                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Task Assignments</h3>
                                 <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Create, edit, and assign tasks to staff members with priorities and reminders.</p>
                             </div>
-                            <button
-                                onClick={openAddTaskModal}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                    padding: '10px 20px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 900,
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit',
-                                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
-                                }}
-                            >
-                                <Plus size={15} /> Add Task
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {/* Notification Bell */}
+                                {(() => {
+                                    const pendingNotifications = tasks.filter(t => t.status === 'done' && (!t.verificationStatus || t.verificationStatus === 'under_verification'));
+                                    const unseenNotifications = pendingNotifications.filter(t => !seenNotificationIds.includes(t.id));
+                                    return (
+                                        <div ref={notificationsBellRef} style={{ position: 'relative' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNotificationsPopover(!showNotificationsPopover)}
+                                                title="View Task Completion Submissions"
+                                                style={{
+                                                    width: 40,
+                                                    height: 40,
+                                                    borderRadius: '12px',
+                                                    border: '1.5px solid #cbd5e1',
+                                                    background: '#fff',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    color: unseenNotifications.length > 0 ? '#4f46e5' : '#64748b',
+                                                    transition: 'all 0.2s',
+                                                    position: 'relative'
+                                                }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#4f46e5'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                                            >
+                                                <Bell size={18} />
+                                                {unseenNotifications.length > 0 && (
+                                                    <span style={{
+                                                        position: 'absolute',
+                                                        top: '-4px',
+                                                        right: '-4px',
+                                                        background: '#ef4444',
+                                                        color: '#fff',
+                                                        borderRadius: '50%',
+                                                        width: '18px',
+                                                        height: '18px',
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 900,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        boxShadow: '0 0 0 2px #fff'
+                                                    }}>
+                                                        {unseenNotifications.length}
+                                                    </span>
+                                                )}
+                                            </button>
+
+                                            {/* Notifications Popover */}
+                                            {showNotificationsPopover && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '110%',
+                                                    right: 0,
+                                                    background: '#fff',
+                                                    border: '1px solid #cbd5e1',
+                                                    borderRadius: '16px',
+                                                    width: '320px',
+                                                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                                                    zIndex: 9999,
+                                                    padding: '12px 0',
+                                                    textAlign: 'left'
+                                                }}>
+                                                    <div style={{ padding: '0 16px 8px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>Task Submissions</span>
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 900, background: '#f5f3ff', color: '#4f46e5', padding: '2px 8px', borderRadius: '10px' }}>
+                                                            {pendingNotifications.length} New
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                                        {pendingNotifications.length === 0 ? (
+                                                            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.72rem', fontWeight: 600 }}>
+                                                                🔕 No new completed tasks to verify.
+                                                            </div>
+                                                        ) : (
+                                                            pendingNotifications.map(n => (
+                                                                <div
+                                                                    key={n.id}
+                                                                    onClick={() => {
+                                                                        setShowNotificationsPopover(false);
+                                                                        navigate(`/institute/staff-task-detail/${encodeURIComponent(n.staffName)}`);
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '10px 16px',
+                                                                        borderBottom: '1px solid #f8fafc',
+                                                                        cursor: 'pointer',
+                                                                        transition: 'background 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                                >
+                                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                                                        <div style={{ width: 24, height: 24, borderRadius: '6px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', flexShrink: 0, marginTop: '2px' }}>
+                                                                            <CheckCircle size={13} />
+                                                                        </div>
+                                                                        <div>
+                                                                            <div style={{ fontSize: '0.75rem', fontWeight: 805, color: '#1e293b' }}>
+                                                                                {n.staffName} completed:
+                                                                            </div>
+                                                                            <div style={{ fontSize: '0.72rem', fontWeight: 650, color: '#4f46e5', marginTop: '1px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '230px' }}>
+                                                                                "{n.title}"
+                                                                            </div>
+                                                                            <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '3px', fontWeight: 600 }}>
+                                                                                Completed on {n.completedAt ? new Date(n.completedAt + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'recently'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                <button
+                                    onClick={openAddTaskModal}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        padding: '10px 20px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 900,
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
+                                    }}
+                                >
+                                    <Plus size={15} /> Add Task
+                                </button>
+                            </div>
                         </div>
 
                         {/* Premium Filter Toolbar */}
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
+                            gap: '16px',
                             flexWrap: 'wrap',
                             background: '#f8fafc',
                             padding: '16px',
@@ -1538,44 +1699,25 @@ const InstituteStaff = () => {
                             border: '1px solid #e2e8f0',
                             marginBottom: '16px'
                         }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginRight: '4px' }}>Filter Tasks By Date:</span>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                {[
-                                    { key: 'today', label: 'Today' },
-                                    { key: 'month', label: 'This Month' },
-                                    { key: 'particular', label: 'Particular Date' },
-                                    { key: 'range', label: 'Date Range' },
-                                    { key: 'year', label: 'Complete Year' }
-                                ].map(opt => {
-                                    const isActive = taskDateFilter === opt.key;
-                                    return (
-                                        <button
-                                            key={opt.key}
-                                            type="button"
-                                            onClick={() => setTaskDateFilter(opt.key)}
-                                            style={{
-                                                padding: '6px 14px',
-                                                borderRadius: '10px',
-                                                border: '1.5px solid ' + (isActive ? '#6366f1' : '#e2e8f0'),
-                                                background: isActive ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#fff',
-                                                color: isActive ? '#fff' : '#475569',
-                                                fontSize: '0.72rem',
-                                                fontWeight: 800,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s',
-                                                boxShadow: isActive ? '0 4px 10px rgba(99, 102, 241, 0.15)' : 'none'
-                                            }}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    );
-                                })}
+                            {/* Date Filter */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                <select
+                                    value={taskDateFilter}
+                                    onChange={e => setTaskDateFilter(e.target.value)}
+                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                >
+                                    <option value="today">Today</option>
+                                    <option value="month">This Month</option>
+                                    <option value="particular">Particular Date</option>
+                                    <option value="range">Date Range</option>
+                                    <option value="year">Complete Year</option>
+                                </select>
                             </div>
 
                             {/* Conditionally Rendered Inputs */}
                             {taskDateFilter === 'particular' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>Select Date:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
                                         type="date"
                                         value={filterParticularDate}
@@ -1594,12 +1736,12 @@ const InstituteStaff = () => {
                             )}
 
                             {taskDateFilter === 'range' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>From:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                     <input
                                         type="date"
                                         value={filterStartDate}
                                         onChange={e => setFilterStartDate(e.target.value)}
+                                        placeholder="From"
                                         style={{
                                             padding: '5px 10px',
                                             borderRadius: '8px',
@@ -1610,11 +1752,12 @@ const InstituteStaff = () => {
                                             color: '#334155'
                                         }}
                                     />
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>To:</span>
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>to</span>
                                     <input
                                         type="date"
                                         value={filterEndDate}
                                         onChange={e => setFilterEndDate(e.target.value)}
+                                        placeholder="To"
                                         style={{
                                             padding: '5px 10px',
                                             borderRadius: '8px',
@@ -1627,6 +1770,40 @@ const InstituteStaff = () => {
                                     />
                                 </div>
                             )}
+
+                            {/* Verification Filter */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Verification:</span>
+                                <select
+                                    value={taskVerificationFilter}
+                                    onChange={e => setTaskVerificationFilter(e.target.value)}
+                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                >
+                                    <option value="">All Verifications</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="needs_revision">Needs Revision</option>
+                                    <option value="under_verification">Under Verification</option>
+                                    <option value="evidence_insufficient">Evidence Insufficient</option>
+                                    <option value="on_hold">On Hold</option>
+                                    <option value="escalated">Escalated</option>
+                                </select>
+                            </div>
+
+                            {/* Status Filter */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Status:</span>
+                                <select
+                                    value={taskStatusFilter}
+                                    onChange={e => setTaskStatusFilter(e.target.value)}
+                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                >
+                                    <option value="">All Statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="inprogress">In Progress</option>
+                                    <option value="done">Completed</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* Tasks Table */}
@@ -1649,12 +1826,12 @@ const InstituteStaff = () => {
                                     <tbody className="divide-y divide-slate-100">
                                         {staffList.map((s, idx) => {
                                             const staffTasks = tasks.filter(t => t.staffName?.toLowerCase() === s.name?.toLowerCase());
-                                            
+
                                             // Apply date range filter to active tasks list
                                             const filteredStaffTasks = staffTasks.filter(t => {
                                                 const taskDate = t.createdAt || t.due || new Date().toISOString().split('T')[0];
                                                 const todayStr = new Date().toISOString().split('T')[0];
-                                                
+
                                                 if (taskDateFilter === 'today') {
                                                     return taskDate === todayStr;
                                                 }
@@ -1676,12 +1853,20 @@ const InstituteStaff = () => {
                                                 return true;
                                             });
 
-                                            const assignedTasks = filteredStaffTasks.filter(t => !t.isSelfCreated);
+                                            const assignedTasks = filteredStaffTasks.filter(t =>
+                                                !t.isSelfCreated &&
+                                                (taskVerificationFilter === '' || (t.verificationStatus || '') === taskVerificationFilter) &&
+                                                (taskStatusFilter === '' || (t.status || 'pending') === taskStatusFilter)
+                                            );
                                             const assPending = assignedTasks.filter(t => t.status === 'pending' || !t.status).length;
                                             const assInprogress = assignedTasks.filter(t => t.status === 'inprogress').length;
                                             const assCompleted = assignedTasks.filter(t => t.status === 'done').length;
 
-                                            const selfTasks = filteredStaffTasks.filter(t => t.isSelfCreated);
+                                            const selfTasks = filteredStaffTasks.filter(t =>
+                                                t.isSelfCreated &&
+                                                (taskVerificationFilter === '' || (t.verificationStatus || '') === taskVerificationFilter) &&
+                                                (taskStatusFilter === '' || (t.status || 'pending') === taskStatusFilter)
+                                            );
                                             const selfCompleted = selfTasks.length;
 
                                             return (
@@ -1749,13 +1934,23 @@ const InstituteStaff = () => {
                                                     </td>
                                                     <td className="py-4 px-5 text-center">
                                                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                                            {/* View / Preview Button */}
+                                                            {/* Add task button for this specific staff member */}
                                                             <button
-                                                                onClick={() => setSelectedStaffTasks(s.name)}
-                                                                title="Preview all tasks"
+                                                                onClick={() => openAddTaskModal(s.name)}
+                                                                title={`Add task for ${s.name}`}
                                                                 style={{ width: 32, height: 32, borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}
-                                                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; }}
-                                                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
+                                                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#10b981'; e.currentTarget.style.color = '#10b981'; e.currentTarget.style.background = '#ecfdf5'; }}
+                                                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = '#fff'; }}
+                                                            >
+                                                                <Plus size={15} />
+                                                            </button>
+                                                            {/* Navigate to dedicated task detail page */}
+                                                            <button
+                                                                onClick={() => navigate(`/institute/staff-task-detail/${encodeURIComponent(s.name)}`)}
+                                                                title="View all tasks for this staff"
+                                                                style={{ width: 32, height: 32, borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}
+                                                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; e.currentTarget.style.background = '#f5f3ff'; }}
+                                                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = '#fff'; }}
                                                             >
                                                                 <Eye size={15} />
                                                             </button>
@@ -1890,7 +2085,7 @@ const InstituteStaff = () => {
             {showTaskModal && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1050px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0', animation: 'scaleUp 0.2s ease-out' }}>
-                        
+
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                             <div>
@@ -1913,7 +2108,7 @@ const InstituteStaff = () => {
                                 <select
                                     value={taskModalStaff}
                                     onChange={e => setTaskModalStaff(e.target.value)}
-                                    disabled={taskModalMode === 'edit'}
+                                    disabled={taskModalMode === 'edit' || isStaffPreselected}
                                     style={{
                                         width: '100%',
                                         padding: '10px 14px',
@@ -1923,8 +2118,8 @@ const InstituteStaff = () => {
                                         fontWeight: 700,
                                         color: '#0f172a',
                                         outline: 'none',
-                                        background: taskModalMode === 'edit' ? '#f8fafc' : '#fff',
-                                        cursor: taskModalMode === 'edit' ? 'not-allowed' : 'pointer'
+                                        background: (taskModalMode === 'edit' || isStaffPreselected) ? '#f8fafc' : '#fff',
+                                        cursor: (taskModalMode === 'edit' || isStaffPreselected) ? 'not-allowed' : 'pointer'
                                     }}
                                 >
                                     <option value="">Choose Staff...</option>
@@ -1936,16 +2131,15 @@ const InstituteStaff = () => {
 
                             {/* Multiple Tasks Table Editor */}
                             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '950px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '200px' }}>Task Title *</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Description / Details</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px' }}>Priority</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Assigned Date</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Due Date</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '115px' }}>Reminder Time</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px' }}>Remark</th>
                                             {taskModalMode === 'add' && <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Delete</th>}
                                         </tr>
                                     </thead>
@@ -1997,31 +2191,16 @@ const InstituteStaff = () => {
                                                 <td style={{ padding: '12px 16px' }}>
                                                     <input
                                                         type="date"
-                                                        value={row.due}
-                                                        onChange={e => handleRowChange(idx, 'due', e.target.value)}
+                                                        value={row.assignedDate}
+                                                        onChange={e => handleRowChange(idx, 'assignedDate', e.target.value)}
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
                                                 <td style={{ padding: '12px 16px' }}>
                                                     <input
-                                                        type="time"
-                                                        value={row.reminderTime}
-                                                        onChange={e => handleRowChange(idx, 'reminderTime', e.target.value)}
-                                                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
-                                                    />
-                                                </td>
-                                                <td style={{ padding: '12px 16px' }}>
-                                                    <input
-                                                        type="text"
-                                                        value={row.remark}
-                                                        onChange={e => handleRowChange(idx, 'remark', e.target.value)}
-                                                        placeholder="Remark / Note..."
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (taskModalMode === 'add') addTaskRow();
-                                                            }
-                                                        }}
+                                                        type="date"
+                                                        value={row.due}
+                                                        onChange={e => handleRowChange(idx, 'due', e.target.value)}
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
@@ -2167,17 +2346,16 @@ const InstituteStaff = () => {
                             <span style={{
                                 background:
                                     viewingTask.priority === 'Urgent' ? '#fee2e2' :
-                                    viewingTask.priority === 'High' ? '#ffedd5' :
-                                    viewingTask.priority === 'Medium' ? '#fef9c3' : '#dcfce7',
+                                        viewingTask.priority === 'High' ? '#ffedd5' :
+                                            viewingTask.priority === 'Medium' ? '#fef9c3' : '#dcfce7',
                                 color:
                                     viewingTask.priority === 'Urgent' ? '#dc2626' :
-                                    viewingTask.priority === 'High' ? '#ea580c' :
-                                    viewingTask.priority === 'Medium' ? '#d97706' : '#16a34a',
-                                border: `1.5px solid ${
-                                    viewingTask.priority === 'Urgent' ? '#fca5a5' :
+                                        viewingTask.priority === 'High' ? '#ea580c' :
+                                            viewingTask.priority === 'Medium' ? '#d97706' : '#16a34a',
+                                border: `1.5px solid ${viewingTask.priority === 'Urgent' ? '#fca5a5' :
                                     viewingTask.priority === 'High' ? '#fdba74' :
-                                    viewingTask.priority === 'Medium' ? '#fde68a' : '#86efac'
-                                }`,
+                                        viewingTask.priority === 'Medium' ? '#fde68a' : '#86efac'
+                                    }`,
                                 borderRadius: '20px',
                                 padding: '3px 12px',
                                 fontSize: '0.68rem',
@@ -2191,7 +2369,7 @@ const InstituteStaff = () => {
                         </div>
 
                         <h3 style={{ margin: '0 0 8px', fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.3 }}>{viewingTask.title}</h3>
-                        
+
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '14px 0 20px', background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                             <div style={{ width: 28, height: 28, borderRadius: '8px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
                                 {viewingTask.staffName?.[0]?.toUpperCase() || '?'}
@@ -2336,7 +2514,7 @@ const InstituteStaff = () => {
             {selectedStaffTasks && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1200px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0', animation: 'scaleUp 0.2s ease-out' }}>
-                        
+
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                             <div>
@@ -2352,109 +2530,6 @@ const InstituteStaff = () => {
                             </button>
                         </div>
 
-                        {/* Preview Date Filter Toolbar */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            flexWrap: 'wrap',
-                            background: '#f8fafc',
-                            padding: '12px 16px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            marginBottom: '20px'
-                        }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', marginRight: '4px' }}>Filter Preview By Date:</span>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                {[
-                                    { key: 'today', label: 'Today' },
-                                    { key: 'month', label: 'This Month' },
-                                    { key: 'particular', label: 'Particular Date' },
-                                    { key: 'range', label: 'Date Range' },
-                                    { key: 'year', label: 'Complete Year' }
-                                ].map(opt => {
-                                    const isActive = previewDateFilter === opt.key;
-                                    return (
-                                        <button
-                                            key={opt.key}
-                                            type="button"
-                                            onClick={() => setPreviewDateFilter(opt.key)}
-                                            style={{
-                                                padding: '5px 12px',
-                                                borderRadius: '8px',
-                                                border: '1.5px solid ' + (isActive ? '#6366f1' : '#e2e8f0'),
-                                                background: isActive ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#fff',
-                                                color: isActive ? '#fff' : '#475569',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 800,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s',
-                                                boxShadow: isActive ? '0 3px 8px rgba(99, 102, 241, 0.15)' : 'none'
-                                            }}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Conditionally Rendered Inputs */}
-                            {previewDateFilter === 'particular' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b' }}>Select Date:</span>
-                                    <input
-                                        type="date"
-                                        value={previewParticularDate}
-                                        onChange={e => setPreviewParticularDate(e.target.value)}
-                                        style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '6px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                </div>
-                            )}
-
-                            {previewDateFilter === 'range' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b' }}>From:</span>
-                                    <input
-                                        type="date"
-                                        value={previewStartDate}
-                                        onChange={e => setPreviewStartDate(e.target.value)}
-                                        style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '6px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b' }}>To:</span>
-                                    <input
-                                        type="date"
-                                        value={previewEndDate}
-                                        onChange={e => setPreviewEndDate(e.target.value)}
-                                        style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '6px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
                         {/* List of Tasks */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             {/* Section 1: Assigned Tasks */}
@@ -2462,11 +2537,86 @@ const InstituteStaff = () => {
                                 <h4 style={{ margin: '0 0 10px', fontSize: '0.82rem', fontWeight: 900, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                     Assigned by Institute
                                 </h4>
+
+                                {/* Section 1: Assigned Tasks Filter Toolbar */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    flexWrap: 'wrap',
+                                    background: '#f8fafc',
+                                    padding: '10px 14px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #e2e8f0',
+                                    marginBottom: '12px'
+                                }}>
+                                    {/* Date Filter */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                        <select
+                                            value={previewDateFilter}
+                                            onChange={e => setPreviewDateFilter(e.target.value)}
+                                            style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                        >
+                                            <option value="today">Today</option>
+                                            <option value="month">This Month</option>
+                                            <option value="particular">Particular Date</option>
+                                            <option value="range">Date Range</option>
+                                            <option value="year">Complete Year</option>
+                                        </select>
+                                    </div>
+
+                                    {previewDateFilter === 'particular' && (
+                                        <input type="date" value={previewParticularDate} onChange={e => setPreviewParticularDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                    )}
+                                    {previewDateFilter === 'range' && (
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                            <input type="date" value={previewStartDate} onChange={e => setPreviewStartDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>to</span>
+                                            <input type="date" value={previewEndDate} onChange={e => setPreviewEndDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                        </div>
+                                    )}
+
+                                    {/* Verification Filter */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569' }}>Verification:</span>
+                                        <select
+                                            value={previewVerificationFilter}
+                                            onChange={e => setPreviewVerificationFilter(e.target.value)}
+                                            style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                        >
+                                            <option value="">All Verifications</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="rejected">Rejected</option>
+                                            <option value="needs_revision">Needs Revision</option>
+                                            <option value="under_verification">Under Verification</option>
+                                            <option value="evidence_insufficient">Evidence Insufficient</option>
+                                            <option value="on_hold">On Hold</option>
+                                            <option value="escalated">Escalated</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Status Filter */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569' }}>Status:</span>
+                                        <select
+                                            value={previewStatusFilter}
+                                            onChange={e => setPreviewStatusFilter(e.target.value)}
+                                            style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                        >
+                                            <option value="">All Statuses</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="inprogress">In Progress</option>
+                                            <option value="done">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+
                                 {(() => {
                                     const filterPreviewTask = (t) => {
                                         const taskDate = t.createdAt || t.due || new Date().toISOString().split('T')[0];
                                         const todayStr = new Date().toISOString().split('T')[0];
-                                        
+
                                         if (previewDateFilter === 'today') {
                                             return taskDate === todayStr;
                                         }
@@ -2488,8 +2638,14 @@ const InstituteStaff = () => {
                                         return true;
                                     };
 
-                                    const filteredList = tasks.filter(t => t.staffName?.toLowerCase() === selectedStaffTasks.toLowerCase() && !t.isSelfCreated && filterPreviewTask(t));
-                                    
+                                    const filteredList = tasks.filter(t =>
+                                        t.staffName?.toLowerCase() === selectedStaffTasks.toLowerCase() &&
+                                        !t.isSelfCreated &&
+                                        filterPreviewTask(t) &&
+                                        (previewVerificationFilter === '' || (t.verificationStatus || '') === previewVerificationFilter) &&
+                                        (previewStatusFilter === '' || (t.status || 'pending') === previewStatusFilter)
+                                    );
+
                                     return filteredList.length === 0 ? (
                                         <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
                                             No tasks assigned by the institute match this filter.
@@ -2511,7 +2667,7 @@ const InstituteStaff = () => {
                                                 <tbody>
                                                     {filteredList.map(t => {
                                                         const priorityColor = t.priority === 'Urgent' ? '#ef4444' : t.priority === 'High' ? '#ea580c' : t.priority === 'Medium' ? '#d97706' : '#16a34a';
-                                                        
+
                                                         const formatTime12h = (t24) => {
                                                             if (!t24) return '';
                                                             const [h, m] = t24.split(':');
@@ -2615,29 +2771,77 @@ const InstituteStaff = () => {
                                     <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#ca8a04', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                         Self-Created (Not Assigned)
                                     </h4>
-                                    {/* Self-Created Date Filter */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', background: '#fffbeb', padding: '8px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e' }}>Filter:</span>
-                                        {[
-                                            { key: 'month', label: 'This Month' },
-                                            { key: 'particular', label: 'Particular Date' },
-                                            { key: 'range', label: 'Date Range' },
-                                            { key: 'year', label: 'All' }
-                                        ].map(f => (
-                                            <button key={f.key} onClick={() => setSelfPreviewDateFilter(f.key)} style={{ padding: '3px 10px', borderRadius: '20px', border: selfPreviewDateFilter === f.key ? 'none' : '1.5px solid #fde68a', background: selfPreviewDateFilter === f.key ? 'linear-gradient(135deg, #ca8a04, #eab308)' : '#fff', color: selfPreviewDateFilter === f.key ? '#fff' : '#92400e', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}>
-                                                {f.label}
-                                            </button>
-                                        ))}
+                                    {/* Self-Created Dropdown Filters Toolbar */}
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        flexWrap: 'wrap',
+                                        background: '#fffbeb',
+                                        padding: '10px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #fde68a',
+                                        marginBottom: '12px'
+                                    }}>
+                                        {/* Date Filter */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e' }}>Date:</span>
+                                            <select
+                                                value={selfPreviewDateFilter}
+                                                onChange={e => setSelfPreviewDateFilter(e.target.value)}
+                                                style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 700, color: '#92400e', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                            >
+                                                <option value="month">This Month</option>
+                                                <option value="particular">Particular Date</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="year">All</option>
+                                            </select>
+                                        </div>
+
                                         {selfPreviewDateFilter === 'range' && (
                                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                <input type="date" value={selfPreviewStartDate} onChange={e => setSelfPreviewStartDate(e.target.value)} style={{ padding: '3px 6px', borderRadius: '6px', border: '1.5px solid #fde68a', fontSize: '0.65rem', fontWeight: 600, outline: 'none' }} />
-                                                <span style={{ fontSize: '0.65rem', color: '#92400e', fontWeight: 700 }}>to</span>
-                                                <input type="date" value={selfPreviewEndDate} onChange={e => setSelfPreviewEndDate(e.target.value)} style={{ padding: '3px 6px', borderRadius: '6px', border: '1.5px solid #fde68a', fontSize: '0.65rem', fontWeight: 600, outline: 'none' }} />
+                                                <input type="date" value={selfPreviewStartDate} onChange={e => setSelfPreviewStartDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                                <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>to</span>
+                                                <input type="date" value={selfPreviewEndDate} onChange={e => setSelfPreviewEndDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
                                             </div>
                                         )}
                                         {selfPreviewDateFilter === 'particular' && (
-                                            <input type="date" value={selfPreviewParticularDate} onChange={e => setSelfPreviewParticularDate(e.target.value)} style={{ padding: '3px 6px', borderRadius: '6px', border: '1.5px solid #fde68a', fontSize: '0.65rem', fontWeight: 600, outline: 'none' }} />
+                                            <input type="date" value={selfPreviewParticularDate} onChange={e => setSelfPreviewParticularDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
                                         )}
+
+                                        {/* Verification Filter */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e' }}>Verification:</span>
+                                            <select
+                                                value={selfPreviewVerificationFilter}
+                                                onChange={e => setSelfPreviewVerificationFilter(e.target.value)}
+                                                style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 700, color: '#92400e', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                            >
+                                                <option value="">All Verifications</option>
+                                                <option value="approved">Approved</option>
+                                                <option value="rejected">Rejected</option>
+                                                <option value="needs_revision">Needs Revision</option>
+                                                <option value="under_verification">Under Verification</option>
+                                                <option value="evidence_insufficient">Evidence Insufficient</option>
+                                                <option value="on_hold">On Hold</option>
+                                                <option value="escalated">Escalated</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Status Filter */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e' }}>Status:</span>
+                                            <select
+                                                value={selfPreviewStatusFilter}
+                                                onChange={e => setSelfPreviewStatusFilter(e.target.value)}
+                                                style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #fde68a', fontSize: '0.7rem', fontWeight: 700, color: '#92400e', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                            >
+                                                <option value="">All Statuses</option>
+                                                <option value="pending">Pending</option>
+                                                <option value="inprogress">In Progress</option>
+                                                <option value="done">Completed</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                                 {(() => {
@@ -2659,8 +2863,14 @@ const InstituteStaff = () => {
                                         return true; // 'year' = show all
                                     };
 
-                                    const filteredList = tasks.filter(t => t.staffName?.toLowerCase() === selectedStaffTasks.toLowerCase() && t.isSelfCreated && filterSelfTask(t));
-                                    
+                                    const filteredList = tasks.filter(t =>
+                                        t.staffName?.toLowerCase() === selectedStaffTasks.toLowerCase() &&
+                                        t.isSelfCreated &&
+                                        filterSelfTask(t) &&
+                                        (selfPreviewVerificationFilter === '' || (t.verificationStatus || '') === selfPreviewVerificationFilter) &&
+                                        (selfPreviewStatusFilter === '' || (t.status || 'pending') === selfPreviewStatusFilter)
+                                    );
+
                                     return filteredList.length === 0 ? (
                                         <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
                                             No self-created tasks added by this staff member match this filter.
@@ -2682,7 +2892,7 @@ const InstituteStaff = () => {
                                                 <tbody>
                                                     {filteredList.map(t => {
                                                         const priorityColor = t.priority === 'Urgent' ? '#ef4444' : t.priority === 'High' ? '#ea580c' : t.priority === 'Medium' ? '#d97706' : '#16a34a';
-                                                        
+
                                                         const formatTime12h = (t24) => {
                                                             if (!t24) return '';
                                                             const [h, m] = t24.split(':');

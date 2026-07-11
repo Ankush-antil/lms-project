@@ -131,6 +131,34 @@ export const EditorsList = (props) => (
     />
 );
 
+// Accountants List
+export const AccountantsList = (props) => (
+    <UserListScreen
+        {...props}
+        endpoint="/users?role=Accountant"
+        title="Accountants"
+        role="Accountant"
+        color="#b45309"
+        bg="#fef3c7"
+        badgeField={null}
+        navigateTo="UserDetail"
+    />
+);
+
+// Marketers List
+export const MarketersList = (props) => (
+    <UserListScreen
+        {...props}
+        endpoint="/users?role=Marketer"
+        title="Marketers"
+        role="Marketer"
+        color="#0f766e"
+        bg="#ccfbf1"
+        badgeField={null}
+        navigateTo="UserDetail"
+    />
+);
+
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     searchBar: {

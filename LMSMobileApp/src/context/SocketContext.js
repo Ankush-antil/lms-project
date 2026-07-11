@@ -238,6 +238,11 @@ export const SocketProvider = ({ children }) => {
             timerRef.current = null;
         }
 
+        // If there is no active call, disconnect silently without opening call modal
+        if (callState === 'idle') {
+            return;
+        }
+
         if (finalState === 'idle') {
             setCallState('idle');
             setCallInfo({

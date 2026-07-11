@@ -10,28 +10,17 @@ const isAssignedRelation = async (userAId, userBId) => {
 
     if (!userA || !userB) return false;
 
-    // A is Teacher, B is Student
-    if (userA.role === 'Teacher' && userB.role === 'Student') {
-        const studentCourse = userB.studentProfile?.course;
-        const assignedCourses = userA.teacherProfile?.assignedCourses || [];
-        const assignedStudents = userA.teacherProfile?.assignedStudents || [];
+    const bypassRoles = ['Admin', 'Institute', 'Accountant'];
 
-        const isCourseAssigned = studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString());
-        const isStudentAssigned = assignedStudents.some(sId => sId.toString() === userBId.toString());
+    // Administrative roles bypass
+    if (bypassRoles.includes(userA.role) || bypassRoles.includes(userB.role)) return true;
 
-        return isCourseAssigned || isStudentAssigned;
-    }
-
-    // A is Student, B is Teacher
-    if (userA.role === 'Student' && userB.role === 'Teacher') {
-        const studentCourse = userA.studentProfile?.course;
-        const assignedCourses = userB.teacherProfile?.assignedCourses || [];
-        const assignedStudents = userB.teacherProfile?.assignedStudents || [];
-
-        const isCourseAssigned = studentCourse && assignedCourses.some(cId => cId.toString() === studentCourse.toString());
-        const isStudentAssigned = assignedStudents.some(sId => sId.toString() === userAId.toString());
-
-        return isCourseAssigned || isStudentAssigned;
+    // Teacher-Student bypass
+    if (
+        (userA.role === 'Teacher' && userB.role === 'Student') ||
+        (userA.role === 'Student' && userB.role === 'Teacher')
+    ) {
+        return true;
     }
 
     return false;

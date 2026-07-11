@@ -11,20 +11,26 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
+    Alert,
 } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader, StatCard, SectionCard, LoadingScreen, EmptyState, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import ProfileBottomSheet from '../../components/common/ProfileBottomSheet';
 
 const TeacherDashboard = ({ navigation }) => {
-    const { user, logout } = useAuth();
+    const { user, logout, savedAccounts, switchAccount } = useAuth();
+    const lastTapRef = React.useRef(0);
+    const tapTimeoutRef = React.useRef(null);
+    const scrollRef = React.useRef(null);
     const [profile, setProfile] = useState(null);
     const [activities, setActivities] = useState([]);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [switcherVisible, setSwitcherVisible] = useState(false);
 
     // Call and Chat States
     const [activeContact, setActiveContact] = useState(null);
@@ -95,6 +101,33 @@ const TeacherDashboard = ({ navigation }) => {
         }, 1500);
     };
 
+    const handleQuickSwitch = async () => {
+        if (savedAccounts && savedAccounts.length > 1) {
+            const currentIndex = savedAccounts.findIndex(acc => acc.user?.email === user?.email);
+            const nextIndex = (currentIndex + 1) % savedAccounts.length;
+            const nextAcc = savedAccounts[nextIndex];
+            if (nextAcc) {
+                await switchAccount(nextAcc.token, nextAcc.user);
+            }
+        } else {
+            Alert.alert('No other saved accounts', 'Please login to another account first to use quick switch.');
+        }
+    };
+
+    const handleProfilePress = () => {
+        const now = Date.now();
+        const DOUBLE_PRESS_DELAY = 300;
+        if (now - lastTapRef.current < DOUBLE_PRESS_DELAY) {
+            if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+            handleQuickSwitch();
+        } else {
+            lastTapRef.current = now;
+            tapTimeoutRef.current = setTimeout(() => {
+                navigation.navigate('Profile');
+            }, DOUBLE_PRESS_DELAY);
+        }
+    };
+
     const fetchData = async () => {
         try {
             const [profileRes, studentsRes] = await Promise.all([
@@ -119,24 +152,64 @@ const TeacherDashboard = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <AppHeader title="Teacher Dashboard" rightIcon="log-out-outline" rightAction={logout} />
+            <AppHeader 
+                title="Teacher Dashboard" 
+                rightIcon="person-circle-outline" 
+                rightAction={handleProfilePress} 
+                rightLongAction={() => setSwitcherVisible(true)} 
+            />
+            
+            {/* Quick Actions top tab bar (Facebook style) */}
+            <View style={styles.topTabBar}>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('TeacherActivities')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="clipboard" size={20} color={colors.accent} />
+                    <Text style={styles.tabLabel}>Activities</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('Notes')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="create-outline" size={20} color="#ec4899" />
+                    <Text style={styles.tabLabel}>Notes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('ContactStudents')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="chatbubbles" size={20} color="#0d9488" />
+                    <Text style={styles.tabLabel}>Contact</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('TeacherAttendance')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="qr-code" size={20} color="#ef4444" />
+                    <Text style={styles.tabLabel}>Class QR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('Drive')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="cloud-upload-outline" size={20} color="#06b6d4" />
+                    <Text style={styles.tabLabel}>Drive</Text>
+                </TouchableOpacity>
+            </View>
+
             <ScrollView
+                ref={scrollRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.teacher} />}
             >
-                {/* Welcome */}
-                <View style={styles.welcomeBanner}>
-                    <View style={styles.welcomeLeft}>
-                        <Text style={styles.welcomeGreeting}>Welcome, {firstName}! 👨‍🏫</Text>
-                        <Text style={styles.welcomeSub}>Manage your students & activities</Text>
-                    </View>
-                    <View style={[styles.avatarCircle, { backgroundColor: colors.teacher }]}>
-                        <Text style={styles.avatarText}>{profile?.name?.[0] || 'T'}</Text>
-                    </View>
-                </View>
-
                 {/* Stats */}
                 <View style={styles.statsRow}>
                     <StatCard
@@ -155,72 +228,7 @@ const TeacherDashboard = ({ navigation }) => {
                     />
                 </View>
 
-                {/* Quick Actions */}
-                <SectionCard>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
-                    <View style={styles.quickActions}>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('TeacherActivities')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#eef2ff' }]}>
-                                <Ionicons name="clipboard-outline" size={22} color={colors.accent} />
-                            </View>
-                            <Text style={styles.actionLabel}>Activities</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('EvaluatePage')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#ecfdf5' }]}>
-                                <Ionicons name="checkmark-done-circle-outline" size={22} color={colors.teacher} />
-                            </View>
-                            <Text style={styles.actionLabel}>Evaluate</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('Profile')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
-                                <Ionicons name="person-outline" size={22} color={colors.warning} />
-                            </View>
-                            <Text style={styles.actionLabel}>Profile</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('ContactStudents')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#e6f4ea' }]}>
-                                <Ionicons name="chatbubbles-outline" size={22} color={colors.teacher} />
-                            </View>
-                            <Text style={styles.actionLabel}>Contact Students</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('TeacherAttendance')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#fee2e2' }]}>
-                                <Ionicons name="qr-code-outline" size={22} color="#ef4444" />
-                            </View>
-                            <Text style={styles.actionLabel}>Attendance</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => navigation.navigate('TeacherSnapshots')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#eef2ff' }]}>
-                                <Ionicons name="clipboard-outline" size={22} color={colors.accent} />
-                            </View>
-                            <Text style={styles.actionLabel}>Snapshots</Text>
-                        </TouchableOpacity>
-                    </View>
-                </SectionCard>
+                {/* Quick Actions moved to sticky top tab bar */}
 
                 {/* My Students */}
                 <SectionCard>
@@ -246,31 +254,6 @@ const TeacherDashboard = ({ navigation }) => {
                     )}
                 </SectionCard>
 
-                {/* Profile Card */}
-                <SectionCard>
-                    <Text style={styles.sectionTitle}>My Profile</Text>
-                    <View style={styles.profileRow}>
-                        <View style={[styles.profileAvatar, { backgroundColor: colors.teacher }]}>
-                            <Text style={styles.profileAvatarText}>{profile?.name?.[0]}</Text>
-                        </View>
-                        <View>
-                            <Text style={styles.profileName}>{profile?.name}</Text>
-                            <Text style={styles.profileEmail}>{profile?.email}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.profileMeta}>
-                        <View style={styles.metaItem}>
-                            <Text style={styles.metaLabel}>Subject</Text>
-                            <Text style={styles.metaValue}>
-                                {profile?.teacherProfile?.subjects?.join(', ') || profile?.teacherProfile?.subject || 'N/A'}
-                            </Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                            <Text style={styles.metaLabel}>Institute</Text>
-                            <Text style={styles.metaValue}>{profile?.institute?.name || 'N/A'}</Text>
-                        </View>
-                    </View>
-                </SectionCard>
             </ScrollView>
 
             {/* Calling Modal (Audio/Video) */}
@@ -439,14 +422,133 @@ const TeacherDashboard = ({ navigation }) => {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Sticky Bottom Tab Bar (YouTube/Facebook Style) */}
+            <View style={styles.bottomTabBar}>
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="home" size={22} color={colors.accent} />
+                    <Text style={[styles.bottomTabLabel, { color: colors.accent }]}>Home</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('TeacherSnapshots')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="calendar-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Attendance</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('TestBuilder')}
+                    activeOpacity={0.75}
+                >
+                    <View style={styles.plusBtnCircle}>
+                        <Ionicons name="add" size={28} color={colors.white} />
+                    </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('ContactStudents')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Students</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('EvaluatePage')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="checkmark-done-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Evaluate</Text>
+                </TouchableOpacity>
+            </View>
+            <ProfileBottomSheet visible={switcherVisible} onClose={() => setSwitcherVisible(false)} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    bottomTabBar: {
+        flexDirection: 'row',
+        backgroundColor: colors.bgCard,
+        borderTopWidth: 1.5,
+        borderTopColor: colors.borderLight,
+        paddingVertical: 8,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        height: 60,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    bottomTabBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    bottomTabLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textSecondary,
+        marginTop: 2,
+    },
+    plusBtnCircle: {
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: colors.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -18,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+    },
+    topTabBar: {
+        flexDirection: 'row',
+        backgroundColor: colors.bgCard,
+        borderBottomWidth: 1.5,
+        borderBottomColor: colors.borderLight,
+        paddingVertical: 10,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
+    tabBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    tabLabel: {
+        fontSize: fontSizes.xs - 3,
+        fontWeight: '800',
+        color: colors.textSecondary,
+        marginTop: 4,
+    },
     scroll: { flex: 1 },
-    scrollContent: { padding: spacing.md, paddingBottom: 32 },
+    scrollContent: { padding: spacing.md, paddingBottom: 80 },
     welcomeBanner: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -840,6 +942,40 @@ const styles = StyleSheet.create({
         backgroundColor: colors.accent,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    chatBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#ecfdf5',
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderWidth: 1.5,
+        borderColor: '#d1fae5',
+    },
+    chatBannerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm + 4,
+    },
+    chatIconCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.success,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    chatBannerTitle: {
+        fontSize: fontSizes.md,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    chatBannerSub: {
+        fontSize: fontSizes.xs,
+        color: colors.textMuted,
+        marginTop: 2,
     },
 });
 

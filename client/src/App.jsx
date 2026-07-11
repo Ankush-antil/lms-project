@@ -54,6 +54,7 @@ import StudentFeePortal from './pages/student/StudentFeePortal';
 import AdminFeePortal from './pages/admin/AdminFeePortal';
 import SharedAudioPage from './pages/SharedAudioPage';
 import SharedVideoPage from './pages/SharedVideoPage';
+import MobileCallPage from './pages/common/MobileCallPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
 import ApplicationsTrackingPage from './pages/ApplicationsTrackingPage';
 import ComingSoon from './components/common/ComingSoon';
@@ -119,7 +120,7 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         const subdomain = parts[0].toLowerCase();
         // Public paths allowed without login
-        const isPublicPath = path.startsWith('/share/') || path === '/track-applications';
+        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call');
 
         if (!user) {
             // Unauthenticated users are forced to landing page for login (except on public paths)
@@ -210,6 +211,7 @@ function App() {
                                 <Route path="/share/video/:id" element={<SharedVideoPage />} />
                                 <Route path="/share/screenshot/:id" element={<SharedScreenshotPage />} />
                                 <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
+                                <Route path="/mobile-call" element={<MobileCallPage />} />
 
                                 {/* Institute Routes */}
                                 <Route path="/institute" element={

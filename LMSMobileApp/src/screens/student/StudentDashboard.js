@@ -134,6 +134,14 @@ const StudentDashboard = ({ navigation }) => {
                     <Ionicons name="create-outline" size={20} color="#ec4899" />
                     <Text style={styles.tabLabel}>Notes</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('StudentFeePortal')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="card-outline" size={20} color="#f59e0b" />
+                    <Text style={styles.tabLabel}>Fees</Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -171,25 +179,7 @@ const StudentDashboard = ({ navigation }) => {
                     />
                 </View>
 
-                {/* Dashboard banners moved to sticky bottom tab bar */}
 
-                {/* Fee Portal Quick Banner */}
-                <TouchableOpacity
-                    style={[styles.chatBanner, { backgroundColor: '#fef8e7', borderColor: '#fef0d1', marginBottom: spacing.md }]}
-                    onPress={() => navigation.navigate('StudentFeePortal')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.chatBannerLeft}>
-                        <View style={[styles.chatIconCircle, { backgroundColor: '#f59e0b' }]}>
-                            <Ionicons name="card" size={22} color={colors.white} />
-                        </View>
-                        <View>
-                            <Text style={styles.chatBannerTitle}>Fee Portal</Text>
-                            <Text style={styles.chatBannerSub}>View ledger statements & download receipts</Text>
-                        </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#f59e0b" />
-                </TouchableOpacity>
 
                 {/* Missed Calls */}
                 {missedCalls.length > 0 && (

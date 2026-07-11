@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, ShieldAlert, Video, VideoOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const SocketContext = createContext();
 
@@ -54,6 +55,40 @@ export const SocketProvider = ({ children }) => {
     const ringIntervalRef = useRef(null);
     const callStateRef = useRef(callState);
     const callInfoRef = useRef(callInfo);
+
+    // Dynamic ICE servers ref with default openrelay/Google fallbacks
+    const iceServersRef = useRef([
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ]);
+
+    const fetchIceServers = async () => {
+        try {
+            const { data } = await axios.get('/api/calls/ice-servers');
+            if (data && data.iceServers && data.iceServers.length > 0) {
+                iceServersRef.current = data.iceServers;
+                console.log('[WebRTC] Loaded dynamic ICE servers:', data.iceServers.length);
+            }
+        } catch (err) {
+            console.error('[WebRTC] Error fetching dynamic ICE servers, using defaults:', err);
+        }
+    };
 
     useEffect(() => {
         callStateRef.current = callState;
@@ -294,6 +329,9 @@ export const SocketProvider = ({ children }) => {
             }
             return;
         }
+
+        // Fetch dynamic WebRTC ICE configurations from backend
+        fetchIceServers();
 
         const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
         const s = io(socketUrl, {
@@ -537,41 +575,7 @@ export const SocketProvider = ({ children }) => {
     const initializePeerConnection = (targetId, callType) => {
         remoteStreamRef.current = new MediaStream();
         const pc = new RTCPeerConnection({
-            iceServers: [
-                // STUN Servers (Google)
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' },
-                // Free TURN Servers (OpenRelay - Metered.ca) - required for different networks
-                {
-                    urls: 'turn:openrelay.metered.ca:80',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turns:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                // Backup free TURN server
-                {
-                    urls: 'turn:relay1.expressturn.com:3478',
-                    username: 'efKVAFBGMAS9ZMXOGN',
-                    credential: 'KiFYalDXLqZpzPQ8'
-                }
-            ],
+            iceServers: iceServersRef.current,
             iceCandidatePoolSize: 10
         });
 
@@ -707,24 +711,33 @@ export const SocketProvider = ({ children }) => {
         }
     };
 
-    const acceptCall = async () => {
-        if (!socketRef.current || !callInfo.targetId) return;
+    const acceptCall = async (incomingInfo = null) => {
+        const activeInfo = incomingInfo || callInfo;
+        if (!socketRef.current || !activeInfo.targetId) {
+            console.error('[WebRTC] Cannot accept call: missing socket or targetId', { socket: !!socketRef.current, targetId: activeInfo.targetId });
+            return;
+        }
         
+        // Populate local state if incomingInfo was passed (e.g. inside WebView)
+        if (incomingInfo) {
+            setCallInfo(incomingInfo);
+        }
+
         stopRingtone();
-        const callType = callInfo.callType || 'audio';
+        const callType = activeInfo.callType || 'audio';
         unlockAudioContext();
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
             socketRef.current.emit('reject-call', {
-                callerId: callInfo.targetId,
-                callLogId: callInfo.callLogId
+                callerId: activeInfo.targetId,
+                callLogId: activeInfo.callLogId
             });
             handleEndCallLocally('idle');
             return;
         }
 
-        console.log('[CALL] Accepting call from:', callInfo.targetId);
+        console.log('[CALL] Accepting call from:', activeInfo.targetId);
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -733,7 +746,7 @@ export const SocketProvider = ({ children }) => {
             });
             localStreamRef.current = stream;
 
-            const pc = initializePeerConnection(callInfo.targetId, callType);
+            const pc = initializePeerConnection(activeInfo.targetId, callType);
 
             // Bind remote audio ref immediately inside user gesture context (bypass autoplay restriction)
             if (remoteAudioRef.current && remoteStreamRef.current) {
@@ -747,7 +760,11 @@ export const SocketProvider = ({ children }) => {
                 localVideoRef.current.srcObject = stream;
             }
 
-            await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
+            const sdpOffer = activeInfo.offer || window.mobileOffer || pcRef.current?.remoteDescription;
+            if (!sdpOffer) {
+                throw new Error('No SDP offer found to accept call');
+            }
+            await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer));
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -757,15 +774,16 @@ export const SocketProvider = ({ children }) => {
 
             setCallState('connected');
             socketRef.current.emit('accept-call', {
-                callerId: callInfo.targetId,
+                callerId: activeInfo.targetId,
                 answer,
-                callLogId: callInfo.callLogId
-            });        } catch (err) {
+                callLogId: activeInfo.callLogId
+            });
+        } catch (err) {
             console.error('[CALL] Failed accepting call:', err);
             toast.error('Could not connect call');
             socketRef.current.emit('reject-call', {
-                callerId: callInfo.targetId,
-                callLogId: callInfo.callLogId
+                callerId: activeInfo.targetId,
+                callLogId: activeInfo.callLogId
             });
             handleEndCallLocally('idle');
         }

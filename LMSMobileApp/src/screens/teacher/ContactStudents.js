@@ -502,7 +502,7 @@ const ContactStudents = ({ navigation }) => {
                                     {peer?._id && (
                                         <TouchableOpacity 
                                             style={[styles.waActionBtn, { marginRight: 8 }]}
-                                            onPress={showCallingComingSoon}
+                                            onPress={() => callUser(peer._id, peerName, 'Student', item.callType || 'audio')}
                                             activeOpacity={0.7}
                                         >
                                             <Ionicons 
@@ -561,7 +561,7 @@ const ContactStudents = ({ navigation }) => {
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                         style={styles.waActionBtn}
-                                        onPress={showCallingComingSoon}
+                                        onPress={() => callUser(item._id, item.name, 'Student', 'audio')}
                                         activeOpacity={0.75}
                                     >
                                         <Ionicons 
@@ -572,7 +572,7 @@ const ContactStudents = ({ navigation }) => {
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                         style={styles.waActionBtn}
-                                        onPress={showCallingComingSoon}
+                                        onPress={() => callUser(item._id, item.name, 'Student', 'video')}
                                         activeOpacity={0.75}
                                     >
                                         <Ionicons 
@@ -630,14 +630,14 @@ const ContactStudents = ({ navigation }) => {
                                     <Ionicons name="search-outline" size={21} color={showChatSearch ? colors.accent : colors.textSecondary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    onPress={showCallingComingSoon}
+                                    onPress={() => callUser(activeContact._id, activeContact.name, 'Student', 'audio')}
                                     style={styles.chatHeaderActionBtn}
                                     activeOpacity={0.75}
                                 >
                                     <Ionicons name="call" size={20} color={colors.accent} />
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    onPress={showCallingComingSoon}
+                                    onPress={() => callUser(activeContact._id, activeContact.name, 'Student', 'video')}
                                     style={styles.chatHeaderActionBtn}
                                     activeOpacity={0.75}
                                 >

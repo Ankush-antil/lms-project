@@ -85,23 +85,25 @@ app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/sync', require('./routes/syncRoutes'));
 app.use('/api/drive', require('./routes/driveRoutes'));
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
+// Serve static assets if client/dist exists (necessary for mobile WebView call page in dev/prod)
+const distPath = path.resolve(__dirname, '../client/dist');
+const fs = require('fs');
+if (fs.existsSync(distPath)) {
     // Serve React static files
-    app.use(express.static(path.join(__dirname, '../client/dist')));
+    app.use(express.static(distPath));
 
     // Catch-all: only serve index.html for non-API routes
     app.get('*', (req, res, next) => {
         if (req.path.startsWith('/api/')) {
             return next(); // Let API 404 handler respond
         }
-        res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+        res.sendFile(path.join(distPath, 'index.html'));
     });
 } else {
     app.get('/', (req, res) => {
         const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
         res.json({
-            message: 'LMS API is running',
+            message: 'LMS API is running (client/dist not found)',
             database: dbStatus,
             version: '1.0.0'
         });

@@ -19,6 +19,7 @@ import { WebView } from 'react-native-webview';
 import { colors, spacing, fontSizes, borderRadius } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../config/api';
+import * as SecureStore from 'expo-secure-store';
 
 const SocketContext = createContext();
 
@@ -48,6 +49,26 @@ export const SocketProvider = ({ children }) => {
     const vibrationIntervalRef = useRef(null);
     const soundRef = useRef(null);
     const webViewRef = useRef(null);
+
+    const [authToken, setAuthToken] = useState(null);
+
+    // Retrieve Auth Token dynamically to authenticate WebRTC calling inside WebView
+    useEffect(() => {
+        const getAuthToken = async () => {
+            try {
+                const token = await SecureStore.getItemAsync('authToken');
+                setAuthToken(token);
+                console.log('[SOCKET] Resolved mobile authToken for WebRTC WebView');
+            } catch (err) {
+                console.log('[SOCKET] Error reading token from SecureStore:', err);
+            }
+        };
+        if (callState === 'connected' || callState === 'dialing') {
+            getAuthToken();
+        } else {
+            setAuthToken(null);
+        }
+    }, [callState]);
 
     // Request Camera & Audio Permissions for WebRTC inside WebView on Android/iOS
     const requestCallPermissions = async () => {
@@ -208,11 +229,16 @@ export const SocketProvider = ({ children }) => {
     const handleWebViewMessage = (event) => {
         try {
             const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'END_CALL') {
+                console.log('[SOCKET] WebView received END_CALL message, ending local call');
+                handleEndCallLocally('ended');
+                return;
+            }
             const formatted = `[${data.type}] ${data.message}`;
             setDebugLogs(prev => [...prev.slice(-30), formatted]);
-            console.log('[JITSI WEBVIEW]', formatted);
+            console.log('[WEBRTC WEBVIEW]', formatted);
         } catch (e) {
-            console.log('[JITSI WEBVIEW RAW]', event.nativeEvent.data);
+            console.log('[WEBRTC WEBVIEW RAW]', event.nativeEvent.data);
         }
     };
 
@@ -254,6 +280,12 @@ export const SocketProvider = ({ children }) => {
                 callType: 'audio'
             });
             setCallDuration(0);
+
+            // Re-register mobile socket client on server
+            if (socketRef.current && user?._id) {
+                console.log('[SOCKET] Re-registering mobile socket after call ends (idle)');
+                socketRef.current.emit('register', { userId: user._id, role: user.role, name: user.name });
+            }
             return;
         }
 
@@ -269,6 +301,12 @@ export const SocketProvider = ({ children }) => {
                 callType: 'audio'
             });
             setCallDuration(0);
+
+            // Re-register mobile socket client on server
+            if (socketRef.current && user?._id) {
+                console.log('[SOCKET] Re-registering mobile socket after call ends (timeout)');
+                socketRef.current.emit('register', { userId: user._id, role: user.role, name: user.name });
+            }
         }, 2000);
     };
 
@@ -340,7 +378,7 @@ export const SocketProvider = ({ children }) => {
         });
 
         // Incoming Call Event
-        s.on('incoming-call', ({ callerId, callerName, callLogId, callType }) => {
+        s.on('incoming-call', ({ callerId, callerName, callLogId, callType, offer }) => {
             console.log(`[SOCKET] Incoming ${callType} call from ${callerName} (${callerId})`);
             
             // Auto reject if already busy
@@ -356,7 +394,8 @@ export const SocketProvider = ({ children }) => {
                 targetRole: user.role === 'Teacher' ? 'Student' : 'Teacher',
                 callLogId,
                 isCaller: false,
-                callType: callType || 'audio'
+                callType: callType || 'audio',
+                offer
             });
             startVibration();
             playSound('ringtone');
@@ -446,14 +485,6 @@ export const SocketProvider = ({ children }) => {
             isCaller: true,
             callType
         });
-
-        socketRef.current.emit('call-user', {
-            targetId,
-            offer: {}, // WebRTC offer (empty for simulated AV connection)
-            callerName: user ? user.name : 'User',
-            callerId: user ? user._id : '',
-            callType
-        });
         playSound('dialing');
     };
 
@@ -465,11 +496,6 @@ export const SocketProvider = ({ children }) => {
         stopVibration();
         stopSound();
         setCallState('connected');
-        socketRef.current.emit('accept-call', {
-            callerId: callInfo.targetId,
-            answer: {},
-            callLogId: callInfo.callLogId
-        });
     };
 
     const rejectCall = () => {
@@ -522,15 +548,15 @@ export const SocketProvider = ({ children }) => {
                 animationType="slide"
             >
                 <View style={styles.callContainer}>
-                    {/* Ringing/Connected Avatar Area or WebRTC Video WebView */}
-                    {callState === 'connected' && callInfo.callType === 'video' ? (
+                    {/* WebRTC P2P WebView call container */}
+                    {(callState === 'connected' || callState === 'dialing') && authToken ? (
                         <WebView
                             ref={webViewRef}
                             key={`webview-${callInfo.callLogId || 'default'}`}
                             source={{
-                                uri: `https://meet.jit.si/lms-call-room-${callInfo.callLogId || 'default'}#config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.prejoinConfig.enabled=false&config.prejoinPageEnabled=false&config.disableDeepLinking=true`
+                                uri: `${BASE_URL}/mobile-call?token=${authToken}&callLogId=${callInfo.callLogId}&targetId=${callInfo.targetId}&targetName=${encodeURIComponent(callInfo.targetName)}&targetRole=${callInfo.targetRole}&callType=${callInfo.callType}&isCaller=${callInfo.isCaller}`
                             }}
-                            style={styles.videoWebView}
+                            style={(callState === 'connected' && callInfo.callType === 'video') ? styles.videoWebView : styles.hiddenWebView}
                             mediaPlaybackRequiresUserAction={false}
                             allowsInlineMediaPlayback={true}
                             javaScriptEnabled={true}
@@ -540,13 +566,16 @@ export const SocketProvider = ({ children }) => {
                             originWhitelist={['*']}
                             userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                             mediaCapturePermissionGrantType="grant"
-                            injectedJavaScriptBeforeContentLoaded={debugInjection}
+                            injectedJavaScriptBeforeContentLoaded={debugInjection + `\nwindow.mobileOffer = ${JSON.stringify(callInfo.offer || null)};\ntrue;`}
                             onMessage={handleWebViewMessage}
                             onPermissionRequest={(event) => {
                                 event.grant(event.resources);
                             }}
                         />
-                    ) : (
+                    ) : null}
+
+                    {/* Show Ringing/Avatar details overlay when dialing, incoming or for audio call (as background) */}
+                    {(callState !== 'connected' || callInfo.callType === 'audio') && (
                         <View style={styles.topArea}>
                             <View style={[
                                 styles.avatarContainer,
@@ -573,32 +602,6 @@ export const SocketProvider = ({ children }) => {
                             {callState === 'connected' && (
                                 <Text style={styles.timerText}>{formatTime(callDuration)}</Text>
                             )}
-
-                            {/* Hidden WebRTC Audio WebView for audio calls */}
-                            {callState === 'connected' && callInfo.callType === 'audio' && (
-                                <WebView
-                                    ref={webViewRef}
-                                    key={`webview-${callInfo.callLogId || 'default'}`}
-                                    source={{
-                                        uri: `https://meet.jit.si/lms-call-room-${callInfo.callLogId || 'default'}#config.startWithVideoMuted=true&config.startWithAudioMuted=false&config.prejoinConfig.enabled=false&config.prejoinPageEnabled=false&config.disableDeepLinking=true`
-                                    }}
-                                    style={styles.hiddenWebView}
-                                    mediaPlaybackRequiresUserAction={false}
-                                    allowsInlineMediaPlayback={true}
-                                    javaScriptEnabled={true}
-                                    domStorageEnabled={true}
-                                    databaseEnabled={true}
-                                    thirdPartyCookiesEnabled={true}
-                                    originWhitelist={['*']}
-                                    userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                                    mediaCapturePermissionGrantType="grant"
-                                    injectedJavaScriptBeforeContentLoaded={debugInjection}
-                                    onMessage={handleWebViewMessage}
-                                    onPermissionRequest={(event) => {
-                                        event.grant(event.resources);
-                                    }}
-                                />
-                            )}
                         </View>
                     )}
 
@@ -608,7 +611,7 @@ export const SocketProvider = ({ children }) => {
                             <Text style={styles.debugTitle}>System Logs (Scroll to view):</Text>
                             <ScrollView style={styles.debugScroll} nestedScrollEnabled={true}>
                                 {debugLogs.length === 0 ? (
-                                    <Text style={[styles.debugText, { color: '#eab308' }]}>Waiting for logs from Jitsi WebRTC room...</Text>
+                                    <Text style={[styles.debugText, { color: '#eab308' }]}>Waiting for logs from WebRTC room...</Text>
                                 ) : (
                                     debugLogs.map((log, idx) => (
                                         <Text key={idx} style={styles.debugText}>{log}</Text>
@@ -768,12 +771,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#0b141a',
     },
     hiddenWebView: {
-        width: 1,
-        height: 1,
+        width: 300,
+        height: 300,
         opacity: 0.01,
         position: 'absolute',
-        bottom: 0,
-        right: 0,
+        left: -1000,
+        top: -1000,
     },
     debugPanel: {
         width: '90%',

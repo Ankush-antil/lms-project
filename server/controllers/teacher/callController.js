@@ -223,3 +223,53 @@ exports.deleteCallLog = async (req, res) => {
     }
 };
 
+exports.getIceServers = async (req, res) => {
+    try {
+        const stunServer = process.env.STUN_SERVER_URL || 'stun:stun.l.google.com:19302';
+        const turnServer = process.env.TURN_SERVER_URL;
+        const turnUsername = process.env.TURN_SERVER_USERNAME;
+        const turnPassword = process.env.TURN_SERVER_PASSWORD;
+
+        const iceServers = [];
+
+        // Parse STUN servers
+        const stunUrls = stunServer.split(',').map(url => url.trim());
+        stunUrls.forEach(url => {
+            if (url) {
+                iceServers.push({ urls: url });
+            }
+        });
+
+        // Add TURN server if configured
+        if (turnServer) {
+            iceServers.push({
+                urls: turnServer,
+                username: turnUsername || '',
+                credential: turnPassword || ''
+            });
+        } else {
+            // Fallback for development/testing
+            console.log('[WebRTC] No TURN_SERVER_URL configured, falling back to openrelay');
+            iceServers.push({
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            });
+            iceServers.push({
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            });
+            iceServers.push({
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            });
+        }
+
+        res.json({ iceServers });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+

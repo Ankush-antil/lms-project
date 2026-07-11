@@ -45,6 +45,7 @@ const getUsers = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects')
+        .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name')
         .populate('teacherProfile.assignedStudents', 'name email studentProfile');
 
@@ -115,6 +116,10 @@ const createUser = asyncHandler(async (req, res) => {
             joiningDate: req.body.staffProfile?.joiningDate || new Date(),
             salary: req.body.staffProfile?.salary || 0,
             salaryStatus: req.body.staffProfile?.salaryStatus || 'Pending'
+        };
+    } else if (role === 'Parent') {
+        userFields.parentProfile = {
+            student: req.body.parentProfile?.student || null
         };
     }
 
@@ -423,6 +428,11 @@ const updateUser = asyncHandler(async (req, res) => {
                 user.staffProfile.department = req.body.staffProfile.department !== undefined ? req.body.staffProfile.department : user.staffProfile.department;
                 user.staffProfile.salary = req.body.staffProfile.salary !== undefined ? req.body.staffProfile.salary : user.staffProfile.salary;
                 user.staffProfile.salaryStatus = req.body.staffProfile.salaryStatus !== undefined ? req.body.staffProfile.salaryStatus : user.staffProfile.salaryStatus;
+            }
+        } else if (user.role === 'Parent') {
+            if (!user.parentProfile) user.parentProfile = {};
+            if (req.body.parentProfile) {
+                user.parentProfile.student = req.body.parentProfile.student !== undefined ? req.body.parentProfile.student : user.parentProfile.student;
             }
         }
 

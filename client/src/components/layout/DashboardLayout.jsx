@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
-    ChevronLeft, ChevronRight, MessageSquare, Bell, BellRing, Settings,
+    ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare
 } from 'lucide-react';
@@ -147,52 +147,63 @@ const ChatNotificationBar = () => {
 
 const menuItems = {
     Admin: [
+        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+
+        { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/admin/users' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
-        { name: 'Accountants', icon: Users, path: '/admin/accountants' },
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
+        { name: 'Accountants', icon: Users, path: '/admin/accountants' },
+        { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
+        { name: 'All Staff', icon: Users, path: '/admin/staff' },
+        { name: 'Parents', icon: Users, path: '/admin/parents' },
+
+        { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
-        { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
-        { name: 'Fees Portal', icon: CreditCard, path: '/admin/fee-portal' },
-        { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
-        { name: '_section_Staff', icon: Briefcase, path: null },
-        { name: 'All Staff', icon: Users, path: '/admin/staff' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
-        { name: 'Chat', icon: MessageSquare, path: '/admin/chat' },
+
+        { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/admin/drive' },
-        { name: 'Notes', icon: StickyNote, path: '/admin/notes' }
+        { name: 'Notes', icon: StickyNote, path: '/admin/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/admin/chat' }
     ],
     Institute: [
+        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
+
+        { name: '_section_Users', icon: Users, path: null },
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
-        { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Accountants', icon: Users, path: '/institute/accountants' },
+        { name: 'My Staff', icon: Users, path: '/institute/staff' },
+        { name: 'Parents', icon: Users, path: '/institute/parents' },
+
+        { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/institute/subjects' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Tools', icon: PenTool, path: '/institute/tools' },
-        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
-        { name: 'Fee Portal', icon: CreditCard, path: '/institute/fee-portal' },
+
+        { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: 'My Staff', icon: Users, path: '/institute/staff' },
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' }
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
         { name: 'Student Activities', icon: FileText, path: '/teacher/activities' },
-        { name: 'Drive', icon: HardDrive, path: '/teacher/drive' },
         { name: 'Evaluate', icon: ClipboardCheck, path: '/teacher/evaluate' },
         { name: 'Snapshots', icon: ClipboardCheck, path: '/teacher/snapshots' },
         { name: 'Tools', icon: PenTool, path: '/teacher/tools' },
-        { name: 'Chat', icon: MessageSquare, path: '/teacher/chat' },
+        { name: 'Drive', icon: HardDrive, path: '/teacher/drive' },
         { name: 'Notes', icon: StickyNote, path: '/teacher/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/teacher/chat' },
     ],
     Editor: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/editor' },
@@ -201,9 +212,9 @@ const menuItems = {
         { name: 'Subjects', icon: ClipboardCheck, path: '/editor/subjects' },
         { name: 'Activities', icon: ClipboardCheck, path: '/editor/activities' },
         { name: 'Tools', icon: ClipboardCheck, path: '/editor/tools' },
-        { name: 'Chat', icon: MessageSquare, path: '/editor/chat' },
         { name: 'Drive', icon: HardDrive, path: '/editor/drive' },
-        { name: 'Notes', icon: StickyNote, path: '/editor/notes' }
+        { name: 'Notes', icon: StickyNote, path: '/editor/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/editor/chat' },
     ],
     Accountant: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/accountant' },
@@ -219,18 +230,27 @@ const menuItems = {
         { name: 'Fee Portal', icon: Wallet, path: '/student/fee-portal' },
         { name: 'Tools', icon: Settings, path: '/student/practice-tools' },
         { name: 'My SnapShots', icon: BarChart3, path: '/student/performance' },
-        { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
         { name: 'Drive', icon: HardDrive, path: '/student/drive' },
         { name: 'Notes', icon: StickyNote, path: '/student/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
     ],
     Staff: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/staff' },
         { name: 'Task', icon: CheckSquare, path: '/staff/task' },
         { name: 'Attendance', icon: Calendar, path: '/staff/attendance' },
         { name: 'Salary', icon: DollarSign, path: '/staff/salary' },
-        { name: 'Chat', icon: MessageSquare, path: '/staff/chat' },
-        { name: 'Notes', icon: StickyNote, path: '/staff/notes' },
         { name: 'Drive', icon: HardDrive, path: '/staff/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/staff/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/staff/chat' },
+    ],
+    Parent: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/parent' },
+        { name: 'Student Fee', icon: Wallet, path: '/parent/fee' },
+        { name: 'Attendance', icon: Calendar, path: '/parent/attendance' },
+        { name: 'Activities', icon: FileText, path: '/parent/activities' },
+        { name: 'Drive', icon: HardDrive, path: '/parent/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/parent/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/parent/chat' },
     ]
 };
 
@@ -566,6 +586,11 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout, user } = useAuth();
+    const [activeSection, setActiveSection] = useState('_section_dashboard');
+
+    const toggleSection = (sectionName) => {
+        setActiveSection(prev => prev === sectionName ? null : sectionName);
+    };
 
     const safeRole = role || 'Admin';
     const items = menuItems[safeRole] || [];
@@ -782,6 +807,26 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         return location.pathname.startsWith(path);
     };
 
+    useEffect(() => {
+        const activeItem = filteredItems.find(item => !item.name.startsWith('_section_') && isActive(item.path));
+        if (activeItem) {
+            let currentSection = null;
+            for (const item of filteredItems) {
+                if (item.name.startsWith('_section_')) {
+                    currentSection = item.name;
+                }
+                if (item === activeItem) {
+                    if (currentSection) {
+                        setActiveSection(currentSection);
+                    }
+                    break;
+                }
+            }
+        } else {
+            setActiveSection('_section_dashboard');
+        }
+    }, [location.pathname]);
+
     return (
         <>
             {/* Sidebar — desktop */}
@@ -798,41 +843,69 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 </button>
 
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-                    {filteredItems.map((item) => {
-                        if (item.name.startsWith('_section_')) {
-                            const label = item.name.replace('_section_', '');
-                            if (collapsed) {
+                    {(() => {
+                        let currentSection = null;
+                        return filteredItems.map((item) => {
+                            if (item.name.startsWith('_section_')) {
+                                currentSection = item.name;
+                                const label = item.name.replace('_section_', '');
+                                const isExpanded = activeSection === item.name;
+
+                                if (collapsed) {
+                                    return (
+                                        <button
+                                            key={item.name}
+                                            type="button"
+                                            onClick={() => toggleSection(item.name)}
+                                            title={`Toggle ${label}`}
+                                            className={`flex items-center justify-center w-full py-3 my-2 text-slate-500 hover:text-white transition-all rounded-xl border-none bg-transparent cursor-pointer ${isExpanded ? 'text-indigo-400 bg-white/5' : ''
+                                                }`}
+                                        >
+                                            {item.icon ? <item.icon size={20} /> : <div className="border-t border-slate-800/80 w-8" />}
+                                        </button>
+                                    );
+                                }
+
                                 return (
-                                    <div key={item.name} className="border-t border-slate-800/80 my-4 mx-2" />
+                                    <button
+                                        key={item.name}
+                                        type="button"
+                                        onClick={() => toggleSection(item.name)}
+                                        className="w-full pt-5 pb-1.5 px-4 flex items-center justify-between text-slate-500 hover:text-slate-300 transition-all select-none border-none bg-transparent cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {item.icon && <item.icon size={13} className="text-slate-500" />}
+                                            <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">{label}</span>
+                                        </div>
+                                        {isExpanded ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
+                                    </button>
                                 );
                             }
+
+                            const showItem = currentSection === null || activeSection === currentSection;
+                            if (!showItem) return null;
+
+                            const active = isActive(item.path);
                             return (
-                                <div key={item.name} className="pt-5 pb-1.5 px-4 flex items-center gap-2 select-none">
-                                    {item.icon && <item.icon size={12} className="text-slate-500" />}
-                                    <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">{label}</span>
-                                </div>
+                                <button
+                                    key={item.name}
+                                    onClick={() => handleItemClick(item)}
+                                    title={item.disabled ? (item.note || 'Feature Restricted') : (collapsed ? item.name : undefined)}
+                                    className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
+                                        ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
+                                        ${active
+                                            ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
+                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                        }
+                                        ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
+                                    `}
+                                >
+                                    <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
+                                    {!collapsed && <span>{item.name}</span>}
+                                </button>
                             );
-                        }
-                        const active = isActive(item.path);
-                        return (
-                            <button
-                                key={item.name}
-                                onClick={() => handleItemClick(item)}
-                                title={item.disabled ? (item.note || 'Feature Restricted') : (collapsed ? item.name : undefined)}
-                                className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm group cursor-pointer
-                                    ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}
-                                    ${active
-                                        ? 'bg-white text-[#0b1329] shadow-lg shadow-black/10'
-                                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }
-                                    ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
-                                `}
-                            >
-                                <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
-                                {!collapsed && <span>{item.name}</span>}
-                            </button>
-                        );
-                    })}
+                        });
+                    })()}
                 </nav>
 
                 {/* Logout at bottom */}
@@ -855,36 +928,54 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                 {/* Drawer panel */}
                 <div className={`absolute left-0 top-0 bottom-0 w-64 bg-[#0b1329] shadow-2xl p-6 flex flex-col transition-transform duration-300 text-white ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <nav className="flex-1 space-y-2">
-                        {filteredItems.map((item) => {
-                            if (item.name.startsWith('_section_')) {
-                                const label = item.name.replace('_section_', '');
+                    <nav className="flex-1 space-y-2 overflow-y-auto">
+                        {(() => {
+                            let currentSection = null;
+                            return filteredItems.map((item) => {
+                                if (item.name.startsWith('_section_')) {
+                                    currentSection = item.name;
+                                    const label = item.name.replace('_section_', '');
+                                    const isExpanded = activeSection === item.name;
+
+                                    return (
+                                        <button
+                                            key={item.name}
+                                            type="button"
+                                            onClick={() => toggleSection(item.name)}
+                                            className="w-full pt-4 pb-1.5 px-4 flex items-center justify-between text-slate-400 hover:text-slate-200 transition-all select-none border-none bg-transparent cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {item.icon && <item.icon size={13} className="text-slate-400" />}
+                                                <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{label}</span>
+                                            </div>
+                                            {isExpanded ? <ChevronDown size={12} className="text-slate-400" /> : <ChevronRight size={12} className="text-slate-400" />}
+                                        </button>
+                                    );
+                                }
+
+                                const showItem = currentSection === null || activeSection === currentSection;
+                                if (!showItem) return null;
+
+                                const active = isActive(item.path);
                                 return (
-                                    <div key={item.name} className="pt-4 pb-1.5 px-4 flex items-center gap-2 select-none border-b border-slate-800/40 mb-1 mt-3">
-                                        {item.icon && <item.icon size={13} className="text-slate-400" />}
-                                        <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{label}</span>
-                                    </div>
+                                    <button
+                                        key={item.name}
+                                        onClick={() => handleItemClick(item)}
+                                        title={item.disabled ? (item.note || 'Feature Restricted') : undefined}
+                                        className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold 
+                                            ${active
+                                                ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
+                                                : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                                            }
+                                            ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
+                                        `}
+                                    >
+                                        <item.icon size={22} />
+                                        <span className="text-base">{item.name}</span>
+                                    </button>
                                 );
-                            }
-                            const active = isActive(item.path);
-                            return (
-                                <button
-                                    key={item.name}
-                                    onClick={() => handleItemClick(item)}
-                                    title={item.disabled ? (item.note || 'Feature Restricted') : undefined}
-                                    className={`flex items-center space-x-4 w-full p-4 rounded-2xl transition-all font-bold 
-                                        ${active
-                                            ? 'bg-white text-[#0b1329] shadow-xl shadow-black/10'
-                                            : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                                        }
-                                        ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
-                                    `}
-                                >
-                                    <item.icon size={22} />
-                                    <span className="text-base">{item.name}</span>
-                                </button>
-                            );
-                        })}
+                            });
+                        })()}
                     </nav>
                     <div className="pt-4 border-t border-slate-800">
                         <button

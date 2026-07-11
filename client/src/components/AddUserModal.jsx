@@ -294,6 +294,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [createdUser, setCreatedUser] = useState(null);
     const [copied, setCopied] = useState(false);
@@ -363,7 +364,10 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                 assignedStudents: [],
                 controls: role === 'Student'
                     ? DEFAULT_STUDENT_CONTROLS
-                    : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : (role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS : DEFAULT_STUDENT_CONTROLS)))
+                    : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : (role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS : DEFAULT_STUDENT_CONTROLS))),
+                parentProfile: {
+                    student: ''
+                }
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -372,13 +376,15 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
             // Fetch Setup Data
             const fetchData = async () => {
                 try {
-                    const [instRes, courseRes, singleInstRes] = await Promise.all([
+                    const [instRes, courseRes, singleInstRes, studentsRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
                         axios.get('/api/setup/courses'),
-                        userInstId ? axios.get(`/api/setup/institutes/${userInstId}`) : Promise.resolve({ data: null })
+                        userInstId ? axios.get(`/api/setup/institutes/${userInstId}`) : Promise.resolve({ data: null }),
+                        axios.get('/api/users?role=Student')
                     ]);
                     setInstitutes(instRes.data);
                     setCourses(courseRes.data);
+                    setAllStudents(studentsRes.data || []);
                     if (singleInstRes && singleInstRes.data) {
                         setInstituteDetails(singleInstRes.data);
                     } else if (instRes.data) {
@@ -2306,6 +2312,33 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                     </div>
 
 
+
+                                    {role === 'Parent' && (
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Linked Student</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                    required
+                                                    value={formData.parentProfile?.student || ''}
+                                                    onChange={e => setFormData({
+                                                        ...formData,
+                                                        parentProfile: {
+                                                            ...formData.parentProfile,
+                                                            student: e.target.value
+                                                        }
+                                                    })}
+                                                >
+                                                    <option value="">Select Enrolled Student</option>
+                                                    {allStudents.map(student => (
+                                                        <option key={student._id} value={student._id}>
+                                                            {student.name} ({student.email})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {role === 'Student' && (
                                         <>

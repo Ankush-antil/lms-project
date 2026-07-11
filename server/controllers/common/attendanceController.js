@@ -517,10 +517,14 @@ exports.getSessionRecords = async (req, res) => {
     }
 };
 
-// 8. Get student's own attendance records
 exports.getMyAttendanceRecords = async (req, res) => {
     try {
-        const studentId = req.user._id;
+        let studentId = req.user._id;
+        if (req.user.role === 'Parent' && req.user.parentProfile?.student) {
+            studentId = req.user.parentProfile.student;
+        } else if (req.query.studentId && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+            studentId = req.query.studentId;
+        }
 
         // 1. Get student profile physical attendance
         const student = await User.findById(studentId).select('studentProfile');

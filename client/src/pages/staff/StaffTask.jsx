@@ -70,8 +70,8 @@ const StaffTask = () => {
     // Add extra task states
     const [showAddModal, setShowAddModal] = useState(false);
     const [taskModalRows, setTaskModalRows] = useState([
-        { title: '', description: '' },
-        { title: '', description: '' }
+        { title: '', description: '', timeTaken: '' },
+        { title: '', description: '', timeTaken: '' }
     ]);
     const [descPopupIndex, setDescPopupIndex] = useState(null);
     const [descPopupText, setDescPopupText] = useState('');
@@ -100,6 +100,7 @@ const StaffTask = () => {
         return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     });
     const [pendingNewStatus, setPendingNewStatus] = useState('');
+    const [completionTimeTaken, setCompletionTimeTaken] = useState('');
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -116,7 +117,7 @@ const StaffTask = () => {
 
 
     const addTaskRow = () => {
-        setTaskModalRows(prev => [...prev, { title: '', description: '' }]);
+        setTaskModalRows(prev => [...prev, { title: '', description: '', timeTaken: '' }]);
     };
 
     const removeTaskRow = (idx) => {
@@ -158,6 +159,7 @@ const StaffTask = () => {
             remark: '',
             status: 'done',
             isSelfCreated: true,
+            timeTaken: row.timeTaken || '', // Save time taken for self-created task
             createdAt: new Date().toISOString().split('T')[0]
         }));
 
@@ -167,8 +169,8 @@ const StaffTask = () => {
 
         // Reset form & close
         setTaskModalRows([
-            { title: '', description: '' },
-            { title: '', description: '' }
+            { title: '', description: '', timeTaken: '' },
+            { title: '', description: '', timeTaken: '' }
         ]);
         setShowAddModal(false);
     };
@@ -265,6 +267,7 @@ const StaffTask = () => {
             evidenceNote: evidenceText,
             evidenceFile: evidenceFileBase64,
             evidenceFileName: evidenceFileName,
+            timeTaken: completionTimeTaken, // Save time taken
             submittedAt: completionDate,
             verificationStatus: 'under_verification' // set verification status to under_verification
         } : t);
@@ -287,10 +290,14 @@ const StaffTask = () => {
         setEvidenceText('');
         setEvidenceFileBase64('');
         setEvidenceFileName('');
+        setCompletionTimeTaken('');
     };
 
-    // Filter tasks assigned to currently logged-in staff member
     const myTasks = allTasks.filter(t => t.staffName?.toLowerCase() === user?.name?.toLowerCase());
+    // Filter minus points logs belonging to currently logged-in staff member
+    const allMinusPointsLogs = JSON.parse(localStorage.getItem('staff_minus_points') || '[]');
+    const myMinusPointsLogs = allMinusPointsLogs.filter(log => log.staffId === user?._id || log.staffName?.toLowerCase() === user?.name?.toLowerCase());
+
 
     // Helper to format Date objects to YYYY-MM-DD
     const todayStr = new Date().toISOString().split('T')[0];
@@ -356,6 +363,8 @@ const StaffTask = () => {
                                 {!isSelfCreatedTable && (
                                     <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Due Date</th>
                                 )}
+                                <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '130px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                 <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: isSelfCreatedTable ? '400px' : '300px', whiteSpace: 'nowrap' }}>Task Title &amp; Description</th>
                                 <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '150px', whiteSpace: 'nowrap' }}>Remark</th>
                                 {!isSelfCreatedTable && (
@@ -416,6 +425,14 @@ const StaffTask = () => {
                                                 </div>
                                             </td>
                                         )}
+                                        {/* Valuation */}
+                                        <td style={{ padding: '16px 20px', fontSize: '0.78rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                            {task.valuation ? `₹${Number(task.valuation).toLocaleString('en-IN')}` : '—'}
+                                        </td>
+                                        {/* Time Taken */}
+                                        <td style={{ padding: '16px 20px', fontSize: '0.78rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                            {task.timeTaken ? task.timeTaken : '—'}
+                                        </td>
                                         {/* Title & Description */}
                                         <td style={{ padding: '16px 20px' }}>
                                             <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>{task.title}</div>
@@ -764,6 +781,23 @@ const StaffTask = () => {
                     >
                         ⚡ Self-Created Tasks ({selfCreatedTasks.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('minus-points')}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: activeTab === 'minus-points' ? '#ef4444' : '#f1f5f9',
+                            color: activeTab === 'minus-points' ? '#fff' : '#475569',
+                            fontSize: '0.82rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: activeTab === 'minus-points' ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none'
+                        }}
+                    >
+                        ⚠️ Minus Points ({user?.staffProfile?.minusPoints || 0})
+                    </button>
                 </div>
 
                 {/* Tab Content */}
@@ -921,6 +955,68 @@ const StaffTask = () => {
                             ) : renderTasksTable(filteredSelfCreatedTasks, true)}
                         </div>
                     )}
+
+                    {activeTab === 'minus-points' && (
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>My Minus Points History</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Track points deducted by the institute for performance review.</p>
+                                </div>
+                                <div style={{
+                                    background: '#fee2e2', color: '#ef4444',
+                                    borderRadius: '16px', padding: '12px 24px',
+                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                    border: '1.5px solid #fca5a5'
+                                }}>
+                                    <AlertTriangle size={18} />
+                                    <div>
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Minus Points</div>
+                                        <div style={{ fontSize: '1.4rem', fontWeight: 900 }}>{user?.staffProfile?.minusPoints || 0} Points</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {myMinusPointsLogs.length === 0 ? (
+                                <div style={{ padding: '60px 24px', textAlign: 'center', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: '24px', color: '#16a34a', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '2.5rem' }}>🌟</span>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>No Minus Points Recorded!</div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', maxWidth: '380px', lineHeight: 1.4 }}>
+                                        Great job! You don't have any minus points recorded. Keep maintaining your outstanding performance!
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ overflowX: 'auto', border: '1px solid #fee2e2', borderRadius: '20px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ background: '#fff5f5', borderBottom: '1px solid #fee2e2' }}>
+                                                <th style={{ padding: '12px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>#</th>
+                                                <th style={{ padding: '12px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Points</th>
+                                                <th style={{ padding: '12px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Reason / Remark</th>
+                                                <th style={{ padding: '12px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {myMinusPointsLogs.map((log, index) => (
+                                                <tr key={log.id} style={{ borderBottom: '1px solid #fff5f5', background: index % 2 === 0 ? '#fff' : '#fff8f8' }}>
+                                                    <td style={{ padding: '12px 16px', fontSize: '0.78rem', fontWeight: 800, color: '#ef4444' }}>{index + 1}</td>
+                                                    <td style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: 900, color: '#b91c1c' }}>
+                                                        -{log.points} Points
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', fontSize: '0.78rem', color: '#4b5563', fontWeight: 650 }}>
+                                                        {log.reason || '—'}
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', fontSize: '0.72rem', color: '#4b5563', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                        📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -950,8 +1046,9 @@ const StaffTask = () => {
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '250px' }}>Task Title *</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '300px' }}>Description / Details</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Task Title *</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Description / Details</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px' }}>Time Taken *</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Delete</th>
                                         </tr>
                                     </thead>
@@ -980,6 +1077,16 @@ const StaffTask = () => {
                                                         readOnly
                                                         placeholder="Click to edit details..."
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={row.timeTaken}
+                                                        onChange={e => handleRowChange(idx, 'timeTaken', e.target.value)}
+                                                        placeholder="e.g. 2 hrs / 3 days"
+                                                        required={idx === 0 || row.title?.trim()}
+                                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
                                                 <td style={{ padding: '12px 16px', textAlign: 'center' }}>
@@ -1231,6 +1338,18 @@ const StaffTask = () => {
                                 </div>
 
                                 <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px' }}>Time Taken (e.g. 2 hours, 45 mins) *</label>
+                                    <input
+                                        type="text"
+                                        value={completionTimeTaken}
+                                        onChange={e => setCompletionTimeTaken(e.target.value)}
+                                        placeholder="e.g. 3 hours / 2.5 days"
+                                        required
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.82rem', fontWeight: 600, color: '#334155', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+
+                                <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px' }}>Attachment / Proof (Optional)</label>
                                     <div style={{ border: '2px dashed #cbd5e1', borderRadius: '12px', padding: '14px', textAlign: 'center', position: 'relative', background: '#f8fafc', cursor: 'pointer' }}>
                                         <input
@@ -1348,6 +1467,20 @@ const StaffTask = () => {
                                             {viewingTask.isSelfCreated ? 'Self-Created' : 'Assigned'}
                                         </span>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>Valuation:</span>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                                    {viewingTask.valuation ? `₹${Number(viewingTask.valuation).toLocaleString('en-IN')}` : '—'}
+                                </div>
+                            </div>
+
+                            <div>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>Time Taken:</span>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                                    {viewingTask.timeTaken ? viewingTask.timeTaken : '—'}
                                 </div>
                             </div>
 

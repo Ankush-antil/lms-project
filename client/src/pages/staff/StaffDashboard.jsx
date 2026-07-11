@@ -78,6 +78,14 @@ const StaffDashboard = () => {
             color: '#8b5cf6',
             bg: 'rgba(139,92,246,0.12)'
         },
+        {
+            label: 'Minus Points',
+            value: String(user?.staffProfile?.minusPoints || 0),
+            sub: 'Deducted by Institute',
+            icon: Clock,
+            color: '#ef4444',
+            bg: 'rgba(239,68,68,0.12)'
+        },
     ];
 
     // ── Activity feed: built from real user data ─────────────────────────────────

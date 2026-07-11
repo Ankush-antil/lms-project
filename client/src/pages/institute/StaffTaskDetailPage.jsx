@@ -601,7 +601,7 @@ const StaffTaskDetailPage = () => {
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1300px' }}>
                                 <thead>
                                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                                        {['Task Title', 'Remark', 'Priority', 'Created Date', 'Assigned Date', 'Due Date', 'Status', 'Verification', 'Report w/ Evidence', 'Actions'].map(h => (
+                                        {['Task Title', 'Remark', 'Priority', 'Created Date', 'Assigned Date', 'Due Date', 'Valuation', 'Time Taken', 'Status', 'Verification', 'Report w/ Evidence', 'Actions'].map(h => (
                                             <th key={h} style={{ padding: '10px 14px', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                                         ))}
                                     </tr>
@@ -695,6 +695,14 @@ const StaffTaskDetailPage = () => {
                                                             </button>
                                                         )}
                                                     </div>
+                                                </td>
+                                                {/* Valuation */}
+                                                <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                </td>
+                                                {/* Time Taken */}
+                                                <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                 </td>
 
                                                 {/* Status */}
@@ -853,7 +861,7 @@ const StaffTaskDetailPage = () => {
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
                                 <thead>
                                     <tr style={{ background: '#fffbeb', borderBottom: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
-                                        {['#', 'Task Title', 'Created Date', 'Status', 'Verification', 'Completion'].map(h => (
+                                        {['#', 'Task Title', 'Created Date', 'Valuation', 'Time Taken', 'Status', 'Verification', 'Completion'].map(h => (
                                             <th key={h} style={{ padding: '10px 14px', fontSize: '0.65rem', fontWeight: 900, color: '#92400e', textTransform: 'uppercase' }}>{h}</th>
                                         ))}
                                     </tr>
@@ -870,6 +878,14 @@ const StaffTaskDetailPage = () => {
                                                 </td>
                                                 <td style={{ padding: '10px 14px', fontSize: '0.72rem', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>
                                                     📅 {t.createdAt ? new Date(t.createdAt + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                                </td>
+                                                {/* Valuation */}
+                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                </td>
+                                                {/* Time Taken */}
+                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                 </td>
                                                 <td style={{ padding: '10px 14px' }}>{statusBadge(t.status)}</td>
                                                 <td style={{ padding: '10px 14px' }}>

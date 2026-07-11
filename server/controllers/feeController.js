@@ -355,7 +355,14 @@ const getStudentFeeRecord = asyncHandler(async (req, res) => {
 // @desc    Get fee record for the logged-in student
 // @route   GET /api/fees/student/my-fees
 const getMyFees = asyncHandler(async (req, res) => {
-    const record = await FeeRecord.findOne({ student: req.user._id })
+    let targetUserId = req.user._id;
+    if (req.user.role === 'Parent' && req.user.parentProfile?.student) {
+        targetUserId = req.user.parentProfile.student;
+    } else if (req.query.studentId && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+        targetUserId = req.query.studentId;
+    }
+
+    const record = await FeeRecord.findOne({ student: targetUserId })
         .populate('student', 'name email studentProfile');
     if (!record) return res.status(404).json({ message: 'No fee record found' });
     res.json(record);

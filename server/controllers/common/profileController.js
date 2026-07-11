@@ -9,6 +9,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name imageUrl wifiNetworks')
         .populate('studentProfile.course', 'name subjects')
+        .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name');
     if (user) {
         res.json(user);
@@ -33,6 +34,7 @@ const getUserById = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name imageUrl wifiNetworks')
         .populate('studentProfile.course', 'name subjects')
+        .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name')
         .populate('teacherProfile.assignedStudents', 'name email studentProfile');
 

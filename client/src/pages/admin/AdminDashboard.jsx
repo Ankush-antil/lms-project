@@ -114,7 +114,7 @@ const AdminDashboard = () => {
                         <h3 className="text-lg font-bold text-slate-800">Recent Activity</h3>
                         <button className="text-sm text-indigo-600 font-semibold hover:underline">View All</button>
                     </div>
-                    <div className="p-2">
+                    <div className="p-2 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                         {activities.length > 0 ? (
                             <div className="divide-y divide-slate-50">
                                 {activities.map((activity, idx) => (

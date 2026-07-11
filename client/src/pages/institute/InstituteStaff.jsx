@@ -283,7 +283,7 @@ const InstituteStaff = () => {
 
     // Form & Edit state
     const [editingStaff, setEditingStaff] = useState(null); // null = Add, object = Edit
-    const [form, setForm] = useState({ name: '', email: '', password: '', designation: '', department: '' });
+    const [form, setForm] = useState({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
 
     // Sub-modules state
     const [tasks, setTasks] = useState(() => {
@@ -295,13 +295,23 @@ const InstituteStaff = () => {
         localStorage.setItem('staff_tasks', JSON.stringify(tasks));
     }, [tasks]);
 
+    const [minusPointsLogs, setMinusPointsLogs] = useState(() => {
+        const stored = localStorage.getItem('staff_minus_points');
+        return stored ? JSON.parse(stored) : [];
+    });
+
+    useEffect(() => {
+        localStorage.setItem('staff_minus_points', JSON.stringify(minusPointsLogs));
+    }, [minusPointsLogs]);
+
+
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [taskModalMode, setTaskModalMode] = useState('add'); // 'add' or 'edit'
     const [taskModalStaff, setTaskModalStaff] = useState('');
     const [isStaffPreselected, setIsStaffPreselected] = useState(false);
     const [taskModalRows, setTaskModalRows] = useState([
-        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' },
-        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' }
+        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '', valuation: '' },
+        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '', valuation: '' }
     ]);
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [viewingTask, setViewingTask] = useState(null);
@@ -310,6 +320,14 @@ const InstituteStaff = () => {
     const [selectedStaffTasks, setSelectedStaffTasks] = useState(null); // name of staff whose tasks we are previewing
     const [descPopupIndex, setDescPopupIndex] = useState(null); // index of row whose description is being edited
     const [descPopupText, setDescPopupText] = useState('');
+
+    // Minus points modal states
+    const [showMinusPointsModal, setShowMinusPointsModal] = useState(false);
+    const [minusPointsStaff, setMinusPointsStaff] = useState('');
+    const [minusPointsValue, setMinusPointsValue] = useState('');
+    const [minusPointsReason, setMinusPointsReason] = useState('');
+    const [submittingMinusPoints, setSubmittingMinusPoints] = useState(false);
+
 
     const [taskDateFilter, setTaskDateFilter] = useState('today'); // 'today', 'month', 'range', 'year', 'particular'
     const [filterStartDate, setFilterStartDate] = useState('');
@@ -634,7 +652,7 @@ const InstituteStaff = () => {
     // Open Modal for Add
     const handleOpenAdd = () => {
         setEditingStaff(null);
-        setForm({ name: '', email: '', password: '', designation: '', department: '' });
+        setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
         setShowModal(true);
     };
 
@@ -646,7 +664,8 @@ const InstituteStaff = () => {
             email: staff.email || '',
             password: '', // Keep password blank unless changing
             designation: staff.staffProfile?.designation || '',
-            department: staff.staffProfile?.department || ''
+            department: staff.staffProfile?.department || '',
+            minusPoints: staff.staffProfile?.minusPoints !== undefined ? staff.staffProfile.minusPoints : 0
         });
         setShowModal(true);
     };
@@ -673,11 +692,15 @@ const InstituteStaff = () => {
                         ...s,
                         name: form.name,
                         email: form.email,
-                        staffProfile: { designation: form.designation, department: form.department }
+                        staffProfile: {
+                            designation: form.designation,
+                            department: form.department,
+                            minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                        }
                     } : s));
                     toast.success('Staff member updated (Local)!');
                     setShowModal(false);
-                    setForm({ name: '', email: '', password: '', designation: '', department: '' });
+                    setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
                     setEditingStaff(null);
                     setSubmitting(false);
                     return;
@@ -687,7 +710,11 @@ const InstituteStaff = () => {
                 const updatePayload = {
                     name: form.name,
                     email: form.email,
-                    staffProfile: { designation: form.designation, department: form.department }
+                    staffProfile: {
+                        designation: form.designation,
+                        department: form.department,
+                        minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                    }
                 };
                 if (form.password) {
                     updatePayload.password = form.password;
@@ -703,13 +730,17 @@ const InstituteStaff = () => {
                     email: form.email,
                     password: form.password,
                     role: 'Staff',
-                    staffProfile: { designation: form.designation, department: form.department }
+                    staffProfile: {
+                        designation: form.designation,
+                        department: form.department,
+                        minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                    }
                 }, { headers: { Authorization: `Bearer ${token}` } });
                 toast.success('Staff member added!');
             }
 
             setShowModal(false);
-            setForm({ name: '', email: '', password: '', designation: '', department: '' });
+            setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
             setEditingStaff(null);
             fetchStaff();
         } catch (err) {
@@ -745,8 +776,8 @@ const InstituteStaff = () => {
         setTaskModalStaff(hasStaff ? defaultStaffName : '');
         setIsStaffPreselected(hasStaff);
         setTaskModalRows([
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' },
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' },
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' }
         ]);
         setShowTaskModal(true);
     };
@@ -764,7 +795,8 @@ const InstituteStaff = () => {
                 assignedDate: task.assignedDate || task.createdAt || new Date().toISOString().split('T')[0],
                 due: task.due || '',
                 reminderTime: task.reminderTime || '',
-                remark: task.remark || ''
+                remark: task.remark || '',
+                valuation: task.valuation || ''
             }
         ]);
         setShowTaskModal(true);
@@ -773,7 +805,7 @@ const InstituteStaff = () => {
     const addTaskRow = () => {
         setTaskModalRows(prev => [
             ...prev,
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' }
         ]);
     };
 
@@ -804,6 +836,14 @@ const InstituteStaff = () => {
             return;
         }
 
+        // Validate valuation is <= 10000
+        for (const row of validRows) {
+            if (row.valuation && (isNaN(row.valuation) || parseFloat(row.valuation) > 10000 || parseFloat(row.valuation) < 0)) {
+                toast.error(`Valuation for "${row.title}" must be between 0 and 10,000!`);
+                return;
+            }
+        }
+
         if (taskModalMode === 'add') {
             const newTasksList = validRows.map(row => ({
                 id: Date.now() + Math.random(),
@@ -815,6 +855,7 @@ const InstituteStaff = () => {
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
+                valuation: row.valuation ? Number(row.valuation) : '',
                 status: 'pending', // lowercase for kanban board compatibility
                 createdAt: new Date().toISOString().split('T')[0]
             }));
@@ -834,6 +875,7 @@ const InstituteStaff = () => {
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
+                valuation: row.valuation ? Number(row.valuation) : '',
                 createdAt: t.createdAt || new Date().toISOString().split('T')[0]
             } : t));
             toast.success('Task updated successfully!');
@@ -841,6 +883,97 @@ const InstituteStaff = () => {
 
         setShowTaskModal(false);
     };
+
+    const handleAddMinusPoints = async (e) => {
+        e.preventDefault();
+        if (!minusPointsStaff) {
+            toast.error('Please select a staff member.');
+            return;
+        }
+        if (!minusPointsValue || Number(minusPointsValue) <= 0) {
+            toast.error('Please enter a valid positive number for minus points.');
+            return;
+        }
+        if (!minusPointsReason.trim()) {
+            toast.error('Please enter a reason or remark.');
+            return;
+        }
+
+        const staff = staffList.find(s => s._id === minusPointsStaff);
+        if (!staff) {
+            toast.error('Staff member not found.');
+            return;
+        }
+
+        try {
+            setSubmittingMinusPoints(true);
+            const token = localStorage.getItem('token');
+            const pointsToDeduct = Number(minusPointsValue);
+            const currentTotal = staff.staffProfile?.minusPoints || 0;
+            const newTotal = currentTotal + pointsToDeduct;
+
+            // Update database user profile
+            if (!staff._id.startsWith('d')) {
+                await axios.put(`/api/users/${staff._id}`, {
+                    staffProfile: {
+                        ...staff.staffProfile,
+                        minusPoints: newTotal
+                    }
+                }, { headers: { Authorization: `Bearer ${token}` } });
+            }
+
+            // Create log entry
+            const newLog = {
+                id: 'mp_' + Date.now(),
+                staffId: staff._id,
+                staffName: staff.name,
+                points: pointsToDeduct,
+                reason: minusPointsReason,
+                date: new Date().toISOString().split('T')[0]
+            };
+
+            setMinusPointsLogs(prev => [newLog, ...prev]);
+            toast.success(`Minus points successfully recorded for ${staff.name}!`);
+            setShowMinusPointsModal(false);
+            setMinusPointsStaff('');
+            setMinusPointsValue('');
+            setMinusPointsReason('');
+            fetchStaff(); // Refresh staff list to update total points
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Failed to record minus points');
+        } finally {
+            setSubmittingMinusPoints(false);
+        }
+    };
+
+    const handleDeleteMinusPointsLog = async (logId) => {
+        if (!window.confirm('Are you sure you want to delete this minus points entry? This will restore the points to the staff member.')) return;
+
+        const log = minusPointsLogs.find(l => l.id === logId);
+        if (!log) return;
+
+        const staff = staffList.find(s => s._id === log.staffId);
+        try {
+            const token = localStorage.getItem('token');
+            if (staff && !staff._id.startsWith('d')) {
+                const currentTotal = staff.staffProfile?.minusPoints || 0;
+                const newTotal = Math.max(0, currentTotal - log.points);
+                await axios.put(`/api/users/${staff._id}`, {
+                    staffProfile: {
+                        ...staff.staffProfile,
+                        minusPoints: newTotal
+                    }
+                }, { headers: { Authorization: `Bearer ${token}` } });
+            }
+
+            setMinusPointsLogs(prev => prev.filter(l => l.id !== logId));
+            toast.success('Minus points entry deleted successfully.');
+            fetchStaff(); // Refresh staff list
+        } catch (err) {
+            toast.error('Failed to update staff minus points.');
+        }
+    };
+
 
     const filtered = staffList.filter(s =>
         s.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -897,6 +1030,7 @@ const InstituteStaff = () => {
                         { id: 'attendance', label: 'Attendance Management', icon: Calendar },
                         { id: 'salary', label: 'Salary & Payouts', icon: DollarSign },
                         { id: 'task', label: 'Task Assignments', icon: CheckSquare },
+                        { id: 'minusPoints', label: 'Minus Points', icon: AlertTriangle },
                     ].map(t => {
                         const Icon = t.icon;
                         const isSel = activeTab === t.id;
@@ -937,31 +1071,34 @@ const InstituteStaff = () => {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Minus Points', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                             ))}
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {displayList.length === 0 ? (
-                                            <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
-                                        ) : displayList.map((s, i) => (
-                                            <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
-                                                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
-                                                <td style={{ padding: '13px 16px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
-                                                            {s.name?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>{s.email}</td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
-                                                <td style={{ padding: '13px 16px' }}>
+                                     </thead>
+                                     <tbody>
+                                         {displayList.length === 0 ? (
+                                             <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                         ) : displayList.map((s, i) => (
+                                             <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
+                                                 onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                 <td style={{ padding: '13px 16px' }}>
+                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                         <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                             {s.name?.[0]?.toUpperCase() || '?'}
+                                                         </div>
+                                                         <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                     </div>
+                                                 </td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>{s.email}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
+                                                     {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
+                                                 </td>
+                                                 <td style={{ padding: '13px 16px' }}>
                                                     <span style={{ background: s.isActive !== false ? '#dcfce7' : '#fee2e2', color: s.isActive !== false ? '#16a34a' : '#dc2626', borderRadius: '999px', padding: '3px 10px', fontSize: '0.65rem', fontWeight: 900 }}>
                                                         {s.isActive !== false ? 'Active' : 'Inactive'}
                                                     </span>
@@ -1965,6 +2102,138 @@ const InstituteStaff = () => {
                         )}
                     </div>
                 )}
+
+                {activeTab === 'minusPoints' && (
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Minus Points Log History</h3>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Deduct points from staff members for negative actions or performance reviews.</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setMinusPointsStaff('');
+                                    setMinusPointsValue('');
+                                    setMinusPointsReason('');
+                                    setShowMinusPointsModal(true);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '7px',
+                                    background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: '#fff',
+                                    border: 'none', borderRadius: '12px', padding: '9px 18px',
+                                    fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
+                                }}
+                            >
+                                <Plus size={15} /> Add Minus Points
+                            </button>
+                        </div>
+
+                        {minusPointsLogs.length === 0 ? (
+                            <div style={{ padding: '48px', textAlign: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '24px', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
+                                ⚠️ No minus points logs recorded yet.
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto', border: '1px solid #fee2e2', borderRadius: '20px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ background: '#fff5f5', borderBottom: '1px solid #fee2e2', whiteSpace: 'nowrap' }}>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>#</th>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Staff Name</th>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Points Deducted</th>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Reason / Remark</th>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase' }}>Date</th>
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#991b1b', textTransform: 'uppercase', textAlign: 'center' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {minusPointsLogs.map((log, index) => (
+                                            <tr key={log.id} style={{ borderBottom: '1px solid #fff5f5', background: index % 2 === 0 ? '#fff' : '#fff8f8' }}>
+                                                <td style={{ padding: '12px 14px', fontSize: '0.78rem', fontWeight: 800, color: '#ef4444' }}>{index + 1}</td>
+                                                <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{log.staffName}</td>
+                                                <td style={{ padding: '12px 14px', fontSize: '0.8rem', fontWeight: 900, color: '#b91c1c' }}>
+                                                    -{log.points} Points
+                                                </td>
+                                                <td style={{ padding: '12px 14px', fontSize: '0.78rem', color: '#4b5563', fontWeight: 650 }}>{log.reason}</td>
+                                                <td style={{ padding: '12px 14px', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </td>
+                                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                    <button
+                                                        onClick={() => handleDeleteMinusPointsLog(log.id)}
+                                                        title="Delete entry & refund points"
+                                                        style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Add Minus Points Modal (Rendered globally using React Portal) */}
+                {showMinusPointsModal && createPortal(
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '100px 20px 40px', overflowY: 'auto' }}>
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '460px', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', margin: '0 auto', position: 'relative' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                                    Record Minus Points
+                                </h2>
+                                <button onClick={() => setShowMinusPointsModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <X size={16} style={{ color: '#64748b' }} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleAddMinusPoints} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>Select Staff Member *</label>
+                                    <select
+                                        value={minusPointsStaff}
+                                        onChange={e => setMinusPointsStaff(e.target.value)}
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}
+                                    >
+                                        <option value="">-- Choose Staff member --</option>
+                                        {staffList.map(s => (
+                                            <option key={s._id} value={s._id}>{s.name} ({s.staffProfile?.designation || 'Staff'})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>Minus Points to Deduct *</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        placeholder="e.g. 5"
+                                        value={minusPointsValue}
+                                        onChange={e => setMinusPointsValue(e.target.value)}
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>Reason / Remark *</label>
+                                    <textarea
+                                        rows="3"
+                                        placeholder="Reason for minus points deduction..."
+                                        value={minusPointsReason}
+                                        onChange={e => setMinusPointsReason(e.target.value)}
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }}
+                                    />
+                                </div>
+                                <button type="submit" disabled={submittingMinusPoints} style={{
+                                    marginTop: '6px', padding: '12px', background: 'linear-gradient(135deg,#ef4444,#b91c1c)',
+                                    color: '#fff', border: 'none', borderRadius: '14px', fontSize: '0.9rem', fontWeight: 900,
+                                    cursor: submittingMinusPoints ? 'not-allowed' : 'pointer', opacity: submittingMinusPoints ? 0.7 : 1, fontFamily: 'inherit'
+                                }}>
+                                    {submittingMinusPoints ? 'Recording...' : 'Record Deduction'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             </div>
 
             {/* Add/Edit Staff Modal (Rendered globally using React Portal) */}
@@ -1985,6 +2254,7 @@ const InstituteStaff = () => {
                                 { label: 'Email *', key: 'email', type: 'email', placeholder: 'e.g. ravi@institute.com' },
                                 { label: 'Designation', key: 'designation', type: 'text', placeholder: 'e.g. Office Clerk' },
                                 { label: 'Department', key: 'department', type: 'text', placeholder: 'e.g. Administration' },
+                                { label: 'Minus Points', key: 'minusPoints', type: 'number', placeholder: 'e.g. 5' },
                             ].map(f => (
                                 <div key={f.key}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>{f.label}</label>
@@ -2131,7 +2401,7 @@ const InstituteStaff = () => {
 
                             {/* Multiple Tasks Table Editor */}
                             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '970px' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
@@ -2140,6 +2410,7 @@ const InstituteStaff = () => {
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px' }}>Priority</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Assigned Date</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Due Date</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px' }}>Valuation</th>
                                             {taskModalMode === 'add' && <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Delete</th>}
                                         </tr>
                                     </thead>
@@ -2201,6 +2472,24 @@ const InstituteStaff = () => {
                                                         type="date"
                                                         value={row.due}
                                                         onChange={e => handleRowChange(idx, 'due', e.target.value)}
+                                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="10000"
+                                                        value={row.valuation || ''}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (val === '' || (Number(val) >= 0 && Number(val) <= 10000)) {
+                                                                handleRowChange(idx, 'valuation', val);
+                                                            } else if (Number(val) > 10000) {
+                                                                toast.error('Valuation cannot exceed 10,000!');
+                                                            }
+                                                        }}
+                                                        placeholder="Max 10k"
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
@@ -2658,7 +2947,8 @@ const InstituteStaff = () => {
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task Title</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '100px', whiteSpace: 'nowrap' }}>Priority</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Created Date</th>
-                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th><th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Status</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px', whiteSpace: 'nowrap', textAlign: 'center' }}>Report with Evidence</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
@@ -2686,6 +2976,12 @@ const InstituteStaff = () => {
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
                                                                     📅 {t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Due Date'} {t.reminderTime && `· ⏰ ${formatTime12h(t.reminderTime)}`}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <span style={{
@@ -2883,7 +3179,8 @@ const InstituteStaff = () => {
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task Title</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '100px', whiteSpace: 'nowrap' }}>Priority</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Created Date</th>
-                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th><th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Status</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px', whiteSpace: 'nowrap', textAlign: 'center' }}>Report with Evidence</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
@@ -2911,6 +3208,12 @@ const InstituteStaff = () => {
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
                                                                     📅 {t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Due Date'} {t.reminderTime && `· ⏰ ${formatTime12h(t.reminderTime)}`}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <span style={{

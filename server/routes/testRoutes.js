@@ -30,7 +30,7 @@ router.post("/upload/audio",protect,admin,uploadAudio.single("audio"),
 // Gateway router: forwards requests based on user role
 router.use((req, res, next) => {
     protect(req, res, () => {
-        if (req.user && req.user.role === 'Student') {
+        if (req.user && (req.user.role === 'Student' || req.user.role === 'Parent')) {
             studentTestRoutes(req, res, next);
         } else {
             adminTestRoutes(req, res, next);

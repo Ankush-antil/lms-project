@@ -294,6 +294,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
@@ -337,7 +338,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             ? { ...DEFAULT_EDITOR_CONTROLS, ...(user.editorProfile?.controls || {}) }
                             : (user.role === 'Accountant'
                                 ? { ...DEFAULT_ACCOUNTANT_CONTROLS, ...(user.accountantProfile?.controls || {}) }
-                                : DEFAULT_STUDENT_CONTROLS)))
+                                : DEFAULT_STUDENT_CONTROLS))),
+                parentProfile: {
+                    student: user.role === 'Parent' ? (user.parentProfile?.student?._id || user.parentProfile?.student || '') : ''
+                }
             });
             setError('');
             setActiveTab('basic');
@@ -345,13 +349,14 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             const fetchData = async () => {
                 try {
                     const instId = user.institute?._id || user.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : '');
-                    const [instRes, courseRes] = await Promise.all([
+                    const [instRes, courseRes, studentsRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
                         axios.get('/api/setup/courses'),
-                        instId ? axios.get(`/api/setup/institutes/${instId}`) : Promise.resolve({ data: null })
+                        axios.get('/api/users?role=Student')
                     ]);
                     setInstitutes(instRes.data);
                     setCourses(courseRes.data);
+                    setAllStudents(studentsRes.data || []);
                     if (instRes.data) {
                         setInstituteDetails(instRes.data.find(i => i._id === instId) || instRes.data[0]);
                     }
@@ -2089,7 +2094,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 assignedStudents: formData.assignedStudents,
                 controls: formData.controls,
                 controlsScope: controlsScope,
-                selectedPropagationStudents: selectedPropagationStudents
+                selectedPropagationStudents: selectedPropagationStudents,
+                parentProfile: formData.parentProfile
             };
 
             if (formData.password.trim()) {
@@ -2305,6 +2311,33 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                         />
                                     </div>
                                 </div>
+
+                                {user.role === 'Parent' && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Linked Student</label>
+                                            <select
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                required
+                                                value={formData.parentProfile?.student || ''}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    parentProfile: {
+                                                        ...formData.parentProfile,
+                                                        student: e.target.value
+                                                    }
+                                                })}
+                                            >
+                                                <option value="">Select Enrolled Student</option>
+                                                {allStudents.map(student => (
+                                                    <option key={student._id} value={student._id}>
+                                                        {student.name} ({student.email})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {user.role === 'Student' && (
                                     <>

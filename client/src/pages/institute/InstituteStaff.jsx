@@ -7,7 +7,7 @@ import {
     CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Pencil,
     UserCheck, History, Save, ChevronLeft, ChevronRight, FileText, Sun,
     CheckCircle, XCircle, Bell, Send, Shield, ShieldCheck, ShieldX, ShieldAlert,
-    AlertTriangle, PauseCircle, TrendingUp
+    AlertTriangle, PauseCircle, TrendingUp, Award
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -283,7 +283,7 @@ const InstituteStaff = () => {
 
     // Form & Edit state
     const [editingStaff, setEditingStaff] = useState(null); // null = Add, object = Edit
-    const [form, setForm] = useState({ name: '', email: '', password: '', designation: '', department: '' });
+    const [form, setForm] = useState({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
 
     // Sub-modules state
     const [tasks, setTasks] = useState(() => {
@@ -295,13 +295,23 @@ const InstituteStaff = () => {
         localStorage.setItem('staff_tasks', JSON.stringify(tasks));
     }, [tasks]);
 
+    const [pointsLogs, setPointsLogs] = useState(() => {
+        const stored = localStorage.getItem('staff_points') || localStorage.getItem('staff_minus_points');
+        return stored ? JSON.parse(stored) : [];
+    });
+
+    useEffect(() => {
+        localStorage.setItem('staff_points', JSON.stringify(pointsLogs));
+    }, [pointsLogs]);
+
+
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [taskModalMode, setTaskModalMode] = useState('add'); // 'add' or 'edit'
     const [taskModalStaff, setTaskModalStaff] = useState('');
     const [isStaffPreselected, setIsStaffPreselected] = useState(false);
     const [taskModalRows, setTaskModalRows] = useState([
-        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' },
-        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '' }
+        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '', valuation: '' },
+        { title: '', description: '', priority: 'Medium', due: '', reminderTime: '', remark: '', valuation: '' }
     ]);
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [viewingTask, setViewingTask] = useState(null);
@@ -310,6 +320,24 @@ const InstituteStaff = () => {
     const [selectedStaffTasks, setSelectedStaffTasks] = useState(null); // name of staff whose tasks we are previewing
     const [descPopupIndex, setDescPopupIndex] = useState(null); // index of row whose description is being edited
     const [descPopupText, setDescPopupText] = useState('');
+    const [descPopupType, setDescPopupType] = useState('task'); // 'task' or 'points'
+
+    // Points modal and navigation states
+    const [showPointsModal, setShowPointsModal] = useState(false);
+    const [selectedPreviewStaff, setSelectedPreviewStaff] = useState(null);
+    const [pointsStaff, setPointsStaff] = useState('');
+    const [pointsType, setPointsType] = useState('minus'); // 'plus' or 'minus'
+    const [isPointsStaffPreselected, setIsPointsStaffPreselected] = useState(false);
+    const [pointsModalRows, setPointsModalRows] = useState([
+        { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+    ]);
+    const [editingLogId, setEditingLogId] = useState(null);
+    const [submittingPoints, setSubmittingPoints] = useState(false);
+    const [pointsDateFilter, setPointsDateFilter] = useState('year');
+    const [pointsParticularDate, setPointsParticularDate] = useState('');
+    const [pointsStartDate, setPointsStartDate] = useState('');
+    const [pointsEndDate, setPointsEndDate] = useState('');
+
 
     const [taskDateFilter, setTaskDateFilter] = useState('today'); // 'today', 'month', 'range', 'year', 'particular'
     const [filterStartDate, setFilterStartDate] = useState('');
@@ -634,7 +662,7 @@ const InstituteStaff = () => {
     // Open Modal for Add
     const handleOpenAdd = () => {
         setEditingStaff(null);
-        setForm({ name: '', email: '', password: '', designation: '', department: '' });
+        setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
         setShowModal(true);
     };
 
@@ -646,7 +674,8 @@ const InstituteStaff = () => {
             email: staff.email || '',
             password: '', // Keep password blank unless changing
             designation: staff.staffProfile?.designation || '',
-            department: staff.staffProfile?.department || ''
+            department: staff.staffProfile?.department || '',
+            minusPoints: staff.staffProfile?.minusPoints !== undefined ? staff.staffProfile.minusPoints : 0
         });
         setShowModal(true);
     };
@@ -673,11 +702,15 @@ const InstituteStaff = () => {
                         ...s,
                         name: form.name,
                         email: form.email,
-                        staffProfile: { designation: form.designation, department: form.department }
+                        staffProfile: {
+                            designation: form.designation,
+                            department: form.department,
+                            minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                        }
                     } : s));
                     toast.success('Staff member updated (Local)!');
                     setShowModal(false);
-                    setForm({ name: '', email: '', password: '', designation: '', department: '' });
+                    setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
                     setEditingStaff(null);
                     setSubmitting(false);
                     return;
@@ -687,7 +720,11 @@ const InstituteStaff = () => {
                 const updatePayload = {
                     name: form.name,
                     email: form.email,
-                    staffProfile: { designation: form.designation, department: form.department }
+                    staffProfile: {
+                        designation: form.designation,
+                        department: form.department,
+                        minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                    }
                 };
                 if (form.password) {
                     updatePayload.password = form.password;
@@ -703,13 +740,17 @@ const InstituteStaff = () => {
                     email: form.email,
                     password: form.password,
                     role: 'Staff',
-                    staffProfile: { designation: form.designation, department: form.department }
+                    staffProfile: {
+                        designation: form.designation,
+                        department: form.department,
+                        minusPoints: form.minusPoints !== '' ? Number(form.minusPoints) : 0
+                    }
                 }, { headers: { Authorization: `Bearer ${token}` } });
                 toast.success('Staff member added!');
             }
 
             setShowModal(false);
-            setForm({ name: '', email: '', password: '', designation: '', department: '' });
+            setForm({ name: '', email: '', password: '', designation: '', department: '', minusPoints: '' });
             setEditingStaff(null);
             fetchStaff();
         } catch (err) {
@@ -745,8 +786,8 @@ const InstituteStaff = () => {
         setTaskModalStaff(hasStaff ? defaultStaffName : '');
         setIsStaffPreselected(hasStaff);
         setTaskModalRows([
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' },
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' },
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' }
         ]);
         setShowTaskModal(true);
     };
@@ -764,7 +805,8 @@ const InstituteStaff = () => {
                 assignedDate: task.assignedDate || task.createdAt || new Date().toISOString().split('T')[0],
                 due: task.due || '',
                 reminderTime: task.reminderTime || '',
-                remark: task.remark || ''
+                remark: task.remark || '',
+                valuation: task.valuation || ''
             }
         ]);
         setShowTaskModal(true);
@@ -773,7 +815,7 @@ const InstituteStaff = () => {
     const addTaskRow = () => {
         setTaskModalRows(prev => [
             ...prev,
-            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '' }
+            { title: '', description: '', priority: 'Medium', assignedDate: new Date().toISOString().split('T')[0], due: '', reminderTime: '', remark: '', valuation: '' }
         ]);
     };
 
@@ -787,6 +829,53 @@ const InstituteStaff = () => {
 
     const handleRowChange = (index, field, val) => {
         setTaskModalRows(prev => prev.map((row, idx) => idx === index ? { ...row, [field]: val } : row));
+    };
+
+    // ── Points Modal Multi-Row Helpers ─────────────
+    const openAddPointsModal = (staffId = '', defaultType = 'minus') => {
+        setPointsStaff(staffId);
+        setIsPointsStaffPreselected(!!staffId);
+        setPointsType(defaultType);
+        setPointsModalRows([
+            { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+        ]);
+        setEditingLogId(null);
+        setShowPointsModal(true);
+    };
+
+    const openEditPointsModal = (log) => {
+        setPointsStaff(log.staffId);
+        setIsPointsStaffPreselected(true);
+        setPointsType(log.type);
+        setPointsModalRows([
+            { 
+                title: log.taskTitle || '', 
+                description: log.reason || '', 
+                valuation: log.points ? log.points.toString() : '', 
+                date: log.date || new Date().toISOString().split('T')[0] 
+            }
+        ]);
+        setEditingLogId(log.id);
+        setShowPointsModal(true);
+    };
+
+    const addPointsRow = () => {
+        setPointsModalRows(prev => [
+            ...prev,
+            { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+        ]);
+    };
+
+    const removePointsRow = (index) => {
+        if (pointsModalRows.length <= 1) {
+            toast.error('At least one points row must remain.');
+            return;
+        }
+        setPointsModalRows(prev => prev.filter((_, idx) => idx !== index));
+    };
+
+    const handlePointsRowChange = (index, field, val) => {
+        setPointsModalRows(prev => prev.map((row, idx) => idx === index ? { ...row, [field]: val } : row));
     };
 
     const handleTaskModalSubmit = (e) => {
@@ -804,6 +893,14 @@ const InstituteStaff = () => {
             return;
         }
 
+        // Validate valuation is <= 10000
+        for (const row of validRows) {
+            if (row.valuation && (isNaN(row.valuation) || parseFloat(row.valuation) > 10000 || parseFloat(row.valuation) < 0)) {
+                toast.error(`Valuation for "${row.title}" must be between 0 and 10,000!`);
+                return;
+            }
+        }
+
         if (taskModalMode === 'add') {
             const newTasksList = validRows.map(row => ({
                 id: Date.now() + Math.random(),
@@ -815,6 +912,7 @@ const InstituteStaff = () => {
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
+                valuation: row.valuation ? Number(row.valuation) : '',
                 status: 'pending', // lowercase for kanban board compatibility
                 createdAt: new Date().toISOString().split('T')[0]
             }));
@@ -834,12 +932,161 @@ const InstituteStaff = () => {
                 due: row.due || new Date().toISOString().split('T')[0],
                 reminderTime: row.reminderTime,
                 remark: row.remark,
+                valuation: row.valuation ? Number(row.valuation) : '',
                 createdAt: t.createdAt || new Date().toISOString().split('T')[0]
             } : t));
             toast.success('Task updated successfully!');
         }
 
         setShowTaskModal(false);
+    };
+
+    const recalculateStaffPoints = async (staffId, logs) => {
+        const staffLogs = logs.filter(l => l.staffId === staffId);
+        const plusPoints = staffLogs.filter(l => l.type === 'plus').reduce((sum, l) => sum + (Number(l.points) || 0), 0);
+        const minusPoints = staffLogs.filter(l => l.type === 'minus').reduce((sum, l) => sum + (Number(l.points) || 0), 0);
+
+        setStaffList(prev => prev.map(s => {
+            if (s._id === staffId) {
+                return {
+                    ...s,
+                    staffProfile: {
+                        ...(s.staffProfile || {}),
+                        plusPoints,
+                        minusPoints
+                    }
+                };
+            }
+            return s;
+        }));
+
+        if (staffId && !staffId.startsWith('pl_') && !staffId.startsWith('d_') && !staffId.startsWith('d')) {
+            try {
+                const token = localStorage.getItem('authToken');
+                const { data } = await axios.get(`/api/users/${staffId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const currentProfile = (data?.user || data)?.staffProfile || {};
+                
+                await axios.put(`/api/users/${staffId}`, {
+                    staffProfile: {
+                        ...currentProfile,
+                        plusPoints,
+                        minusPoints
+                    }
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.error('Failed to update staff points on server', err);
+            }
+        }
+    };
+
+    const handleSavePointsLog = async (e) => {
+        e.preventDefault();
+        if (!pointsStaff) {
+            toast.error('Please select a staff member.');
+            return;
+        }
+
+        const staff = staffList.find(s => s._id === pointsStaff);
+        if (!staff) {
+            toast.error('Staff member not found.');
+            return;
+        }
+
+        // Validate rows
+        const validRows = pointsModalRows.filter(r => r.valuation && Number(r.valuation) > 0);
+        if (validRows.length === 0) {
+            toast.error('Please fill at least one row with a valid positive points value.');
+            return;
+        }
+
+        for (let i = 0; i < validRows.length; i++) {
+            const row = validRows[i];
+            if (!row.description || !row.description.trim()) {
+                toast.error(`Please enter a description / reason for row #${i + 1}`);
+                return;
+            }
+        }
+
+        try {
+            setSubmittingPoints(true);
+            let updatedLogs = [...pointsLogs];
+
+            if (editingLogId) {
+                // Edit mode (single row edit)
+                const row = validRows[0];
+                updatedLogs = updatedLogs.map(l => l.id === editingLogId ? {
+                    ...l,
+                    staffId: pointsStaff,
+                    staffName: staff.name,
+                    taskTitle: row.title || '',
+                    reason: row.description,
+                    points: Number(row.valuation),
+                    type: pointsType,
+                    date: row.date
+                } : l);
+                toast.success('Points entry updated successfully!');
+            } else {
+                // Add mode (multi-row add)
+                const newEntries = validRows.map((row, idx) => ({
+                    id: 'pl_' + (Date.now() + idx),
+                    staffId: pointsStaff,
+                    staffName: staff.name,
+                    taskTitle: row.title || '',
+                    reason: row.description,
+                    points: Number(row.valuation),
+                    type: pointsType,
+                    date: row.date
+                }));
+                updatedLogs = [...newEntries, ...updatedLogs];
+                toast.success(`Successfully recorded points entries for ${staff.name}!`);
+            }
+
+            setPointsLogs(updatedLogs);
+            await recalculateStaffPoints(pointsStaff, updatedLogs);
+
+            // If editing log and staff changed, recalculate for old staff member too
+            if (editingLogId) {
+                const oldLog = pointsLogs.find(l => l.id === editingLogId);
+                if (oldLog && oldLog.staffId !== pointsStaff) {
+                    await recalculateStaffPoints(oldLog.staffId, updatedLogs);
+                }
+            }
+
+            setShowPointsModal(false);
+            setPointsStaff('');
+            setPointsModalRows([
+                { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+            ]);
+            setEditingLogId(null);
+            fetchStaff(); // Refresh staff list to update total points
+        } catch (err) {
+            toast.error('Failed to record points');
+        } finally {
+            setSubmittingPoints(false);
+        }
+    };
+
+    const handleDeletePointsLog = async (logId) => {
+        if (!window.confirm('Are you sure you want to delete this points entry?')) return;
+
+        const log = pointsLogs.find(l => l.id === logId);
+        if (!log) return;
+
+        const staffId = log.staffId;
+        const updatedLogs = pointsLogs.filter(l => l.id !== logId);
+
+        try {
+            setPointsLogs(updatedLogs);
+            await recalculateStaffPoints(staffId, updatedLogs);
+            toast.success('Points entry deleted successfully.');
+            fetchStaff(); // Refresh staff list
+        } catch (err) {
+            toast.error('Failed to delete points entry.');
+        }
     };
 
     const filtered = staffList.filter(s =>
@@ -897,6 +1144,7 @@ const InstituteStaff = () => {
                         { id: 'attendance', label: 'Attendance Management', icon: Calendar },
                         { id: 'salary', label: 'Salary & Payouts', icon: DollarSign },
                         { id: 'task', label: 'Task Assignments', icon: CheckSquare },
+                        { id: 'minusPoints', label: 'Points Management', icon: Award },
                     ].map(t => {
                         const Icon = t.icon;
                         const isSel = activeTab === t.id;
@@ -937,31 +1185,34 @@ const InstituteStaff = () => {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Minus Valuation', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                             ))}
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {displayList.length === 0 ? (
-                                            <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
-                                        ) : displayList.map((s, i) => (
-                                            <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
-                                                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
-                                                <td style={{ padding: '13px 16px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
-                                                            {s.name?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>{s.email}</td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
-                                                <td style={{ padding: '13px 16px' }}>
+                                     </thead>
+                                     <tbody>
+                                         {displayList.length === 0 ? (
+                                             <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                         ) : displayList.map((s, i) => (
+                                             <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
+                                                 onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                 <td style={{ padding: '13px 16px' }}>
+                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                         <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                             {s.name?.[0]?.toUpperCase() || '?'}
+                                                         </div>
+                                                         <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                     </div>
+                                                 </td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>{s.email}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
+                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
+                                                     {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
+                                                 </td>
+                                                 <td style={{ padding: '13px 16px' }}>
                                                     <span style={{ background: s.isActive !== false ? '#dcfce7' : '#fee2e2', color: s.isActive !== false ? '#16a34a' : '#dc2626', borderRadius: '999px', padding: '3px 10px', fontSize: '0.65rem', fontWeight: 900 }}>
                                                         {s.isActive !== false ? 'Active' : 'Inactive'}
                                                     </span>
@@ -1965,6 +2216,556 @@ const InstituteStaff = () => {
                         )}
                     </div>
                 )}
+
+                {activeTab === 'minusPoints' && (() => {
+                    const currentPreviewStaff = selectedPreviewStaff 
+                        ? (staffList.find(s => s._id === selectedPreviewStaff._id) || selectedPreviewStaff) 
+                        : null;
+                    return (
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            
+                            {/* Header Section */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Points Management</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                        {currentPreviewStaff 
+                                            ? `Viewing plus and minus points log history for ${currentPreviewStaff.name}.` 
+                                            : 'Manage plus and minus points logs for all institute staff members.'}
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    {currentPreviewStaff && (
+                                        <button 
+                                            onClick={() => setSelectedPreviewStaff(null)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                                background: '#f1f5f9', color: '#475569', border: 'none',
+                                                borderRadius: '12px', padding: '9px 16px', fontSize: '0.8rem',
+                                                fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
+                                            }}
+                                        >
+                                            <ChevronLeft size={16} /> Back to Staff List
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => openAddPointsModal(currentPreviewStaff ? currentPreviewStaff._id : '', 'minus')}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '7px',
+                                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff',
+                                            border: 'none', borderRadius: '12px', padding: '9px 18px',
+                                            fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+                                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                                        }}
+                                    >
+                                        <Plus size={15} /> Add Points
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* View 1: Default Staff List View */}
+                            {!currentPreviewStaff ? (
+                                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '20px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {staffList.map((staff, idx) => {
+                                                return (
+                                                    <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{idx + 1}</td>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.staffProfile?.designation || 'Staff'}</td>
+                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                            <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <button
+                                                                    onClick={() => setSelectedPreviewStaff(staff)}
+                                                                    style={{
+                                                                        background: '#e0e7ff', color: '#4338ca', border: 'none',
+                                                                        borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
+                                                                        fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                    }}
+                                                                >
+                                                                    <Eye size={12} /> Preview Valuation
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openAddPointsModal(staff._id, 'minus')}
+                                                                    title="Add Valuation for this Staff"
+                                                                    style={{
+                                                                        background: '#dcfce7', color: '#15803d', border: 'none',
+                                                                        borderRadius: '8px', padding: '6px 10px', fontSize: '0.72rem',
+                                                                        fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                    }}
+                                                                >
+                                                                    <Plus size={12} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                // View 2: Detailed Plus/Minus Tables for Selected Staff
+                                <div>
+
+                                    {/* Unified Points Filter Toolbar */}
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        flexWrap: 'wrap',
+                                        background: '#f8fafc',
+                                        padding: '10px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e2e8f0',
+                                        marginBottom: '20px'
+                                    }}>
+                                        {/* Date Filter */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                            <select
+                                                value={pointsDateFilter}
+                                                onChange={e => setPointsDateFilter(e.target.value)}
+                                                style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                            >
+                                                <option value="today">Today</option>
+                                                <option value="month">This Month</option>
+                                                <option value="particular">Particular Date</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="year">Complete Year</option>
+                                            </select>
+                                        </div>
+
+                                        {pointsDateFilter === 'particular' && (
+                                            <input type="date" value={pointsParticularDate} onChange={e => setPointsParticularDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                        )}
+                                        {pointsDateFilter === 'range' && (
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <input type="date" value={pointsStartDate} onChange={e => setPointsStartDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>to</span>
+                                                <input type="date" value={pointsEndDate} onChange={e => setPointsEndDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {(() => {
+                                        const filterPointsLog = (log) => {
+                                            const logDate = log.date || new Date().toISOString().split('T')[0];
+                                            const todayStr = new Date().toISOString().split('T')[0];
+
+                                            if (pointsDateFilter === 'today') {
+                                                return logDate === todayStr;
+                                            }
+                                            if (pointsDateFilter === 'month') {
+                                                const currentMonthStr = todayStr.substring(0, 7);
+                                                return logDate.startsWith(currentMonthStr);
+                                            }
+                                            if (pointsDateFilter === 'range') {
+                                                if (!pointsStartDate || !pointsEndDate) return true;
+                                                return logDate >= pointsStartDate && logDate <= pointsEndDate;
+                                            }
+                                            if (pointsDateFilter === 'particular') {
+                                                if (!pointsParticularDate) return true;
+                                                return logDate === pointsParticularDate;
+                                            }
+                                            if (pointsDateFilter === 'year') {
+                                                return true;
+                                            }
+                                            return true;
+                                        };
+
+                                        const plusLogsFiltered = pointsLogs.filter(l => l.staffId === currentPreviewStaff._id && l.type === 'plus' && filterPointsLog(l));
+                                        const minusLogsFiltered = pointsLogs.filter(l => l.staffId === currentPreviewStaff._id && l.type === 'minus' && filterPointsLog(l));
+
+                                        return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                                {/* Left: Plus Valuation Table */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <Award size={18} style={{ color: '#16a34a' }} />
+                                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            Plus Valuation Log
+                                                            <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                                {plusLogsFiltered.length}
+                                                            </span>
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {plusLogsFiltered.length === 0 ? (
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                                            No plus valuation logs match this filter.
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {plusLogsFiltered.map((log, idx) => (
+                                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px' }}>
+                                                                                {log.taskTitle && (
+                                                                                    <div style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                                )}
+                                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                                <span style={{
+                                                                                    background: '#dcfce7',
+                                                                                    color: '#15803d',
+                                                                                    borderRadius: '8px',
+                                                                                    padding: '4px 10px',
+                                                                                    fontSize: '0.75rem',
+                                                                                    fontWeight: 800
+                                                                                }}>
+                                                                                    +{log.points}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => openEditPointsModal(log)}
+                                                                                        title="Edit Log"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#dbeafe', borderRadius: '8px', color: '#2563eb', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Pencil size={12} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleDeletePointsLog(log.id)}
+                                                                                        title="Delete entry"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Right: Minus Points Table */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+                                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            Minus Valuation Log
+                                                            <span style={{ background: '#fee2e2', color: '#ef4444', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                                {minusLogsFiltered.length}
+                                                            </span>
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {minusLogsFiltered.length === 0 ? (
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                                            No minus valuation logs match this filter.
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {minusLogsFiltered.map((log, idx) => (
+                                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px' }}>
+                                                                                {log.taskTitle && (
+                                                                                    <div style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                                )}
+                                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                                <span style={{
+                                                                                    background: '#fee2e2',
+                                                                                    color: '#ef4444',
+                                                                                    borderRadius: '8px',
+                                                                                    padding: '4px 10px',
+                                                                                    fontSize: '0.75rem',
+                                                                                    fontWeight: 800
+                                                                                }}>
+                                                                                    -{log.points}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => openEditPointsModal(log)}
+                                                                                        title="Edit Log"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#dbeafe', borderRadius: '8px', color: '#2563eb', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Pencil size={12} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleDeletePointsLog(log.id)}
+                                                                                        title="Delete entry"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+
+                {/* Add / Edit Points Modal */}
+                {showPointsModal && createPortal(
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1050px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0', animation: 'scaleUp 0.2s ease-out' }}>
+
+                            {/* Header */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.025em' }}>
+                                        {editingLogId ? 'Edit Valuation Entry' : 'Record Plus/Minus Valuation'}
+                                    </h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>
+                                        {editingLogId ? 'Update the details of this valuation log entry.' : 'You can add multiple rows to record multiple valuation entries for the selected staff member at once.'}
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowPointsModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '12px', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'} onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}>
+                                    <X size={18} style={{ color: '#64748b' }} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSavePointsLog} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                
+                                {/* Top Controls: Select Staff & Points Type */}
+                                <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    
+                                    {/* 1. Select Staff */}
+                                    <div style={{ flex: 1, minWidth: '240px', maxWidth: '320px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '6px' }}>Select Staff Member *</label>
+                                        <select
+                                            value={pointsStaff}
+                                            disabled={isPointsStaffPreselected}
+                                            onChange={e => setPointsStaff(e.target.value)}
+                                            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: isPointsStaffPreselected ? '#f1f5f9' : '#fff', cursor: isPointsStaffPreselected ? 'not-allowed' : 'pointer' }}
+                                        >
+                                            <option value="">-- Choose Staff member --</option>
+                                            {staffList.map(s => (
+                                                <option key={s._id} value={s._id}>{s.name} ({s.staffProfile?.designation || 'Staff'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* 2. Valuation Type Switch */}
+                                    <div style={{ flex: 1, minWidth: '240px', maxWidth: '320px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '6px' }}>Valuation Type *</label>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button
+                                                type="button"
+                                                disabled={editingLogId !== null}
+                                                onClick={() => setPointsType('plus')}
+                                                style={{
+                                                    flex: 1, padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #86efac',
+                                                    background: pointsType === 'plus' ? '#f0fdf4' : '#fff',
+                                                    color: '#16a34a', fontSize: '0.8rem', fontWeight: 800, cursor: editingLogId ? 'not-allowed' : 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                                    opacity: editingLogId && pointsType !== 'plus' ? 0.5 : 1
+                                                }}
+                                            >
+                                                <Award size={15} /> Plus Valuation
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={editingLogId !== null}
+                                                onClick={() => setPointsType('minus')}
+                                                style={{
+                                                    flex: 1, padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #fca5a5',
+                                                    background: pointsType === 'minus' ? '#fff5f5' : '#fff',
+                                                    color: '#ef4444', fontSize: '0.8rem', fontWeight: 800, cursor: editingLogId ? 'not-allowed' : 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                                    opacity: editingLogId && pointsType !== 'minus' ? 0.5 : 1
+                                                }}
+                                            >
+                                                <AlertTriangle size={15} /> Minus Valuation
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 3. Table Rows */}
+                                                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+                                        <thead>
+                                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
+                                                <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Task Title (Optional)</th>
+                                                <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Description / Reason *</th>
+                                                <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '130px' }}>Valuation *</th>
+                                                <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px' }}>Date</th>
+                                                {!editingLogId && (
+                                                    <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', width: '80px' }}>Actions</th>
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pointsModalRows.map((row, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <td style={{ padding: '12px 14px', fontSize: '0.78rem', fontWeight: 800, color: '#64748b' }}>{idx + 1}</td>
+                                                    <td style={{ padding: '12px 14px' }}>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g. Design Dashboard"
+                                                            value={row.title}
+                                                            onChange={e => handlePointsRowChange(idx, 'title', e.target.value)}
+                                                            style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '12px 14px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Reason or explanation..."
+                                                                value={row.description}
+                                                                onChange={e => handlePointsRowChange(idx, 'description', e.target.value)}
+                                                                style={{ flex: 1, padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setDescPopupIndex(idx);
+                                                                    setDescPopupText(row.description);
+                                                                    setDescPopupType('points');
+                                                                }}
+                                                                style={{ padding: '8px', border: 'none', background: '#f1f5f9', borderRadius: '10px', color: '#4f46e5', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                            >
+                                                                <Pencil size={13} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '12px 14px' }}>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="e.g. 5"
+                                                            value={row.valuation}
+                                                            onChange={e => handlePointsRowChange(idx, 'valuation', e.target.value)}
+                                                            style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '12px 14px' }}>
+                                                        <input
+                                                            type="date"
+                                                            value={row.date}
+                                                            onChange={e => handlePointsRowChange(idx, 'date', e.target.value)}
+                                                            style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                        />
+                                                    </td>
+                                                    {!editingLogId && (
+                                                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removePointsRow(idx)}
+                                                                disabled={pointsModalRows.length <= 1}
+                                                                style={{ padding: '8px', border: 'none', background: pointsModalRows.length <= 1 ? '#f8fafc' : '#fee2e2', borderRadius: '10px', color: pointsModalRows.length <= 1 ? '#cbd5e1' : '#ef4444', cursor: pointsModalRows.length <= 1 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Add Row Button */}
+                                {!editingLogId && (
+                                    <button
+                                        type="button"
+                                        onClick={addPointsRow}
+                                        style={{
+                                            alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px',
+                                            background: '#fff', border: '1.5px dashed #cbd5e1', borderRadius: '12px',
+                                            padding: '8px 16px', fontSize: '0.78rem', fontWeight: 800, color: '#4f46e5',
+                                            cursor: 'pointer', transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.border = '1.5px solid #4f46e5'; e.currentTarget.style.background = '#fefefe'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.border = '1.5px dashed #cbd5e1'; e.currentTarget.style.background = '#fff'; }}
+                                    >
+                                        <Plus size={14} /> Add Row
+                                    </button>
+                                )}
+
+                                {/* Footer Controls */}
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPointsModal(false)}
+                                        style={{
+                                            padding: '10px 24px', borderRadius: '12px', border: '1.5px solid #e2e8f0',
+                                            background: '#fff', color: '#475569', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer'
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingPoints}
+                                        style={{
+                                            padding: '10px 24px', borderRadius: '12px', border: 'none',
+                                            background: pointsType === 'plus' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#b91c1c)',
+                                            color: '#fff', fontSize: '0.8rem', fontWeight: 900,
+                                            cursor: submittingPoints ? 'not-allowed' : 'pointer', opacity: submittingPoints ? 0.7 : 1,
+                                            boxShadow: pointsType === 'plus' ? '0 4px 12px rgba(16,185,129,0.2)' : '0 4px 12px rgba(239,68,68,0.2)'
+                                        }}
+                                    >
+                                        {submittingPoints ? 'Saving...' : editingLogId ? 'Save Changes' : 'Record Points'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             </div>
 
             {/* Add/Edit Staff Modal (Rendered globally using React Portal) */}
@@ -1985,6 +2786,7 @@ const InstituteStaff = () => {
                                 { label: 'Email *', key: 'email', type: 'email', placeholder: 'e.g. ravi@institute.com' },
                                 { label: 'Designation', key: 'designation', type: 'text', placeholder: 'e.g. Office Clerk' },
                                 { label: 'Department', key: 'department', type: 'text', placeholder: 'e.g. Administration' },
+                                { label: 'Minus Valuation', key: 'minusPoints', type: 'number', placeholder: 'e.g. 5' },
                             ].map(f => (
                                 <div key={f.key}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>{f.label}</label>
@@ -2131,7 +2933,7 @@ const InstituteStaff = () => {
 
                             {/* Multiple Tasks Table Editor */}
                             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '970px' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
@@ -2140,6 +2942,7 @@ const InstituteStaff = () => {
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px' }}>Priority</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Assigned Date</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px' }}>Due Date</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px' }}>Valuation</th>
                                             {taskModalMode === 'add' && <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Delete</th>}
                                         </tr>
                                     </thead>
@@ -2201,6 +3004,24 @@ const InstituteStaff = () => {
                                                         type="date"
                                                         value={row.due}
                                                         onChange={e => handleRowChange(idx, 'due', e.target.value)}
+                                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="10000"
+                                                        value={row.valuation || ''}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (val === '' || (Number(val) >= 0 && Number(val) <= 10000)) {
+                                                                handleRowChange(idx, 'valuation', val);
+                                                            } else if (Number(val) > 10000) {
+                                                                toast.error('Valuation cannot exceed 10,000!');
+                                                            }
+                                                        }}
+                                                        placeholder="Max 10k"
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
@@ -2477,7 +3298,7 @@ const InstituteStaff = () => {
                             Edit Detailed Description (Row #{descPopupIndex + 1})
                         </h3>
                         <p style={{ margin: '0 0 16px', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
-                            Write a detailed description for this task below.
+                            {descPopupType === 'points' ? 'Write a detailed description or reason for this points entry below.' : 'Write a detailed description for this task below.'}
                         </p>
                         <textarea
                             value={descPopupText}
@@ -2497,7 +3318,11 @@ const InstituteStaff = () => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    handleRowChange(descPopupIndex, 'description', descPopupText);
+                                    if (descPopupType === 'points') {
+                                        handlePointsRowChange(descPopupIndex, 'description', descPopupText);
+                                    } else {
+                                        handleRowChange(descPopupIndex, 'description', descPopupText);
+                                    }
                                     setDescPopupIndex(null);
                                 }}
                                 style={{ padding: '8px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', border: 'none', fontSize: '0.78rem', fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 10px rgba(99, 102, 241, 0.2)' }}
@@ -2658,7 +3483,8 @@ const InstituteStaff = () => {
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task Title</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '100px', whiteSpace: 'nowrap' }}>Priority</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Created Date</th>
-                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th><th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Status</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px', whiteSpace: 'nowrap', textAlign: 'center' }}>Report with Evidence</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
@@ -2686,6 +3512,12 @@ const InstituteStaff = () => {
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
                                                                     📅 {t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Due Date'} {t.reminderTime && `· ⏰ ${formatTime12h(t.reminderTime)}`}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <span style={{
@@ -2883,7 +3715,8 @@ const InstituteStaff = () => {
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task Title</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '100px', whiteSpace: 'nowrap' }}>Priority</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Created Date</th>
-                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '180px', whiteSpace: 'nowrap' }}>Due Date</th><th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '110px', whiteSpace: 'nowrap' }}>Status</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px', whiteSpace: 'nowrap', textAlign: 'center' }}>Report with Evidence</th>
                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
@@ -2911,6 +3744,12 @@ const InstituteStaff = () => {
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
                                                                     📅 {t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No Due Date'} {t.reminderTime && `· ⏰ ${formatTime12h(t.reminderTime)}`}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.valuation ? `₹${Number(t.valuation).toLocaleString('en-IN')}` : '—'}
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>
+                                                                    {t.timeTaken ? t.timeTaken : '—'}
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <span style={{

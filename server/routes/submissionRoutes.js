@@ -38,7 +38,7 @@ router.route('/:id/comments')
 // Gateway router that forwards requests dynamically based on user role
 router.use((req, res, next) => {
     protect(req, res, () => {
-        if (req.user && req.user.role === 'Student') {
+        if (req.user && (req.user.role === 'Student' || req.user.role === 'Parent')) {
             studentSubmissionRoutes(req, res, next);
         } else {
             teacherEvaluationRoutes(req, res, next);

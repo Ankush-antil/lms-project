@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff'],
+        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'],
         default: 'Student'
     },
     institute: {
@@ -348,6 +348,8 @@ const userSchema = new mongoose.Schema({
         joiningDate: { type: Date, default: Date.now },
         salary: { type: Number, default: 0 },
         salaryStatus: { type: String, enum: ['Paid', 'Pending', 'Processing'], default: 'Pending' },
+        minusPoints: { type: Number, default: 0 },
+        plusPoints: { type: Number, default: 0 },
         physicalAttendance: [{
             date: { type: String }, // e.g. "2026-06-30"
             status: { type: String, enum: ['Present', 'Absent', 'Leave', 'Holiday'] },
@@ -360,6 +362,9 @@ const userSchema = new mongoose.Schema({
             checkOutTime: { type: String, default: '' },
             markedBy: { type: String, default: '' }
         }]
+    },
+    parentProfile: {
+        student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
     },
     isActive: { type: Boolean, default: true }
 }, {

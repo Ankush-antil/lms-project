@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { CheckSquare, Clock, CheckCircle, Circle, AlertCircle, Calendar, Plus, X, Trash2, Eye, Upload, Shield, ShieldCheck, ShieldX, ShieldAlert, AlertTriangle, PauseCircle, TrendingUp, Bell, Pencil } from 'lucide-react';
+import { CheckSquare, Clock, CheckCircle, Circle, AlertCircle, Calendar, Plus, X, Trash2, Eye, Upload, Shield, ShieldCheck, ShieldX, ShieldAlert, AlertTriangle, PauseCircle, TrendingUp, Bell, Pencil, Check, Award } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Verification Status info helper
@@ -22,7 +22,7 @@ const openGoogleCalendar = (title, dateStr, timeStr) => {
     if (!dateStr) { toast.error('No date set to add to calendar.'); return; }
     const d = new Date(dateStr + 'T' + (timeStr || '09:00') + ':00');
     const pad = (n) => String(n).padStart(2, '0');
-    const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+    const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
     const start = fmt(d);
     const end = fmt(new Date(d.getTime() + 60 * 60 * 1000));
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent('Task Reminder: ' + title)}`;
@@ -70,8 +70,8 @@ const StaffTask = () => {
     // Add extra task states
     const [showAddModal, setShowAddModal] = useState(false);
     const [taskModalRows, setTaskModalRows] = useState([
-        { title: '', description: '' },
-        { title: '', description: '' }
+        { title: '', description: '', timeTaken: '' },
+        { title: '', description: '', timeTaken: '' }
     ]);
     const [descPopupIndex, setDescPopupIndex] = useState(null);
     const [descPopupText, setDescPopupText] = useState('');
@@ -90,6 +90,7 @@ const StaffTask = () => {
     // Evidence viewing states
     const [viewEvidenceModalOpen, setViewEvidenceModalOpen] = useState(false);
     const [viewingEvidenceTask, setViewingEvidenceTask] = useState(null);
+    const [viewingValuation, setViewingValuation] = useState(null);
 
     // Completion date/time picker states
     const [completionPickerOpen, setCompletionPickerOpen] = useState(false);
@@ -97,14 +98,17 @@ const StaffTask = () => {
     const [completionDate, setCompletionDate] = useState(new Date().toISOString().split('T')[0]);
     const [completionTime, setCompletionTime] = useState(() => {
         const now = new Date();
-        return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     });
     const [pendingNewStatus, setPendingNewStatus] = useState('');
+    const [completionTimeTaken, setCompletionTimeTaken] = useState('');
+    const [editingTimeTaskId, setEditingTimeTaskId] = useState(null);
+    const [editingTimeValue, setEditingTimeValue] = useState('');
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         const reader = new FileReader();
         reader.onloadend = () => {
             setEvidenceFileBase64(reader.result);
@@ -116,7 +120,7 @@ const StaffTask = () => {
 
 
     const addTaskRow = () => {
-        setTaskModalRows(prev => [...prev, { title: '', description: '' }]);
+        setTaskModalRows(prev => [...prev, { title: '', description: '', timeTaken: '' }]);
     };
 
     const removeTaskRow = (idx) => {
@@ -140,7 +144,7 @@ const StaffTask = () => {
     // Add extra task handler
     const handleAddTask = (e) => {
         e.preventDefault();
-        
+
         const validRows = taskModalRows.filter(row => row.title?.trim());
         if (validRows.length === 0) {
             toast.error('At least one task title is required');
@@ -158,6 +162,7 @@ const StaffTask = () => {
             remark: '',
             status: 'done',
             isSelfCreated: true,
+            timeTaken: row.timeTaken || '', // Save time taken for self-created task
             createdAt: new Date().toISOString().split('T')[0]
         }));
 
@@ -167,8 +172,8 @@ const StaffTask = () => {
 
         // Reset form & close
         setTaskModalRows([
-            { title: '', description: '' },
-            { title: '', description: '' }
+            { title: '', description: '', timeTaken: '' },
+            { title: '', description: '', timeTaken: '' }
         ]);
         setShowAddModal(false);
     };
@@ -180,6 +185,18 @@ const StaffTask = () => {
             updateTasksInStorage(updated);
             toast.success('Task deleted.');
         }
+    };
+
+    const handleSaveTimeTaken = (taskId) => {
+        if (!editingTimeValue.trim()) {
+            toast.error('Time taken cannot be empty.');
+            return;
+        }
+        const updated = allTasks.map(t => t.id === taskId ? { ...t, timeTaken: editingTimeValue.trim() } : t);
+        updateTasksInStorage(updated);
+        toast.success('Time taken updated successfully! ✅');
+        setEditingTimeTaskId(null);
+        setEditingTimeValue('');
     };
 
     const openEditSelfTaskModal = (task) => {
@@ -226,19 +243,19 @@ const StaffTask = () => {
             setPendingNewStatus('done');
             setCompletionDate(new Date().toISOString().split('T')[0]);
             const now = new Date();
-            setCompletionTime(`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
-            
+            setCompletionTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+
             // Reset evidence inputs for a clean state
             setEvidenceText('');
             setEvidenceFileBase64('');
             setEvidenceFileName('');
-            
+
             setCompletionPickerOpen(true);
         } else {
-            const updated = allTasks.map(t => t.id === taskId ? { 
-                ...t, 
-                status: newStatus, 
-                completedAt: null, 
+            const updated = allTasks.map(t => t.id === taskId ? {
+                ...t,
+                status: newStatus,
+                completedAt: null,
                 completedTime: null,
                 evidenceNote: null,
                 evidenceFile: null,
@@ -265,6 +282,7 @@ const StaffTask = () => {
             evidenceNote: evidenceText,
             evidenceFile: evidenceFileBase64,
             evidenceFileName: evidenceFileName,
+            timeTaken: completionTimeTaken, // Save time taken
             submittedAt: completionDate,
             verificationStatus: 'under_verification' // set verification status to under_verification
         } : t);
@@ -275,7 +293,7 @@ const StaffTask = () => {
             const seen = JSON.parse(localStorage.getItem('seen_task_notifications') || '[]');
             const filteredSeen = seen.filter(id => id !== completionTaskId);
             localStorage.setItem('seen_task_notifications', JSON.stringify(filteredSeen));
-        } catch(e) {
+        } catch (e) {
             console.error('Failed to update seen notifications', e);
         }
 
@@ -287,10 +305,14 @@ const StaffTask = () => {
         setEvidenceText('');
         setEvidenceFileBase64('');
         setEvidenceFileName('');
+        setCompletionTimeTaken('');
     };
 
-    // Filter tasks assigned to currently logged-in staff member
     const myTasks = allTasks.filter(t => t.staffName?.toLowerCase() === user?.name?.toLowerCase());
+    // Filter points logs belonging to currently logged-in staff member
+    const allPointsLogs = JSON.parse(localStorage.getItem('staff_points') || localStorage.getItem('staff_minus_points') || '[]');
+    const myPointsLogs = allPointsLogs.filter(log => log.staffId === user?._id || log.staffName?.toLowerCase() === user?.name?.toLowerCase());
+
 
     // Helper to format Date objects to YYYY-MM-DD
     const todayStr = new Date().toISOString().split('T')[0];
@@ -356,6 +378,8 @@ const StaffTask = () => {
                                 {!isSelfCreatedTable && (
                                     <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '140px', whiteSpace: 'nowrap' }}>Due Date</th>
                                 )}
+                                <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '120px', whiteSpace: 'nowrap' }}>Valuation</th>
+                                <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '130px', whiteSpace: 'nowrap' }}>Time Taken</th>
                                 <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: isSelfCreatedTable ? '400px' : '300px', whiteSpace: 'nowrap' }}>Task Title &amp; Description</th>
                                 <th style={{ padding: '14px 20px', fontSize: '0.72rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '150px', whiteSpace: 'nowrap' }}>Remark</th>
                                 {!isSelfCreatedTable && (
@@ -377,7 +401,7 @@ const StaffTask = () => {
                         <tbody>
                             {tasksList.map((task, idx) => {
                                 const priorityColor = priorityColors[task.priority] || '#64748b';
-                                
+
                                 return (
                                     <tr key={task.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                                         {/* Task No */}
@@ -416,6 +440,70 @@ const StaffTask = () => {
                                                 </div>
                                             </td>
                                         )}
+                                        {/* Valuation */}
+                                        <td style={{ padding: '16px 20px', fontSize: '0.78rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                            {task.valuation ? `₹${Number(task.valuation).toLocaleString('en-IN')}` : '—'}
+                                        </td>
+                                        {/* Time Taken */}
+                                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}>
+                                            {editingTimeTaskId === task.id ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={editingTimeValue}
+                                                        onChange={e => setEditingTimeValue(e.target.value)}
+                                                        style={{
+                                                            width: '100px', padding: '6px 10px',
+                                                            border: '1.5px solid #cbd5e1', borderRadius: '8px',
+                                                            fontSize: '0.75rem', fontWeight: 700, color: '#0f172a',
+                                                            outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box'
+                                                        }}
+                                                        placeholder="e.g. 2 hours"
+                                                        autoFocus
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSaveTimeTaken(task.id)}
+                                                        title="Save"
+                                                        style={{ border: 'none', background: '#dcfce7', color: '#16a34a', borderRadius: '6px', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                    >
+                                                        <Check size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingTimeTaskId(null);
+                                                            setEditingTimeValue('');
+                                                        }}
+                                                        title="Cancel"
+                                                        style={{ border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '6px', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+                                                        {task.timeTaken ? task.timeTaken : '—'}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingTimeTaskId(task.id);
+                                                            setEditingTimeValue(task.timeTaken || '');
+                                                        }}
+                                                        title="Edit Time Taken"
+                                                        style={{
+                                                            border: 'none', background: '#f1f5f9', color: '#64748b',
+                                                            borderRadius: '6px', width: 22, height: 22,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            cursor: 'pointer', transition: 'all 0.2s', opacity: 0.7
+                                                        }}
+                                                        onMouseEnter={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.opacity = '1'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.opacity = '0.7'; }}
+                                                    >
+                                                        <Pencil size={11} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
                                         {/* Title & Description */}
                                         <td style={{ padding: '16px 20px' }}>
                                             <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>{task.title}</div>
@@ -764,6 +852,23 @@ const StaffTask = () => {
                     >
                         ⚡ Self-Created Tasks ({selfCreatedTasks.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('minus-points')}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: activeTab === 'minus-points' ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : '#f1f5f9',
+                            color: activeTab === 'minus-points' ? '#fff' : '#475569',
+                            fontSize: '0.82rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: activeTab === 'minus-points' ? '0 4px 12px rgba(99, 102, 241, 0.2)' : 'none'
+                        }}
+                    >
+                        🏆 My Points (+{user?.staffProfile?.plusPoints || 0} / -{user?.staffProfile?.minusPoints || 0})
+                    </button>
                 </div>
 
                 {/* Tab Content */}
@@ -921,6 +1026,182 @@ const StaffTask = () => {
                             ) : renderTasksTable(filteredSelfCreatedTasks, true)}
                         </div>
                     )}
+
+                    {activeTab === 'minus-points' && (
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                            {/* Summary header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: '#f8fafc', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>My Point History</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Track valuation rewarded or deducted by the institute for performance review.</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                {/* Left Side: Plus Points */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <Award size={18} style={{ color: '#16a34a' }} />
+                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            Plus Valuation Log
+                                            <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                {myPointsLogs.filter(log => log.type === 'plus').length}
+                                            </span>
+                                        </h4>
+                                    </div>
+                                    {myPointsLogs.filter(log => log.type === 'plus').length === 0 ? (
+                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                            No plus valuation logs recorded yet.
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {myPointsLogs.filter(log => log.type === 'plus').map((log, idx) => (
+                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px' }}>
+                                                                {log.taskTitle && (
+                                                                    <div style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                )}
+                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                <span style={{
+                                                                    background: '#dcfce7',
+                                                                    color: '#15803d',
+                                                                    borderRadius: '8px',
+                                                                    padding: '4px 10px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 800
+                                                                }}>
+                                                                    +{log.points}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setViewingValuation(log)}
+                                                                    title="View Details"
+                                                                    style={{
+                                                                        border: 'none',
+                                                                        background: '#e0e7ff',
+                                                                        borderRadius: '8px',
+                                                                        padding: '6px',
+                                                                        color: '#4338ca',
+                                                                        cursor: 'pointer',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        transition: 'all 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}
+                                                                >
+                                                                    <Eye size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Side: Minus Points */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            Minus Valuation Log
+                                            <span style={{ background: '#fee2e2', color: '#ef4444', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                {myPointsLogs.filter(log => log.type === 'minus').length}
+                                            </span>
+                                        </h4>
+                                    </div>
+                                    {myPointsLogs.filter(log => log.type === 'minus').length === 0 ? (
+                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                            No minus valuation logs recorded yet.
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {myPointsLogs.filter(log => log.type === 'minus').map((log, idx) => (
+                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px' }}>
+                                                                {log.taskTitle && (
+                                                                    <div style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                )}
+                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                <span style={{
+                                                                    background: '#fee2e2',
+                                                                    color: '#ef4444',
+                                                                    borderRadius: '8px',
+                                                                    padding: '4px 10px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 800
+                                                                }}>
+                                                                    -{log.points}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setViewingValuation(log)}
+                                                                    title="View Details"
+                                                                    style={{
+                                                                        border: 'none',
+                                                                        background: '#e0e7ff',
+                                                                        borderRadius: '8px',
+                                                                        padding: '6px',
+                                                                        color: '#4338ca',
+                                                                        cursor: 'pointer',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        transition: 'all 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}
+                                                                >
+                                                                    <Eye size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -928,7 +1209,7 @@ const StaffTask = () => {
             {showAddModal && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '750px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0', animation: 'scaleUp 0.2s ease-out' }}>
-                        
+
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                             <div>
@@ -943,15 +1224,16 @@ const StaffTask = () => {
                         </div>
 
                         <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            
+
                             {/* Multiple Tasks Table Editor */}
                             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '250px' }}>Task Title *</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '300px' }}>Description / Details</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Task Title *</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Description / Details</th>
+                                            <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px' }}>Time Taken *</th>
                                             <th style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Delete</th>
                                         </tr>
                                     </thead>
@@ -980,6 +1262,16 @@ const StaffTask = () => {
                                                         readOnly
                                                         placeholder="Click to edit details..."
                                                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={row.timeTaken}
+                                                        onChange={e => handleRowChange(idx, 'timeTaken', e.target.value)}
+                                                        placeholder="e.g. 2 hrs / 3 days"
+                                                        required={idx === 0 || row.title?.trim()}
+                                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', outline: 'none' }}
                                                     />
                                                 </td>
                                                 <td style={{ padding: '12px 16px', textAlign: 'center' }}>
@@ -1231,6 +1523,18 @@ const StaffTask = () => {
                                 </div>
 
                                 <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px' }}>Time Taken (e.g. 2 hours, 45 mins) *</label>
+                                    <input
+                                        type="text"
+                                        value={completionTimeTaken}
+                                        onChange={e => setCompletionTimeTaken(e.target.value)}
+                                        placeholder="e.g. 3 hours / 2.5 days"
+                                        required
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.82rem', fontWeight: 600, color: '#334155', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+
+                                <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px' }}>Attachment / Proof (Optional)</label>
                                     <div style={{ border: '2px dashed #cbd5e1', borderRadius: '12px', padding: '14px', textAlign: 'center', position: 'relative', background: '#f8fafc', cursor: 'pointer' }}>
                                         <input
@@ -1352,6 +1656,20 @@ const StaffTask = () => {
                             </div>
 
                             <div>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>Valuation:</span>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                                    {viewingTask.valuation ? `₹${Number(viewingTask.valuation).toLocaleString('en-IN')}` : '—'}
+                                </div>
+                            </div>
+
+                            <div>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>Time Taken:</span>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                                    {viewingTask.timeTaken ? viewingTask.timeTaken : '—'}
+                                </div>
+                            </div>
+
+                            <div>
                                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>Remark:</span>
                                 <div style={{ marginTop: '4px' }}>
                                     {viewingTask.remark ? (
@@ -1450,6 +1768,100 @@ const StaffTask = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* View Valuation Details Modal */}
+            {viewingValuation && createPortal(
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', position: 'relative', animation: 'scaleUp 0.2s ease-out' }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                    width: 36, height: 36, borderRadius: '10px',
+                                    background: viewingValuation.type === 'plus' ? '#ecfdf5' : '#fef2f2',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    {viewingValuation.type === 'plus' ? (
+                                        <Award size={18} style={{ color: '#16a34a' }} />
+                                    ) : (
+                                        <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+                                    )}
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
+                                    {viewingValuation.type === 'plus' ? 'Plus Valuation Details' : 'Minus Valuation Details'}
+                                </h3>
+                            </div>
+                            <button onClick={() => setViewingValuation(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <X size={15} style={{ color: '#64748b' }} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            {/* Valuation Amount */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: viewingValuation.type === 'plus' ? '#f0fdf4' : '#fff5f5', padding: '16px', borderRadius: '16px', border: viewingValuation.type === 'plus' ? '1px solid #bbf7d0' : '1px solid #fca5a5' }}>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: viewingValuation.type === 'plus' ? '#15803d' : '#991b1b', textTransform: 'uppercase' }}>Amount</span>
+                                <span style={{
+                                    fontSize: '1.25rem',
+                                    fontWeight: 900,
+                                    color: viewingValuation.type === 'plus' ? '#16a34a' : '#ef4444'
+                                }}>
+                                    {viewingValuation.type === 'plus' ? `+${viewingValuation.points}` : `-${viewingValuation.points}`}
+                                </span>
+                            </div>
+
+                            {/* Date */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date Recorded</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                    📅 {new Date(viewingValuation.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </span>
+                            </div>
+
+                            {/* Linked Task (if any) */}
+                            {viewingValuation.taskTitle && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Linked Task</span>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: viewingValuation.type === 'plus' ? '#4f46e5' : '#ef4444', background: viewingValuation.type === 'plus' ? '#f5f3ff' : '#fff5f5', padding: '6px 12px', borderRadius: '8px', border: viewingValuation.type === 'plus' ? '1px solid #ddd6fe' : '1px solid #fee2e2', display: 'inline-block' }}>
+                                        📋 {viewingValuation.taskTitle}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Reason / Remarks */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason / Remarks</span>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 650, color: '#334155', background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', lineHeight: 1.5, minHeight: '60px' }}>
+                                    {viewingValuation.reason || 'No remarks provided.'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer Button */}
+                        <div style={{ marginTop: '24px', borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setViewingValuation(null)}
+                                style={{
+                                    padding: '10px 24px',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>,
                 document.body

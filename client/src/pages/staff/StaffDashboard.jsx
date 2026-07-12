@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
-    CheckSquare, Calendar, DollarSign, TrendingUp, Clock
+    CheckSquare, Calendar, DollarSign, TrendingUp, Clock, Award
 } from 'lucide-react';
 
 const StaffDashboard = () => {
@@ -77,6 +77,14 @@ const StaffDashboard = () => {
             icon: TrendingUp,
             color: '#8b5cf6',
             bg: 'rgba(139,92,246,0.12)'
+        },
+        {
+            label: 'My Valuation (Net)',
+            value: String((user?.staffProfile?.plusPoints || 0) - (user?.staffProfile?.minusPoints || 0)),
+            sub: `+${user?.staffProfile?.plusPoints || 0} Plus / -${user?.staffProfile?.minusPoints || 0} Minus`,
+            icon: Award,
+            color: '#6366f1',
+            bg: 'rgba(99,102,241,0.12)'
         },
     ];
 

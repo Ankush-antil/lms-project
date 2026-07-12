@@ -1176,7 +1176,7 @@ const NAV_ITEMS = [
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-export default function AdminFeePortal() {
+export default function AdminFeePortal({ embedded = false }) {
     const { user } = useAuth();
     const { socket } = useSocket();
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -2350,17 +2350,19 @@ export default function AdminFeePortal() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f1f5f9] text-slate-800 flex flex-col">
+        <div className={`${embedded ? 'w-full rounded-3xl border border-slate-200 shadow-sm overflow-hidden' : 'min-h-screen'} bg-[#f1f5f9] text-slate-800 flex flex-col`}>
             {/* Top Header */}
             <div className="border-b border-slate-200 bg-[#0a0f1a] px-5 py-3.5 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-sm transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                        Back
-                    </button>
+                    {!embedded && (
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="flex items-center gap-1.5 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-sm transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            Back
+                        </button>
+                    )}
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-base">
                             🎓
@@ -2392,7 +2394,7 @@ export default function AdminFeePortal() {
             </div>
 
             {/* Body: Sidebar + Content */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className={`flex flex-1 overflow-hidden ${embedded ? 'h-[750px]' : ''}`}>
                 {/* Left Sidebar */}
                 <div className="w-52 flex-shrink-0 bg-[#0a0f1a] border-r border-white/10 flex flex-col py-4">
                     <nav className="space-y-0.5 px-3 flex-1">

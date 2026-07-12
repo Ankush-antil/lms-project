@@ -140,7 +140,13 @@ const deletePublicSubmission = asyncHandler(async (req, res) => {
 // @route   GET /api/public-tests/admin/submissions
 // @access  Private/Admin
 const getAllPublicSubmissions = asyncHandler(async (req, res) => {
-    const submissions = await PublicSubmission.find({})
+    let query = {};
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        const tests = await Test.find({ institute: req.user.institute });
+        const testIds = tests.map(t => t._id);
+        query.test = { $in: testIds };
+    }
+    const submissions = await PublicSubmission.find(query)
         .populate('test', 'title')
         .sort({ submittedAt: -1 });
     res.json(submissions);

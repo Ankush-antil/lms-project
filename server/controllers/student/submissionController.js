@@ -32,7 +32,14 @@ const submitTest = asyncHandler(async (req, res) => {
 });
 
 const getSubmissions = asyncHandler(async (req, res) => {
-    const query = { student: req.user._id };
+    let targetUserId = req.user._id;
+    if (req.user.role === 'Parent' && req.user.parentProfile?.student) {
+        targetUserId = req.user.parentProfile.student;
+    } else if (req.query.studentId && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+        targetUserId = req.query.studentId;
+    }
+
+    const query = { student: targetUserId };
     if (req.query.testId) {
         query.test = req.query.testId;
     }

@@ -9,6 +9,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentsList from './pages/admin/StudentsList';
 import StudentDetails from './pages/admin/StudentDetails';
+import ParentsList from './pages/admin/ParentsList';
 import TeachersList from './pages/admin/TeachersList';
 import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
@@ -58,6 +59,10 @@ import MobileCallPage from './pages/common/MobileCallPage';
 import SharedScreenshotPage from './pages/SharedScreenshotPage';
 import ApplicationsTrackingPage from './pages/ApplicationsTrackingPage';
 import ComingSoon from './components/common/ComingSoon';
+import ParentDashboard from './pages/parent/ParentDashboard';
+import ParentFee from './pages/parent/ParentFee';
+import ParentAttendance from './pages/parent/ParentAttendance';
+import ParentActivities from './pages/parent/ParentActivities';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import StaffTask from './pages/staff/StaffTask';
 import StaffAttendance from './pages/staff/StaffAttendance';
@@ -220,11 +225,16 @@ function App() {
                                         <InstituteDashboard />
                                     </PrivateRoute>
                                 } />
-                                <Route path="/institute/students" element={
-                                    <PrivateRoute role="Institute">
-                                        <StudentsList />
-                                    </PrivateRoute>
-                                } />
+                                 <Route path="/institute/students" element={
+                                     <PrivateRoute role="Institute">
+                                         <StudentsList />
+                                     </PrivateRoute>
+                                 } />
+                                 <Route path="/institute/parents" element={
+                                     <PrivateRoute role="Institute">
+                                         <ParentsList />
+                                     </PrivateRoute>
+                                 } />
                                 <Route path="/institute/teachers" element={
                                     <PrivateRoute role="Institute">
                                         <TeachersList />
@@ -288,7 +298,12 @@ function App() {
                                     </PrivateRoute>
                                 } />
 
-                                <Route path="/institute/staff" element={
+                                 <Route path="/institute/users" element={
+                                     <PrivateRoute role="Institute">
+                                         <UsersList />
+                                     </PrivateRoute>
+                                 } />
+                                 <Route path="/institute/staff" element={
                                     <PrivateRoute role="Institute">
                                         <InstituteStaff />
                                     </PrivateRoute>
@@ -335,11 +350,16 @@ function App() {
                                         <InstitutesList />
                                     </PrivateRoute>
                                 } />
-                                <Route path="/admin/students" element={
-                                    <PrivateRoute role="Admin">
-                                        <StudentsList />
-                                    </PrivateRoute>
-                                } />
+                                 <Route path="/admin/students" element={
+                                     <PrivateRoute role="Admin">
+                                         <StudentsList />
+                                     </PrivateRoute>
+                                 } />
+                                 <Route path="/admin/parents" element={
+                                     <PrivateRoute role="Admin">
+                                         <ParentsList />
+                                     </PrivateRoute>
+                                 } />
                                 <Route path="/admin/students/:id" element={
                                     <PrivateRoute role="Admin">
                                         <StudentDetails />
@@ -644,7 +664,7 @@ function App() {
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/test-result/:id" element={
-                                    <PrivateRoute role={['Student', 'Teacher', 'Admin']}>
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Parent']}>
                                         <ViewTestResult />
                                     </PrivateRoute>
                                 } />
@@ -723,6 +743,43 @@ function App() {
                                 <Route path="/staff/drive" element={
                                     <PrivateRoute role="Staff">
                                         <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Parent Routes */}
+                                <Route path="/parent" element={
+                                    <PrivateRoute role="Parent">
+                                        <ParentDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/fee" element={
+                                    <PrivateRoute role="Parent">
+                                        <ParentFee />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/attendance" element={
+                                    <PrivateRoute role="Parent">
+                                        <ParentAttendance />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/activities" element={
+                                    <PrivateRoute role="Parent">
+                                        <ParentActivities />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/chat" element={
+                                    <PrivateRoute role="Parent">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/drive" element={
+                                    <PrivateRoute role="Parent">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/parent/notes" element={
+                                    <PrivateRoute role="Parent">
+                                        <NotesPage />
                                     </PrivateRoute>
                                 } />
 

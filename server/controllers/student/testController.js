@@ -6,7 +6,14 @@ const User = require('../../models/User');
 // @route   GET /api/student/tests
 // @access  Private/Student
 const getTests = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id)
+    let targetUserId = req.user._id;
+    if (req.user.role === 'Parent' && req.user.parentProfile?.student) {
+        targetUserId = req.user.parentProfile.student;
+    } else if (req.query.studentId && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+        targetUserId = req.query.studentId;
+    }
+
+    const user = await User.findById(targetUserId)
         .populate('institute')
         .populate({
             path: 'studentProfile.course',
@@ -64,7 +71,7 @@ const getTests = asyncHandler(async (req, res) => {
             $or: [
                 { assignedStudents: { $exists: false } },
                 { assignedStudents: { $size: 0 } },
-                { assignedStudents: req.user._id }
+                { assignedStudents: targetUserId }
             ]
         }
     ];
@@ -74,7 +81,7 @@ const getTests = asyncHandler(async (req, res) => {
     const tests = await Test.find(query).populate('createdBy', 'name email role').sort({ createdAt: -1 });
     console.log(`[Student-Tests] Found ${tests.length} tests for ${user.name}`);
     
-    const enrollmentDate = req.user.studentProfile?.enrollmentDate || req.user.createdAt || new Date();
+    const enrollmentDate = user.studentProfile?.enrollmentDate || user.createdAt || new Date();
     const modifiedTests = tests.map(t => {
         const testObj = t.toObject();
         if (testObj.settings && testObj.settings.activeDays) {

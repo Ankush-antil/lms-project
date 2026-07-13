@@ -47,7 +47,8 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
             .populate('institute', 'name imageUrl controls')
             .populate('studentProfile.course', 'name subjects')
-            .populate('teacherProfile.assignedCourses', 'name');
+            .populate('teacherProfile.assignedCourses', 'name')
+            .populate('guestProfile.demoCourse', 'name');
 
         if (user && (await user.matchPassword(password))) {
             const token = generateToken(user._id);
@@ -63,6 +64,7 @@ const loginUser = async (req, res) => {
                 institute: user.institute,
                 studentProfile: user.studentProfile,
                 teacherProfile: user.teacherProfile,
+                guestProfile: user.guestProfile,
                 token: token
             });
         } else {
@@ -84,7 +86,8 @@ const getMe = async (req, res) => {
             .populate('institute', 'name imageUrl controls')
             .populate('studentProfile.course', 'name subjects duration subjectDurations')
             .populate('teacherProfile.assignedCourses', 'name')
-            .populate('teacherProfile.assignedStudents', 'name email studentProfile');
+            .populate('teacherProfile.assignedStudents', 'name email studentProfile')
+            .populate('guestProfile.demoCourse', 'name');
         if (user) {
             res.json(user);
         } else {

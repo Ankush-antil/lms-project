@@ -31,6 +31,7 @@ const LoginPage = () => {
             else if (data.role === 'Accountant') navigate('/accountant');
             else if (data.role === 'Staff') navigate('/staff');
             else if (data.role === 'Parent') navigate('/parent');
+            else if (data.role === 'Guest') navigate('/guest');
 
             setLoading(false);
         } catch (err) {

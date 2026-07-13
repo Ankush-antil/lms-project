@@ -53,6 +53,10 @@ const courseSchema = new mongoose.Schema({
     isDeleted: {
         type: Boolean,
         default: false
+    },
+    isDemo: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

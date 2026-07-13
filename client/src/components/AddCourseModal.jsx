@@ -5,7 +5,7 @@ import axios from 'axios';
 import { X, Upload, Link as LinkIcon, FileText, BookOpen } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
+const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPreset = false }) => {
     const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
     const [allSubjects, setAllSubjects] = useState([]);
@@ -13,7 +13,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
         syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
-        duration: 5, fee: 0
+        duration: 5, fee: 0, isDemo: false
     });
     const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
     const [syllabusFile, setSyllabusFile] = useState(null);
@@ -69,7 +69,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusType: course.syllabusType || 'link',
                     maxStudentsPerSection: course.maxStudentsPerSection || 30,
                     duration: course.duration || 5,
-                    fee: course.fee || 0
+                    fee: course.fee || 0,
+                    isDemo: course.isDemo || false
                 });
                 setSyllabusMode(course.syllabusType || 'link');
             } else {
@@ -85,13 +86,14 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusType: 'link',
                     maxStudentsPerSection: 30,
                     duration: 5,
-                    fee: 0
+                    fee: 0,
+                    isDemo: isDemoPreset || false
                 });
                 setSyllabusMode('link');
             }
             setSyllabusFile(null);
         }
-    }, [isOpen, user, course]);
+    }, [isOpen, user, course, isDemoPreset]);
 
     useEffect(() => {
         if (!isDurationManuallyEdited && allSubjects.length > 0 && formData.subjects) {
@@ -175,7 +177,12 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                         <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
                             <BookOpen size={20} className="text-indigo-400" />
                         </div>
-                        <h3 className="text-xl font-black text-white tracking-tight">{course ? 'Edit Course' : 'Add New Course'}</h3>
+                        <h3 className="text-xl font-black text-white tracking-tight">
+                            {course 
+                                ? (course.isDemo ? 'Edit Demo Course' : 'Edit Course') 
+                                : (isDemoPreset ? 'Add New Demo Course' : 'Add New Course')
+                            }
+                        </h3>
                     </div>
                     <button
                         onClick={onClose}

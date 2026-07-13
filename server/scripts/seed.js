@@ -14,14 +14,14 @@ const seedData = async () => {
 
         if (userExists) {
             console.log('Admin user already exists. Resetting password...');
-            userExists.password = 'admin';
+            userExists.password = 'admin@5555';
             await userExists.save();
         } else {
             console.log('Creating admin user...');
             await User.create({
                 name: 'Admin User',
                 email: 'admin@lms.com',
-                password: 'admin',
+                password: 'admin@5555',
                 role: 'Admin'
             });
             console.log('Admin user created successfully.');

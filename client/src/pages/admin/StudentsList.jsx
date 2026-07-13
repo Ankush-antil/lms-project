@@ -13,6 +13,49 @@ import RecycleBinModal from '../../components/common/RecycleBinModal';
 import StudentAttendanceDetailModal from '../../components/common/StudentAttendanceDetailModal';
 import AdminFeePortal from './AdminFeePortal';
 
+const calculateSpendingTime = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return '—';
+    const parseTimeToMinutes = (timeStr) => {
+        const clean = timeStr.trim().toUpperCase();
+        let hours = 0;
+        let minutes = 0;
+        
+        const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+        if (ampmMatch) {
+            hours = parseInt(ampmMatch[1], 10);
+            minutes = parseInt(ampmMatch[2], 10);
+            const ampm = ampmMatch[3];
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            return hours * 60 + minutes;
+        }
+        
+        const HHMMMatch = clean.match(/^(\d{1,2}):(\d{2})$/);
+        if (HHMMMatch) {
+            hours = parseInt(HHMMMatch[1], 10);
+            minutes = parseInt(HHMMMatch[2], 10);
+            return hours * 60 + minutes;
+        }
+        return null;
+    };
+    
+    const startMins = parseTimeToMinutes(checkIn);
+    const endMins = parseTimeToMinutes(checkOut);
+    
+    if (startMins === null || endMins === null) return '—';
+    
+    let diff = endMins - startMins;
+    if (diff < 0) diff += 24 * 60;
+    
+    const hrs = Math.floor(diff / 60);
+    const mins = diff % 60;
+    
+    if (hrs > 0) {
+        return `${hrs} hr${hrs > 1 ? 's' : ''} ${mins > 0 ? `${mins} min${mins > 1 ? 's' : ''}` : ''}`;
+    }
+    return `${mins} min${mins > 1 ? 's' : ''}`;
+};
+
 const StudentsList = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -22,11 +65,13 @@ const StudentsList = () => {
     const [filterClass, setFilterClass] = useState('All');
     const [filterSubject, setFilterSubject] = useState('All');
     const [filterSection, setFilterSection] = useState('All');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [students, setStudents] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance, fee
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -38,6 +83,12 @@ const StudentsList = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
+
+    useEffect(() => {
+        setEditingId(null);
+    }, [attendanceDate, activeTab]);
 
     useEffect(() => {
         if (!students.length) return;
@@ -45,7 +96,7 @@ const StudentsList = () => {
         students.forEach(s => {
             const existing = s.studentProfile?.physicalAttendance?.find(a => a.date === attendanceDate);
             init[s._id] = {
-                status: existing ? (existing.status || 'Present') : 'Absent',
+                status: existing ? (existing.status || 'Present') : '',
                 note: existing?.note || '',
                 checkInTime: existing?.checkInTime || '',
                 checkOutTime: existing?.checkOutTime || '',
@@ -53,6 +104,54 @@ const StudentsList = () => {
         });
         setAttendanceRecords(init);
     }, [students, attendanceDate]);
+
+    const renderStatusBadge = (status) => {
+        switch (status) {
+            case 'Present':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-250 shadow-sm">Present</span>;
+            case 'Absent':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-rose-50 text-rose-700 border border-rose-250 shadow-sm">Absent</span>;
+            case 'Leave':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-amber-50 text-amber-700 border border-amber-250 shadow-sm">Leave</span>;
+            case 'Holiday':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-blue-50 text-blue-700 border border-blue-250 shadow-sm">Holiday</span>;
+            default:
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-slate-100 text-slate-400 border border-slate-200">Not Marked</span>;
+        }
+    };
+
+    const handleStartEdit = (studentId, currentRecord) => {
+        setEditingId(studentId);
+        setEditRecord({
+            status: currentRecord.status || 'Present',
+            checkInTime: currentRecord.checkInTime || '',
+            checkOutTime: currentRecord.checkOutTime || ''
+        });
+    };
+
+    const handleSaveSingleAttendance = async (studentId) => {
+        try {
+            setSubmittingAttendance(true);
+            await axios.post('/api/users/bulk-physical-attendance', {
+                date: attendanceDate,
+                attendanceRecords: [{
+                    studentId,
+                    status: editRecord.status,
+                    checkInTime: editRecord.checkInTime || '',
+                    checkOutTime: editRecord.checkOutTime || '',
+                    note: ''
+                }]
+            });
+            toast.success('Attendance updated successfully!');
+            setEditingId(null);
+            await fetchData();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.message || 'Failed to update attendance');
+        } finally {
+            setSubmittingAttendance(false);
+        }
+    };
 
     const handleSaveAttendance = async () => {
         try {
@@ -92,7 +191,7 @@ const StudentsList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterClass, filterSubject, filterSection]);
+    }, [searchTerm, filterClass, filterSubject, filterSection, activeTab]);
 
     const handleToggleFlag = async (flagName) => {
         try {
@@ -112,12 +211,14 @@ const StudentsList = () => {
 
     const fetchData = async () => {
         try {
-            const [userRes, courseRes] = await Promise.all([
+            const [userRes, courseRes, instsRes] = await Promise.all([
                 axios.get('/api/users?role=Student'),
-                axios.get('/api/setup/courses')
+                axios.get('/api/setup/courses'),
+                axios.get('/api/setup/institutes')
             ]);
             setStudents(userRes.data);
             setCourses(courseRes.data);
+            setInstitutes(instsRes.data);
 
             const instId = userInfo?.institute?._id || userInfo?.institute;
             if (instId && userInfo?.role === 'Institute') {
@@ -166,6 +267,7 @@ const StudentsList = () => {
         (filterClass === 'All' || (student.studentProfile?.course?.name === filterClass)) &&
         (filterSubject === 'All' || (student.studentProfile?.subject === filterSubject)) &&
         (filterSection === 'All' || (student.studentProfile?.section === filterSection)) &&
+        (filterInstitute === 'All' || (student.institute?._id === filterInstitute || student.institute === filterInstitute)) &&
         (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             student._id.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -211,7 +313,7 @@ const StudentsList = () => {
                         >
                             <Trash2 size={16} className="text-red-500" /> Recycle Bin
                         </button>
-                        {user?.role !== 'Admin' && user?.institute?.controls?.student?.addStudent !== false && (
+                        {(user?.role === 'Admin' || user?.institute?.controls?.student?.addStudent !== false) && (
                             <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="btn-primary flex items-center gap-2"
@@ -300,6 +402,23 @@ const StudentsList = () => {
                                 />
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                             </div>
+
+                            {user?.role === 'Admin' && (
+                                <div className="relative w-[180px]">
+                                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <select
+                                        value={filterInstitute}
+                                        onChange={(e) => setFilterInstitute(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                                    >
+                                        <option value="All">All Institutes</option>
+                                        {institutes.map(inst => (
+                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                </div>
+                            )}
 
                             <div className="relative w-[150px]">
                                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -520,7 +639,7 @@ const StudentsList = () => {
 
             {activeTab === 'fee' && (
                 <div className="animate-fade-in">
-                    <AdminFeePortal embedded={true} />
+                    <AdminFeePortal embedded={true} viewOnly={true} />
                 </div>
             )}
 
@@ -540,6 +659,51 @@ const StudentsList = () => {
                         </div>
 
                         <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                            {/* Entries selector */}
+                            <div className="flex items-center gap-2 mr-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                                <input
+                                    type="number"
+                                    min={5}
+                                    max={filteredStudents.length}
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val)) {
+                                            setItemsPerPage('');
+                                        } else {
+                                            const maxVal = filteredStudents.length > 5 ? filteredStudents.length : 5;
+                                            setItemsPerPage(Math.min(val, maxVal));
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val) || val < 5) {
+                                            setItemsPerPage(10);
+                                        }
+                                    }}
+                                    className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                            </div>
+
+                            {user?.role === 'Admin' && (
+                                <div className="relative w-[180px]">
+                                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <select
+                                        value={filterInstitute}
+                                        onChange={(e) => setFilterInstitute(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                                    >
+                                        <option value="All">All Institutes</option>
+                                        {institutes.map(inst => (
+                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                </div>
+                            )}
+
                             <div className="relative w-[150px]">
                                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <select
@@ -602,162 +766,155 @@ const StudentsList = () => {
                                 />
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                            <button
-                                onClick={() => {
-                                    const bulk = { ...attendanceRecords };
-                                    filteredStudents.forEach(s => {
-                                        bulk[s._id] = { ...(bulk[s._id] || {}), status: 'Present' };
-                                    });
-                                    setAttendanceRecords(bulk);
-                                }}
-                                className="px-3 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition cursor-pointer"
-                            >
-                                Mark All Present
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const bulk = { ...attendanceRecords };
-                                    filteredStudents.forEach(s => {
-                                        bulk[s._id] = { ...(bulk[s._id] || {}), status: 'Absent' };
-                                    });
-                                    setAttendanceRecords(bulk);
-                                }}
-                                className="px-3 py-1.5 text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 rounded-xl hover:bg-rose-100 transition cursor-pointer"
-                            >
-                                Mark All Absent
-                            </button>
-                            <button
-                                onClick={handleSaveAttendance}
-                                disabled={submittingAttendance}
-                                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition ml-auto md:ml-0 cursor-pointer"
-                            >
-                                <Save size={14} /> {submittingAttendance ? 'Saving...' : 'Save Attendance Register'}
-                            </button>
-                        </div>
                     </div>
 
                     {/* Students list for attendance */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-left border-collapse" style={{ minWidth: '1000px' }}>
+                        <div className="w-full overflow-hidden">
+                            <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
-                                        <th className="p-4 font-semibold whitespace-nowrap">Student Name</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap">ID</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap">Course & Section</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap text-center">Attendance Status</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap text-center">Check-In / Check-Out</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap text-center">History</th>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-bold w-[22%] text-left">Student Name</th>
+                                        <th className="p-4 font-bold text-center w-[10%]">ID</th>
+                                        <th className="p-4 font-bold w-[22%] text-left">Course & Section</th>
+                                        <th className="p-4 font-bold text-center w-[16%]">Attendance Status</th>
+                                        <th className="p-4 font-bold text-center w-[16%]">Check-In / Out</th>
+                                        <th className="p-4 font-bold text-center w-[8%]">Time</th>
+                                        <th className="p-4 font-bold text-right w-[6%]">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredStudents.length > 0 ? (
-                                        filteredStudents.map((student) => {
-                                            const record = attendanceRecords[student._id] || { status: 'Absent', checkInTime: '', checkOutTime: '' };
+                                    {paginatedStudents.length > 0 ? (
+                                        paginatedStudents.map((student) => {
+                                            const record = attendanceRecords[student._id] || { status: '', checkInTime: '', checkOutTime: '' };
                                             return (
                                                 <tr key={student._id} className="hover:bg-slate-50/50 transition-colors group">
-                                                    <td className="p-4 whitespace-nowrap">
+                                                    <td className="p-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
                                                                 {student.avatar ? (
                                                                     <img src={student.avatar} alt={student.name} className="w-full h-full object-cover rounded-full" />
                                                                 ) : (
                                                                     student.name[0]
                                                                 )}
                                                             </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold text-slate-800">{student.name}</span>
-                                                                <span className="text-[10px] text-slate-400 font-semibold">{student.email}</span>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="font-bold text-slate-800 text-xs truncate">{student.name}</span>
+                                                                <span className="text-[10px] text-slate-400 font-semibold truncate">{student.email}</span>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 whitespace-nowrap text-slate-500 text-xs font-bold">{student._id}</td>
-                                                    <td className="p-4 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs font-bold text-slate-700">{student.studentProfile?.course?.name || 'N/A'}</span>
+                                                    <td className="p-4 text-center text-slate-500 text-[11px] font-bold" title={student._id}>
+                                                        #{student._id.slice(-6)}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="text-xs font-bold text-slate-700 truncate" title={student.studentProfile?.course?.name || 'N/A'}>
+                                                                {student.studentProfile?.course?.name || 'N/A'}
+                                                            </span>
                                                             <span className="text-[10px] text-slate-400 font-extrabold uppercase">Section {student.studentProfile?.section || 'A'}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 whitespace-nowrap text-center">
-                                                        <div className="inline-flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/40">
-                                                            {[
-                                                                { key: 'Present', color: 'text-emerald-700 bg-emerald-50 border-emerald-250 shadow-sm' },
-                                                                { key: 'Absent', color: 'text-rose-700 bg-rose-50 border-rose-250 shadow-sm' },
-                                                                { key: 'Leave', color: 'text-amber-700 bg-amber-50 border-amber-250 shadow-sm' },
-                                                                { key: 'Holiday', color: 'text-blue-700 bg-blue-50 border-blue-250 shadow-sm' }
-                                                            ].map(item => {
-                                                                const active = record.status === item.key;
-                                                                return (
-                                                                    <button
-                                                                        key={item.key}
-                                                                        type="button"
-                                                                        onClick={() => handleAttendanceStatusChange(student._id, item.key)}
-                                                                        className={`px-3 py-1.5 text-xs font-black rounded-lg border border-transparent transition-all cursor-pointer ${
-                                                                            active ? item.color : 'text-slate-400 hover:text-slate-600'
-                                                                        }`}
-                                                                    >
-                                                                        {item.key}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                    <td className="p-4 text-center">
+                                                        {renderStatusBadge(record.status)}
                                                     </td>
-                                                    <td className="p-4 whitespace-nowrap text-center">
-                                                        <div className="flex items-center justify-center gap-1.5 text-xs">
-                                                            <input
-                                                                type="text"
-                                                                placeholder="In Time"
-                                                                value={record.checkInTime || ''}
-                                                                onChange={(e) => {
-                                                                    setAttendanceRecords(prev => ({
-                                                                        ...prev,
-                                                                        [student._id]: {
-                                                                            ...(prev[student._id] || { status: 'Absent', note: '' }),
-                                                                            checkInTime: e.target.value
-                                                                        }
-                                                                    }));
-                                                                }}
-                                                                className="w-16 bg-slate-50 border border-slate-200 rounded-lg p-1 text-center font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
-                                                            />
-                                                            <span className="text-slate-400 font-bold">:</span>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Out Time"
-                                                                value={record.checkOutTime || ''}
-                                                                onChange={(e) => {
-                                                                    setAttendanceRecords(prev => ({
-                                                                        ...prev,
-                                                                        [student._id]: {
-                                                                            ...(prev[student._id] || { status: 'Absent', note: '' }),
-                                                                            checkOutTime: e.target.value
-                                                                        }
-                                                                    }));
-                                                                }}
-                                                                className="w-16 bg-slate-50 border border-slate-200 rounded-lg p-1 text-center font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
-                                                            />
-                                                        </div>
+                                                    <td className="p-4 text-center">
+                                                        <span className="text-xs font-bold text-slate-650">
+                                                            {record.checkInTime || record.checkOutTime ? (
+                                                                `${record.checkInTime || '—'} to ${record.checkOutTime || '—'}`
+                                                            ) : '—'}
+                                                        </span>
                                                     </td>
-                                                    <td className="p-4 whitespace-nowrap text-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedStudentId(student._id)}
-                                                            className="px-2.5 py-1 text-xs font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-105 rounded-lg border border-indigo-100 transition cursor-pointer"
-                                                        >
-                                                            Logs
-                                                        </button>
+                                                    <td className="p-4 text-center text-xs font-bold text-slate-500">
+                                                        {calculateSpendingTime(record.checkInTime, record.checkOutTime)}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedStudentId(student._id)}
+                                                                className="px-2.5 py-1.5 text-xs font-bold text-indigo-650 hover:text-indigo-850 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-100 transition cursor-pointer"
+                                                            >
+                                                                Logs
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan={6} className="p-8 text-center text-slate-400 italic">No matching students found</td>
+                                            <td colSpan="7" className="p-8 text-center text-slate-400 italic">No matching students found</td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {filteredStudents.length > 0 && (
+                            <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                                <div className="text-sm font-semibold text-slate-500">
+                                    Showing <span className="text-slate-700">{startIndex + 1}</span> to{' '}
+                                    <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, filteredStudents.length)}</span> of{' '}
+                                    <span className="text-slate-700">{filteredStudents.length}</span> entries
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Previous
+                                    </button>
+                                    <div className="flex gap-1">
+                                        {(() => {
+                                            const pages = [];
+                                            const maxVisible = 5;
+                                            if (totalPages <= maxVisible) {
+                                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                            } else {
+                                                pages.push(1);
+                                                let start = Math.max(2, currentPage - 1);
+                                                let end = Math.min(totalPages - 1, currentPage + 1);
+                                                if (currentPage <= 2) {
+                                                    end = 4;
+                                                } else if (currentPage >= totalPages - 1) {
+                                                    start = totalPages - 3;
+                                                }
+                                                if (start > 2) pages.push('...');
+                                                for (let i = start; i <= end; i++) pages.push(i);
+                                                if (end < totalPages - 1) pages.push('...');
+                                                pages.push(totalPages);
+                                            }
+                                            return pages.map((p, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    disabled={p === '...'}
+                                                    onClick={() => p !== '...' && setCurrentPage(p)}
+                                                    className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
+                                                        p === '...'
+                                                            ? 'text-slate-400 cursor-default bg-transparent'
+                                                            : currentPage === p
+                                                                ? 'bg-[#0b1329] text-white shadow-md'
+                                                                : 'text-slate-600 hover:bg-slate-100 bg-transparent'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ));
+                                        })()}
+                                    </div>
+                                    <button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

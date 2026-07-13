@@ -500,9 +500,30 @@ const deleteFeeRecord = asyncHandler(async (req, res) => {
 // @desc    Get all dashboard data in a single query (combines stats, all records, pending, receipts, reports)
 // @route   GET /api/fees/admin/dashboard-data
 const getMergedDashboardData = asyncHandler(async (req, res) => {
-    await ensureFeeRecordsExist(req.user.institute);
+    let instituteId = req.user.institute;
+    if (req.user.role === 'Admin' && req.query.instituteId) {
+        instituteId = req.query.instituteId;
+    }
+
+    if (req.user.role === 'Admin' && (!instituteId || instituteId === 'All')) {
+        const activeInstitutes = await User.find({ role: 'Student', isDeleted: { $ne: true } }).distinct('institute');
+        for (const instId of activeInstitutes) {
+            if (instId) {
+                await ensureFeeRecordsExist(instId);
+            }
+        }
+    } else {
+        if (instituteId) {
+            await ensureFeeRecordsExist(instituteId);
+        }
+    }
+
     // 1. Fetch all records and populate student details in a single query
-    const studentIds = await User.find({ institute: req.user.institute, role: 'Student' }).distinct('_id');
+    let studentQuery = { role: 'Student' };
+    if (instituteId && instituteId !== 'All') {
+        studentQuery.institute = instituteId;
+    }
+    const studentIds = await User.find(studentQuery).distinct('_id');
     const allRecords = await FeeRecord.find({ student: { $in: studentIds } })
         .populate('student', 'name email mobileNumber mobile2 fatherName admissionNo studentProfile avatar institute')
         .sort({ updatedAt: -1 });

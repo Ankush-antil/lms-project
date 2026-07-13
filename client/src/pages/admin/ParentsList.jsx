@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -15,10 +15,12 @@ const ParentsList = () => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [parents, setParents] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -26,12 +28,16 @@ const ParentsList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterInstitute]);
 
     const fetchData = async () => {
         try {
-            const { data } = await axios.get('/api/users?role=Parent');
-            setParents(data);
+            const [userRes, instsRes] = await Promise.all([
+                axios.get('/api/users?role=Parent'),
+                axios.get('/api/setup/institutes')
+            ]);
+            setParents(userRes.data);
+            setInstitutes(instsRes.data);
             setLoading(false);
         } catch (error) {
             console.error("Error fetching parents:", error);
@@ -68,9 +74,10 @@ const ParentsList = () => {
     };
 
     const filteredParents = parents.filter(parent =>
-        parent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (filterInstitute === 'All' || (parent.institute?._id === filterInstitute || parent.institute === filterInstitute)) &&
+        (parent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (parent.parentProfile?.student?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (parent.parentProfile?.student?.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const totalPages = Math.ceil(filteredParents.length / itemsPerPage);
@@ -93,17 +100,34 @@ const ParentsList = () => {
                 </button>
             </div>
 
-            {/* Filters Bar */}
             <div className="bg-white border border-slate-150 rounded-3xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full md:max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search by name, email, student..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
-                    />
+                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    <div className="relative w-full md:max-w-xs">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, student..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
+                        />
+                    </div>
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-full md:w-[220px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-sm font-semibold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/20 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold">
                     <span>Total Parents: {filteredParents.length}</span>

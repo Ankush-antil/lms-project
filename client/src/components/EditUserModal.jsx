@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { X, Save, AlertCircle } from 'lucide-react';
+import { X, Save, AlertCircle, ChevronDown, GraduationCap, CheckCircle, Edit, Briefcase, Calculator, Megaphone, Heart, Shield, User } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const DEFAULT_STUDENT_CONTROLS = {
@@ -290,7 +290,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         studentAssignmentMode: 'all',
         assignedSections: [],
         assignedStudents: [],
-        controls: DEFAULT_STUDENT_CONTROLS
+        controls: DEFAULT_STUDENT_CONTROLS,
+        demoCourse: '',
+        demoDuration: 1
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -307,42 +309,65 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     const [instituteTeachers, setInstituteTeachers] = useState([]);
     const [loadingTeachers, setLoadingTeachers] = useState(false);
     const [instituteDetails, setInstituteDetails] = useState(null);
+    const [selectedRoleToEdit, setSelectedRoleToEdit] = useState(null);
+
+    const initializeFormData = (role) => {
+        setFormData({
+            name: user?.name || '',
+            email: user?.email || '',
+            password: '', // Keep empty unless changing
+            course: role === 'Student'
+                ? (user?.studentProfile?.course?._id || user?.studentProfile?.course || '')
+                : (role === 'Teacher'
+                    ? (user?.teacherProfile?.assignedCourses?.[0]?._id || user?.teacherProfile?.assignedCourses?.[0] || '')
+                    : (role === 'Editor'
+                        ? (user?.editorProfile?.assignedCourses?.[0]?._id || user?.editorProfile?.assignedCourses?.[0] || '')
+                        : '')),
+            institute: user?.institute?._id || user?.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : ''),
+            subjects: role === 'Teacher' 
+                ? (user?.teacherProfile?.subjects?.join(', ') || '') 
+                : (role === 'Editor' 
+                    ? (user?.editorProfile?.subjects?.join(', ') || '') 
+                    : ''),
+            subject: role === 'Student' ? (user?.studentProfile?.subject || '') : '',
+            mobileNumber: user?.mobileNumber || '',
+            batch: role === 'Student' ? (user?.studentProfile?.batch || '') : '',
+            section: role === 'Student' ? (user?.studentProfile?.section || '') : '',
+            callEnabled: user?.callEnabled || false,
+            studentAssignmentMode: role === 'Teacher' ? (user?.teacherProfile?.studentAssignmentMode || 'all') : 'all',
+            assignedSections: role === 'Teacher' ? (user?.teacherProfile?.assignedSections || []) : [],
+            assignedStudents: role === 'Teacher' ? (user?.teacherProfile?.assignedStudents?.map(s => s._id || s) || []) : [],
+            controls: role === 'Student'
+                ? { ...DEFAULT_STUDENT_CONTROLS, ...(user?.studentProfile?.controls || {}) }
+                : (role === 'Teacher'
+                    ? { ...DEFAULT_TEACHER_CONTROLS, ...(user?.teacherProfile?.controls || {}) }
+                    : (role === 'Editor'
+                        ? { ...DEFAULT_EDITOR_CONTROLS, ...(user?.editorProfile?.controls || {}) }
+                        : (role === 'Accountant'
+                            ? { ...DEFAULT_ACCOUNTANT_CONTROLS, ...(user?.accountantProfile?.controls || {}) }
+                            : DEFAULT_STUDENT_CONTROLS))),
+            parentProfile: {
+                student: role === 'Parent' ? (user?.parentProfile?.student?._id || user?.parentProfile?.student || '') : ''
+            },
+            demoCourse: role === 'Guest' ? (user?.guestProfile?.demoCourse?._id || user?.guestProfile?.demoCourse || '') : '',
+            demoDuration: role === 'Guest' ? (user?.guestProfile?.demoDuration || 1) : 1
+        });
+    };
 
     useEffect(() => {
         if (isOpen && user) {
             setSubjectDropdownOpen(false);
             setControlsScope('single');
             setSelectedPropagationStudents([]);
-            setFormData({
-                name: user.name || '',
-                email: user.email || '',
-                password: '', // Keep empty unless changing
-                course: user.role === 'Student'
-                    ? (user.studentProfile?.course?._id || user.studentProfile?.course || '')
-                    : (user.teacherProfile?.assignedCourses?.[0]?._id || user.teacherProfile?.assignedCourses?.[0] || ''),
-                institute: user.institute?._id || user.institute || (currentUser && currentUser.institute ? (typeof currentUser.institute === 'object' ? currentUser.institute._id : currentUser.institute) : ''),
-                subjects: user.role === 'Teacher' ? (user.teacherProfile?.subjects?.join(', ') || '') : '',
-                subject: user.role === 'Student' ? (user.studentProfile?.subject || '') : '',
-                mobileNumber: user.mobileNumber || '',
-                batch: user.role === 'Student' ? (user.studentProfile?.batch || '') : '',
-                section: user.role === 'Student' ? (user.studentProfile?.section || '') : '',
-                callEnabled: user.callEnabled || false,
-                studentAssignmentMode: user.role === 'Teacher' ? (user.teacherProfile?.studentAssignmentMode || 'all') : 'all',
-                assignedSections: user.role === 'Teacher' ? (user.teacherProfile?.assignedSections || []) : [],
-                assignedStudents: user.role === 'Teacher' ? (user.teacherProfile?.assignedStudents?.map(s => s._id || s) || []) : [],
-                controls: user.role === 'Student'
-                    ? { ...DEFAULT_STUDENT_CONTROLS, ...(user.studentProfile?.controls || {}) }
-                    : (user.role === 'Teacher'
-                        ? { ...DEFAULT_TEACHER_CONTROLS, ...(user.teacherProfile?.controls || {}) }
-                        : (user.role === 'Editor'
-                            ? { ...DEFAULT_EDITOR_CONTROLS, ...(user.editorProfile?.controls || {}) }
-                            : (user.role === 'Accountant'
-                                ? { ...DEFAULT_ACCOUNTANT_CONTROLS, ...(user.accountantProfile?.controls || {}) }
-                                : DEFAULT_STUDENT_CONTROLS))),
-                parentProfile: {
-                    student: user.role === 'Parent' ? (user.parentProfile?.student?._id || user.parentProfile?.student || '') : ''
-                }
-            });
+            
+            const rolesList = user.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [user.role];
+            if (rolesList.length > 1) {
+                setSelectedRoleToEdit(null);
+            } else {
+                const singleRole = rolesList[0] || 'Student';
+                setSelectedRoleToEdit(singleRole);
+                initializeFormData(singleRole);
+            }
             setError('');
             setActiveTab('basic');
 
@@ -369,7 +394,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     }, [isOpen, user]);
 
     useEffect(() => {
-        if (formData.course && user?.role === 'Teacher') {
+        if (formData.course && (selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor')) {
             const fetchCourseStudents = async () => {
                 try {
                     setLoadingStudents(true);
@@ -385,10 +410,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         } else {
             setCourseStudents([]);
         }
-    }, [formData.course, user]);
+    }, [formData.course, selectedRoleToEdit]);
 
     useEffect(() => {
-        if (isOpen && user && user.role === 'Teacher') {
+        if (isOpen && user && selectedRoleToEdit === 'Teacher') {
             const fetchTeachers = async () => {
                 try {
                     setLoadingTeachers(true);
@@ -407,7 +432,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         } else {
             setInstituteTeachers([]);
         }
-    }, [isOpen, user]);
+    }, [isOpen, user, selectedRoleToEdit]);
 
     const renderStudentControls = () => {
         const updateControl = (section, field, value) => {
@@ -2095,7 +2120,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 controls: formData.controls,
                 controlsScope: controlsScope,
                 selectedPropagationStudents: selectedPropagationStudents,
-                parentProfile: formData.parentProfile
+                parentProfile: formData.parentProfile,
+                editingRole: selectedRoleToEdit,
+                demoCourse: formData.demoCourse,
+                demoDuration: formData.demoDuration
             };
 
             if (formData.password.trim()) {
@@ -2113,9 +2141,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         }
     };
 
-    const filteredCourses = formData.institute
+    const filteredCourses = (formData.institute
         ? courses.filter(c => c.institute?._id === formData.institute || c.institute === formData.institute)
-        : courses;
+        : courses).filter(c => selectedRoleToEdit === 'Guest' ? c.isDemo === true : !c.isDemo);
 
     const selectedCourseObj = courses.find(c => c._id === formData.course);
     const availableSubjects = selectedCourseObj?.subjects || [];
@@ -2155,7 +2183,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         }
 
         // Validate course & subjects for student
-        if (user.role === 'Student') {
+        if (selectedRoleToEdit === 'Student') {
             if (!formData.course) {
                 toast.error("Please select a course");
                 return;
@@ -2167,7 +2195,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         }
 
         // Validate assigned course for teacher
-        if (user.role === 'Teacher') {
+        if (selectedRoleToEdit === 'Teacher') {
             if (!formData.course) {
                 toast.error("Please select an assigned course");
                 return;
@@ -2183,15 +2211,91 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
 
     if (!isOpen || !user) return null;
 
+    if (selectedRoleToEdit === null) {
+        const rolesList = user.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [user.role];
+        return createPortal(
+            <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-md md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+                    {/* Header */}
+                    <div className="bg-[#0b1329] text-white px-6 py-5 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight">Select Role to Edit</h3>
+                            <p className="text-[10px] text-slate-350 font-bold uppercase tracking-wider mt-0.5">{user.name}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    {/* Role Picker List */}
+                    <div className="p-6 space-y-4">
+                        <p className="text-xs text-slate-500 font-medium">
+                            This user is registered with multiple roles. Select which profile you want to configure:
+                        </p>
+                        
+                        <div className="grid grid-cols-1 gap-3">
+                            {rolesList.map((roleName) => (
+                                <button
+                                    key={roleName}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedRoleToEdit(roleName);
+                                        initializeFormData(roleName);
+                                    }}
+                                    className="w-full p-4 text-left bg-slate-50 border border-slate-200/60 rounded-2xl flex items-center justify-between group hover:bg-indigo-50 hover:border-indigo-200 transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-white rounded-xl shadow-sm text-slate-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors flex items-center justify-center">
+                                            {roleName === 'Student' && <GraduationCap size={18} />}
+                                            {roleName === 'Teacher' && <CheckCircle size={18} />}
+                                            {roleName === 'Editor' && <Edit size={18} />}
+                                            {roleName === 'Staff' && <Briefcase size={18} />}
+                                            {roleName === 'Accountant' && <Calculator size={18} />}
+                                            {roleName === 'Marketer' && <Megaphone size={18} />}
+                                            {roleName === 'Parent' && <Heart size={18} />}
+                                            {roleName === 'Admin' && <Shield size={18} />}
+                                            {!['Student', 'Teacher', 'Editor', 'Staff', 'Accountant', 'Marketer', 'Parent', 'Admin'].includes(roleName) && <User size={18} />}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-800 group-hover:text-indigo-900 transition-colors">{roleName} Profile</h4>
+                                            <p className="text-[10px] text-slate-400 font-bold group-hover:text-indigo-400 transition-colors uppercase tracking-wider mt-0.5">Configure details & permissions</p>
+                                        </div>
+                                    </div>
+                                    <ChevronDown size={16} className="-rotate-90 text-slate-400 group-hover:text-indigo-650 transition-colors" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    }
+
     return createPortal(
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className={`${user.role === 'Student' ? 'bg-[#0b1329]' : 'h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
+                <div className={`${selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Guest' ? 'bg-[#0b1329]' : 'h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-medium font-black text-white tracking-tight">
-                            Edit {user.role}: {user.name}
-                        </h3>
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-medium font-black text-white tracking-tight">
+                                Edit {selectedRoleToEdit}: {user.name}
+                            </h3>
+                            {user.allowedRoles && user.allowedRoles.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedRoleToEdit(null)}
+                                    className="px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all"
+                                >
+                                    Change Role
+                                </button>
+                            )}
+                        </div>
                         <button
                             onClick={onClose}
                             className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-10"
@@ -2199,7 +2303,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {(user.role === 'Student' || user.role === 'Teacher' || user.role === 'Editor' || user.role === 'Accountant') && (
+                    {(selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor' || selectedRoleToEdit === 'Accountant') && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -2237,7 +2341,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                         )}
 
                         {activeTab === 'controls' ? (
-                            user.role === 'Student' ? renderStudentControls() : (user.role === 'Teacher' ? renderTeacherControls() : (user.role === 'Editor' ? renderEditorControls() : renderAccountantControls()))
+                            selectedRoleToEdit === 'Student' ? renderStudentControls() : (selectedRoleToEdit === 'Teacher' ? renderTeacherControls() : (selectedRoleToEdit === 'Editor' ? renderEditorControls() : renderAccountantControls()))
                         ) : (
                             <div className="grid grid-cols-1 gap-4">
                                 {currentUser?.role === 'Institute' || currentUser?.role === 'Editor' ? (
@@ -2312,7 +2416,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                     </div>
                                 </div>
 
-                                {user.role === 'Parent' && (
+                                {selectedRoleToEdit === 'Parent' && (
                                     <div className="grid grid-cols-1 gap-4">
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Linked Student</label>
@@ -2339,7 +2443,42 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                     </div>
                                 )}
 
-                                {user.role === 'Student' && (
+                                {selectedRoleToEdit === 'Guest' && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Course</label>
+                                            <select
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                value={formData.demoCourse}
+                                                onChange={e => setFormData({ ...formData, demoCourse: e.target.value })}
+                                            >
+                                                <option value="">Select Demo Course</option>
+                                                {filteredCourses.map(course => (
+                                                    <option key={course._id} value={course._id}>{course.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Duration</label>
+                                            <select
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                value={formData.demoDuration}
+                                                onChange={e => setFormData({ ...formData, demoDuration: parseInt(e.target.value) })}
+                                            >
+                                                <option value="1">1 Day</option>
+                                                <option value="2">2 Days</option>
+                                                <option value="3">3 Days</option>
+                                                <option value="5">5 Days</option>
+                                                <option value="7">7 Days</option>
+                                                <option value="10">10 Days</option>
+                                                <option value="15">15 Days</option>
+                                                <option value="30">30 Days</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedRoleToEdit === 'Student' && (
                                     <>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
@@ -2429,7 +2568,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                     </>
                                 )}
 
-                                {user.role === 'Teacher' && (
+                                {(selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') && (
                                     <>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
@@ -2447,7 +2586,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                 </select>
                                             </div>
                                             <div className="relative">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Teaching Subjects</label>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">
+                                                    {selectedRoleToEdit === 'Teacher' ? 'Teaching Subjects' : 'Assigned Subjects'}
+                                                </label>
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -2490,7 +2631,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                                                                 }
                                                                                 setFormData({ ...formData, subjects: newSubjects.join(', ') });
                                                                             }}
-                                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-550 h-4 w-4 accent-indigo-600 cursor-pointer"
+                                                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
                                                                         />
                                                                         <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
                                                                             {sub}
@@ -2507,8 +2648,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                                             </div>
                                         </div>
 
-                                        {formData.course && (
-                                            <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4">
+                                        {selectedRoleToEdit === 'Teacher' && formData.course && (
+                                            <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>
                                                     <div className="flex gap-4">
@@ -2620,7 +2761,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                             </div>
                         )}
 
-                        {activeTab === 'basic' && (user.role === 'Student' || user.role === 'Teacher' || user.role === 'Editor' || user.role === 'Accountant') ? (
+                        {activeTab === 'basic' && (selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor' || selectedRoleToEdit === 'Accountant') ? (
                             <button
                                 type="button"
                                 onClick={handleNextTab}

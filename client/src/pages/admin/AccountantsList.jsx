@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -17,10 +17,12 @@ const AccountantsList = () => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [accountants, setAccountants] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -29,13 +31,17 @@ const AccountantsList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterInstitute]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('/api/users?role=Accountant');
-            setAccountants(res.data);
+            const [userRes, instsRes] = await Promise.all([
+                axios.get('/api/users?role=Accountant'),
+                axios.get('/api/setup/institutes')
+            ]);
+            setAccountants(userRes.data);
+            setInstitutes(instsRes.data);
             setLoading(false);
         } catch (error) {
             console.error("Error fetching accountants:", error);
@@ -60,9 +66,10 @@ const AccountantsList = () => {
     };
 
     const filteredAccountants = accountants.filter(accountant =>
-        accountant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (filterInstitute === 'All' || (accountant.institute?._id === filterInstitute || accountant.institute === filterInstitute)) &&
+        (accountant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         accountant._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        accountant.email.toLowerCase().includes(searchTerm.toLowerCase())
+        accountant.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const totalPages = Math.ceil(filteredAccountants.length / itemsPerPage);
@@ -84,14 +91,12 @@ const AccountantsList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && (
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                            <Plus size={20} /> Add New Accountant
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                        <Plus size={20} /> Add New Accountant
+                    </button>
                 </div>
             </div>
 
@@ -136,6 +141,23 @@ const AccountantsList = () => {
                         />
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
+
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -201,18 +223,16 @@ const AccountantsList = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
-                                            {user?.role !== 'Admin' && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedUser(accountant);
-                                                        setIsEditModalOpen(true);
-                                                    }}
-                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
-                                                    title="Edit Accountant"
-                                                >
-                                                    <Edit size={20} />
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedUser(accountant);
+                                                    setIsEditModalOpen(true);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                title="Edit Accountant"
+                                            >
+                                                <Edit size={20} />
+                                            </button>
                                             <button
                                                 onClick={() => handleDelete(accountant._id)}
                                                 className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors ml-2"

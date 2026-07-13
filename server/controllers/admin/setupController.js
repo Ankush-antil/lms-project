@@ -318,7 +318,7 @@ const getCourses = asyncHandler(async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo } = req.body;
 
     // Determine status based on user role (req.user is populated by protect middleware)
     const status = 'active';
@@ -355,7 +355,8 @@ const createCourse = asyncHandler(async (req, res) => {
         syllabusType: syllabusType || 'link',
         maxStudentsPerSection: maxStudentsPerSection ? parseInt(maxStudentsPerSection) : 30,
         duration: duration ? parseInt(duration) : 0,
-        fee: fee ? parseFloat(fee) : 0
+        fee: fee ? parseFloat(fee) : 0,
+        isDemo: isDemo === true || isDemo === 'true'
     });
 
     // Log Activity
@@ -386,7 +387,7 @@ const computeSection = async (courseId) => {
 // @route   PUT /api/setup/courses/:id
 // @access  Private/Admin or Editor or Institute
 const updateCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo } = req.body;
     const course = await Course.findById(req.params.id);
 
     if (course) {
@@ -423,6 +424,7 @@ const updateCourse = asyncHandler(async (req, res) => {
         if (maxStudentsPerSection !== undefined) course.maxStudentsPerSection = parseInt(maxStudentsPerSection);
         if (duration !== undefined) course.duration = parseInt(duration) || 0;
         if (fee !== undefined) course.fee = parseFloat(fee) || 0;
+        if (isDemo !== undefined) course.isDemo = isDemo === true || isDemo === 'true';
 
         const updatedCourse = await course.save();
 

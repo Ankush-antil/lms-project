@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'],
+        enum: ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent', 'Guest'],
         default: 'Student'
     },
     institute: {
@@ -244,6 +244,8 @@ const userSchema = new mongoose.Schema({
         }
     },
     editorProfile: {
+        assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+        subjects: [{ type: String }],
         controls: {
             dashboard: {
                 enabled: { type: Boolean, default: true },
@@ -366,7 +368,13 @@ const userSchema = new mongoose.Schema({
     parentProfile: {
         student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
     },
-    isActive: { type: Boolean, default: true }
+    guestProfile: {
+        demoCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+        demoDuration: { type: Number, default: 1 }, // in days
+        demoExpiryDate: { type: Date }
+    },
+    isActive: { type: Boolean, default: true },
+    allowedRoles: { type: [String], default: [] }
 }, {
     timestamps: true
 });
@@ -374,6 +382,14 @@ const userSchema = new mongoose.Schema({
 // Optimization Indexes
 userSchema.index({ role: 1 });
 userSchema.index({ role: 1, 'studentProfile.section': 1 });
+
+// Ensure active role is in allowedRoles list
+userSchema.pre('save', function (next) {
+    if (this.role && !this.allowedRoles.includes(this.role)) {
+        this.allowedRoles.push(this.role);
+    }
+    next();
+});
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function (next) {

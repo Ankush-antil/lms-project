@@ -290,7 +290,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         studentAssignmentMode: 'all',
         assignedSections: [],
         assignedStudents: [],
-        controls: DEFAULT_STUDENT_CONTROLS
+        controls: DEFAULT_STUDENT_CONTROLS,
+        demoCourse: '',
+        demoDuration: 1
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -321,7 +323,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     }, [formData.course, role]);
 
     useEffect(() => {
-        if (formData.course && (role === 'Teacher' || role === 'Student')) {
+        if (formData.course && (role === 'Teacher' || role === 'Student' || role === 'Editor')) {
             const fetchCourseStudents = async () => {
                 try {
                     setLoadingStudents(true);
@@ -367,7 +369,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : (role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS : DEFAULT_STUDENT_CONTROLS))),
                 parentProfile: {
                     student: ''
-                }
+                },
+                demoCourse: '',
+                demoDuration: 1
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -2116,9 +2120,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     };
 
     // Filter courses if institute selected
-    const filteredCourses = formData.institute
+    const filteredCourses = (formData.institute
         ? courses.filter(c => c.institute?._id === formData.institute || c.institute === formData.institute)
-        : courses;
+        : courses).filter(c => role === 'Guest' ? c.isDemo === true : !c.isDemo);
 
     const selectedCourseObj = courses.find(c => c._id === formData.course);
     const availableSubjects = selectedCourseObj?.subjects || [];
@@ -2190,7 +2194,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className={`${role === 'Student' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
+                <div className={`${role === 'Student' || role === 'Guest' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xl font-medium font-black text-white tracking-tight">
                             {createdUser ? 'Success!' : `Add New ${role}`}
@@ -2311,7 +2315,43 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         </div>
                                     </div>
 
+                                    {role === 'Guest' && (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Course</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                    required
+                                                    value={formData.demoCourse}
+                                                    onChange={e => setFormData({ ...formData, demoCourse: e.target.value })}
+                                                >
+                                                    <option value="">Select Demo Course</option>
+                                                    {filteredCourses.map(course => (
+                                                        <option key={course._id} value={course._id}>{course.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
 
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Duration</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                    required
+                                                    value={formData.demoDuration}
+                                                    onChange={e => setFormData({ ...formData, demoDuration: parseInt(e.target.value) })}
+                                                >
+                                                    <option value="1">1 Day</option>
+                                                    <option value="2">2 Days</option>
+                                                    <option value="3">3 Days</option>
+                                                    <option value="5">5 Days</option>
+                                                    <option value="7">7 Days</option>
+                                                    <option value="10">10 Days</option>
+                                                    <option value="15">15 Days</option>
+                                                    <option value="30">30 Days</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {role === 'Parent' && (
                                         <div className="grid grid-cols-1 gap-4">
@@ -2427,7 +2467,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         </>
                                     )}
 
-                                    {role === 'Teacher' && (
+                                    {(role === 'Teacher' || role === 'Editor') && (
                                         <>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
@@ -2445,7 +2485,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                     </select>
                                                 </div>
                                                 <div className="relative">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Teaching Subjects</label>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">
+                                                        {role === 'Teacher' ? 'Teaching Subjects' : 'Assigned Subjects'}
+                                                    </label>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -2488,7 +2530,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                                                     }
                                                                                     setFormData({ ...formData, subjects: newSubjects.join(', ') });
                                                                                 }}
-                                                                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 accent-indigo-600 cursor-pointer"
+                                                                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
                                                                             />
                                                                             <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
                                                                                 {sub}
@@ -2505,8 +2547,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 </div>
                                             </div>
 
-                                            {formData.course && (
-                                                <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4">
+                                            {role === 'Teacher' && formData.course && (
+                                                <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                     <div>
                                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>
                                                         <div className="flex gap-4">
@@ -2609,9 +2651,10 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Temporary Password</label>
                                         <input
                                             type="text"
-                                            className="w-full bg-slate-100/50 border border-dashed border-slate-200 rounded-2xl py-3 px-4 text-sm font-mono font-bold text-indigo-600 outline-none"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-mono font-bold text-[#0b1329] outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                                             value={formData.password}
-                                            readOnly
+                                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                            required
                                         />
                                     </div>
                                 </div>

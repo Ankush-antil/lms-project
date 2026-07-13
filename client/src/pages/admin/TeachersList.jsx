@@ -4,12 +4,56 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Plus, GraduationCap, Trash2, Edit, ChevronDown } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Filter, ChevronDown, Calendar, UserCheck, Save } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
+import TeacherAttendanceDetailModal from '../../components/common/TeacherAttendanceDetailModal';
+
+const calculateSpendingTime = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return '—';
+    const parseTimeToMinutes = (timeStr) => {
+        const clean = timeStr.trim().toUpperCase();
+        let hours = 0;
+        let minutes = 0;
+        
+        const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+        if (ampmMatch) {
+            hours = parseInt(ampmMatch[1], 10);
+            minutes = parseInt(ampmMatch[2], 10);
+            const ampm = ampmMatch[3];
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            return hours * 60 + minutes;
+        }
+        
+        const HHMMMatch = clean.match(/^(\d{1,2}):(\d{2})$/);
+        if (HHMMMatch) {
+            hours = parseInt(HHMMMatch[1], 10);
+            minutes = parseInt(HHMMMatch[2], 10);
+            return hours * 60 + minutes;
+        }
+        return null;
+    };
+    
+    const startMins = parseTimeToMinutes(checkIn);
+    const endMins = parseTimeToMinutes(checkOut);
+    
+    if (startMins === null || endMins === null) return '—';
+    
+    let diff = endMins - startMins;
+    if (diff < 0) diff += 24 * 60;
+    
+    const hrs = Math.floor(diff / 60);
+    const mins = diff % 60;
+    
+    if (hrs > 0) {
+        return `${hrs} hr${hrs > 1 ? 's' : ''} ${mins > 0 ? `${mins} min${mins > 1 ? 's' : ''}` : ''}`;
+    }
+    return `${mins} min${mins > 1 ? 's' : ''}`;
+};
 
 const TeachersList = () => {
     const { user } = useAuth();
@@ -18,11 +62,22 @@ const TeachersList = () => {
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCourse, setFilterCourse] = useState('All');
+    const [filterInstitute, setFilterInstitute] = useState('All');
+    const [filterSubject, setFilterSubject] = useState('All');
+    const [filterSection, setFilterSection] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [activeTab, setActiveTab] = useState('directory'); // directory, attendance
+    const [selectedTeacherId, setSelectedTeacherId] = useState(null);
+    const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attendanceRecords, setAttendanceRecords] = useState({});
+    const [submittingAttendance, setSubmittingAttendance] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
 
     const [teachers, setTeachers] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -31,8 +86,111 @@ const TeachersList = () => {
     const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     useEffect(() => {
+        setEditingId(null);
+    }, [attendanceDate, activeTab]);
+
+    useEffect(() => {
+        if (!teachers.length) return;
+        const init = {};
+        teachers.forEach(t => {
+            const existing = t.teacherProfile?.physicalAttendance?.find(a => a.date === attendanceDate);
+            init[t._id] = {
+                status: existing ? (existing.status || 'Present') : '',
+                note: existing?.teacherNote || '',
+                checkInTime: existing?.checkInTime || '',
+                checkOutTime: existing?.checkOutTime || '',
+            };
+        });
+        setAttendanceRecords(init);
+    }, [teachers, attendanceDate]);
+
+    const renderStatusBadge = (status) => {
+        switch (status) {
+            case 'Present':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-250 shadow-sm">Present</span>;
+            case 'Absent':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-rose-50 text-rose-700 border border-rose-250 shadow-sm">Absent</span>;
+            case 'Leave':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-amber-50 text-amber-700 border border-amber-250 shadow-sm">Leave</span>;
+            case 'Holiday':
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-blue-50 text-blue-700 border border-blue-250 shadow-sm">Holiday</span>;
+            default:
+                return <span className="px-2.5 py-1 text-xs font-extrabold rounded-xl bg-slate-100 text-slate-400 border border-slate-200">Not Marked</span>;
+        }
+    };
+
+    const handleStartEdit = (teacherId, currentRecord) => {
+        setEditingId(teacherId);
+        setEditRecord({
+            status: currentRecord.status || 'Present',
+            checkInTime: currentRecord.checkInTime || '',
+            checkOutTime: currentRecord.checkOutTime || ''
+        });
+    };
+
+    const handleSaveSingleAttendance = async (teacherId) => {
+        try {
+            setSubmittingAttendance(true);
+            await axios.post('/api/users/bulk-physical-attendance', {
+                date: attendanceDate,
+                attendanceRecords: [{
+                    studentId: teacherId,
+                    status: editRecord.status,
+                    checkInTime: editRecord.checkInTime || '',
+                    checkOutTime: editRecord.checkOutTime || '',
+                    note: ''
+                }]
+            });
+            toast.success('Attendance updated successfully!');
+            setEditingId(null);
+            await fetchData();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.message || 'Failed to update attendance');
+        } finally {
+            setSubmittingAttendance(false);
+        }
+    };
+
+    const handleSaveAttendance = async () => {
+        try {
+            setSubmittingAttendance(true);
+            const recordsToSave = Object.entries(attendanceRecords).map(([teacherId, data]) => ({
+                studentId: teacherId, // Backend uses 'studentId' key for any user ID
+                status: data.status,
+                note: data.note || '',
+                checkInTime: data.checkInTime || '',
+                checkOutTime: data.checkOutTime || '',
+            }));
+
+            await axios.post('/api/users/bulk-physical-attendance', {
+                date: attendanceDate,
+                attendanceRecords: recordsToSave
+            });
+            
+            toast.success(`Teacher attendance saved for ${attendanceDate}!`);
+            await fetchData();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.message || 'Failed to save attendance');
+        } finally {
+            setSubmittingAttendance(false);
+        }
+    };
+
+    const handleAttendanceStatusChange = (teacherId, status) => {
+        setAttendanceRecords(prev => ({
+            ...prev,
+            [teacherId]: {
+                ...(prev[teacherId] || { note: '', checkInTime: '', checkOutTime: '' }),
+                status
+            }
+        }));
+    };
+
+    useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterCourse]);
+    }, [searchTerm, filterCourse, filterInstitute, filterSubject, filterSection, activeTab]);
 
     const handleToggleFlag = async (flagName) => {
         try {
@@ -52,12 +210,14 @@ const TeachersList = () => {
 
     const fetchData = async () => {
         try {
-            const [userRes, courseRes] = await Promise.all([
+            const [userRes, courseRes, instsRes] = await Promise.all([
                 axios.get('/api/users?role=Teacher'),
-                axios.get('/api/setup/courses')
+                axios.get('/api/setup/courses'),
+                axios.get('/api/setup/institutes')
             ]);
             setTeachers(userRes.data);
             setCourses(courseRes.data);
+            setInstitutes(instsRes.data);
 
             const instId = userInfo?.institute?._id || userInfo?.institute;
             if (instId && userInfo?.role === 'Institute') {
@@ -104,9 +264,15 @@ const TeachersList = () => {
 
     const filteredTeachers = teachers.filter(teacher =>
         (filterCourse === 'All' || (teacher.teacherProfile?.assignedCourses?.some(c => c.name === filterCourse))) &&
+        (filterInstitute === 'All' || (teacher.institute?._id === filterInstitute || teacher.institute === filterInstitute)) &&
+        (filterSubject === 'All' || (teacher.teacherProfile?.subjects?.includes(filterSubject))) &&
+        (filterSection === 'All' || (teacher.teacherProfile?.assignedSections?.includes(filterSection))) &&
         (teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             teacher._id.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    const uniqueSubjects = [...new Set(teachers.flatMap(t => t.teacherProfile?.subjects || []).filter(Boolean))].sort();
+    const uniqueSections = [...new Set(teachers.flatMap(t => t.teacherProfile?.assignedSections || []).filter(Boolean))].sort();
 
     const totalPages = Math.ceil(filteredTeachers.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -161,7 +327,7 @@ const TeachersList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.role !== 'Editor' && user?.institute?.controls?.teacher?.addTeacher !== false && (
+                    {(user?.role !== 'Editor' && user?.institute?.controls?.teacher?.addTeacher !== false || user?.role === 'Admin') && (
                         <button
                             onClick={() => setIsModalOpen(true)}
                             className="btn-primary flex items-center gap-2"
@@ -180,8 +346,34 @@ const TeachersList = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full animate-fade-in">
+            {/* Tabs Navigation */}
+            <div className="flex border-b border-slate-200 mb-6 gap-2">
+                <button
+                    onClick={() => setActiveTab('directory')}
+                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                        activeTab === 'directory' 
+                            ? 'border-indigo-650 text-indigo-650' 
+                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    <UserCheck size={16} /> Teacher Directory
+                </button>
+                <button
+                    onClick={() => setActiveTab('attendance')}
+                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                        activeTab === 'attendance' 
+                            ? 'border-indigo-650 text-indigo-650' 
+                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    <Calendar size={16} /> Daily Attendance Log
+                </button>
+            </div>
+
+            {activeTab === 'directory' && (
+                <>
+                    {/* Filters */}
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full animate-fade-in">
                 <div className="relative flex-1 min-w-[180px] max-w-xs">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
@@ -222,6 +414,23 @@ const TeachersList = () => {
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
 
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
+
                     <div className="relative w-[150px]">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         <select
@@ -232,6 +441,36 @@ const TeachersList = () => {
                             <option value="All">All Courses</option>
                             {courses.map(course => (
                                 <option key={course._id} value={course.name}>{course.name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+
+                    <div className="relative w-[150px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select
+                            value={filterSubject}
+                            onChange={(e) => setFilterSubject(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                        >
+                            <option value="All">All Subjects</option>
+                            {uniqueSubjects.map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+
+                    <div className="relative w-[155px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select
+                            value={filterSection}
+                            onChange={(e) => setFilterSection(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                        >
+                            <option value="All">All Sections</option>
+                            {uniqueSections.map(sec => (
+                                <option key={sec} value={sec}>Section {sec}</option>
                             ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
@@ -319,7 +558,7 @@ const TeachersList = () => {
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
 
-                                            {user?.role !== 'Admin' && user?.institute?.controls?.teacher?.editTeacher !== false && (
+                                            {(user?.role === 'Admin' || user?.institute?.controls?.teacher?.editTeacher !== false) && (
                                                 <button
                                                     onClick={() => {
                                                         setSelectedUser(teacher);
@@ -415,8 +654,225 @@ const TeachersList = () => {
                             </button>
                         </div>
                     </div>
-                )}
-            </div>
+                    )}
+                </div>
+                </>
+            )}
+
+            {activeTab === 'attendance' && (
+                <div className="space-y-6 animate-fade-in">
+                    {/* Attendance Filter Row */}
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full">
+                        <div className="relative flex-1 min-w-[180px] max-w-xs">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search by Name or ID..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+
+                        <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                            {user?.role === 'Admin' && (
+                                <div className="relative w-[180px]">
+                                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <select
+                                        value={filterInstitute}
+                                        onChange={(e) => setFilterInstitute(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                                    >
+                                        <option value="All">All Institutes</option>
+                                        {institutes.map(inst => (
+                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                </div>
+                            )}
+
+                            <div className="relative w-[150px]">
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <select
+                                    value={filterCourse}
+                                    onChange={(e) => setFilterCourse(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                                >
+                                    <option value="All">All Courses</option>
+                                    {courses.map(course => (
+                                        <option key={course._id} value={course.name}>{course.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Controls Row */}
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Attendance Date:</span>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="date"
+                                    value={attendanceDate}
+                                    onChange={(e) => setAttendanceDate(e.target.value)}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all cursor-pointer"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Teachers list for attendance */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="w-full overflow-hidden">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                                        <th className="p-4 w-[24%] text-left">Teacher Name</th>
+                                        <th className="p-4 w-[10%] text-center">ID</th>
+                                        <th className="p-4 w-[22%] text-left">Institute</th>
+                                        <th className="p-4 w-[16%] text-center">Attendance Status</th>
+                                        <th className="p-4 w-[16%] text-center">Check-In / Out</th>
+                                        <th className="p-4 w-[8%] text-center">Time</th>
+                                        <th className="p-4 w-[8%] text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paginatedTeachers.length > 0 ? (
+                                        paginatedTeachers.map((teacher) => {
+                                            const record = attendanceRecords[teacher._id] || { status: '', checkInTime: '', checkOutTime: '' };
+                                            return (
+                                                <tr key={teacher._id} className="hover:bg-slate-50/50 transition-colors group">
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                                {teacher.avatar ? (
+                                                                    <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover rounded-full" />
+                                                                ) : (
+                                                                    teacher.name[0]
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="font-bold text-slate-800 text-xs truncate">{teacher.name}</span>
+                                                                <span className="text-[10px] text-slate-400 font-semibold truncate">{teacher.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-center text-slate-500 text-[11px] font-bold" title={teacher._id}>
+                                                        #{teacher._id.slice(-6)}
+                                                    </td>
+                                                    <td className="p-4 text-left text-slate-500 text-xs font-semibold truncate" title={teacher.institute?.name || 'N/A'}>
+                                                        {teacher.institute?.name || 'N/A'}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        {renderStatusBadge(record.status)}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className="text-xs font-bold text-slate-650">
+                                                            {record.checkInTime || record.checkOutTime ? (
+                                                                `${record.checkInTime || '—'} to ${record.checkOutTime || '—'}`
+                                                            ) : '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-center text-xs font-bold text-slate-500">
+                                                        {calculateSpendingTime(record.checkInTime, record.checkOutTime)}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedTeacherId(teacher._id)}
+                                                                className="px-2.5 py-1.5 text-xs font-bold text-indigo-650 hover:text-indigo-850 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-100 transition cursor-pointer"
+                                                            >
+                                                                Logs
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="7" className="p-8 text-center text-slate-500 font-bold">
+                                                No teachers found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {filteredTeachers.length > 0 && (
+                            <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                                <div className="text-sm font-semibold text-slate-500">
+                                    Showing <span className="text-slate-700">{startIndex + 1}</span> to{' '}
+                                    <span className="text-slate-700">{Math.min(startIndex + itemsPerPage, filteredTeachers.length)}</span> of{' '}
+                                    <span className="text-slate-700">{filteredTeachers.length}</span> entries
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        className="px-3.5 py-1.5 text-xs font-bold text-slate-650 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Previous
+                                    </button>
+                                    <div className="flex gap-1">
+                                        {(() => {
+                                            const pages = [];
+                                            const maxVisible = 5;
+                                            if (totalPages <= maxVisible) {
+                                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                            } else {
+                                                pages.push(1);
+                                                let start = Math.max(2, currentPage - 1);
+                                                let end = Math.min(totalPages - 1, currentPage + 1);
+                                                if (currentPage <= 2) {
+                                                    end = 4;
+                                                } else if (currentPage >= totalPages - 1) {
+                                                    start = totalPages - 3;
+                                                }
+                                                if (start > 2) pages.push('...');
+                                                for (let i = start; i <= end; i++) pages.push(i);
+                                                if (end < totalPages - 1) pages.push('...');
+                                                pages.push(totalPages);
+                                            }
+                                            return pages.map((p, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    disabled={p === '...'}
+                                                    onClick={() => p !== '...' && setCurrentPage(p)}
+                                                    className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
+                                                        p === '...'
+                                                            ? 'text-slate-400 cursor-default bg-transparent'
+                                                            : currentPage === p
+                                                                ? 'bg-[#0b1329] text-white shadow-md'
+                                                                : 'text-slate-650 hover:bg-slate-100 bg-transparent'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ));
+                                        })()}
+                                    </div>
+                                    <button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        className="px-3.5 py-1.5 text-xs font-bold text-slate-650 hover:bg-slate-100 border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             <AddUserModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -442,6 +898,12 @@ const TeachersList = () => {
                 permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
                 renderItemDetail={(item) => `Email: ${item.email} | Courses: ${item.teacherProfile?.assignedCourses?.map(c => c.name).join(', ') || 'N/A'}`}
             />
+            {selectedTeacherId && (
+                <TeacherAttendanceDetailModal
+                    teacherId={selectedTeacherId}
+                    onClose={() => setSelectedTeacherId(null)}
+                />
+            )}
         </DashboardLayout>
     );
 };

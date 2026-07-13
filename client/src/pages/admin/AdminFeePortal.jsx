@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -284,7 +285,7 @@ const ReceiptModal = ({ receipt, onClose }) => {
 
     const studentName = receipt.studentName || receipt.student?.name || '—';
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             {/* Off-white receipt card */}
             <div className="bg-white rounded-2xl w-full max-w-[440px] shadow-2xl overflow-hidden">
@@ -392,7 +393,8 @@ const ReceiptModal = ({ receipt, onClose }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -424,7 +426,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
         toast.success(`Fee reminder sent to ${student.name || 'Student'}!`);
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
             <div className="bg-white rounded-3xl w-full max-w-[720px] shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
                 
@@ -540,7 +542,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
 
                             {/* Actions */}
                             <div className="flex gap-2">
-                                {canPerform('feePortal', 'collectFee') && (
+                                {onCollect && canPerform('feePortal', 'collectFee') && (
                                     <button
                                         onClick={() => {
                                             onCollect(student._id);
@@ -575,7 +577,7 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                                         <th className="px-4 py-2">Date</th>
                                         <th className="px-4 py-2">Amount</th>
                                         <th className="px-4 py-2">Mode</th>
-                                        <th className="px-4 py-2 text-center">Actions</th>
+                                        <th className="px-4 py-2 text-center">lasers</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -621,7 +623,8 @@ const StudentDetailsModal = ({ record, receipts, onClose, onCollect, onOpenRecei
                 </div>
 
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -1131,7 +1134,7 @@ const CollectFeeForm = ({ students, preselectedId, onCancel, onSuccess }) => {
 
 /* ─── Collect Fee Modal Wrapper ─── */
 const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden relative border border-slate-100 flex flex-col max-h-[90vh]">
                 {/* Header */}
@@ -1159,7 +1162,8 @@ const CollectFeeModal = ({ students, onClose, onSuccess, preselectedId }) => {
                     />
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -1176,10 +1180,10 @@ const NAV_ITEMS = [
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-export default function AdminFeePortal({ embedded = false }) {
+export default function AdminFeePortal({ embedded = false, viewOnly = false }) {
     const { user } = useAuth();
     const { socket } = useSocket();
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState(viewOnly ? 'students' : 'dashboard');
     const [loading, setLoading] = useState(false);
 
     // Data state
@@ -1193,6 +1197,8 @@ export default function AdminFeePortal({ embedded = false }) {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
+    const [instituteFilter, setInstituteFilter] = useState('All');
 
     const canPerform = (feature, subAction) => {
         if (user?.role !== 'Accountant') return true;
@@ -1279,13 +1285,19 @@ export default function AdminFeePortal({ embedded = false }) {
     const [syncLoading, setSyncLoading] = useState(false);
     const [spreadsheetIdInput, setSpreadsheetIdInput] = useState('');
 
-    const fetchAll = async () => {
+    const fetchAll = async (targetInstId = instituteFilter) => {
         setLoading(true);
         try {
-            const [mergedR, configR] = await Promise.all([
-                axios.get(`/api/fees/admin/dashboard-data`, { withCredentials: true }),
+            const endpoints = [
+                axios.get(`/api/fees/admin/dashboard-data?instituteId=${targetInstId}`, { withCredentials: true }),
                 axios.get(`/api/sync/config`, { withCredentials: true }).catch(() => ({ data: null }))
-            ]);
+            ];
+            if (user?.role === 'Admin') {
+                endpoints.push(axios.get('/api/setup/institutes'));
+            }
+            const results = await Promise.all(endpoints);
+            const [mergedR, configR, instsR] = results;
+
             const { stats, students, pendingDues, receipts, reports } = mergedR.data;
             setStats(stats);
             setStudents(students);
@@ -1296,12 +1308,20 @@ export default function AdminFeePortal({ embedded = false }) {
                 setSyncConfig(configR.data);
                 setSpreadsheetIdInput(configR.data.spreadsheetId || '');
             }
+            if (instsR && instsR.data) {
+                setInstitutes(instsR.data);
+            }
             return students;
         } catch (e) {
             toast.error('Failed to load fee data');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleInstituteChange = (val) => {
+        setInstituteFilter(val);
+        fetchAll(val);
     };
 
     const saveAllSettings = async () => {
@@ -1594,6 +1614,15 @@ export default function AdminFeePortal({ embedded = false }) {
                             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, course..."
                                 className="w-full bg-white/5 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500" />
                         </div>
+                        {user?.role === 'Admin' && (
+                            <select value={instituteFilter} onChange={e => handleInstituteChange(e.target.value)}
+                                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="All" className="bg-white">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id} className="bg-white">{inst.name}</option>
+                                ))}
+                            </select>
+                        )}
                         <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
                             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-indigo-500">
                             <option value="All" className="bg-white">All Courses</option>
@@ -1608,7 +1637,7 @@ export default function AdminFeePortal({ embedded = false }) {
                         <span className="text-xs text-slate-500 self-center">Showing {filteredStudents.length} of {students.length}</span>
                     </div>
 
-                    {syncConfig?.spreadsheetId ? (
+                    {!viewOnly && (syncConfig?.spreadsheetId ? (
                         <a 
                             href={sheetUrl} 
                             target="_blank" 
@@ -1624,40 +1653,115 @@ export default function AdminFeePortal({ embedded = false }) {
                         >
                             <FileText size={12} /> Link to Google Sheet
                         </button>
-                    )}
+                    ))}
                 </div>
 
                 {/* Table */}
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm" style={{minWidth: '1200px'}}>
-                        <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50">
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Adm. No.</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Student</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Father Name</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 1</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 2</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Joining Date</th>
-                                <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course / Batch</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course Fee</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Extra Charges</th>
-                                <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Balance</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Months</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Status</th>
-                                <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedStudents.length === 0 && (
-                                <tr><td colSpan={13} className="text-center py-10 text-slate-500">No records found</td></tr>
-                            )}
+                    <div className={viewOnly ? "w-full overflow-hidden" : "overflow-x-auto"}>
+                        <table className={`w-full text-sm ${viewOnly ? 'table-fixed' : ''}`} style={viewOnly ? {} : {minWidth: '1200px'}}>
+                            <thead>
+                                {viewOnly ? (
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-bold w-[22%] text-left">Student Name</th>
+                                        <th className="p-4 font-bold text-center w-[10%]">Adm. No.</th>
+                                        <th className="p-4 font-bold w-[22%] text-left">Course & Batch</th>
+                                        <th className="p-4 font-bold text-right w-[12%]">Total Fee</th>
+                                        <th className="p-4 font-bold text-right w-[12%]">Paid Amount</th>
+                                        <th className="p-4 font-bold text-right w-[12%]">Balance</th>
+                                        <th className="p-4 font-bold text-center w-[10%]">Status</th>
+                                        <th className="p-4 font-bold text-right w-[10%]">lasers</th>
+                                    </tr>
+                                ) : (
+                                    <tr className="border-b border-slate-200 bg-slate-50">
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Adm. No.</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Student</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Father Name</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 1</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Mobile 2</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Joining Date</th>
+                                        <th className="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course / Batch</th>
+                                        <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Course Fee</th>
+                                        <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Extra Charges</th>
+                                        <th className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Balance</th>
+                                        <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Months</th>
+                                        <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">Status</th>
+                                        <th className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">lasers</th>
+                                    </tr>
+                                )}
+                            </thead>
+                            <tbody>
+                                {paginatedStudents.length === 0 && (
+                                    <tr><td colSpan={viewOnly ? 8 : 13} className="text-center py-10 text-slate-500">No records found</td></tr>
+                                )}
                             {paginatedStudents.map(r => {
                                 const totalExtra = (r.extraCharges || []).reduce((s, ec) => s + (ec.amount || 0), 0);
                                 const joiningDate = r.student?.studentProfile?.enrollmentDate
                                     ? new Date(r.student.studentProfile.enrollmentDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
                                     : '—';
-                                return (
+                                
+                                return viewOnly ? (
+                                    <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                        {/* Student Name */}
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar name={r.student?.name || ''} size={30} />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="font-bold text-slate-800 text-xs truncate" title={r.student?.name}>{r.student?.name || '—'}</span>
+                                                    <span className="text-[10px] text-slate-400 font-semibold truncate" title={r.student?.email}>{r.student?.email || ''}</span>
+                                                    {user?.role === 'Admin' && r.student?.institute && (
+                                                        <span className="text-[9px] text-indigo-650 font-bold truncate mt-0.5">
+                                                            {institutes.find(i => i._id === (r.student.institute?._id || r.student.institute))?.name || 'N/A'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        {/* Adm. No */}
+                                        <td className="p-4 text-center">
+                                            <span className="text-slate-500 text-xs font-mono">{r.student?.admissionNo || '—'}</span>
+                                        </td>
+                                        {/* Course & Batch */}
+                                        <td className="p-4">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold text-slate-700 truncate" title={r.course}>{r.course || '—'}</span>
+                                                <span className="text-[10px] text-slate-400 font-extrabold uppercase truncate" title={r.batch}>{r.batch || ''}</span>
+                                            </div>
+                                        </td>
+                                        {/* Total Fee */}
+                                        <td className="p-4 text-right">
+                                            <span className="text-slate-700 text-xs font-bold">{fmt(r.totalFee + totalExtra)}</span>
+                                        </td>
+                                        {/* Paid Amount */}
+                                        <td className="p-4 text-right">
+                                            <span className="text-slate-700 text-xs font-bold">{fmt(r.paidAmount || 0)}</span>
+                                        </td>
+                                        {/* Balance */}
+                                        <td className="p-4 text-right">
+                                            <span className={`text-xs font-bold ${r.pendingAmount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                {fmt(r.pendingAmount)}
+                                            </span>
+                                        </td>
+                                        {/* Status */}
+                                        <td className="p-4 text-center">
+                                            <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase tracking-wider ${STATUS_COLORS[r.status] || 'bg-slate-100 text-slate-650'}`}>{r.status}</span>
+                                        </td>
+                                        {/* Actions */}
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end">
+                                                {r.student?._id && (
+                                                    <button 
+                                                        onClick={() => setSelectedStudentForDetails(r)}
+                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-650 transition-colors"
+                                                        title="View Student Details"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : (
                                     <tr key={r._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                         {/* Admission No */}
                                         <td className="px-4 py-3 whitespace-nowrap">
@@ -1670,6 +1774,11 @@ export default function AdminFeePortal({ embedded = false }) {
                                                 <div>
                                                     <p className="text-slate-800 text-sm font-bold">{r.student?.name || '—'}</p>
                                                     <p className="text-slate-400 text-xs">{r.student?.email || ''}</p>
+                                                    {user?.role === 'Admin' && r.student?.institute && (
+                                                        <p className="text-[10px] text-indigo-655 font-bold mt-0.5">
+                                                            {institutes.find(i => i._id === (r.student.institute?._id || r.student.institute))?.name || 'N/A'}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -1726,7 +1835,7 @@ export default function AdminFeePortal({ embedded = false }) {
                                                 {r.student?._id && (
                                                     <button 
                                                         onClick={() => setSelectedStudentForDetails(r)}
-                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-650 transition-colors"
                                                         title="View Student Details"
                                                     >
                                                         <Eye size={15} />
@@ -1738,7 +1847,7 @@ export default function AdminFeePortal({ embedded = false }) {
                                                             setSelectedStudentForEdit(r.student);
                                                             setIsEditModalOpen(true);
                                                         }}
-                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                                                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-650 transition-colors"
                                                         title="Edit Student"
                                                     >
                                                         <Edit size={15} />
@@ -2348,6 +2457,34 @@ export default function AdminFeePortal({ embedded = false }) {
             </div>
         );
     };
+
+    if (viewOnly) {
+        return (
+            <div className="w-full bg-[#f1f5f9] text-slate-800 flex flex-col min-h-[600px]">
+                <div className="flex-1 overflow-y-auto py-1">
+                    {loading && !stats ? (
+                        <SkeletonLoader />
+                    ) : (
+                        renderStudents()
+                    )}
+                </div>
+                {/* Modals */}
+                {selectedReceipt && <ReceiptModal receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+                {selectedStudentForDetails && (
+                    <StudentDetailsModal
+                        record={selectedStudentForDetails}
+                        receipts={receipts}
+                        onClose={() => setSelectedStudentForDetails(null)}
+                        onCollect={null}
+                        onOpenReceipt={(rec) => setSelectedReceipt(rec)}
+                        onDelete={null}
+                        onDeleteTransaction={null}
+                        onDeleteExtraCharge={null}
+                    />
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className={`${embedded ? 'w-full rounded-3xl border border-slate-200 shadow-sm overflow-hidden' : 'min-h-screen'} bg-[#f1f5f9] text-slate-800 flex flex-col`}>

@@ -1,24 +1,39 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Trash2, Calendar, Eye } from 'lucide-react';
+import { Search, Filter, Trash2, Calendar, Eye, Plus, Edit, ChevronDown } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
 import PublicResponseModal from '../../components/common/PublicResponseModal';
 import CandidateTestsModal from '../../components/common/CandidateTestsModal';
+import AddUserModal from '../../components/AddUserModal';
+import EditUserModal from '../../components/EditUserModal';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
     const { openProfile } = useUserProfile();
+    const location = useLocation();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('All');
     const [viewTab, setViewTab] = useState('registered'); // 'registered' | 'guest' | 'limited'
+
+    // Synchronize viewTab with URL query parameter
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const tab = queryParams.get('tab');
+        if (tab && ['registered', 'guest', 'limited'].includes(tab)) {
+            setViewTab(tab);
+        }
+    }, [location]);
+
     const [users, setUsers] = useState([]);
     const [guests, setGuests] = useState([]);
     const [limitedUsers, setLimitedUsers] = useState([]);
+    const [roleRequests, setRoleRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -27,22 +42,40 @@ const UsersList = () => {
     const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
     const [selectedCandidateGroup, setSelectedCandidateGroup] = useState(null);
     const [isCandidateModalOpen, setIsCandidateModalOpen] = useState(false);
+    const [activeRolesTooltipUserId, setActiveRolesTooltipUserId] = useState(null);
+    const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
+    const [isEditGuestModalOpen, setIsEditGuestModalOpen] = useState(false);
+    const [selectedGuestUser, setSelectedGuestUser] = useState(null);
+    const [filterInstitute, setFilterInstitute] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterRole, viewTab]);
+        setActiveRolesTooltipUserId(null);
+    }, [searchTerm, filterRole, viewTab, filterInstitute]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [userRes, guestRes, limitedRes] = await Promise.all([
+            const promises = [
                 axios.get('/api/users'),
                 axios.get('/api/setup/institute-applications'),
                 axios.get('/api/public-tests/admin/submissions')
-            ]);
-            setUsers(userRes.data);
-            setGuests(guestRes.data);
-            setLimitedUsers(limitedRes.data);
+            ];
+
+            if (currentUser?.role === 'Admin' || currentUser?.role === 'Institute') {
+                promises.push(axios.get('/api/users/role-requests'));
+            }
+
+            const results = await Promise.all(promises);
+            setUsers(results[0].data);
+            setGuests(results[1].data);
+            setLimitedUsers(results[2].data);
+            if (results[3]) {
+                setRoleRequests(results[3].data);
+            }
+            const instsRes = await axios.get('/api/setup/institutes');
+            setInstitutes(instsRes.data);
             setLoading(false);
         } catch (error) {
             console.error("Error fetching users directory:", error);
@@ -117,19 +150,75 @@ const UsersList = () => {
         }
     };
 
+    const handleApproveRoleRequest = async (id) => {
+        try {
+            await axios.put(`/api/users/role-requests/${id}/approve`);
+            toast.success('Role request approved successfully');
+            fetchData();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error approving request');
+        }
+    };
+
+    const handleRejectRoleRequest = async (id) => {
+        try {
+            await axios.put(`/api/users/role-requests/${id}/reject`);
+            toast.success('Role request rejected successfully');
+            fetchData();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error rejecting request');
+        }
+    };
+
+    const filteredRoleRequests = useMemo(() => {
+        return roleRequests.filter(req => 
+            (filterInstitute === 'All' || (req.user?.institute?._id === filterInstitute || req.user?.institute === filterInstitute)) &&
+            ((req.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (req.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (req.requestedRole || '').toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [roleRequests, searchTerm, filterInstitute]);
+
     const filteredUsers = users.filter(user =>
         (filterRole === 'All' || user.role === filterRole) &&
+        (filterInstitute === 'All' || (user.institute?._id === filterInstitute || user.institute === filterInstitute)) &&
         (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase())))
     );
 
-    const filteredGuests = guests.filter(g =>
-        g.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (g.guestEmail && g.guestEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        g.guestPhone.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const combinedGuests = useMemo(() => {
+        // Find all users from the users list who have role === 'Guest'
+        const guestUsers = users.filter(u => u.role === 'Guest' || (u.allowedRoles && u.allowedRoles.includes('Guest')));
+        
+        // Map guestUsers to match the Application structure so they render seamlessly
+        const mappedGuestUsers = guestUsers.map(u => ({
+            _id: u._id,
+            guestName: u.name,
+            guestEmail: u.email,
+            guestPhone: u.mobileNumber || 'N/A',
+            institute: u.institute,
+            course: u.guestProfile?.demoCourse || null,
+            guestProfile: u.guestProfile,
+            status: 'Registered', // Custom status to show they are registered accounts
+            createdAt: u.createdAt,
+            isUserAccount: true, // Flag to identify it's a real user account
+            user: u
+        }));
+
+        // Return combined list of applications and mapped guest users
+        return [...mappedGuestUsers, ...guests];
+    }, [users, guests]);
+
+    const filteredGuests = useMemo(() => {
+        return combinedGuests.filter(g =>
+            (filterInstitute === 'All' || (g.institute?._id === filterInstitute || g.institute === filterInstitute)) &&
+            ((g.guestName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (g.guestEmail && g.guestEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (g.guestPhone || '').toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [combinedGuests, searchTerm, filterInstitute]);
 
     const groupedLimitedUsers = useMemo(() => {
         const groups = {};
@@ -156,14 +245,15 @@ const UsersList = () => {
     }, [limitedUsers]);
 
     const filteredLimited = groupedLimitedUsers.filter(l =>
-        l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.email && l.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (l.phone && l.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+        (l.phone && l.phone.toLowerCase().includes(searchTerm.toLowerCase())))
     );
 
     const getFilteredItems = () => {
         if (viewTab === 'registered') return filteredUsers;
         if (viewTab === 'guest') return filteredGuests;
+        if (viewTab === 'role-requests') return filteredRoleRequests;
         return filteredLimited;
     };
 
@@ -232,7 +322,7 @@ const UsersList = () => {
             </div>
 
             {/* View Tabs */}
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6 max-w-xl">
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6 max-w-2xl">
                 <button
                     onClick={() => setViewTab('registered')}
                     className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
@@ -241,7 +331,7 @@ const UsersList = () => {
                             : 'text-slate-500 hover:text-slate-800 bg-transparent'
                     }`}
                 >
-                    Registered Users ({users.length})
+                    Registered Users ({users.filter(u => u.role !== 'Guest').length})
                 </button>
                 <button
                     onClick={() => setViewTab('limited')}
@@ -261,8 +351,20 @@ const UsersList = () => {
                             : 'text-slate-500 hover:text-slate-800 bg-transparent'
                     }`}
                 >
-                    Guest Users ({guests.length})
+                    Guest Users ({combinedGuests.length})
                 </button>
+                {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute') && (
+                    <button
+                        onClick={() => setViewTab('role-requests')}
+                        className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
+                            viewTab === 'role-requests'
+                                ? 'bg-white text-slate-900 shadow-md'
+                                : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                        }`}
+                    >
+                        Role Requests ({roleRequests.filter(r => r.status === 'Pending').length})
+                    </button>
+                )}
             </div>
 
             {/* Filters */}
@@ -279,6 +381,16 @@ const UsersList = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    {viewTab === 'guest' && (
+                        <button
+                            type="button"
+                            onClick={() => setIsAddGuestModalOpen(true)}
+                            className="px-4 py-2.5 bg-[#0b1329] text-white hover:bg-slate-800 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-md shadow-[#0b1329]/10 cursor-pointer"
+                        >
+                            <Plus size={14} />
+                            Add New Guest User
+                        </button>
+                    )}
                     {/* Entries selector */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
@@ -307,6 +419,23 @@ const UsersList = () => {
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
 
+                    {currentUser?.role === 'Admin' && (
+                        <div className="relative min-w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-10 pr-8 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
+
                     {viewTab === 'registered' && (
                         <div className="relative min-w-[180px]">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -322,6 +451,7 @@ const UsersList = () => {
                                 <option value="Editor">Editor</option>
                                 <option value="Student">Student</option>
                             </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                         </div>
                     )}
                 </div>
@@ -334,15 +464,17 @@ const UsersList = () => {
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
                                 <th className="p-4 font-semibold whitespace-nowrap">
-                                    {viewTab === 'registered' ? 'User Details' : viewTab === 'guest' ? 'Guest Name & Email' : 'Test Taker Details'}
+                                    {viewTab === 'registered' ? 'User Details' : viewTab === 'guest' ? 'Guest Name & Email' : viewTab === 'role-requests' ? 'User Details' : 'Test Taker Details'}
                                 </th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Role</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">
+                                    {viewTab === 'role-requests' ? 'Role Shift' : 'Role'}
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">
                                     {viewTab === 'limited' ? 'Submitted Date' : 'Created/Applied Date'}
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">
-                                    {viewTab === 'registered' ? 'Institute' : viewTab === 'guest' ? 'Course & Institute' : 'Test Title'}
+                                    {viewTab === 'registered' ? 'Institute' : viewTab === 'guest' ? 'Course & Institute' : viewTab === 'role-requests' ? 'Institute' : 'Test Title'}
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
@@ -379,6 +511,8 @@ const UsersList = () => {
                                                         )
                                                     ) : viewTab === 'guest' ? (
                                                         u.guestName[0]?.toUpperCase()
+                                                    ) : viewTab === 'role-requests' ? (
+                                                        u.user?.name?.[0]?.toUpperCase() || 'U'
                                                     ) : (
                                                         u.name[0]?.toUpperCase()
                                                     )}
@@ -390,10 +524,10 @@ const UsersList = () => {
                                                         }`}
                                                         onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                     >
-                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : u.name} maxLength={20} />
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.guestName : viewTab === 'role-requests' ? (u.user?.name || 'User') : u.name} maxLength={20} />
                                                     </span>
                                                     <span className="text-xs text-slate-400">
-                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : u.email} maxLength={25} />
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : viewTab === 'role-requests' ? (u.user?.email || 'N/A') : u.email} maxLength={25} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -401,9 +535,73 @@ const UsersList = () => {
 
                                         {/* Role column */}
                                         <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'registered' ? u.role : viewTab === 'guest' ? 'Guest User' : 'Limited User')}`}>
-                                                {viewTab === 'registered' ? u.role : viewTab === 'guest' ? 'Guest User' : 'Limited User'}
-                                            </span>
+                                            {viewTab === 'role-requests' ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.user?.role)}`}>
+                                                        {u.user?.role}
+                                                    </span>
+                                                    <span className="text-slate-400 font-bold">➔</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
+                                                        {u.requestedRole}
+                                                    </span>
+                                                </div>
+                                            ) : viewTab === 'registered' ? (
+                                                (() => {
+                                                    const roles = u.allowedRoles && u.allowedRoles.length > 0 ? u.allowedRoles : [u.role];
+                                                    return (
+                                                        <div className="flex items-center relative overflow-visible">
+                                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(roles[0])}`}>
+                                                                {roles[0]}
+                                                            </span>
+                                                            {roles.length > 1 && (
+                                                                <div className="relative overflow-visible flex items-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveRolesTooltipUserId(activeRolesTooltipUserId === u._id ? null : u._id);
+                                                                        }}
+                                                                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-[10px] font-black transition-all ml-1.5 cursor-pointer select-none"
+                                                                    >
+                                                                        +{roles.length - 1} more
+                                                                    </button>
+                                                                    {activeRolesTooltipUserId === u._id && (
+                                                                        <>
+                                                                            <div 
+                                                                                className="fixed inset-0 z-[60]" 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setActiveRolesTooltipUserId(null);
+                                                                                }} 
+                                                                            />
+                                                                            <div 
+                                                                                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-[70] p-2.5 min-w-[120px] flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-150"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1.5 pb-1 border-b border-slate-100 text-center">
+                                                                                    All Roles
+                                                                                </div>
+                                                                                {roles.map((roleName) => (
+                                                                                    <span 
+                                                                                        key={roleName} 
+                                                                                        className={`px-2.5 py-1 rounded-xl text-[10px] font-bold text-center ${getRoleBadgeClass(roleName)}`}
+                                                                                    >
+                                                                                        {roleName}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()
+                                            ) : (
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'guest' ? 'Guest User' : 'Limited User')}`}>
+                                                    {viewTab === 'guest' ? 'Guest User' : 'Limited User'}
+                                                </span>
+                                            )}
                                         </td>
 
                                         {/* Date column */}
@@ -423,6 +621,17 @@ const UsersList = () => {
                                         <td className="p-4 text-slate-600 whitespace-nowrap text-sm">
                                             {viewTab === 'registered' ? (
                                                 <TruncatedCell text={u.institute?.name || u.institute || 'N/A'} maxLength={20} />
+                                            ) : viewTab === 'role-requests' ? (
+                                                <div className="flex flex-col">
+                                                    {u.requestedRole === 'Student' && u.course && (
+                                                        <span className="font-bold text-slate-700 text-xs">
+                                                            Course: <TruncatedCell text={u.course.name} maxLength={20} />
+                                                        </span>
+                                                    )}
+                                                    <span className="text-[10px] text-slate-400">
+                                                        <TruncatedCell text={u.institute?.name || 'N/A'} maxLength={20} />
+                                                    </span>
+                                                </div>
                                             ) : viewTab === 'guest' ? (
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-700">
@@ -448,6 +657,8 @@ const UsersList = () => {
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">
                                             {viewTab === 'registered' ? (
                                                 u.mobileNumber || 'N/A'
+                                            ) : viewTab === 'role-requests' ? (
+                                                u.user?.mobileNumber || 'N/A'
                                             ) : viewTab === 'guest' ? (
                                                 u.guestPhone || 'N/A'
                                             ) : (
@@ -461,9 +672,9 @@ const UsersList = () => {
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.isActive !== false ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
                                                     {u.isActive !== false ? 'Active' : 'Inactive'}
                                                 </span>
-                                            ) : viewTab === 'guest' ? (
+                                            ) : viewTab === 'role-requests' ? (
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                    u.status === 'Accepted' || u.status === 'Registered'
+                                                    u.status === 'Approved'
                                                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                                         : u.status === 'Rejected'
                                                             ? 'bg-rose-50 text-rose-600 border border-rose-100'
@@ -471,6 +682,31 @@ const UsersList = () => {
                                                 }`}>
                                                     {u.status}
                                                 </span>
+                                            ) : viewTab === 'guest' ? (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                                        u.status === 'Accepted' || u.status === 'Registered'
+                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                            : u.status === 'Rejected'
+                                                                ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                                : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                                    }`}>
+                                                        {u.status}
+                                                    </span>
+                                                    {u.isUserAccount && u.guestProfile?.demoExpiryDate && (
+                                                        <span className={`text-[10px] font-bold ${
+                                                            new Date(u.guestProfile.demoExpiryDate) < new Date()
+                                                                ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
+                                                                : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
+                                                        }`}>
+                                                            {(() => {
+                                                                const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
+                                                                const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                                                return days <= 0 ? 'Expired' : `${days}d Left`;
+                                                            })()}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 (() => {
                                                     if (u.submissions?.length === 1) {
@@ -507,6 +743,25 @@ const UsersList = () => {
                                                 ) : (
                                                     <span className="text-xs text-slate-400 italic px-2">You (Current Admin)</span>
                                                 )
+                                            ) : viewTab === 'role-requests' ? (
+                                                u.status === 'Pending' ? (
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => handleApproveRoleRequest(u._id)}
+                                                            className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRejectRoleRequest(u._id)}
+                                                            className="px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`text-xs font-bold px-3 ${u.status === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>{u.status}</span>
+                                                )
                                             ) : viewTab === 'limited' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <button
@@ -527,6 +782,32 @@ const UsersList = () => {
                                                         <Trash2 size={18} />
                                                     </button>
                                                 </div>
+                                            ) : viewTab === 'guest' ? (
+                                                u.isUserAccount ? (
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            onClick={() => {
+                                                                // Find the actual user object from users array
+                                                                const actualUser = users.find(usr => usr._id === u._id);
+                                                                setSelectedGuestUser(actualUser || u);
+                                                                setIsEditGuestModalOpen(true);
+                                                            }}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                            title="Edit Guest User"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(u._id)}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                            title="Delete Guest Account"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400 italic px-3">-</span>
+                                                )
                                             ) : (
                                                 <span className="text-xs text-slate-400 italic px-3">-</span>
                                             )}
@@ -644,6 +925,23 @@ const UsersList = () => {
                     submission={selectedSubmission}
                 />
             )}
+            {isAddGuestModalOpen && (
+                <AddUserModal
+                    isOpen={isAddGuestModalOpen}
+                    onClose={() => setIsAddGuestModalOpen(false)}
+                    role="Guest"
+                    onSuccess={fetchData}
+                />
+            )}
+            <EditUserModal
+                isOpen={isEditGuestModalOpen}
+                onClose={() => {
+                    setIsEditGuestModalOpen(false);
+                    setSelectedGuestUser(null);
+                }}
+                user={selectedGuestUser}
+                onSuccess={fetchData}
+            />
         </DashboardLayout>
     );
 };

@@ -6,11 +6,13 @@ import {
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
-    Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare
+    Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
+    RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { useUserProfile } from '../common/UserProfileContext';
+import ChangeRoleModal from '../common/ChangeRoleModal';
 
 /* ─────────────────────────────────────────
    Chat Notification Bar
@@ -432,10 +434,16 @@ const NotificationBell = ({ safeRole }) => {
 const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
-    const { logout, user, switchAccount, removeAccount } = useAuth();
+    const { logout, user, switchAccount, removeAccount, login } = useAuth();
     const handleLogout = () => logout();
     const safeRole = role || 'Admin';
     const showBell = safeRole === 'Teacher' || safeRole === 'Student';
+    const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
+    
+    // Switch Account password prompt states
+    const [switchingToAccount, setSwitchingToAccount] = useState(null);
+    const [switchPassword, setSwitchPassword] = useState('');
+    const [switchLoading, setSwitchLoading] = useState(false);
 
     const savedAccounts = (() => {
         try {
@@ -501,6 +509,14 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         </div>
 
                         <button
+                            onClick={() => setIsChangeRoleModalOpen(true)}
+                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
+                        >
+                            <RefreshCw size={16} />
+                            <span>Change Role</span>
+                        </button>
+
+                        <button
                             onClick={() => openProfile(user?._id || user?.id)}
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
                         >
@@ -515,7 +531,14 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                                 {savedAccounts.map((acc, index) => (
                                     <div
                                         key={index}
-                                        onClick={() => switchAccount(acc.token, acc.user)}
+                                        onClick={() => {
+                                            if (user?.role === 'Student') {
+                                                setSwitchingToAccount(acc);
+                                                setSwitchPassword('');
+                                            } else {
+                                                switchAccount(acc.token, acc.user);
+                                            }
+                                        }}
                                         className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
                                     >
                                         <div className="flex items-center gap-2.5 min-w-0">
@@ -576,6 +599,67 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </div>
+            <ChangeRoleModal isOpen={isChangeRoleModalOpen} onClose={() => setIsChangeRoleModalOpen(false)} />
+            {switchingToAccount && (
+                <div className="fixed inset-0 z-[9999] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#0b1329] text-white w-full max-w-md rounded-3xl p-6 border border-slate-800 shadow-2xl animate-fade-in">
+                        <h3 className="text-lg font-black text-slate-100 mb-2">Switch Account Security</h3>
+                        <p className="text-xs text-slate-400 font-bold mb-4">
+                            You are switching from a Student profile. Please enter the password for <span className="text-indigo-400">{switchingToAccount.user?.email}</span> to verify your identity.
+                        </p>
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!switchPassword) {
+                                    toast.error("Please enter password");
+                                    return;
+                                }
+                                try {
+                                    setSwitchLoading(true);
+                                    const loggedIn = await login(switchingToAccount.user?.email, switchPassword);
+                                    setSwitchingToAccount(null);
+                                    setSwitchPassword('');
+                                    switchAccount(loggedIn.token, loggedIn);
+                                } catch (err) {
+                                    toast.error(err.response?.data?.message || "Invalid password. Access denied.");
+                                } finally {
+                                    setSwitchLoading(false);
+                                }
+                            }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Account Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={switchPassword}
+                                    onChange={(e) => setSwitchPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder-slate-600"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSwitchingToAccount(null)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-all bg-transparent border border-slate-800 rounded-xl cursor-pointer"
+                                    disabled={switchLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 transition-all rounded-xl cursor-pointer shadow-lg shadow-indigo-650/15 disabled:opacity-50"
+                                    disabled={switchLoading}
+                                >
+                                    {switchLoading ? "Verifying..." : "Verify & Switch"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </header>
     );
 };

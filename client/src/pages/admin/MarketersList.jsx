@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -17,10 +17,12 @@ const MarketersList = () => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterInstitute, setFilterInstitute] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [marketers, setMarketers] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -29,13 +31,17 @@ const MarketersList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterInstitute]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('/api/users?role=Marketer');
-            setMarketers(res.data);
+            const [userRes, instsRes] = await Promise.all([
+                axios.get('/api/users?role=Marketer'),
+                axios.get('/api/setup/institutes')
+            ]);
+            setMarketers(userRes.data);
+            setInstitutes(instsRes.data);
             setLoading(false);
         } catch (error) {
             console.error("Error fetching marketers:", error);
@@ -60,9 +66,10 @@ const MarketersList = () => {
     };
 
     const filteredMarketers = marketers.filter(marketer =>
-        marketer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (filterInstitute === 'All' || (marketer.institute?._id === filterInstitute || marketer.institute === filterInstitute)) &&
+        (marketer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         marketer._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        marketer.email.toLowerCase().includes(searchTerm.toLowerCase())
+        marketer.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const totalPages = Math.ceil(filteredMarketers.length / itemsPerPage);
@@ -136,6 +143,23 @@ const MarketersList = () => {
                         />
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
+
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -15,7 +15,12 @@ const {
     saveActivityConfig,
     getDeletedUsers,
     restoreUser,
-    permanentlyDeleteUser
+    permanentlyDeleteUser,
+    createRoleRequest,
+    getRoleRequests,
+    approveRoleRequest,
+    rejectRoleRequest,
+    switchRole
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -37,6 +42,13 @@ router.post('/activity-configs', protect, saveActivityConfig);
 router.get('/trash', protect, adminOrEditor, getDeletedUsers);
 router.put('/:id/restore', protect, adminOrEditor, restoreUser);
 router.delete('/:id/permanent', protect, adminOrEditor, permanentlyDeleteUser);
+
+// Role requests & Switch role (placed before :id to prevent matching as params)
+router.post('/role-requests', protect, createRoleRequest);
+router.get('/role-requests', protect, getRoleRequests);
+router.put('/role-requests/:id/approve', protect, approveRoleRequest);
+router.put('/role-requests/:id/reject', protect, rejectRoleRequest);
+router.put('/switch-role', protect, switchRole);
 
 // Specific routes
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);

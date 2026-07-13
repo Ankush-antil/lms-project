@@ -1219,6 +1219,204 @@ const switchRole = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Import Role Requests
+// @route   POST /api/users/role-requests/import
+// @access  Private (Admin / Institute)
+const importRoleRequests = asyncHandler(async (req, res) => {
+    const { requests } = req.body;
+    if (!Array.isArray(requests)) {
+        res.status(400);
+        throw new Error('Requests must be an array');
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const reqItem of requests) {
+        const { email, requestedRole, courseName } = reqItem;
+        if (!email || !requestedRole) {
+            results.errors.push({ row: reqItem, error: 'Email and requestedRole are required' });
+            continue;
+        }
+
+        try {
+            // Find User
+            const userObj = await User.findOne({ email });
+            if (!userObj) {
+                results.errors.push({ row: reqItem, error: `User with email ${email} not found` });
+                continue;
+            }
+
+            // Check if user already has this role
+            if (userObj.allowedRoles && userObj.allowedRoles.includes(requestedRole)) {
+                results.errors.push({ row: reqItem, error: `Role ${requestedRole} is already allowed for ${email}` });
+                continue;
+            }
+
+            // Resolve course if Student
+            let courseId = null;
+            if (requestedRole === 'Student' && courseName) {
+                const courseObj = await Course.findOne({ 
+                    name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
+                    institute: userObj.institute || req.user.institute
+                });
+                if (!courseObj) {
+                    results.errors.push({ row: reqItem, error: `Course "${courseName}" not found in this institute` });
+                    continue;
+                }
+                courseId = courseObj._id;
+            }
+
+            // Check if pending request exists
+            const existingRequest = await RoleRequest.findOne({
+                user: userObj._id,
+                requestedRole,
+                status: 'Pending'
+            });
+
+            if (existingRequest) {
+                results.errors.push({ row: reqItem, error: `A pending request for role ${requestedRole} already exists for ${email}` });
+                continue;
+            }
+
+            // Determine targetApprover
+            let targetApprover = 'Admin';
+            if (userObj.role === 'Institute') {
+                targetApprover = 'Admin';
+            } else if (userObj.institute) {
+                targetApprover = 'Institute';
+            }
+
+            // Create request
+            await RoleRequest.create({
+                user: userObj._id,
+                requestedRole,
+                institute: userObj.institute || null,
+                course: courseId,
+                targetApprover,
+                status: 'Pending'
+            });
+
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: reqItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} role requests`,
+        results
+    });
+});
+
+// @desc    Import Users in Bulk
+// @route   POST /api/users/import
+// @access  Private (Admin / Institute)
+const importUsers = asyncHandler(async (req, res) => {
+    const { users } = req.body;
+    if (!Array.isArray(users)) {
+        res.status(400);
+        throw new Error('Users must be an array');
+    }
+
+    let creatorInstitute = req.user.institute;
+    if (req.user.role === 'Admin' && req.body.institute) {
+        creatorInstitute = req.body.institute;
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const uItem of users) {
+        const { name, email, password, role, courseName, mobileNumber } = uItem;
+        if (!name || !email || !role) {
+            results.errors.push({ row: uItem, error: 'Name, email, and role are required' });
+            continue;
+        }
+
+        try {
+            const userExists = await User.findOne({ email });
+            if (userExists) {
+                results.errors.push({ row: uItem, error: `User with email ${email} already exists` });
+                continue;
+            }
+
+            let courseId = null;
+            if (courseName && ['Student', 'Teacher', 'Editor'].includes(role)) {
+                const courseObj = await Course.findOne({ 
+                    name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
+                    institute: creatorInstitute
+                });
+                if (courseObj) {
+                    courseId = courseObj._id;
+                } else if (role === 'Student') {
+                    results.errors.push({ row: uItem, error: `Course "${courseName}" not found in this institute` });
+                    continue;
+                }
+            }
+
+            const userFields = {
+                name,
+                email,
+                password: password || 'Welcome123',
+                role,
+                institute: creatorInstitute,
+                mobileNumber: mobileNumber || '',
+                callEnabled: true
+            };
+
+            if (role === 'Student') {
+                const assignedSection = await computeSection(courseId);
+                userFields.studentProfile = {
+                    course: courseId,
+                    section: assignedSection,
+                    enrollmentDate: new Date(),
+                    controls: {}
+                };
+            } else if (role === 'Teacher') {
+                userFields.teacherProfile = {
+                    assignedCourses: courseId ? [courseId] : [],
+                    subjects: [],
+                    studentAssignmentMode: 'all',
+                    assignedSections: [],
+                    assignedStudents: [],
+                    controls: {}
+                };
+            } else if (role === 'Editor') {
+                userFields.editorProfile = {
+                    assignedCourses: courseId ? [courseId] : [],
+                    subjects: [],
+                    controls: {}
+                };
+            } else if (role === 'Accountant') {
+                userFields.accountantProfile = { controls: {} };
+            } else if (role === 'Marketer') {
+                userFields.marketerProfile = { controls: {} };
+            } else if (role === 'Staff') {
+                userFields.staffProfile = { controls: {} };
+            } else if (role === 'Parent') {
+                userFields.parentProfile = { controls: {} };
+            }
+
+            await User.create(userFields);
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: uItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} users`,
+        results
+    });
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -1239,5 +1437,7 @@ module.exports = {
     getRoleRequests,
     approveRoleRequest,
     rejectRoleRequest,
+    importRoleRequests,
+    importUsers,
     switchRole
 };

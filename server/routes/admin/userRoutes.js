@@ -20,6 +20,8 @@ const {
     getRoleRequests,
     approveRoleRequest,
     rejectRoleRequest,
+    importRoleRequests,
+    importUsers,
     switchRole
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
@@ -45,12 +47,14 @@ router.delete('/:id/permanent', protect, adminOrEditor, permanentlyDeleteUser);
 
 // Role requests & Switch role (placed before :id to prevent matching as params)
 router.post('/role-requests', protect, createRoleRequest);
+router.post('/role-requests/import', protect, importRoleRequests);
 router.get('/role-requests', protect, getRoleRequests);
 router.put('/role-requests/:id/approve', protect, approveRoleRequest);
 router.put('/role-requests/:id/reject', protect, rejectRoleRequest);
 router.put('/switch-role', protect, switchRole);
 
 // Specific routes
+router.post('/import', protect, adminOrEditor, importUsers);
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);
 router.get('/:id', protect, getUserById);
 router.delete('/:id', protect, adminOrEditor, deleteUser);

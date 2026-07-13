@@ -681,81 +681,111 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const items = menuItems[safeRole] || [];
 
     const preparedItems = items.map(item => {
-        if (user?.role === 'Student') {
-            const controls = user.studentProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
-                if (name === 'my activities') controlKey = 'myActivity';
-                else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
-                else if (name === 'fee portal') controlKey = 'feePortal';
-                else if (name === 'tools') controlKey = 'tools';
-                else if (name === 'chat') controlKey = 'chat';
+        // 1. Check Institute-level global controls first
+        const instControls = user?.institute?.controls || (user?.role === 'Institute' ? user?.controls : null);
+        if (instControls) {
+            const name = item.name.toLowerCase();
+            let instControlKey = '';
+            if (name === 'drive') instControlKey = 'drive';
+            else if (name === 'notes') instControlKey = 'notes';
+            else if (name === 'chat') instControlKey = 'chat';
+            else if (name === 'tools') instControlKey = 'tools';
+            else if (name === 'courses') instControlKey = 'course';
+            else if (name === 'subjects') instControlKey = 'subject';
+            else if (name === 'activities' || name === 'student activities' || name === 'my activities') instControlKey = 'activities';
+            else if (name === 'students') instControlKey = 'student';
+            else if (name === 'teachers') instControlKey = 'teacher';
+            else if (name === 'editors') instControlKey = 'editor';
+            else if (name === 'accountants') instControlKey = 'accountant';
+            else if (name === 'my staff' || name === 'all staff' || name === 'staff') instControlKey = 'staff';
+            else if (name === 'parents') instControlKey = 'parent';
+            else if (name === 'dashboard' && user?.role === 'Institute') instControlKey = 'dashboard';
 
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
+            if (instControlKey) {
+                const ctrl = instControls[instControlKey];
+                if (ctrl && ctrl.show === false && ctrl.mode === 'disable') {
+                    return { ...item, disabled: true, note: ctrl.note || 'Disabled by Institute Administrator' };
                 }
             }
-        } else if (user?.role === 'Teacher') {
-            const controls = user.teacherProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
+        }
+
+        // 2. Check User-level individual controls
+        const userRole = user?.role;
+        let userControls = null;
+        if (userRole === 'Student') userControls = user.studentProfile?.controls;
+        else if (userRole === 'Teacher') userControls = user.teacherProfile?.controls;
+        else if (userRole === 'Editor') userControls = user.editorProfile?.controls;
+        else if (userRole === 'Accountant') userControls = user.accountantProfile?.controls;
+        else if (userRole === 'Marketer') userControls = user.marketerProfile?.controls;
+        else if (userRole === 'Staff') userControls = user.staffProfile?.controls;
+        else if (userRole === 'Parent') userControls = user.parentProfile?.controls;
+
+        if (userControls) {
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (userRole === 'Student') {
+                if (name === 'my activities') controlKey = 'myActivity';
+                else if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'my snapshots') controlKey = 'mySnapshots';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Teacher') {
                 if (name === 'dashboard') controlKey = 'dashboard';
                 else if (name === 'student activities') controlKey = 'studentActivities';
                 else if (name === 'evaluate') controlKey = 'evaluate';
                 else if (name === 'snapshots') controlKey = 'snapshots';
                 else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
                 else if (name === 'chat') controlKey = 'chat';
-
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
-                }
-            }
-        } else if (user?.role === 'Editor') {
-            const controls = user.editorProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
+            } else if (userRole === 'Editor') {
                 if (name === 'dashboard') controlKey = 'dashboard';
                 else if (name === 'teachers') controlKey = 'teachers';
                 else if (name === 'courses') controlKey = 'courses';
                 else if (name === 'subjects') controlKey = 'subjects';
                 else if (name === 'activities') controlKey = 'activities';
                 else if (name === 'tools') controlKey = 'tools';
-                else if (name === 'chat') controlKey = 'chat';
-
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
-                }
-            }
-        } else if (user?.role === 'Accountant') {
-            const controls = user.accountantProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
-                if (name === 'fee portal') controlKey = 'feePortal';
                 else if (name === 'drive') controlKey = 'drive';
                 else if (name === 'notes') controlKey = 'notes';
                 else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Accountant') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Marketer') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Staff') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'task') controlKey = 'task';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'salary') controlKey = 'salary';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Parent') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student fee') controlKey = 'studentFee';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'activities') controlKey = 'activities';
+            }
 
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
+            if (controlKey) {
+                const ctrl = userControls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                    return { ...item, disabled: true, note: ctrl.note || 'Disabled by Administrator' };
                 }
             }
         }
+
         return item;
     });
 
@@ -764,118 +794,111 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         // Super Admins bypass all controls
         if (user?.role === 'Admin') return true;
 
-        if (user?.role === 'Student') {
-            const controls = user.studentProfile?.controls;
-            if (!controls) return true;
+        // 1. Check Institute-level global controls first if user belongs to an institute
+        const instControls = user?.institute?.controls || (user?.role === 'Institute' ? user?.controls : null);
+        if (instControls) {
+            const name = item.name.toLowerCase();
+            let instControlKey = '';
+            if (name === 'drive') instControlKey = 'drive';
+            else if (name === 'notes') instControlKey = 'notes';
+            else if (name === 'chat') instControlKey = 'chat';
+            else if (name === 'tools') instControlKey = 'tools';
+            else if (name === 'courses') instControlKey = 'course';
+            else if (name === 'subjects') instControlKey = 'subject';
+            else if (name === 'activities' || name === 'student activities' || name === 'my activities') instControlKey = 'activities';
+            else if (name === 'students') instControlKey = 'student';
+            else if (name === 'teachers') instControlKey = 'teacher';
+            else if (name === 'editors') instControlKey = 'editor';
+            else if (name === 'accountants') instControlKey = 'accountant';
+            else if (name === 'my staff' || name === 'all staff' || name === 'staff') instControlKey = 'staff';
+            else if (name === 'parents') instControlKey = 'parent';
+            else if (name === 'dashboard' && user?.role === 'Institute') instControlKey = 'dashboard';
 
+            if (instControlKey) {
+                const ctrl = instControls[instControlKey];
+                if (ctrl && ctrl.show === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+        }
+
+        // 2. Check User-level individual controls
+        const userRole = user?.role;
+        let userControls = null;
+        if (userRole === 'Student') userControls = user.studentProfile?.controls;
+        else if (userRole === 'Teacher') userControls = user.teacherProfile?.controls;
+        else if (userRole === 'Editor') userControls = user.editorProfile?.controls;
+        else if (userRole === 'Accountant') userControls = user.accountantProfile?.controls;
+        else if (userRole === 'Marketer') userControls = user.marketerProfile?.controls;
+        else if (userRole === 'Staff') userControls = user.staffProfile?.controls;
+        else if (userRole === 'Parent') userControls = user.parentProfile?.controls;
+
+        if (userControls) {
             const name = item.name.toLowerCase();
             let controlKey = '';
-            if (name === 'my activities') controlKey = 'myActivity';
-            else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
-            else if (name === 'fee portal') controlKey = 'feePortal';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
+            if (userRole === 'Student') {
+                if (name === 'my activities') controlKey = 'myActivity';
+                else if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'my snapshots') controlKey = 'mySnapshots';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Teacher') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student activities') controlKey = 'studentActivities';
+                else if (name === 'evaluate') controlKey = 'evaluate';
+                else if (name === 'snapshots') controlKey = 'snapshots';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Editor') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'teachers') controlKey = 'teachers';
+                else if (name === 'courses') controlKey = 'courses';
+                else if (name === 'subjects') controlKey = 'subjects';
+                else if (name === 'activities') controlKey = 'activities';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Accountant') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Marketer') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Staff') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'task') controlKey = 'task';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'salary') controlKey = 'salary';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Parent') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student fee') controlKey = 'studentFee';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'activities') controlKey = 'activities';
+            }
 
             if (controlKey) {
-                const ctrl = controls[controlKey];
+                const ctrl = userControls[controlKey];
                 if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
                     return false;
                 }
             }
-            return true;
         }
 
-        if (user?.role === 'Teacher') {
-            const controls = user.teacherProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'dashboard') controlKey = 'dashboard';
-            else if (name === 'student activities') controlKey = 'studentActivities';
-            else if (name === 'evaluate') controlKey = 'evaluate';
-            else if (name === 'snapshots') controlKey = 'snapshots';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if (user?.role === 'Editor') {
-            const controls = user.editorProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'dashboard') controlKey = 'dashboard';
-            else if (name === 'teachers') controlKey = 'teachers';
-            else if (name === 'courses') controlKey = 'courses';
-            else if (name === 'subjects') controlKey = 'subjects';
-            else if (name === 'activities') controlKey = 'activities';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if (user?.role === 'Accountant') {
-            const controls = user.accountantProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'fee portal') controlKey = 'feePortal';
-            else if (name === 'drive') controlKey = 'drive';
-            else if (name === 'notes') controlKey = 'notes';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        const controls = user?.institute?.controls;
-        if (!controls) return true;
-
-        const name = item.name.toLowerCase();
-
-        if (name === 'dashboard') {
-            return controls.dashboard?.show !== false;
-        }
-        if (name === 'students') {
-            return controls.student?.show !== false;
-        }
-        if (name === 'teachers') {
-            return controls.teacher?.show !== false;
-        }
-        if (name === 'editors') {
-            return controls.editor?.show !== false;
-        }
-        if (name === 'courses' || name === 'subjects') {
-            return controls.course?.show !== false;
-        }
-        if (name === 'tools') {
-            return controls.tools?.show !== false;
-        }
-        if (name === 'chat') {
-            return controls.chat?.show !== false;
-        }
         return true;
     };
 

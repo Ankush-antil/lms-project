@@ -73,58 +73,7 @@ const userSchema = new mongoose.Schema({
             checkOutTime: { type: String, default: '' },
             markedBy: { type: String, default: '' }
         }],
-        controls: {
-            myActivity: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                inbox: {
-                    upcoming: { type: Boolean, default: true },
-                    submitted: { type: Boolean, default: true },
-                    returned: { type: Boolean, default: true },
-                    evaluated: { type: Boolean, default: true },
-                    expired: { type: Boolean, default: true },
-                    studyMaterial: { type: Boolean, default: true },
-                    tools: { type: Boolean, default: true },
-                    analytics: { type: Boolean, default: true }
-                }
-            },
-            dashboard: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' }
-            },
-            feePortal: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' }
-            },
-            tools: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                voiceRecorder: { type: Boolean, default: true },
-                videoRecorder: { type: Boolean, default: true },
-                fileUploader: { type: Boolean, default: true },
-                notesWriting: { type: Boolean, default: true },
-                screenshotTool: { type: Boolean, default: true },
-                screenRecorder: { type: Boolean, default: true },
-                webCalling: { type: Boolean, default: true }
-            },
-            chat: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                audioCall: { type: Boolean, default: true },
-                videoCall: { type: Boolean, default: true },
-                chatWithTeacher: { type: Boolean, default: true },
-                chatWithAdmin: { type: Boolean, default: true },
-                chatWithEditor: { type: Boolean, default: true }
-            }
-        }
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
 
     teacherProfile: {
@@ -156,193 +105,18 @@ const userSchema = new mongoose.Schema({
             locationRequired: { type: Boolean, default: false },
             scheduleTime: { type: String, default: '' }
         },
-        controls: {
-            dashboard: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                receivingCalls: { type: Boolean, default: true },
-                takeAction: { type: Boolean, default: true },
-                attendance: { type: Boolean, default: true },
-                contactStudents: { type: Boolean, default: true }
-            },
-            studentActivities: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                student: { type: Boolean, default: true },
-                inbox: { type: Boolean, default: true },
-                inboxDetails: {
-                    assign: { type: Boolean, default: true },
-                    upcoming: { type: Boolean, default: true },
-                    submitted: { type: Boolean, default: true },
-                    returned: { type: Boolean, default: true },
-                    evaluated: { type: Boolean, default: true },
-                    expired: { type: Boolean, default: true },
-                    studyMaterial: { type: Boolean, default: true },
-                    tools: { type: Boolean, default: true },
-                    analytics: { type: Boolean, default: true }
-                }
-            },
-            evaluate: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} }
-            },
-            snapshots: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                qrAttendance: { type: Boolean, default: true }
-            },
-            tools: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                formBuilderTool: { type: Boolean, default: true },
-                databaseCreatorTool: { type: Boolean, default: true },
-                elementsControl: { type: Boolean, default: true },
-                inputElements: { type: Boolean, default: true },
-                displayingElements: { type: Boolean, default: true },
-                recordingElements: { type: Boolean, default: true },
-                advanceElements: { type: Boolean, default: true },
-                addons: { type: Boolean, default: true },
-                theme: { type: Boolean, default: true },
-                createWithAi: { type: Boolean, default: true },
-                integrate: { type: Boolean, default: true },
-                import: { type: Boolean, default: true },
-                saveAsTemplate: { type: Boolean, default: true },
-                decideActivity: { type: Boolean, default: true },
-                templates: { type: Boolean, default: true },
-                locationLocked: { type: Boolean, default: true },
-                logicRules: { type: Boolean, default: true },
-                monitoring: { type: Boolean, default: true },
-                connectIt: { type: Boolean, default: true },
-                profileUnderSettings: { type: Boolean, default: true },
-                moreSettings: { type: Boolean, default: true },
-                responses: { type: Boolean, default: true },
-                collaborate: { type: Boolean, default: true },
-                manageAccess: { type: Boolean, default: true },
-                publicToWeb: { type: Boolean, default: true }
-            },
-            chat: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                audioCall: { type: Boolean, default: true },
-                videoCall: { type: Boolean, default: true },
-                chatStudent: { type: Boolean, default: true },
-                chatEditor: { type: Boolean, default: true },
-                chatInstitute: { type: Boolean, default: true }
-            }
-        }
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     editorProfile: {
         assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
         subjects: [{ type: String }],
-        controls: {
-            dashboard: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                createCourse: { type: Boolean, default: true },
-                launchTestBuilder: { type: Boolean, default: true }
-            },
-            teachers: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                addNewTeacher: { type: Boolean, default: true }
-            },
-            courses: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                addNewCourses: { type: Boolean, default: true }
-            },
-            subjects: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                addSubject: { type: Boolean, default: true }
-            },
-            activities: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                createNewAssessment: { type: Boolean, default: true },
-                lmsConnectedTests: { type: Boolean, default: true },
-                publicWebTests: { type: Boolean, default: true },
-                draftTests: { type: Boolean, default: true }
-            },
-            tools: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} }
-            },
-            chat: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                teacher: { type: Boolean, default: true },
-                editor: { type: Boolean, default: true },
-                students: { type: Boolean, default: true }
-            }
-        }
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     accountantProfile: {
-        controls: {
-            feePortal: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                collectFee: { type: Boolean, default: true },
-                editStructure: { type: Boolean, default: true },
-                deleteTransaction: { type: Boolean, default: true },
-                googleSheets: { type: Boolean, default: true },
-                viewReports: { type: Boolean, default: true }
-            },
-            chat: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                subNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
-                teacher: { type: Boolean, default: true },
-                editor: { type: Boolean, default: true },
-                students: { type: Boolean, default: true },
-                chatWithAdmin: { type: Boolean, default: true },
-                chatWithTeacher: { type: Boolean, default: true },
-                chatWithEditor: { type: Boolean, default: true },
-                chatWithStudent: { type: Boolean, default: true }
-            },
-            drive: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                uploadFiles: { type: Boolean, default: true },
-                deleteFiles: { type: Boolean, default: true }
-            },
-            notes: {
-                enabled: { type: Boolean, default: true },
-                mode: { type: String, enum: ['hide', 'disable'], default: 'hide' },
-                note: { type: String, default: '' },
-                createNotes: { type: Boolean, default: true },
-                deleteNotes: { type: Boolean, default: true }
-            }
-        }
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
+    },
+    marketerProfile: {
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     staffProfile: {
         designation: { type: String, default: '' },
@@ -363,10 +137,12 @@ const userSchema = new mongoose.Schema({
             checkInTime: { type: String, default: '' },
             checkOutTime: { type: String, default: '' },
             markedBy: { type: String, default: '' }
-        }]
+        }],
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     parentProfile: {
-        student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     guestProfile: {
         demoCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },

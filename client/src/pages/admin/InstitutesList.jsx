@@ -1,16 +1,18 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
+import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit, Building, MapPin, Hash, Eye, BookOpen, ChevronRight, Shield, X, Check } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Building, MapPin, Hash, Eye, BookOpen, ChevronRight, ChevronDown, ChevronUp, Shield, X, Check, Upload, Download } from 'lucide-react';
 import AddInstituteModal from '../../components/AddInstituteModal';
 import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
+
 
 const InstitutesList = () => {
     const { user } = useAuth();
@@ -34,40 +36,30 @@ const InstitutesList = () => {
     const [controlsData, setControlsData] = useState(null);
     const [savingControls, setSavingControls] = useState(false);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [expandedSections, setExpandedSections] = useState({});
+
+    const toggleSection = (section) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
 
     const defaultControls = {
-        dashboard: { show: true, application: true, staffRequest: true },
-        student: { show: true, admissionOpen: true, addStudent: true, editStudent: true },
-        teacher: { show: true, hiring: true, addTeacher: true, editTeacher: true },
-        editor: { show: true, hiring: true, addEditor: true, editEditor: true },
-        course: { show: true, addCourse: true, editCourse: true },
-        tools: {
-            show: true,
-            elementsControl: true,
-            inputElements: true,
-            displayingElements: true,
-            recordingElements: true,
-            advanceElements: true,
-            addons: true,
-            theme: true,
-            createWithAi: true,
-            integrate: true,
-            import: true,
-            saveAsTemplate: true,
-            decideActivity: true,
-            templates: true,
-            locationLocked: true,
-            logicRules: true,
-            monitoring: true,
-            connectIt: true,
-            profileUnderSettings: true,
-            moreSettings: true,
-            responses: true,
-            collaborate: true,
-            manageAccess: true,
-            publicToWeb: true
-        },
-        chat: { show: true }
+        dashboard: { show: true, mode: 'hide', note: '', application: true, staffRequest: true },
+        student: { show: true, mode: 'hide', note: '', admissionOpen: true, addStudent: true, editStudent: true, dailyAttendanceLog: true, feeManagement: true, studentDirectory: true },
+        teacher: { show: true, mode: 'hide', note: '', hiring: true, addTeacher: true, editTeacher: true, teacherDirectory: true, dailyAttendanceLog: true },
+        editor: { show: true, mode: 'hide', note: '', hiring: true, addEditor: true, editEditor: true },
+        accountant: { show: true, mode: 'hide', note: '', addAccountant: true, editAccountant: true },
+        staff: { show: true, mode: 'hide', note: '', addStaff: true, staffDirectory: true, attendanceManagement: true, salaryPayouts: true, taskAssignment: true },
+        parent: { show: true, mode: 'hide', note: '', addParent: true, editParent: true },
+        course: { show: true, mode: 'hide', note: '', addCourse: true, addNewCourse: true, addNewDemoCourse: true, editCourse: true },
+        subject: { show: true, mode: 'hide', note: '', addSubject: true, editSubject: true },
+        activities: { show: true, mode: 'hide', note: '', createAssignment: true, editAssignment: true, lmsConnectedTests: true, publicWebTest: true, draftTests: true, openFolderExplorer: true },
+        drive: { show: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+        notes: { show: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true },
+        tools: { show: true, mode: 'hide', note: '', formBuilderTool: true, databaseCreatorTool: true, elementsControl: true, inputElements: true, displayingElements: true, recordingElements: true, advanceElements: true, addons: true, theme: true, createWithAi: true, integrate: true, import: true, saveAsTemplate: true, decideActivity: true, templates: true, locationLocked: true, logicRules: true, monitoring: true, connectIt: true, profileUnderSettings: true, moreSettings: true, responses: true, collaborate: true, manageAccess: true, publicToWeb: true },
+        chat: { show: true, mode: 'hide', note: '' }
     };
 
     const openControlsPanel = (inst) => {
@@ -76,10 +68,18 @@ const InstitutesList = () => {
             student: { ...defaultControls.student, ...inst.controls?.student },
             teacher: { ...defaultControls.teacher, ...inst.controls?.teacher },
             editor: { ...defaultControls.editor, ...inst.controls?.editor },
+            accountant: { ...defaultControls.accountant, ...inst.controls?.accountant },
+            staff: { ...defaultControls.staff, ...inst.controls?.staff },
+            parent: { ...defaultControls.parent, ...inst.controls?.parent },
             course: { ...defaultControls.course, ...inst.controls?.course },
+            subject: { ...defaultControls.subject, ...inst.controls?.subject },
+            activities: { ...defaultControls.activities, ...inst.controls?.activities },
+            drive: { ...defaultControls.drive, ...inst.controls?.drive },
+            notes: { ...defaultControls.notes, ...inst.controls?.notes },
             tools: { ...defaultControls.tools, ...inst.controls?.tools },
             chat: { ...defaultControls.chat, ...inst.controls?.chat },
         };
+        setExpandedSections({});
         setControlsData(merged);
         setControlsPanel(inst);
     };
@@ -89,6 +89,62 @@ const InstitutesList = () => {
             ...prev,
             [section]: { ...prev[section], [field]: value }
         }));
+    };
+
+    const renderInstituteControlSection = ({ id, label, hasSubControls = false, subControls = null }) => {
+        const ctrl = controlsData?.[id] || { show: true, mode: 'hide', note: '' };
+        const isExpanded = !!expandedSections[id];
+
+        return (
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/80 space-y-3 shadow-sm hover:shadow-md/5 transition-all text-left">
+                <div 
+                    className="flex items-center justify-between border-b border-slate-100 pb-2 cursor-pointer select-none" 
+                    onClick={() => hasSubControls && toggleSection(id)}
+                >
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-slate-800">{label}</span>
+                        {hasSubControls && (
+                            isExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                        <select
+                            value={ctrl.mode || 'hide'}
+                            onChange={e => handleControlChange(id, 'mode', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-2 py-0.5 text-[10px] font-bold text-slate-600 outline-none cursor-pointer hover:border-indigo-300 transition-colors"
+                        >
+                            <option value="hide">Hide</option>
+                            <option value="disable">Disable</option>
+                        </select>
+                        <input 
+                            type="checkbox" 
+                            checked={ctrl.show !== false} 
+                            onChange={e => handleControlChange(id, 'show', e.target.checked)} 
+                            className="w-4 h-4 accent-indigo-650 cursor-pointer" 
+                        />
+                    </div>
+                </div>
+
+                {ctrl.show !== false && hasSubControls && isExpanded && (
+                    <div className="pl-1 pt-1 space-y-2 animate-fade-in">
+                        {subControls}
+                    </div>
+                )}
+
+                {ctrl.show === false && (
+                    <div className="w-full animate-fade-in pt-1">
+                        <label className="text-[9px] font-black text-slate-455 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                        <input
+                            type="text"
+                            value={ctrl.note || ''}
+                            onChange={e => handleControlChange(id, 'note', e.target.value)}
+                            placeholder={`Reason for deactivating ${label}`}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
+                        />
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const handleSaveControls = async () => {
@@ -191,6 +247,160 @@ const InstitutesList = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedInstitutes = filteredInstitutes.slice(startIndex, startIndex + itemsPerPage);
 
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importInstitutesRef = useRef(null);
+
+    const handleImportInstitutes = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        const filename = file.name.toLowerCase();
+
+        const processImported = async (parsed) => {
+            if (!Array.isArray(parsed)) {
+                toast.error('File must contain an array of institutes');
+                return;
+            }
+            const parsedMapped = parsed.map(row => {
+                const keys = Object.keys(row);
+                const nameKey = keys.find(k => k.toLowerCase() === 'name');
+                const codeKey = keys.find(k => k.toLowerCase() === 'code');
+                const emailKey = keys.find(k => ['contact email', 'contactemail', 'email'].includes(k.toLowerCase()));
+                const addressKey = keys.find(k => k.toLowerCase() === 'address');
+                const phoneKey = keys.find(k => k.toLowerCase() === 'phone');
+                const helplineKey = keys.find(k => ['helpline number', 'helplinenumber', 'helpline'].includes(k.toLowerCase()));
+                const passwordKey = keys.find(k => k.toLowerCase() === 'password');
+                const descKey = keys.find(k => ['description', 'desc'].includes(k.toLowerCase()));
+                const controlsKey = keys.find(k => k.toLowerCase() === 'controls');
+
+                return {
+                    name: nameKey ? String(row[nameKey]).trim() : '',
+                    code: codeKey ? String(row[codeKey]).trim() : '',
+                    contactEmail: emailKey ? String(row[emailKey]).trim() : '',
+                    address: addressKey ? String(row[addressKey]).trim() : '',
+                    phone: phoneKey ? String(row[phoneKey]).trim() : '',
+                    helplineNumber: helplineKey ? String(row[helplineKey]).trim() : '',
+                    password: passwordKey ? String(row[passwordKey]).trim() : '',
+                    description: descKey ? String(row[descKey]).trim() : '',
+                    controls: controlsKey ? row[controlsKey] : undefined
+                };
+            }).filter(item => item.name && item.code && item.contactEmail);
+
+            if (parsedMapped.length === 0) {
+                toast.error('No valid rows found. "Name", "Code" and "Contact Email" columns are required.');
+                return;
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} institutes...`);
+            try {
+                const res = await axios.post('/api/setup/institutes/import', { institutes: parsedMapped });
+                toast.dismiss(loadingToast);
+                const { successCount, errors } = res.data.results;
+                if (errors && errors.length > 0) {
+                    toast.success(`Successfully imported ${successCount} institutes. ${errors.length} failed.`);
+                } else {
+                    toast.success(`Successfully imported ${successCount} institutes!`);
+                }
+                fetchData();
+            } catch (err) {
+                toast.dismiss(loadingToast);
+                toast.error(err.response?.data?.message || 'Error importing institutes');
+            }
+        };
+
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    processImported(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+                    processImported(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
+    const exportInstitutes = (format) => {
+        const list = institutes;
+        if (list.length === 0) {
+            toast.error('No institutes to export');
+            return;
+        }
+
+        const rows = list.map(inst => ({
+            Name: inst.name || '',
+            Code: inst.code || '',
+            Address: inst.address || '',
+            'Contact Email': inst.contactEmail || '',
+            Phone: inst.phone || '',
+            'Helpline Number': inst.helplineNumber || '',
+            Description: inst.description || '',
+            Controls: inst.controls ? JSON.stringify(inst.controls) : '',
+            'Created At': inst.createdAt ? new Date(inst.createdAt).toLocaleString() : ''
+        }));
+
+        if (format === 'json') {
+            const jsonContent = JSON.stringify(list.map(inst => ({
+                name: inst.name || '',
+                code: inst.code || '',
+                address: inst.address || '',
+                contactEmail: inst.contactEmail || '',
+                phone: inst.phone || '',
+                helplineNumber: inst.helplineNumber || '',
+                description: inst.description || '',
+                controls: inst.controls || {}
+            })), null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `institutes_list_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} institutes to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `institutes_list_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} institutes to CSV`);
+        } else if (format === 'excel') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Institutes');
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `institutes_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} institutes to Excel`);
+        }
+    };
+
     return (
         <DashboardLayout role="Admin">
             {/* Header */}
@@ -207,6 +417,54 @@ const InstitutesList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
+                    <input
+                        type="file"
+                        ref={importInstitutesRef}
+                        onChange={handleImportInstitutes}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importInstitutesRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                        <Upload size={16} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportInstitutes('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportInstitutes('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportInstitutes('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
@@ -605,258 +863,200 @@ const InstitutesList = () => {
                                 <Shield size={13} className="shrink-0" />
                                 Uncheck items to hide them from this institute's admin panel.
                             </div>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                                {/* Dashboard */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Dashboard Page</span>
-                                        <input type="checkbox" checked={controlsData.dashboard?.show !== false} onChange={e => handleControlChange('dashboard', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.dashboard?.show !== false && (
-                                        <div className="pl-1 space-y-2">
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.dashboard?.application !== false} onChange={e => handleControlChange('dashboard', 'application', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Applications Tab
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.dashboard?.staffRequest !== false} onChange={e => handleControlChange('dashboard', 'staffRequest', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Staff Requests Tab
-                                            </label>
+                                {renderInstituteControlSection({
+                                    id: 'dashboard',
+                                    label: 'Dashboard Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.dashboard?.application !== false} onChange={e => handleControlChange('dashboard', 'application', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Applications Tab</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.dashboard?.staffRequest !== false} onChange={e => handleControlChange('dashboard', 'staffRequest', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Staff Requests Tab</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Students */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Student Page</span>
-                                        <input type="checkbox" checked={controlsData.student?.show !== false} onChange={e => handleControlChange('student', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.student?.show !== false && (
-                                        <div className="pl-1 space-y-2">
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.student?.admissionOpen !== false} onChange={e => handleControlChange('student', 'admissionOpen', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Admission Toggle
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.student?.addStudent !== false} onChange={e => handleControlChange('student', 'addStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Add Student Button
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.student?.editStudent !== false} onChange={e => handleControlChange('student', 'editStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Edit Student Button
-                                            </label>
+                                {renderInstituteControlSection({
+                                    id: 'student',
+                                    label: 'Student Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.admissionOpen !== false} onChange={e => handleControlChange('student', 'admissionOpen', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Admission Toggle</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.addStudent !== false} onChange={e => handleControlChange('student', 'addStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Student Button</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.editStudent !== false} onChange={e => handleControlChange('student', 'editStudent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit Student Button</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.dailyAttendanceLog !== false} onChange={e => handleControlChange('student', 'dailyAttendanceLog', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Daily Attendance Log</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.feeManagement !== false} onChange={e => handleControlChange('student', 'feeManagement', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Fee Management</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.student?.studentDirectory !== false} onChange={e => handleControlChange('student', 'studentDirectory', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Student Directory</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Teachers */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Teacher Page</span>
-                                        <input type="checkbox" checked={controlsData.teacher?.show !== false} onChange={e => handleControlChange('teacher', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.teacher?.show !== false && (
-                                        <div className="pl-1 space-y-2">
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.teacher?.hiring !== false} onChange={e => handleControlChange('teacher', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Hiring Toggle
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.teacher?.addTeacher !== false} onChange={e => handleControlChange('teacher', 'addTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Add Teacher Button
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.teacher?.editTeacher !== false} onChange={e => handleControlChange('teacher', 'editTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Edit Teacher Button
-                                            </label>
+                                {renderInstituteControlSection({
+                                    id: 'teacher',
+                                    label: 'Teacher Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.teacher?.hiring !== false} onChange={e => handleControlChange('teacher', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Hiring Toggle</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.teacher?.addTeacher !== false} onChange={e => handleControlChange('teacher', 'addTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Teacher Button</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.teacher?.editTeacher !== false} onChange={e => handleControlChange('teacher', 'editTeacher', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit Teacher Button</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.teacher?.teacherDirectory !== false} onChange={e => handleControlChange('teacher', 'teacherDirectory', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Teacher Directory</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.teacher?.dailyAttendanceLog !== false} onChange={e => handleControlChange('teacher', 'dailyAttendanceLog', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Daily Attendance Log</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Editors */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Editor Page</span>
-                                        <input type="checkbox" checked={controlsData.editor?.show !== false} onChange={e => handleControlChange('editor', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.editor?.show !== false && (
-                                        <div className="pl-1 space-y-2">
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.editor?.hiring !== false} onChange={e => handleControlChange('editor', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Hiring Toggle
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.editor?.addEditor !== false} onChange={e => handleControlChange('editor', 'addEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Add Editor Button
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.editor?.editEditor !== false} onChange={e => handleControlChange('editor', 'editEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Edit Editor Button
-                                            </label>
+                                {renderInstituteControlSection({
+                                    id: 'editor',
+                                    label: 'Editor Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.editor?.hiring !== false} onChange={e => handleControlChange('editor', 'hiring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Hiring Toggle</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.editor?.addEditor !== false} onChange={e => handleControlChange('editor', 'addEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Editor Button</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.editor?.editEditor !== false} onChange={e => handleControlChange('editor', 'editEditor', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit Editor Button</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Courses */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Course Page</span>
-                                        <input type="checkbox" checked={controlsData.course?.show !== false} onChange={e => handleControlChange('course', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.course?.show !== false && (
-                                        <div className="pl-1 space-y-2">
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.course?.addCourse !== false} onChange={e => handleControlChange('course', 'addCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Add Course Button
-                                            </label>
-                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer">
-                                                <input type="checkbox" checked={controlsData.course?.editCourse !== false} onChange={e => handleControlChange('course', 'editCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                Edit Course Button
-                                            </label>
+                                {renderInstituteControlSection({
+                                    id: 'accountant',
+                                    label: 'Accountant Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.accountant?.addAccountant !== false} onChange={e => handleControlChange('accountant', 'addAccountant', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add New Accountants</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.accountant?.editAccountant !== false} onChange={e => handleControlChange('accountant', 'editAccountant', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Activities */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="text-sm font-extrabold text-slate-800">Tools Page</span>
-                                        <input type="checkbox" checked={controlsData.tools?.show !== false} onChange={e => handleControlChange('tools', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                    {controlsData.tools?.show !== false && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1 pt-1">
-                                            <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={controlsData.tools?.formBuilderTool !== false} 
-                                                    onChange={e => handleControlChange('tools', 'formBuilderTool', e.target.checked)} 
-                                                    className="w-3.5 h-3.5 accent-indigo-600" 
-                                                />
-                                                📝 Form Builder Tool
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs text-slate-800 font-black cursor-pointer select-none col-span-1 border border-slate-100 p-2 rounded-xl bg-white hover:bg-slate-50 transition-all">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={controlsData.tools?.databaseCreatorTool !== false} 
-                                                    onChange={e => handleControlChange('tools', 'databaseCreatorTool', e.target.checked)} 
-                                                    className="w-3.5 h-3.5 accent-indigo-600" 
-                                                />
-                                                🗄️ Database Creator Tool
-                                            </label>
-
-                                            {controlsData.tools?.formBuilderTool !== false && (
-                                                <div className="col-span-1 md:col-span-2 mt-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-150/60 space-y-3">
-                                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block mb-1">Form Builder Sub-features</span>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-1 pt-1">
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.elementsControl !== false} onChange={e => handleControlChange('tools', 'elementsControl', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Elements Control
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.inputElements !== false} onChange={e => handleControlChange('tools', 'inputElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Input Elements
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.displayingElements !== false} onChange={e => handleControlChange('tools', 'displayingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Displaying Elements
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.recordingElements !== false} onChange={e => handleControlChange('tools', 'recordingElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Recording Elements
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.advanceElements !== false} onChange={e => handleControlChange('tools', 'advanceElements', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Advance Elements
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.addons !== false} onChange={e => handleControlChange('tools', 'addons', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Addons
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.theme !== false} onChange={e => handleControlChange('tools', 'theme', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Theme
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.createWithAi !== false} onChange={e => handleControlChange('tools', 'createWithAi', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Create With AI
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.integrate !== false} onChange={e => handleControlChange('tools', 'integrate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Integrate
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.import !== false} onChange={e => handleControlChange('tools', 'import', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Import
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.saveAsTemplate !== false} onChange={e => handleControlChange('tools', 'saveAsTemplate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Save As Template
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.decideActivity !== false} onChange={e => handleControlChange('tools', 'decideActivity', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Decide Activity
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.templates !== false} onChange={e => handleControlChange('tools', 'templates', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Templates
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.locationLocked !== false} onChange={e => handleControlChange('tools', 'locationLocked', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Location Locked
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.logicRules !== false} onChange={e => handleControlChange('tools', 'logicRules', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Logic Rules
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.monitoring !== false} onChange={e => handleControlChange('tools', 'monitoring', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Monitoring
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.connectIt !== false} onChange={e => handleControlChange('tools', 'connectIt', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Connect It
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.profileUnderSettings !== false} onChange={e => handleControlChange('tools', 'profileUnderSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Profile Under Settings
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.moreSettings !== false} onChange={e => handleControlChange('tools', 'moreSettings', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            More Settings
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.responses !== false} onChange={e => handleControlChange('tools', 'responses', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Responses
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.collaborate !== false} onChange={e => handleControlChange('tools', 'collaborate', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Collaborate
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.manageAccess !== false} onChange={e => handleControlChange('tools', 'manageAccess', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Manage Access
-                                                        </label>
-                                                        <label className="flex items-center gap-2 text-xs text-slate-600 font-bold cursor-pointer select-none">
-                                                            <input type="checkbox" checked={controlsData.tools?.publicToWeb !== false} onChange={e => handleControlChange('tools', 'publicToWeb', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
-                                                            Public To Web
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            )}
+                                {renderInstituteControlSection({
+                                    id: 'staff',
+                                    label: 'My Staff Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.staff?.addStaff !== false} onChange={e => handleControlChange('staff', 'addStaff', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Staff</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.staff?.staffDirectory !== false} onChange={e => handleControlChange('staff', 'staffDirectory', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Staff Directory</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.staff?.attendanceManagement !== false} onChange={e => handleControlChange('staff', 'attendanceManagement', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Attendance Managements</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.staff?.salaryPayouts !== false} onChange={e => handleControlChange('staff', 'salaryPayouts', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Salary &amp; Payouts</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.staff?.taskAssignment !== false} onChange={e => handleControlChange('staff', 'taskAssignment', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Task Assignments</label>
                                         </div>
-                                    )}
-                                </div>
+                                    )
+                                })}
 
-                                {/* Chat */}
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-extrabold text-slate-800">Chat Page</span>
-                                        <input type="checkbox" checked={controlsData.chat?.show !== false} onChange={e => handleControlChange('chat', 'show', e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                {renderInstituteControlSection({
+                                    id: 'parent',
+                                    label: 'Parents Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.parent?.addParent !== false} onChange={e => handleControlChange('parent', 'addParent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Parent</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.parent?.editParent !== false} onChange={e => handleControlChange('parent', 'editParent', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit</label>
+                                        </div>
+                                    )
+                                })}
+
+                                {renderInstituteControlSection({
+                                    id: 'course',
+                                    label: 'Course Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.course?.addNewCourse !== false} onChange={e => handleControlChange('course', 'addNewCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add New Course</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.course?.addNewDemoCourse !== false} onChange={e => handleControlChange('course', 'addNewDemoCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add New Demo Course</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.course?.editCourse !== false} onChange={e => handleControlChange('course', 'editCourse', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit Button</label>
+                                        </div>
+                                    )
+                                })}
+
+                                {renderInstituteControlSection({
+                                    id: 'subject',
+                                    label: 'Subject Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.subject?.addSubject !== false} onChange={e => handleControlChange('subject', 'addSubject', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Add Subject</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.subject?.editSubject !== false} onChange={e => handleControlChange('subject', 'editSubject', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit</label>
+                                        </div>
+                                    )
+                                })}
+
+                                {renderInstituteControlSection({
+                                    id: 'activities',
+                                    label: 'Activities Page',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.createAssignment !== false} onChange={e => handleControlChange('activities', 'createAssignment', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Create New Assignment</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.editAssignment !== false} onChange={e => handleControlChange('activities', 'editAssignment', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Edit</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.lmsConnectedTests !== false} onChange={e => handleControlChange('activities', 'lmsConnectedTests', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />LMS Connected Tests</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.publicWebTest !== false} onChange={e => handleControlChange('activities', 'publicWebTest', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Public Web Test</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.draftTests !== false} onChange={e => handleControlChange('activities', 'draftTests', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Draft Tests</label>
+                                            <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.activities?.openFolderExplorer !== false} onChange={e => handleControlChange('activities', 'openFolderExplorer', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Open Folder Explorer</label>
+                                        </div>
+                                    )
+                                })}
+
+                                {renderInstituteControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: (
+                                    <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.drive?.newDrive !== false} onChange={e => handleControlChange('drive', 'newDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />New</label>
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.drive?.integrateDrive !== false} onChange={e => handleControlChange('drive', 'integrateDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Integrate</label>
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.drive?.viewDrive !== false} onChange={e => handleControlChange('drive', 'viewDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />View</label>
                                     </div>
-                                </div>
+                                ) })}
+                                
+                                {renderInstituteControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: (
+                                    <div className="pl-1 space-y-2 animate-fade-in flex flex-col gap-2">
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.notes?.newNote !== false} onChange={e => handleControlChange('notes', 'newNote', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />New Note</label>
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.notes?.saveDraft !== false} onChange={e => handleControlChange('notes', 'saveDraft', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Save Draft</label>
+                                        <label className="flex items-center gap-2.5 text-xs text-slate-600 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.notes?.saveNotes !== false} onChange={e => handleControlChange('notes', 'saveNotes', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />Save Notes</label>
+                                    </div>
+                                ) })}
+
+                                {renderInstituteControlSection({
+                                    id: 'tools',
+                                    label: 'Form & Database Creator Tools',
+                                    hasSubControls: true,
+                                    subControls: (
+                                        <div className="pl-1 space-y-2 animate-fade-in grid grid-cols-2 gap-2.5 text-left font-bold text-slate-600">
+                                            {[
+                                                { id: 'formBuilderTool', label: 'Form Builder' },
+                                                { id: 'databaseCreatorTool', label: 'Database Creator' },
+                                                { id: 'elementsControl', label: 'Elements Control' },
+                                                { id: 'inputElements', label: 'Input Elements' },
+                                                { id: 'displayingElements', label: 'Displaying Elements' },
+                                                { id: 'recordingElements', label: 'Recording Elements' },
+                                                { id: 'advanceElements', label: 'Advance Elements' },
+                                                { id: 'addons', label: 'Add-ons' },
+                                                { id: 'theme', label: 'Theme Styling' },
+                                                { id: 'createWithAi', label: 'Create with AI' },
+                                                { id: 'integrate', label: 'Integrate' },
+                                                { id: 'import', label: 'Import' },
+                                                { id: 'saveAsTemplate', label: 'Save As Template' },
+                                                { id: 'decideActivity', label: 'Decide Activity' },
+                                                { id: 'templates', label: 'Browse Templates' },
+                                                { id: 'locationLocked', label: 'Location Locked' },
+                                                { id: 'logicRules', label: 'Logic Rules' },
+                                                { id: 'monitoring', label: 'Monitoring' },
+                                                { id: 'connectIt', label: 'Connect It' },
+                                                { id: 'profileUnderSettings', label: 'Profile Under Settings' },
+                                                { id: 'moreSettings', label: 'More Settings' },
+                                                { id: 'responses', label: 'Responses' },
+                                                { id: 'collaborate', label: 'Collaborate' },
+                                                { id: 'manageAccess', label: 'Manage Access' },
+                                                { id: 'publicToWeb', label: 'Public to Web' }
+                                            ].map(item => (
+                                                <label key={item.id} className="flex items-center gap-2.5 text-xs text-slate-655 font-bold cursor-pointer"><input type="checkbox" checked={controlsData.tools?.[item.id] !== false} onChange={e => handleControlChange('tools', item.id, e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />{item.label}</label>
+                                            ))}
+                                        </div>
+                                    )
+                                })}
+
+                                {renderInstituteControlSection({ id: 'chat', label: 'Chat Page' })}
+                            
 
                             </div>
                         </div>

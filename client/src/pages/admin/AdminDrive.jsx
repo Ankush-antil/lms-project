@@ -25,12 +25,27 @@ const VIEW_MODE_OPTIONS = [
 const AdminDrive = () => {
     const { user } = useAuth();
 
+    const getControls = (feature) => {
+        const roleProfileMap = {
+            Student: user?.studentProfile?.controls,
+            Teacher: user?.teacherProfile?.controls,
+            Editor: user?.editorProfile?.controls,
+            Accountant: user?.accountantProfile?.controls,
+            Marketer: user?.marketerProfile?.controls,
+            Staff: user?.staffProfile?.controls,
+            Parent: user?.parentProfile?.controls,
+        };
+        const controls = roleProfileMap[user?.role];
+        return controls?.[feature];
+    };
+
     const canPerform = (feature, subAction) => {
-        if (user?.role !== 'Accountant') return true;
-        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!user?.role || user?.role === 'Admin') return true;
+        const ctrl = getControls(feature);
         if (!ctrl) return true;
         if (ctrl.enabled === false) return false;
-        return ctrl[subAction] !== false;
+        if (subAction && ctrl[subAction] === false) return false;
+        return true;
     };
 
     const [items, setItems] = useState([]);
@@ -649,7 +664,7 @@ const AdminDrive = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-3">
                         {/* "+ New" Dropdown Wrapper */}
-                        {canPerform('drive', 'uploadFiles') && (
+                        {canPerform('drive', 'newDrive') && (
                             <div className="relative" ref={newMenuRef}>
                                 <button
                                     onClick={() => setNewMenuOpen(!newMenuOpen)}
@@ -691,13 +706,15 @@ const AdminDrive = () => {
                         )}
 
                         {/* Integrate Button */}
-                        <button
-                            onClick={() => toast('Coming Soon', { icon: '⏳' })}
-                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
-                        >
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" className="w-5 h-5 shrink-0" />
-                            <span>Integrate</span>
-                        </button>
+                        {canPerform('drive', 'integrateDrive') && (
+                            <button
+                                onClick={() => toast('Coming Soon', { icon: '⏳' })}
+                                className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
+                            >
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" className="w-5 h-5 shrink-0" />
+                                <span>Integrate</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Hidden Inputs for upload */}

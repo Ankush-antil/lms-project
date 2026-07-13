@@ -1,10 +1,11 @@
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useRef,  useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
+import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -76,6 +77,280 @@ const AccountantsList = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedAccountants = filteredAccountants.slice(startIndex, startIndex + itemsPerPage);
 
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+
+    const importUsersRef = useRef(null);
+
+    const handleImportUsers = (e) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        const filename = file.name.toLowerCase();
+
+        const processImportedArray = async (parsed) => {
+
+            if (!Array.isArray(parsed)) {
+
+                toast.error('File must contain an array of rows');
+
+                return;
+
+            }
+
+            const parsedMapped = parsed.map(row => {
+
+                const keys = Object.keys(row);
+
+                const nameKey = keys.find(k => k.toLowerCase() === 'name');
+
+                const emailKey = keys.find(k => k.toLowerCase() === 'email');
+
+                const passwordKey = keys.find(k => k.toLowerCase() === 'password');
+
+                const courseKey = keys.find(k => ['course name', 'coursename', 'course'].includes(k.toLowerCase()));
+
+                const mobileKey = keys.find(k => ['mobile number', 'mobilenumber', 'mobile', 'phone'].includes(k.toLowerCase()));
+
+                return {
+
+                    name: nameKey ? String(row[nameKey]).trim() : '',
+
+                    email: emailKey ? String(row[emailKey]).trim() : '',
+
+                    password: passwordKey ? String(row[passwordKey]).trim() : '',
+
+                    role: 'Accountant',
+
+                    courseName: courseKey ? String(row[courseKey]).trim() : '',
+
+                    mobileNumber: mobileKey ? String(row[mobileKey]).trim() : ''
+
+                };
+
+            }).filter(item => item.name && item.email && item.role);
+
+            if (parsedMapped.length === 0) {
+
+                toast.error('No valid rows found. Make sure each object has "Name" and "Email" columns.');
+
+                return;
+
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} users...`);
+
+            try {
+
+                const res = await axios.post('/api/users/import', { users: parsedMapped });
+
+                toast.dismiss(loadingToast);
+
+                const { successCount, errors } = res.data.results;
+
+                if (errors && errors.length > 0) {
+
+                    toast.success(`Successfully imported ${successCount} users. ${errors.length} failed.`);
+
+                } else {
+
+                    toast.success(`Successfully imported ${successCount} users!`);
+
+                }
+
+                if (typeof fetchData === 'function') fetchData();
+
+                else if (typeof fetchStaff === 'function') fetchStaff();
+
+            } catch (err) {
+
+                toast.dismiss(loadingToast);
+
+                toast.error(err.response?.data?.message || 'Error importing users');
+
+            }
+
+        };
+
+        if (filename.endsWith('.json')) {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const parsed = JSON.parse(evt.target.result);
+
+                    processImportedArray(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse JSON file');
+
+                }
+
+            };
+
+            reader.readAsText(file);
+
+        } else {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const data = new Uint8Array(evt.target.result);
+
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+
+                    processImportedArray(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse file');
+
+                }
+
+            };
+
+            reader.readAsArrayBuffer(file);
+
+        }
+
+        e.target.value = '';
+
+    };
+
+
+    const exportUsers = (format) => {
+
+        const list = accountants;
+
+        if (list.length === 0) {
+
+            toast.error('No users to export');
+
+            return;
+
+        }
+
+        const rows = list.map(u => ({
+
+            Name: u.name || '',
+
+            Email: u.email || '',
+
+            Role: u.role || 'Accountant',
+
+            'Mobile Number': u.mobileNumber || '',
+
+            Course: u.studentProfile?.course?.name || u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || '',
+
+            Batch: u.studentProfile?.batch || '',
+
+            Section: u.studentProfile?.section || '',
+
+            'Created At': u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
+
+        }));
+
+        if (format === 'json') {
+
+            const jsonContent = JSON.stringify(rows.map(r => ({
+
+                name: r.Name,
+
+                email: r.Email,
+
+                role: r.Role,
+
+                mobileNumber: r['Mobile Number'],
+
+                courseName: r.Course,
+
+                batch: r.Batch,
+
+                section: r.Section
+
+            })), null, 2);
+
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `accountants_list_${new Date().toISOString().split('T')[0]}.json`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to JSON`);
+
+        } else if (format === 'csv') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `accountants_list_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to CSV`);
+
+        } else if (format === 'excel') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const workbook = XLSX.utils.book_new();
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `accountants_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to Excel`);
+
+        }
+
+    };
+
+
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -91,6 +366,54 @@ const AccountantsList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
+                    <input
+                        type="file"
+                        ref={importUsersRef}
+                        onChange={handleImportUsers}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importUsersRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                        <Upload size={16} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"

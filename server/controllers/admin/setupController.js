@@ -1360,6 +1360,94 @@ const updateSubjectDetails = asyncHandler(async (req, res) => {
     });
 });
 
+const importInstitutes = asyncHandler(async (req, res) => {
+    const { institutes } = req.body;
+    if (!Array.isArray(institutes)) {
+        res.status(400);
+        throw new Error('Institutes array is required');
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    for (const inst of institutes) {
+        try {
+            const { name, code, address, contactEmail, password, description, helplineNumber, phone, controls } = inst;
+            if (!name || !code || !contactEmail) {
+                errors.push({ name: name || code || 'Unknown', error: 'Name, code, and contactEmail are required' });
+                continue;
+            }
+
+            // Check if institute already exists
+            const instExists = await Institute.findOne({ code });
+            if (instExists) {
+                errors.push({ name, error: 'Institute code already exists' });
+                continue;
+            }
+
+            // Check if user already exists
+            const userExists = await User.findOne({ email: contactEmail });
+            if (userExists) {
+                errors.push({ name, error: `A user account with email ${contactEmail} already exists` });
+                continue;
+            }
+
+            let parsedControls = undefined;
+            if (controls) {
+                try {
+                    parsedControls = typeof controls === 'string' ? JSON.parse(controls) : controls;
+                } catch (e) {
+                    console.error("Failed to parse controls during import", e);
+                }
+            }
+
+            // Create Institute
+            const institute = await Institute.create({
+                name,
+                code,
+                address: address || '',
+                contactEmail,
+                imageUrl: '',
+                description: description || '',
+                termsAndPolicies: '',
+                phone: phone || '',
+                helplineNumber: helplineNumber || '',
+                controls: parsedControls || undefined
+            });
+
+            // Create User
+            const userPass = password || Math.random().toString(36).slice(-8);
+            await User.create({
+                name: `${name} Admin`,
+                email: contactEmail,
+                password: userPass,
+                role: 'Institute',
+                institute: institute._id
+            });
+
+            // Log Activity
+            await Activity.create({
+                type: 'INSTITUTE_CREATED',
+                message: 'New Institute registered via Bulk Import and admin account created',
+                detail: `${institute.name} (${institute.code})`,
+                user: req.user._id
+            });
+
+            successCount++;
+        } catch (err) {
+            errors.push({ name: inst.name || 'Unknown', error: err.message });
+        }
+    }
+
+    res.status(200).json({
+        message: 'Import completed',
+        results: {
+            successCount,
+            errors
+        }
+    });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -1393,5 +1481,6 @@ module.exports = {
     permanentlyDeleteInstitute,
     getCourseStudents,
     createSubject,
-    updateSubjectDetails
+    updateSubjectDetails,
+    importInstitutes
 };

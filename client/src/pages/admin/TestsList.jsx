@@ -1,6 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import * as XLSX from 'xlsx';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +9,7 @@ import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
     Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check, QrCode,
-    Globe, Copy, ExternalLink, Settings, BarChart2, ShieldCheck, Download, Mail, Lock,
+    Globe, Copy, ExternalLink, Settings, BarChart2, ShieldCheck, Download, Upload, Mail, Lock,
     CheckCircle2, X, Eye, Loader2, EyeOff, Info, ChevronLeft, ChevronRight, Printer, ArrowLeft, Trash,
     Video, MessageSquare, AlertTriangle, Folder, FolderOpen, ChevronDown, School, Book, Layers, LayoutGrid
 } from 'lucide-react';
@@ -707,6 +708,170 @@ const TestsList = () => {
 
     const paginatedTests = filteredTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
     const paginatedPublicTests = filteredPublicTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importTestsRef = useRef(null);
+
+    const handleImportTests = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        const filename = file.name.toLowerCase();
+
+        const processImported = async (parsed) => {
+            if (!Array.isArray(parsed)) {
+                toast.error('File must contain an array of assessments/tests');
+                return;
+            }
+            const parsedMapped = parsed.map(row => {
+                const keys = Object.keys(row);
+                const titleKey = keys.find(k => k.toLowerCase() === 'title');
+                const courseKey = keys.find(k => k.toLowerCase() === 'course');
+                const subjectKey = keys.find(k => k.toLowerCase() === 'subject');
+                const indexKey = keys.find(k => k.toLowerCase() === 'index');
+                const descKey = keys.find(k => ['description', 'desc'].includes(k.toLowerCase()));
+                const durationKey = keys.find(k => k.toLowerCase() === 'duration');
+                const publishModeKey = keys.find(k => ['publishmode', 'publish mode'].includes(k.toLowerCase()));
+                const statusKey = keys.find(k => k.toLowerCase() === 'status');
+                const questionsKey = keys.find(k => k.toLowerCase() === 'questions');
+                const settingsKey = keys.find(k => k.toLowerCase() === 'settings');
+                const publicSettingsKey = keys.find(k => ['publicsettings', 'public settings'].includes(k.toLowerCase()));
+
+                return {
+                    title: titleKey ? String(row[titleKey]).trim() : '',
+                    course: courseKey ? String(row[courseKey]).trim() : '',
+                    subject: subjectKey ? String(row[subjectKey]).trim() : '',
+                    index: indexKey ? String(row[indexKey]).trim() : '',
+                    description: descKey ? String(row[descKey]).trim() : '',
+                    duration: durationKey ? Number(row[durationKey]) : undefined,
+                    publishMode: publishModeKey ? String(row[publishModeKey]).trim() : (activeTab === 'public' ? 'public' : (activeTab === 'draft' ? 'draft' : 'connected')),
+                    status: statusKey ? String(row[statusKey]).trim() : 'active',
+                    questions: questionsKey ? row[questionsKey] : undefined,
+                    settings: settingsKey ? row[settingsKey] : undefined,
+                    publicSettings: publicSettingsKey ? row[publicSettingsKey] : undefined
+                };
+            }).filter(item => item.title);
+
+            if (parsedMapped.length === 0) {
+                toast.error('No valid rows found. "Title" column is required.');
+                return;
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} assessments...`);
+            try {
+                const res = await axios.post('/api/tests/import', { tests: parsedMapped });
+                toast.dismiss(loadingToast);
+                const { successCount, errors } = res.data.results;
+                if (errors && errors.length > 0) {
+                    toast.success(`Successfully imported ${successCount} assessments. ${errors.length} failed.`);
+                } else {
+                    toast.success(`Successfully imported ${successCount} assessments!`);
+                }
+                if (typeof fetchLmsTests === 'function') fetchLmsTests();
+                if (typeof fetchPublicTests === 'function') fetchPublicTests();
+            } catch (err) {
+                toast.dismiss(loadingToast);
+                toast.error(err.response?.data?.message || 'Error importing assessments');
+            }
+        };
+
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    processImported(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+                    processImported(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
+    const exportTests = (format) => {
+        const list = (activeTab === 'lms' || activeTab === 'draft') ? filteredTests : filteredPublicTests;
+        if (list.length === 0) {
+            toast.error('No assessments to export');
+            return;
+        }
+
+        const rows = list.map(t => ({
+            Title: t.title || '',
+            Course: t.course || '',
+            Subject: t.subject || '',
+            Index: t.index || '',
+            Description: t.description || '',
+            Duration: t.settings?.duration || '',
+            'Publish Mode': t.publishMode || '',
+            Status: t.status || 'active',
+            Questions: t.questions ? JSON.stringify(t.questions) : '[]',
+            Settings: t.settings ? JSON.stringify(t.settings) : '{}',
+            'Public Settings': t.publicSettings ? JSON.stringify(t.publicSettings) : '{}',
+            'Created At': t.createdAt ? new Date(t.createdAt).toLocaleString() : ''
+        }));
+
+        if (format === 'json') {
+            const jsonContent = JSON.stringify(list.map(t => ({
+                title: t.title,
+                course: t.course,
+                subject: t.subject,
+                index: t.index,
+                description: t.description,
+                publishMode: t.publishMode,
+                status: t.status,
+                questions: t.questions || [],
+                settings: t.settings || {},
+                publicSettings: t.publicSettings || {}
+            })), null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `assessment_list_${activeTab}_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} assessments to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `assessment_list_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} assessments to CSV`);
+        } else if (format === 'excel') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Assessments');
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `assessment_list_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} assessments to Excel`);
+        }
+    };
 
     const getPageNumbers = (totalCount) => {
         const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -1957,11 +2122,59 @@ const TestsList = () => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setIsTrashOpen(true)}
-                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-xl text-sm font-bold shadow-sm cursor-pointer"
+                        className="flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-xl text-sm font-bold shadow-sm cursor-pointer"
                         title="Recycle Bin"
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
+                    <input
+                        type="file"
+                        ref={importTestsRef}
+                        onChange={handleImportTests}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importTestsRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                        <Upload size={16} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportTests('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportTests('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportTests('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     {((userInfo?.role !== 'Admin' && userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.createNewAssessment !== false)) && (
                         <button
                             onClick={() => navigate(`${basePath}/activities-builder`)}

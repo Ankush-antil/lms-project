@@ -1,10 +1,11 @@
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect, useMemo } from 'react';
+import { useRef,  useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Trash2, Calendar, Eye, Plus, Edit, ChevronDown } from 'lucide-react';
+import { Download,  Upload,  Search, Filter, Trash2, Calendar, Eye, Plus, Edit, ChevronDown } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
@@ -295,6 +296,541 @@ const UsersList = () => {
             minute: '2-digit'
         });
     };
+
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+
+    const [isExportRequestsDropdownOpen, setIsExportRequestsDropdownOpen] = useState(false);
+
+
+    const exportRoleRequests = (format) => {
+
+        const pending = roleRequests.filter(r => r.status === 'Pending');
+
+        if (pending.length === 0) {
+
+            toast.error('No pending role requests to export');
+
+            return;
+
+        }
+
+        const rows = pending.map(r => ({
+
+            Name: r.user?.name || '',
+
+            Email: r.user?.email || '',
+
+            'Current Role': r.user?.role || '',
+
+            'Requested Role': r.requestedRole || '',
+
+            Institute: r.institute?.name || r.user?.institute?.name || '',
+
+            Status: r.status || '',
+
+            'Requested At': r.createdAt ? new Date(r.createdAt).toLocaleString() : ''
+
+        }));
+
+        if (format === 'json') {
+
+            const jsonContent = JSON.stringify(rows.map(r => ({
+
+                name: r.Name,
+
+                email: r.Email,
+
+                currentRole: r['Current Role'],
+
+                requestedRole: r['Requested Role'],
+
+                institute: r.Institute,
+
+                status: r.Status,
+
+                requestedAt: r['Requested At']
+
+            })), null, 2);
+
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `role_requests_${new Date().toISOString().split('T')[0]}.json`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${pending.length} role requests to JSON`);
+
+        } else if (format === 'csv') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `role_requests_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${pending.length} role requests to CSV`);
+
+        } else if (format === 'excel') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const workbook = XLSX.utils.book_new();
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `role_requests_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${pending.length} role requests to Excel`);
+
+        }
+
+    };
+
+
+    const importRoleRequestsRef = useRef(null);
+
+    const handleImportRoleRequests = (e) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        const filename = file.name.toLowerCase();
+
+        const processImport = async (parsed) => {
+
+            if (!Array.isArray(parsed)) {
+
+                toast.error('File must contain an array of requests');
+
+                return;
+
+            }
+
+            const parsedMapped = parsed.map(row => {
+
+                const keys = Object.keys(row);
+
+                const emailKey = keys.find(k => k.toLowerCase() === 'email');
+
+                const roleKey = keys.find(k => ['requested role', 'requestedrole', 'role'].includes(k.toLowerCase()));
+
+                const courseKey = keys.find(k => ['course name', 'coursename', 'course'].includes(k.toLowerCase()));
+
+                return {
+
+                    email: emailKey ? String(row[emailKey]).trim() : '',
+
+                    requestedRole: roleKey ? String(row[roleKey]).trim() : '',
+
+                    courseName: courseKey ? String(row[courseKey]).trim() : ''
+
+                };
+
+            }).filter(item => item.email && item.requestedRole);
+
+            if (parsedMapped.length === 0) {
+
+                toast.error('No valid rows found. Make sure each row has "Email" and "Requested Role" columns.');
+
+                return;
+
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} role requests...`);
+
+            try {
+
+                const res = await axios.post('/api/users/role-requests/import', { requests: parsedMapped });
+
+                toast.dismiss(loadingToast);
+
+                const { successCount, errors } = res.data.results;
+
+                if (errors && errors.length > 0) {
+
+                    toast.success(`Successfully imported ${successCount} requests. ${errors.length} failed.`);
+
+                } else {
+
+                    toast.success(`Successfully imported ${successCount} requests!`);
+
+                }
+
+                fetchData();
+
+            } catch (err) {
+
+                toast.dismiss(loadingToast);
+
+                toast.error(err.response?.data?.message || 'Error importing role requests');
+
+            }
+
+        };
+
+        if (filename.endsWith('.json')) {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const parsed = JSON.parse(evt.target.result);
+
+                    processImport(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse JSON file');
+
+                }
+
+            };
+
+            reader.readAsText(file);
+
+        } else {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const data = new Uint8Array(evt.target.result);
+
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+
+                    processImport(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse file');
+
+                }
+
+            };
+
+            reader.readAsArrayBuffer(file);
+
+        }
+
+        e.target.value = '';
+
+    };
+
+
+    const exportUsers = (format) => {
+
+        const registered = users.filter(u => u.role !== 'Guest');
+
+        if (registered.length === 0) {
+
+            toast.error('No registered users to export');
+
+            return;
+
+        }
+
+        const rows = registered.map(u => ({
+
+            Name: u.name || '',
+
+            Email: u.email || '',
+
+            Role: u.role || '',
+
+            'Mobile Number': u.mobileNumber || '',
+
+            Course: u.studentProfile?.course?.name || u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || '',
+
+            Batch: u.studentProfile?.batch || '',
+
+            Section: u.studentProfile?.section || '',
+
+            'Created At': u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
+
+        }));
+
+        if (format === 'json') {
+
+            const jsonContent = JSON.stringify(rows.map(r => ({
+
+                name: r.Name,
+
+                email: r.Email,
+
+                role: r.Role,
+
+                mobileNumber: r['Mobile Number'],
+
+                courseName: r.Course,
+
+                batch: r.Batch,
+
+                section: r.Section
+
+            })), null, 2);
+
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `registered_users_${new Date().toISOString().split('T')[0]}.json`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${registered.length} registered users to JSON`);
+
+        } else if (format === 'csv') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `registered_users_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${registered.length} registered users to CSV`);
+
+        } else if (format === 'excel') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const workbook = XLSX.utils.book_new();
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `registered_users_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${registered.length} registered users to Excel`);
+
+        }
+
+    };
+
+
+    const importUsersRef = useRef(null);
+
+    const handleImportUsers = (e) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        const filename = file.name.toLowerCase();
+
+        const processImport = async (parsed) => {
+
+            if (!Array.isArray(parsed)) {
+
+                toast.error('File must contain an array of users');
+
+                return;
+
+            }
+
+            const parsedMapped = parsed.map(row => {
+
+                const keys = Object.keys(row);
+
+                const nameKey = keys.find(k => k.toLowerCase() === 'name');
+
+                const emailKey = keys.find(k => k.toLowerCase() === 'email');
+
+                const passwordKey = keys.find(k => k.toLowerCase() === 'password');
+
+                const roleKey = keys.find(k => k.toLowerCase() === 'role');
+
+                const courseKey = keys.find(k => ['course name', 'coursename', 'course'].includes(k.toLowerCase()));
+
+                const mobileKey = keys.find(k => ['mobile number', 'mobilenumber', 'mobile', 'phone'].includes(k.toLowerCase()));
+
+                return {
+
+                    name: nameKey ? String(row[nameKey]).trim() : '',
+
+                    email: emailKey ? String(row[emailKey]).trim() : '',
+
+                    password: passwordKey ? String(row[passwordKey]).trim() : '',
+
+                    role: roleKey ? String(row[roleKey]).trim() : '',
+
+                    courseName: courseKey ? String(row[courseKey]).trim() : '',
+
+                    mobileNumber: mobileKey ? String(row[mobileKey]).trim() : ''
+
+                };
+
+            }).filter(item => item.name && item.email && item.role);
+
+            if (parsedMapped.length === 0) {
+
+                toast.error('No valid rows found. Make sure each object has "Name", "Email" and "Role" columns.');
+
+                return;
+
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} users...`);
+
+            try {
+
+                const res = await axios.post('/api/users/import', { users: parsedMapped });
+
+                toast.dismiss(loadingToast);
+
+                const { successCount, errors } = res.data.results;
+
+                if (errors && errors.length > 0) {
+
+                    toast.success(`Successfully imported ${successCount} users. ${errors.length} failed.`);
+
+                } else {
+
+                    toast.success(`Successfully imported ${successCount} users!`);
+
+                }
+
+                fetchData();
+
+            } catch (err) {
+
+                toast.dismiss(loadingToast);
+
+                toast.error(err.response?.data?.message || 'Error importing users');
+
+            }
+
+        };
+
+        if (filename.endsWith('.json')) {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const parsed = JSON.parse(evt.target.result);
+
+                    processImport(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse JSON file');
+
+                }
+
+            };
+
+            reader.readAsText(file);
+
+        } else {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const data = new Uint8Array(evt.target.result);
+
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+
+                    processImport(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse file');
+
+                }
+
+            };
+
+            reader.readAsArrayBuffer(file);
+
+        }
+
+        e.target.value = '';
+
+    };
+
 
     return (
         <DashboardLayout role={currentUser?.role || 'Admin'}>

@@ -16,12 +16,27 @@ const NotesPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const getControls = (feature) => {
+        const roleProfileMap = {
+            Student: user?.studentProfile?.controls,
+            Teacher: user?.teacherProfile?.controls,
+            Editor: user?.editorProfile?.controls,
+            Accountant: user?.accountantProfile?.controls,
+            Marketer: user?.marketerProfile?.controls,
+            Staff: user?.staffProfile?.controls,
+            Parent: user?.parentProfile?.controls,
+        };
+        const controls = roleProfileMap[user?.role];
+        return controls?.[feature];
+    };
+
     const canPerform = (feature, subAction) => {
-        if (user?.role !== 'Accountant') return true;
-        const ctrl = user.accountantProfile?.controls?.[feature];
+        if (!user?.role || user?.role === 'Admin') return true;
+        const ctrl = getControls(feature);
         if (!ctrl) return true;
         if (ctrl.enabled === false) return false;
-        return ctrl[subAction] !== false;
+        if (subAction && ctrl[subAction] === false) return false;
+        return true;
     };
 
     // Parse inbox and date parameters
@@ -354,7 +369,7 @@ const NotesPage = () => {
                         </div>
 
                         {/* New Note Button */}
-                        {canPerform('notes', 'createNotes') && (
+                        {canPerform('notes', 'newNote') && (
                             <button
                                 type="button"
                                 onClick={handleNewNote}
@@ -529,25 +544,25 @@ const NotesPage = () => {
                                             <Trash size={14} />
                                         </button>
                                     )}
-                                    {canPerform('notes', 'createNotes') && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveDraft}
-                                                className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 cursor-pointer mr-1"
-                                            >
-                                                <Save size={14} />
-                                                <span>Save Draft</span>
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={saving}
-                                                className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                                            >
-                                                <Save size={14} />
-                                                <span>{saving ? 'Saving...' : 'Save Note'}</span>
-                                            </button>
-                                        </>
+                                    {canPerform('notes', 'saveDraft') && (
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveDraft}
+                                            className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 cursor-pointer mr-1"
+                                        >
+                                            <Save size={14} />
+                                            <span>Save Draft</span>
+                                        </button>
+                                    )}
+                                    {canPerform('notes', 'saveNotes') && (
+                                        <button
+                                            type="submit"
+                                            disabled={saving}
+                                            className="w-40 flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                        >
+                                            <Save size={14} />
+                                            <span>{saving ? 'Saving...' : 'Save Note'}</span>
+                                        </button>
                                     )}
                                 </div>
                             </div>

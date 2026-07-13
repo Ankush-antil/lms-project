@@ -123,28 +123,32 @@ const CoursesList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.role !== 'Editor' && user?.institute?.controls?.course?.addCourse !== false && (
+                    {user?.role !== 'Admin' && user?.role !== 'Editor' && (
                         <>
-                            <button
-                                onClick={() => {
-                                    setSelectedCourse(null);
-                                    setIsDemoPreset(false);
-                                    setIsModalOpen(true);
-                                }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
-                            >
-                                <Plus size={18} /> Add New Course
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setSelectedCourse(null);
-                                    setIsDemoPreset(true);
-                                    setIsModalOpen(true);
-                                }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
-                            >
-                                <Plus size={18} /> Add New Demo Course
-                            </button>
+                            {user?.institute?.controls?.course?.addNewCourse !== false && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedCourse(null);
+                                        setIsDemoPreset(false);
+                                        setIsModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
+                                >
+                                    <Plus size={18} /> Add New Course
+                                </button>
+                            )}
+                            {user?.institute?.controls?.course?.addNewDemoCourse !== false && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedCourse(null);
+                                        setIsDemoPreset(true);
+                                        setIsModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
+                                >
+                                    <Plus size={18} /> Add New Demo Course
+                                </button>
+                            )}
                         </>
                     )}
                     {user?.role === 'Editor' && editorControls?.courses?.addNewCourses !== false && (

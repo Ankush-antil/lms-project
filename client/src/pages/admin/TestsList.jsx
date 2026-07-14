@@ -2175,10 +2175,10 @@ const TestsList = () => {
                             </div>
                         )}
                     </div>
-                    {((userInfo?.role !== 'Admin' && userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.createNewAssessment !== false)) && (
+                    {((userInfo?.role === 'Admin') || (userInfo?.role === 'Institute') || (userInfo?.role === 'Editor' && editorControls?.activities?.createNewAssessment !== false)) && (
                         <button
                             onClick={() => navigate(`${basePath}/activities-builder`)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                         >
                             <Plus size={20} /> Create New Assessment
                         </button>

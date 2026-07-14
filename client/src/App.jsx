@@ -280,6 +280,11 @@ function App() {
                                         <AccountantsList />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/marketers" element={
+                                    <PrivateRoute role="Institute">
+                                        <MarketersList />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/institute/courses" element={
                                     <PrivateRoute role="Institute">
                                         <CoursesList />

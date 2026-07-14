@@ -1,9 +1,10 @@
-import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye, Filter, ChevronDown } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye, Filter, ChevronDown, Upload, Download } from 'lucide-react';
 import AddCourseModal from '../../components/AddCourseModal';
 import CourseDetailsModal from '../../components/CourseDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
@@ -13,6 +14,7 @@ const CoursesList = () => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterInstitute, setFilterInstitute] = useState('All');
+    const [filterCourseName, setFilterCourseName] = useState('All');
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +25,8 @@ const CoursesList = () => {
     const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [isDemoPreset, setIsDemoPreset] = useState(false);
     const [activeSection, setActiveSection] = useState('lms'); // 'lms' or 'demo'
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importCoursesRef = useRef(null);
 
     const uniqueInstitutes = [
         ...new Map(
@@ -55,9 +59,153 @@ const CoursesList = () => {
         }
     }, []);
 
+    const exportCourses = (format) => {
+        const list = filteredCourses;
+        if (list.length === 0) {
+            toast.error('No courses to export');
+            return;
+        }
+        const rows = list.map(c => ({
+            Name: c.name || '',
+            Code: c.code || '',
+            Description: c.description || '',
+            Subjects: Array.isArray(c.subjects) ? c.subjects.join(', ') : (c.subjects || ''),
+            Duration: c.duration || 0,
+            Fee: c.fee || 0,
+            'Max Students per Section': c.maxStudentsPerSection || 30,
+            'Sections Count': c.sectionsCount || 1,
+            'Is Demo': c.isDemo ? 'Yes' : 'No',
+            'Institute Name': c.institute?.name || '',
+            'Created By': c.createdBy?.name || ''
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `courses_list_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} courses to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `courses_list_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} courses to CSV`);
+        } else if (format === 'excel') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Courses');
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `courses_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} courses to Excel`);
+        }
+    };
+
+    const handleImportCourses = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const filename = file.name;
+        const reader = new FileReader();
+
+        const processImportedCourses = async (dataArray) => {
+            const loadingToast = toast.loading('Importing courses...');
+            let successCount = 0;
+            const errors = [];
+
+            for (const row of dataArray) {
+                const name = row.Name || row.name;
+                const code = row.Code || row.code;
+                const description = row.Description || row.description || '';
+                const subjects = row.Subjects || row.subjects || '';
+                const duration = Number(row.Duration || row.duration) || 5;
+                const fee = Number(row.Fee || row.fee) || 0;
+                const maxStudentsPerSection = Number(row['Max Students per Section'] || row.maxStudentsPerSection) || 30;
+                const sectionsCount = Number(row['Sections Count'] || row.sectionsCount) || 1;
+                const isDemo = String(row['Is Demo'] || row.isDemo || 'No').toLowerCase() === 'yes' || row.isDemo === true;
+
+                if (!name || !code) {
+                    errors.push(`Row with missing Name/Code ignored`);
+                    continue;
+                }
+
+                try {
+                    const payload = {
+                        name, code, description, subjects, duration, fee,
+                        maxStudentsPerSection, sectionsCount, isDemo,
+                        instituteId: user?.institute?._id || user?.institute || ''
+                    };
+                    await axios.post('/api/setup/courses', payload);
+                    successCount++;
+                } catch (err) {
+                    errors.push(`Course ${name}: ${err.response?.data?.message || err.message}`);
+                }
+            }
+
+            toast.dismiss(loadingToast);
+            if (errors.length > 0) {
+                toast.success(`Imported ${successCount} courses. ${errors.length} rows failed.`);
+                console.error("Import errors:", errors);
+            } else {
+                toast.success(`Successfully imported ${successCount} courses!`);
+            }
+            fetchData();
+        };
+
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    processImportedCourses(Array.isArray(parsed) ? parsed : [parsed]);
+                } catch (err) {
+                    toast.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const parsed = XLSX.utils.sheet_to_json(sheet);
+                    processImportedCourses(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
+    const uniqueCourseNames = useMemo(() => {
+        const names = new Set();
+        // Only get active courses matching the active tab section (LMS vs Demo)
+        courses
+            .filter(c => activeSection === 'demo' ? c.isDemo === true : !c.isDemo)
+            .forEach(c => {
+                if (c.name) names.add(c.name);
+            });
+        return Array.from(names).sort();
+    }, [courses, activeSection]);
+
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterInstitute, activeSection]);
+    }, [searchTerm, filterInstitute, filterCourseName, activeSection]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this course? This will affect students and teachers enrolled in it.')) {
@@ -81,9 +229,13 @@ const CoursesList = () => {
             filterInstitute === 'All' || 
             (course.institute && (course.institute._id === filterInstitute || course.institute === filterInstitute));
             
+        const matchesCourseName = 
+            filterCourseName === 'All' || 
+            course.name === filterCourseName;
+
         const matchesSection = activeSection === 'demo' ? course.isDemo === true : !course.isDemo;
 
-        return matchesSearch && matchesInstitute && matchesSection;
+        return matchesSearch && matchesInstitute && matchesCourseName && matchesSection;
     });
 
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -116,6 +268,54 @@ const CoursesList = () => {
                     <p className="text-slate-500">Organize curriculum and academic programs.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="file"
+                        ref={importCoursesRef}
+                        onChange={handleImportCourses}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importCoursesRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                        <Upload size={16} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCourses('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCourses('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCourses('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={() => setIsTrashOpen(true)}
                         className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
@@ -241,6 +441,22 @@ const CoursesList = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
                     />
+                </div>
+
+                {/* Course Name Filter */}
+                <div className="relative w-[190px]">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <select
+                        value={filterCourseName}
+                        onChange={(e) => setFilterCourseName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                    >
+                        <option value="All">All Courses</option>
+                        {uniqueCourseNames.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                 </div>
 
                 <div className="flex flex-row items-center gap-2.5 flex-wrap">

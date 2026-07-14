@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
     Users, Search, UserPlus, X, Eye, EyeOff, Calendar, DollarSign,
     CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Pencil,
     UserCheck, History, Save, ChevronLeft, ChevronRight, FileText, Sun,
     CheckCircle, XCircle, Bell, Send, Shield, ShieldCheck, ShieldX, ShieldAlert,
-    AlertTriangle, PauseCircle, TrendingUp, Award
+    AlertTriangle, PauseCircle, TrendingUp, Award, Upload, Download
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -280,6 +281,8 @@ const InstituteStaff = () => {
     const [showPass, setShowPass] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance, salary, task
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importStaffRef = useRef(null);
 
     // Form & Edit state
     const [editingStaff, setEditingStaff] = useState(null); // null = Add, object = Edit
@@ -496,28 +499,25 @@ const InstituteStaff = () => {
         setBulkPresentModal(false);
     };
 
-    const handleSearchClick = () => {
-        setActiveSearch(searchTermInput);
-        setActiveDepartment(filterDepartment);
-        setActiveDesignation(filterDesignation);
-        setCurrentPage(1);
-    };
-
     const allFilteredStaff = useMemo(() => {
         return staffList.filter(s => {
-            const matchSearch = !activeSearch ||
-                s.name.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                (s.email && s.email.toLowerCase().includes(activeSearch.toLowerCase()));
+            const matchSearch = !search ||
+                s.name.toLowerCase().includes(search.toLowerCase()) ||
+                (s.email && s.email.toLowerCase().includes(search.toLowerCase()));
 
             const dept = s.staffProfile?.department || 'General';
             const desig = s.staffProfile?.designation || 'Staff';
 
-            const matchDept = activeDepartment === 'All' || dept === activeDepartment;
-            const matchDesig = activeDesignation === 'All' || desig === activeDesignation;
+            const matchDept = filterDepartment === 'All' || dept.toLowerCase() === filterDepartment.toLowerCase();
+            const matchDesig = filterDesignation === 'All' || desig.toLowerCase() === filterDesignation.toLowerCase();
 
             return matchSearch && matchDept && matchDesig;
         }).sort((a, b) => a.name.localeCompare(b.name));
-    }, [staffList, activeSearch, activeDepartment, activeDesignation]);
+    }, [staffList, search, filterDepartment, filterDesignation]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, filterDepartment, filterDesignation]);
 
     const pageSize = Math.min(10, Math.max(1, parseInt(pageSizeInput, 10) || 10));
     const startStaffIndex = (currentPage - 1) * pageSize;
@@ -546,7 +546,7 @@ const InstituteStaff = () => {
 
     // Departments & Designations lists for dropdowns
     const departmentsList = useMemo(() => {
-        const depts = new Set();
+        const depts = new Set(["MCA", "BCA", "BTech", "IT", "Management", "General"]);
         staffList.forEach(s => {
             if (s.staffProfile?.department) depts.add(s.staffProfile.department);
         });
@@ -554,7 +554,7 @@ const InstituteStaff = () => {
     }, [staffList]);
 
     const designationsList = useMemo(() => {
-        const desigs = new Set();
+        const desigs = new Set(["Teacher", "Editor", "Staff", "Accountant", "Marketer"]);
         staffList.forEach(s => {
             if (s.staffProfile?.designation) desigs.add(s.staffProfile.designation);
         });
@@ -658,6 +658,133 @@ const InstituteStaff = () => {
     };
 
     useEffect(() => { fetchStaff(); }, []);
+
+    const handleImportStaff = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const filename = file.name;
+        const reader = new FileReader();
+
+        const processImportedStaff = async (dataArray) => {
+            const mapped = dataArray.map(row => {
+                const name = row.Name || row.name || row['Full Name'] || row.fullName;
+                const email = row.Email || row.email;
+                const designation = row.Designation || row.designation || '';
+                const department = row.Department || row.department || '';
+
+                return {
+                    name,
+                    email,
+                    role: 'Staff',
+                    password: row.Password || row.password || 'Welcome123',
+                    designation,
+                    department
+                };
+            }).filter(item => item.name && item.email);
+
+            if (mapped.length === 0) {
+                toast.error('No valid staff members found. Make sure columns "Name" and "Email" exist.');
+                return;
+            }
+
+            const loadingToast = toast.loading(`Importing ${mapped.length} staff...`);
+            try {
+                const token = localStorage.getItem('authToken');
+                const res = await axios.post('/api/users/import', { users: mapped }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                toast.dismiss(loadingToast);
+                const { successCount, errors } = res.data.results;
+                if (errors && errors.length > 0) {
+                    toast.success(`Successfully imported ${successCount} staff. ${errors.length} rows failed.`);
+                } else {
+                    toast.success(`Successfully imported ${successCount} staff!`);
+                }
+                fetchStaff();
+            } catch (err) {
+                toast.dismiss(loadingToast);
+                toast.error(err.response?.data?.message || 'Error importing staff');
+            }
+        };
+
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    processImportedStaff(Array.isArray(parsed) ? parsed : [parsed]);
+                } catch (err) {
+                    toast.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const parsed = XLSX.utils.sheet_to_json(sheet);
+                    processImportedStaff(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
+    const exportStaff = (format) => {
+        const list = staffList;
+        if (list.length === 0) {
+            toast.error('No staff to export');
+            return;
+        }
+
+        const rows = list.map(s => ({
+            Name: s.name || '',
+            Email: s.email || '',
+            Designation: s.staffProfile?.designation || 'Staff',
+            Department: s.staffProfile?.department || 'General',
+            'Mobile Number': s.mobileNumber || '',
+            'Created At': s.createdAt ? new Date(s.createdAt).toLocaleString() : ''
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `staff_list_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} staff to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `staff_list_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} staff to CSV`);
+        } else if (format === 'excel') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Staff');
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `staff_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} staff to Excel`);
+        }
+    };
 
     // Open Modal for Add
     const handleOpenAdd = () => {
@@ -1125,9 +1252,110 @@ const InstituteStaff = () => {
                                     fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', fontFamily: 'inherit'
                                 }} />
                             </div>
+
+                            <select 
+                                value={filterDepartment} 
+                                onChange={e => setFilterDepartment(e.target.value)} 
+                                style={{
+                                    paddingLeft: 12, paddingRight: 12, paddingTop: 9, paddingBottom: 9,
+                                    border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.8rem',
+                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', 
+                                    fontFamily: 'inherit', cursor: 'pointer'
+                                }}
+                            >
+                                <option value="All">All Departments</option>
+                                {departmentsList.map(dept => (
+                                    <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                            </select>
+
+                            <select 
+                                value={filterDesignation} 
+                                onChange={e => setFilterDesignation(e.target.value)} 
+                                style={{
+                                    paddingLeft: 12, paddingRight: 12, paddingTop: 9, paddingBottom: 9,
+                                    border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.8rem',
+                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', 
+                                    fontFamily: 'inherit', cursor: 'pointer'
+                                }}
+                            >
+                                <option value="All">All Designations</option>
+                                {designationsList.map(desig => (
+                                    <option key={desig} value={desig}>{desig}</option>
+                                ))}
+                            </select>
+                            <input
+                                type="file"
+                                ref={importStaffRef}
+                                onChange={handleImportStaff}
+                                accept=".json,.csv,.xlsx,.xls"
+                                style={{ display: 'none' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => importStaffRef.current?.click()}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    background: '#0b1329', color: '#fff', border: 'none',
+                                    borderRadius: '12px', padding: '9px 16px', fontSize: '0.85rem',
+                                    fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
+                                }}
+                            >
+                                <Upload size={14} /> Import
+                            </button>
+                            <div style={{ position: 'relative' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        background: '#0b1329', color: '#fff', border: 'none',
+                                        borderRadius: '12px', padding: '9px 16px', fontSize: '0.85rem',
+                                        fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <Download size={14} /> Export
+                                </button>
+                                {isExportDropdownOpen && (
+                                    <div style={{
+                                        position: 'absolute', right: 0, marginTop: '8px', width: '150px',
+                                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px',
+                                        boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 999, overflow: 'hidden',
+                                        padding: '4px 0'
+                                    }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportStaff('excel'); setIsExportDropdownOpen(false); }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '8px 16px', background: 'none', border: 'none', fontSize: '0.78rem', fontWeight: 700, color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                        >
+                                            Excel (.xlsx)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportStaff('csv'); setIsExportDropdownOpen(false); }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '8px 16px', background: 'none', border: 'none', fontSize: '0.78rem', fontWeight: 700, color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                        >
+                                            CSV (.csv)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportStaff('json'); setIsExportDropdownOpen(false); }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '8px 16px', background: 'none', border: 'none', fontSize: '0.78rem', fontWeight: 700, color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                        >
+                                            JSON (.json)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button onClick={handleOpenAdd} style={{
                                 display: 'flex', alignItems: 'center', gap: '7px',
-                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff',
+                                background: '#0b1329', color: '#fff',
                                 border: 'none', borderRadius: '12px', padding: '9px 18px',
                                 fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
                             }}>

@@ -2094,7 +2094,7 @@ const TestBuilder = () => {
     }
 
     const hasActivityControl = (controlName) => {
-        if (user?.role === 'Admin') return true;
+        if (user?.role === 'Admin' || user?.role === 'Institute') return true;
 
         // 1. Check parent institute allowed status
         const instAllowed = user?.institute?.controls?.activities?.[controlName] !== false;

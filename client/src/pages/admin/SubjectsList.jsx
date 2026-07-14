@@ -1,10 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2 } from 'lucide-react';
+import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2, Upload, Download } from 'lucide-react';
 import TruncatedCell from '../../components/common/TruncatedCell';
 
 const SubjectsList = () => {
@@ -15,6 +16,8 @@ const SubjectsList = () => {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importSubjectsRef = useRef(null);
     
     // Details Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -199,6 +202,147 @@ const SubjectsList = () => {
         fetchData();
     }, []);
 
+    const exportSubjects = (format) => {
+        const list = filteredSubjects;
+        if (list.length === 0) {
+            toast.error('No subjects to export');
+            return;
+        }
+        const rows = list.map(s => ({
+            Name: s.name || '',
+            Course: s.course?.name || '',
+            'Course Code': s.course?.code || '',
+            Duration: s.duration || 0,
+            Teachers: Array.isArray(s.teachers) ? s.teachers.map(t => t.name).join(', ') : '',
+            'Institute Name': s.institute?.name || ''
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `subjects_list_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} subjects to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `subjects_list_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} subjects to CSV`);
+        } else if (format === 'excel') {
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `subjects_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${list.length} subjects to Excel`);
+        }
+    };
+
+    const handleImportSubjects = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const filename = file.name;
+        const reader = new FileReader();
+
+        const processImportedSubjects = async (dataArray) => {
+            const loadingToast = toast.loading('Importing subjects...');
+            let successCount = 0;
+            const errors = [];
+
+            for (const row of dataArray) {
+                const subjectName = row.Name || row.name || row.Subject || row.subject;
+                const courseNameOrCode = row.Course || row.course || row['Course Code'] || row.courseCode;
+                const duration = Number(row.Duration || row.duration) || 0;
+
+                if (!subjectName) {
+                    errors.push(`Row with missing Subject Name ignored`);
+                    continue;
+                }
+
+                let matchedCourse = null;
+                if (courseNameOrCode) {
+                    matchedCourse = courses.find(c => 
+                        c.name?.toLowerCase() === String(courseNameOrCode).toLowerCase() ||
+                        c.code?.toLowerCase() === String(courseNameOrCode).toLowerCase()
+                    );
+                }
+
+                if (!matchedCourse && courses.length > 0) {
+                    matchedCourse = courses[0];
+                }
+
+                if (!matchedCourse) {
+                    errors.push(`Subject ${subjectName}: No courses available in database`);
+                    continue;
+                }
+
+                try {
+                    await axios.post('/api/setup/subjects', {
+                        courseIds: [matchedCourse._id],
+                        subjectName: subjectName.trim(),
+                        duration,
+                        assignToAll: true,
+                        assignedStudentIds: [],
+                        teacherIds: []
+                    });
+                    successCount++;
+                } catch (err) {
+                    errors.push(`Subject ${subjectName}: ${err.response?.data?.message || err.message}`);
+                }
+            }
+
+            toast.dismiss(loadingToast);
+            if (errors.length > 0) {
+                toast.success(`Imported ${successCount} subjects. ${errors.length} rows failed.`);
+                console.error("Import errors:", errors);
+            } else {
+                toast.success(`Successfully imported ${successCount} subjects!`);
+            }
+            fetchData();
+        };
+
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    processImportedSubjects(Array.isArray(parsed) ? parsed : [parsed]);
+                } catch (err) {
+                    toast.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const parsed = XLSX.utils.sheet_to_json(sheet);
+                    processImportedSubjects(parsed);
+                } catch (err) {
+                    toast.error('Failed to parse file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
     // Get unique courses for filter dropdown
     const uniqueCourses = [...new Set(subjects.map(s => s.course?.name).filter(Boolean))];
 
@@ -249,15 +393,65 @@ const SubjectsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Subjects Directory</h1>
                     <p className="text-slate-500">Manage all subjects, courses, institutes, and check assigned teachers and tests details.</p>
                 </div>
-                {((currentUser?.role === 'Admin') || (currentUser?.role === 'Institute' && currentUser?.institute?.controls?.subject?.addSubject !== false) || (currentUser?.role === 'Editor' && editorControls?.subjects?.addSubject !== false)) && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="file"
+                        ref={importSubjectsRef}
+                        onChange={handleImportSubjects}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
                     <button
-                        onClick={openAddModal}
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-650/15 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                        type="button"
+                        onClick={() => importSubjectsRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap"
                     >
-                        <Plus size={16} />
-                        <span>Add Subject</span>
+                        <Upload size={16} /> Import
                     </button>
-                )}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportSubjects('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportSubjects('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportSubjects('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    {((currentUser?.role === 'Admin') || (currentUser?.role === 'Institute' && currentUser?.institute?.controls?.subject?.addSubject !== false) || (currentUser?.role === 'Editor' && editorControls?.subjects?.addSubject !== false)) && (
+                        <button
+                            onClick={openAddModal}
+                            className="px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-2xl text-xs font-bold shadow-lg shadow-[#0b1329]/15 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                        >
+                            <Plus size={16} />
+                            <span>Add Subject</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}

@@ -11,7 +11,8 @@ const {
     getDeletedTests,
     restoreTest,
     permanentlyDeleteTest,
-    importTests
+    importTests,
+    duplicateTest
 } = require('../../controllers/admin/testController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 
@@ -28,8 +29,12 @@ router.route('/trash')
 router.route('/editors')
     .get(protect, adminOrEditor, getInstituteEditors);
 
+router.route('/:id/duplicate')
+    .post(protect, adminOrEditor, duplicateTest);
+
 router.route('/:id/restore')
     .put(protect, restoreTest);
+
 
 router.route('/:id/permanent')
     .delete(protect, permanentlyDeleteTest);

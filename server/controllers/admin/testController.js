@@ -541,6 +541,70 @@ const importTests = asyncHandler(async (req, res) => {
     });
 });
 
+const duplicateTest = asyncHandler(async (req, res) => {
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+        res.status(404);
+        throw new Error('Test not found');
+    }
+
+    // Enforce institute ownership check for Institute, Teacher and Editor roles
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
+        let userWithInst = await User.findById(req.user._id).populate('institute');
+        if (req.user.role === 'Teacher' && (!userWithInst || !userWithInst.institute)) {
+            const teacher = await User.findById(req.user._id);
+            const courses = teacher?.teacherProfile?.assignedCourses || [];
+            if (courses.length > 0) {
+                const Course = require('../../models/Course');
+                const firstCourse = await Course.findById(courses[0]).populate('institute');
+                if (firstCourse && firstCourse.institute) {
+                    teacher.institute = firstCourse.institute._id;
+                    await teacher.save();
+                    userWithInst = await User.findById(req.user._id).populate('institute');
+                }
+            }
+        }
+        const instName = userWithInst?.institute?.name?.trim().toLowerCase();
+        const testInstName = test.institute?.trim().toLowerCase();
+        const isCreator = test.createdBy && test.createdBy.toString() === req.user._id.toString();
+
+        if (!isCreator && (!instName || instName !== testInstName)) {
+            res.status(403);
+            throw new Error('Not authorized to duplicate tests of other institutes');
+        }
+    }
+
+    const testObj = test.toObject();
+
+    // Delete document identifiers and timestamps
+    delete testObj._id;
+    delete testObj.createdAt;
+    delete testObj.updatedAt;
+
+    // Remove _id from questions subdocuments to let MongoDB generate new ones
+    if (testObj.questions && Array.isArray(testObj.questions)) {
+        testObj.questions.forEach(q => {
+            delete q._id;
+        });
+    }
+
+    const duplicatedTest = await Test.create({
+        ...testObj,
+        title: `${test.title} - Duplicate`,
+        createdBy: req.user._id
+    });
+
+    // Log Activity
+    await Activity.create({
+        type: 'TEST_CREATED',
+        message: 'Test duplicated',
+        detail: `${duplicatedTest.title} (from ${test.title})`,
+        user: req.user._id
+    });
+
+    res.status(201).json(duplicatedTest);
+});
+
 module.exports = { 
     createTest, 
     getTests, 
@@ -552,5 +616,7 @@ module.exports = {
     getDeletedTests,
     restoreTest,
     permanentlyDeleteTest,
-    importTests
+    importTests,
+    duplicateTest
 };
+

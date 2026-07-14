@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
-    Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check, QrCode,
+    Search, Filter, Plus, FileText, Clock, Calendar, Wand2, Edit, Trash2, Link2, Check, QrCode, CopyPlus,
     Globe, Copy, ExternalLink, Settings, BarChart2, ShieldCheck, Download, Upload, Mail, Lock,
     CheckCircle2, X, Eye, Loader2, EyeOff, Info, ChevronLeft, ChevronRight, Printer, ArrowLeft, Trash,
     Video, MessageSquare, AlertTriangle, Folder, FolderOpen, ChevronDown, School, Book, Layers, LayoutGrid
@@ -320,6 +320,25 @@ const TestsList = () => {
         } catch (error) {
             console.error("Error deleting test:", error);
             toast.error('Error deleting test');
+        }
+    };
+
+    const handleDuplicate = async (test) => {
+        if (!window.confirm(`Are you sure you want to duplicate "${test.title || 'Untitled'}"?`)) return;
+        const loadToast = toast.loading('Duplicating assessment...');
+        try {
+            await axios.post(`/api/tests/${test._id}/duplicate`);
+            toast.dismiss(loadToast);
+            toast.success('Test duplicated successfully');
+            if (activeTab === 'lms' || activeTab === 'draft') {
+                fetchLmsTests();
+            } else {
+                fetchPublicTests();
+            }
+        } catch (error) {
+            toast.dismiss(loadToast);
+            console.error("Error duplicating test:", error);
+            toast.error(error.response?.data?.message || 'Error duplicating test');
         }
     };
 
@@ -901,7 +920,7 @@ const TestsList = () => {
     }, [currentTestsList, filterInstitute]);
 
     const uniqueSubjects = useMemo(() => {
-        const testsFilteredByInstAndCrs = currentTestsList.filter(t => 
+        const testsFilteredByInstAndCrs = currentTestsList.filter(t =>
             (filterInstitute === 'All' || t.institute === filterInstitute) &&
             (filterCourse === 'All' || t.course === filterCourse)
         );
@@ -2300,7 +2319,7 @@ const TestsList = () => {
                         )}
 
                         {/* Course Filter */}
-                        <div className="relative min-w-[130px] flex-1 sm:flex-initial">
+                        <div className="relative min-w-[120px] flex-1 sm:flex-initial">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                             <select
                                 value={filterCourse}
@@ -2308,7 +2327,7 @@ const TestsList = () => {
                                     setFilterCourse(e.target.value);
                                     setFilterSubject('All');
                                 }}
-                                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                                className="w-[150px] pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
                             >
                                 {uniqueCourses.map(course => (
                                     <option key={course} value={course}>{course === 'All' ? 'All Courses' : course}</option>
@@ -2440,6 +2459,13 @@ const TestsList = () => {
                                                             <Edit size={15} />
                                                         </button>
                                                         <button
+                                                            onClick={() => handleDuplicate(test)}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                            title="Duplicate Test"
+                                                        >
+                                                            <CopyPlus size={15} />
+                                                        </button>
+                                                        <button
                                                             onClick={() => handleDelete(test._id)}
                                                             className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
                                                             title="Delete Test"
@@ -2465,6 +2491,13 @@ const TestsList = () => {
                                                             title="Edit Test"
                                                         >
                                                             <Edit size={15} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDuplicate(test)}
+                                                            className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                            title="Duplicate Test"
+                                                        >
+                                                            <CopyPlus size={15} />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(test._id)}
@@ -2596,6 +2629,13 @@ const TestsList = () => {
                                                     title="Edit Test"
                                                 >
                                                     <Edit size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDuplicate(test)}
+                                                    className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                    title="Duplicate Test"
+                                                >
+                                                    <CopyPlus size={15} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(test._id)}
@@ -2781,6 +2821,13 @@ const TestsList = () => {
                                                                 <Edit size={15} />
                                                             </button>
                                                             <button
+                                                                onClick={() => handleDuplicate(test)}
+                                                                className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                                title="Duplicate Test"
+                                                            >
+                                                                <CopyPlus size={15} />
+                                                            </button>
+                                                            <button
                                                                 onClick={() => handleDelete(test._id)}
                                                                 className="p-1.5 text-slate-400 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5"
                                                                 title="Delete Link"
@@ -2796,6 +2843,13 @@ const TestsList = () => {
                                                                 title="Edit Test"
                                                             >
                                                                 <Edit size={15} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDuplicate(test)}
+                                                                className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5"
+                                                                title="Duplicate Test"
+                                                            >
+                                                                <CopyPlus size={15} />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleOpenSettings(test)}
@@ -3160,10 +3214,10 @@ const TestsList = () => {
                                                     {q.options.map((opt, oIdx) => (
                                                         <div
                                                             key={oIdx}
-                                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold ${opt.isCorrect 
-                                                                ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800' 
+                                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold ${opt.isCorrect
+                                                                ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800'
                                                                 : 'bg-slate-50 border-slate-200 text-slate-750'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <span>{opt.text}</span>
                                                             {opt.isCorrect && <Check size={14} className="text-emerald-600 font-extrabold" />}
@@ -3256,7 +3310,7 @@ const TestsList = () => {
                             {/* Academic Context */}
                             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Academic Details</span>
-                                
+
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <span className="text-[10px] text-slate-400 font-bold uppercase">Institute</span>
@@ -3307,7 +3361,7 @@ const TestsList = () => {
                         >
                             <X size={20} />
                         </button>
-                        
+
                         <div className="space-y-1">
                             <h3 className="text-lg font-bold text-slate-800">Test QR Code</h3>
                             <p className="text-xs text-slate-400">Scan this code to take the test on your device</p>
@@ -3315,7 +3369,7 @@ const TestsList = () => {
 
                         <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col items-center justify-center">
                             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                                <img 
+                                <img
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrCodeUrl)}`}
                                     alt="QR Code"
                                     className="w-[160px] h-[160px] object-contain"

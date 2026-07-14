@@ -8,7 +8,7 @@ import {
     Megaphone, MessageSquare, FolderOpen, FileText, Sparkles, 
     TrendingUp, Calendar, ArrowRight, UserCheck, AlertCircle, 
     ChevronRight, Activity, Search, Check, X, Clock, Trash2,
-    Mail, Phone, Info
+    Mail, Phone, Info, Users, UserPlus, Award
 } from 'lucide-react';
 
 const MarketerDashboard = () => {
@@ -372,7 +372,87 @@ const MarketerDashboard = () => {
             ) : (
                 /* WORKSPACE TOOLS TAB */
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in text-left">
-                    {/* Tool 1: Drive Storage */}
+                    {/* Tool 1: Leads Pipeline */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
+                        <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
+                        <div>
+                            <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                <Users size={24} />
+                            </div>
+                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Leads Pipeline</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                Manage and track potential student enrollments through visual pipeline stages.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/marketer/leads')}
+                            className="text-xs text-indigo-650 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                        >
+                            Open Pipeline <ArrowRight size={14} />
+                        </button>
+                    </div>
+
+                    {/* Tool 2: Ads Campaigns */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
+                        <div className="absolute top-0 left-0 w-2 h-full bg-rose-500"></div>
+                        <div>
+                            <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                <Megaphone size={24} />
+                            </div>
+                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Ads Management</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                Monitor paid search and social campaigns, click-through-rates, and cost per lead.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/marketer/ads')}
+                            className="text-xs text-rose-650 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                        >
+                            Open Ads Desk <ArrowRight size={14} />
+                        </button>
+                    </div>
+
+                    {/* Tool 3: Referral Program */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
+                        <div className="absolute top-0 left-0 w-2 h-full bg-amber-500"></div>
+                        <div>
+                            <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                <UserPlus size={24} />
+                            </div>
+                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Referral Program</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                Coordinate student invite programs, track signups, and verify reward payouts.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/marketer/referrals')}
+                            className="text-xs text-amber-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                        >
+                            Open Referrals Desk <ArrowRight size={14} />
+                        </button>
+                    </div>
+
+                    {/* Tool 4: Affiliate Marketing */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px]">
+                        <div className="absolute top-0 left-0 w-2 h-full bg-violet-500"></div>
+                        <div>
+                            <div className="w-12 h-12 bg-violet-50 text-violet-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                <Award size={24} />
+                            </div>
+                            <h4 className="font-extrabold text-slate-800 text-lg mb-2">Affiliate Program</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                Manage partnerships with third-party sites, blogs, and campus ambassadors.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/marketer/affiliates')}
+                            className="text-xs text-violet-650 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                        >
+                            Open Affiliates Desk <ArrowRight size={14} />
+                        </button>
+                    </div>
+
+                    {/* Tool 5: Drive Storage */}
                     {!(getControlStatus('drive').enabled === false && getControlStatus('drive').mode === 'hide') && (
                         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('drive').enabled === false ? 'opacity-60' : ''}`}>
                             <div className="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
@@ -380,9 +460,9 @@ const MarketerDashboard = () => {
                                 <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
                                     <FolderOpen size={24} />
                                 </div>
-                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Marketing Drive Storage</h4>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Marketing Drive</h4>
                                 <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                    Access digital flyers, brochures, presentation slides, curriculum sheets, and other marketing collaterals.
+                                    Access digital flyers, brochures, presentation slides, curriculum sheets, and marketing assets.
                                 </p>
                             </div>
                             <button
@@ -394,7 +474,7 @@ const MarketerDashboard = () => {
                         </div>
                     )}
 
-                    {/* Tool 2: Personal Notes */}
+                    {/* Tool 6: Personal Notes */}
                     {!(getControlStatus('notes').enabled === false && getControlStatus('notes').mode === 'hide') && (
                         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('notes').enabled === false ? 'opacity-60' : ''}`}>
                             <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
@@ -416,7 +496,7 @@ const MarketerDashboard = () => {
                         </div>
                     )}
 
-                    {/* Tool 3: Team Chat Portal */}
+                    {/* Tool 7: Team Chat Portal */}
                     {!(getControlStatus('chat').enabled === false && getControlStatus('chat').mode === 'hide') && (
                         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('chat').enabled === false ? 'opacity-60' : ''}`}>
                             <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>

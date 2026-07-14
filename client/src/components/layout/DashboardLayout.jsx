@@ -7,7 +7,7 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
-    RefreshCw
+    RefreshCw, Award
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -229,6 +229,10 @@ const menuItems = {
     ],
     Marketer: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/marketer' },
+        { name: 'Leads Management', icon: Users, path: '/marketer/leads' },
+        { name: 'Ads Management', icon: Megaphone, path: '/marketer/ads' },
+        { name: 'Referral Marketing', icon: UserPlus, path: '/marketer/referrals' },
+        { name: 'Affiliate Marketing', icon: Award, path: '/marketer/affiliates' },
         { name: 'Drive', icon: HardDrive, path: '/marketer/drive' },
         { name: 'Notes', icon: StickyNote, path: '/marketer/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/marketer/chat' },

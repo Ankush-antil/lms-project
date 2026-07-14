@@ -688,7 +688,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
 // @route   GET /api/setup/institute-applications
 // @access  Private/Institute or Admin
 const getInstituteApplications = asyncHandler(async (req, res) => {
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     if (req.user.role === 'Institute' || req.user.role === 'Marketer') {
         query.institute = req.user.institute;
     } else if (req.user.role !== 'Admin') {
@@ -911,7 +911,7 @@ const getSubjects = asyncHandler(async (req, res) => {
     res.json(subjectsList);
 });
 
-// @desc    Delete application and associated user account if registered
+// @desc    Delete application (soft delete)
 // @route   DELETE /api/setup/applications/:id
 // @access  Private/Institute or Admin
 const deleteApplication = asyncHandler(async (req, res) => {
@@ -927,18 +927,129 @@ const deleteApplication = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to delete this application');
     }
 
-    // Also delete the registered User if they exist!
+    application.isDeleted = true;
+    await application.save();
+    res.json({ message: 'Application moved to Recycle Bin' });
+});
+
+// @desc    Get soft-deleted applications
+// @route   GET /api/setup/applications/trash
+// @access  Private/Institute or Admin
+const getDeletedApplications = asyncHandler(async (req, res) => {
+    let query = { isDeleted: true };
+    if (req.user.role === 'Institute' || req.user.role === 'Marketer') {
+        query.institute = req.user.institute;
+    }
+    const applications = await Application.find(query)
+        .populate('course', 'name code description')
+        .populate('institute', 'name code address contactEmail')
+        .populate('user')
+        .sort({ updatedAt: -1 });
+    res.json(applications);
+});
+
+// @desc    Restore a soft-deleted application
+// @route   PUT /api/setup/applications/:id/restore
+// @access  Private/Institute or Admin
+const restoreApplication = asyncHandler(async (req, res) => {
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+        res.status(404);
+        throw new Error('Application not found');
+    }
+    if (req.user.role === 'Institute' && application.institute.toString() !== req.user.institute.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to restore applications of other institutes');
+    }
+    application.isDeleted = false;
+    await application.save();
+    res.json({ message: 'Application restored successfully', application });
+});
+
+// @desc    Permanently delete an application
+// @route   DELETE /api/setup/applications/:id/permanent
+// @access  Private/Institute or Admin
+const permanentlyDeleteApplication = asyncHandler(async (req, res) => {
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+        res.status(404);
+        throw new Error('Application not found');
+    }
+    if (req.user.role === 'Institute' && application.institute.toString() !== req.user.institute.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete applications of other institutes');
+    }
     if (application.user) {
         await User.findByIdAndDelete(application.user);
     } else {
-        // Fallback: search for user by email just in case
         if (application.guestEmail) {
             await User.findOneAndDelete({ email: application.guestEmail });
         }
     }
-
     await application.deleteOne();
-    res.json({ message: 'Application and associated account removed successfully' });
+    res.json({ message: 'Application permanently deleted' });
+});
+
+// @desc    Import guest applications in bulk
+// @route   POST /api/setup/applications/import
+// @access  Private/Institute or Admin
+const importApplications = asyncHandler(async (req, res) => {
+    const { applications } = req.body;
+    if (!Array.isArray(applications)) {
+        res.status(400);
+        throw new Error('Applications must be an array');
+    }
+
+    let creatorInstitute = req.user.institute;
+    if (req.user.role === 'Admin' && req.body.institute) {
+        creatorInstitute = req.body.institute;
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const appItem of applications) {
+        const { guestName, guestEmail, guestPhone, courseName, status, role, statement } = appItem;
+        if (!guestName || !guestPhone || !courseName) {
+            results.errors.push({ row: appItem, error: 'guestName, guestPhone, and courseName are required' });
+            continue;
+        }
+
+        try {
+            // Find Course
+            const courseObj = await Course.findOne({
+                name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
+                institute: creatorInstitute
+            });
+            if (!courseObj) {
+                results.errors.push({ row: appItem, error: `Course "${courseName}" not found in this institute` });
+                continue;
+            }
+
+            await Application.create({
+                guestName,
+                guestEmail: guestEmail || '',
+                guestPhone,
+                course: courseObj._id,
+                institute: creatorInstitute,
+                status: status || 'Applied',
+                role: role || 'Student',
+                statement: statement || ''
+            });
+
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: appItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} guest applications`,
+        results
+    });
 });
 
 // @desc    Public: get which section the next student will be assigned to
@@ -1504,5 +1615,9 @@ module.exports = {
     getCourseStudents,
     createSubject,
     updateSubjectDetails,
-    importInstitutes
+    importInstitutes,
+    getDeletedApplications,
+    restoreApplication,
+    permanentlyDeleteApplication,
+    importApplications
 };

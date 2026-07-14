@@ -132,15 +132,16 @@ const deletePublicSubmission = asyncHandler(async (req, res) => {
     if (!submission) {
         return res.status(404).json({ message: 'Submission not found' });
     }
-    await submission.deleteOne();
-    res.json({ success: true, message: 'Submission deleted successfully' });
+    submission.isDeleted = true;
+    await submission.save();
+    res.json({ success: true, message: 'Submission moved to Recycle Bin' });
 });
 
 // @desc    Get all guest responses (submissions) (Admin only)
 // @route   GET /api/public-tests/admin/submissions
 // @access  Private/Admin
 const getAllPublicSubmissions = asyncHandler(async (req, res) => {
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
         const tests = await Test.find({ institute: req.user.institute });
         const testIds = tests.map(t => t._id);
@@ -150,6 +151,103 @@ const getAllPublicSubmissions = asyncHandler(async (req, res) => {
         .populate('test', 'title')
         .sort({ submittedAt: -1 });
     res.json(submissions);
+});
+
+// @desc    Get soft-deleted public submissions
+// @route   GET /api/public-tests/admin/submissions/trash
+// @access  Private/Admin
+const getDeletedSubmissions = asyncHandler(async (req, res) => {
+    let query = { isDeleted: true };
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        const tests = await Test.find({ institute: req.user.institute });
+        const testIds = tests.map(t => t._id);
+        query.test = { $in: testIds };
+    }
+    const submissions = await PublicSubmission.find(query)
+        .populate('test', 'title')
+        .sort({ updatedAt: -1 });
+    res.json(submissions);
+});
+
+// @desc    Restore a soft-deleted public submission
+// @route   PUT /api/public-tests/admin/submissions/:id/restore
+// @access  Private/Admin
+const restoreSubmission = asyncHandler(async (req, res) => {
+    const submission = await PublicSubmission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+    submission.isDeleted = false;
+    await submission.save();
+    res.json({ success: true, message: 'Submission restored successfully', submission });
+});
+
+// @desc    Permanently delete a public submission
+// @route   DELETE /api/public-tests/admin/submissions/:id/permanent
+// @access  Private/Admin
+const permanentlyDeleteSubmission = asyncHandler(async (req, res) => {
+    const submission = await PublicSubmission.findById(req.params.id);
+    if (!submission) {
+        return res.status(404).json({ message: 'Submission not found' });
+    }
+    await submission.deleteOne();
+    res.json({ success: true, message: 'Submission permanently deleted' });
+});
+
+// @desc    Import public test submissions in bulk
+// @route   POST /api/public-tests/admin/submissions/import
+// @access  Private/Admin
+const importSubmissions = asyncHandler(async (req, res) => {
+    const { submissions } = req.body;
+    if (!Array.isArray(submissions)) {
+        res.status(400);
+        throw new Error('Submissions must be an array');
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const subItem of submissions) {
+        const { testTitle, name, email, phone, score, completedStatus, submittedAt } = subItem;
+        if (!name || !email || !testTitle) {
+            results.errors.push({ row: subItem, error: 'Name, email, and testTitle are required' });
+            continue;
+        }
+
+        try {
+            // Find a test matching testTitle
+            const test = await Test.findOne({
+                title: { $regex: new RegExp(`^${testTitle.trim()}$`, 'i') }
+            });
+            if (!test) {
+                results.errors.push({ row: subItem, error: `Test "${testTitle}" not found` });
+                continue;
+            }
+
+            await PublicSubmission.create({
+                test: test._id,
+                name,
+                email,
+                phone: phone || '',
+                score: Number(score) || 0,
+                completedStatus: completedStatus || 'Completed',
+                status: 'submitted',
+                submittedAt: submittedAt ? new Date(submittedAt) : new Date()
+            });
+
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: subItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} submissions`,
+        results
+    });
 });
 
 // @desc    Evaluate guest submission (Admin only)
@@ -182,5 +280,9 @@ module.exports = {
     updatePublicTestSettings,
     deletePublicSubmission,
     getAllPublicSubmissions,
-    evaluatePublicSubmission
+    evaluatePublicSubmission,
+    getDeletedSubmissions,
+    restoreSubmission,
+    permanentlyDeleteSubmission,
+    importSubmissions
 };

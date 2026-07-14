@@ -183,6 +183,30 @@ const UsersList = () => {
         }
     };
 
+    const handleDeleteRoleRequest = async (id) => {
+        if (window.confirm('Are you sure you want to move this role request to the Recycle Bin?')) {
+            try {
+                await axios.delete(`/api/users/role-requests/${id}`);
+                setRoleRequests(prev => prev.filter(r => r._id !== id));
+                toast.success('Role request moved to Recycle Bin');
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Error deleting role request');
+            }
+        }
+    };
+
+    const handleDeleteGuestApplication = async (id) => {
+        if (window.confirm('Are you sure you want to move this guest application to the Recycle Bin?')) {
+            try {
+                await axios.delete(`/api/setup/applications/${id}`);
+                setGuests(prev => prev.filter(g => g._id !== id));
+                toast.success('Guest application moved to Recycle Bin');
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Error deleting application');
+            }
+        }
+    };
+
     const filteredRoleRequests = useMemo(() => {
         return roleRequests.filter(req => 
             (filterInstitute === 'All' || (req.user?.institute?._id === filterInstitute || req.user?.institute === filterInstitute)) &&
@@ -193,12 +217,13 @@ const UsersList = () => {
     }, [roleRequests, searchTerm, filterInstitute]);
 
     const filteredUsers = users.filter(user =>
-        (filterRole === 'All' || user.role === filterRole) &&
+        (filterRole === 'All' || user.role === filterRole || (user.allowedRoles && user.allowedRoles.includes(filterRole))) &&
         (filterInstitute === 'All' || (user.institute?._id === filterInstitute || user.institute === filterInstitute)) &&
         (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase())))
+            (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (user.allowedRoles && user.allowedRoles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()))))
     );
 
     const combinedGuests = useMemo(() => {
@@ -310,8 +335,140 @@ const UsersList = () => {
     };
 
     const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
-
     const [isExportRequestsDropdownOpen, setIsExportRequestsDropdownOpen] = useState(false);
+    const [isExportLimitedDropdownOpen, setIsExportLimitedDropdownOpen] = useState(false);
+    const [isExportGuestDropdownOpen, setIsExportGuestDropdownOpen] = useState(false);
+    const importLimitedRef = useRef(null);
+    const importGuestRef = useRef(null);
+
+    const exportLimitedUsers = (format) => {
+        const data = groupedLimitedUsers;
+        if (data.length === 0) { toast.error('No limited users to export'); return; }
+        const rows = data.map(u => ({
+            Name: u.name || '',
+            Email: u.email || '',
+            Phone: u.phone || '',
+            'Test Count': u.submissions?.length || 0,
+            Score: u.submissions?.[0]?.score || 0,
+            'Last Submitted': u.submissions?.[0]?.submittedAt ? new Date(u.submissions[0].submittedAt).toLocaleString() : ''
+        }));
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows.map(r => ({ name: r.Name, email: r.Email, phone: r.Phone })), null, 2)], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `limited_users_${new Date().toISOString().split('T')[0]}.json`; link.click();
+            toast.success(`Exported ${data.length} limited users to JSON`);
+        } else if (format === 'csv') {
+            const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `limited_users_${new Date().toISOString().split('T')[0]}.csv`; link.click();
+            toast.success(`Exported ${data.length} limited users to CSV`);
+        } else if (format === 'excel') {
+            const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Limited Users');
+            const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `limited_users_${new Date().toISOString().split('T')[0]}.xlsx`; link.click();
+            toast.success(`Exported ${data.length} limited users to Excel`);
+        }
+    };
+
+    const exportGuestUsers = (format) => {
+        const data = combinedGuests;
+        if (data.length === 0) { toast.error('No guest users to export'); return; }
+        const rows = data.map(u => ({
+            Name: u.guestName || u.name || '',
+            Email: u.guestEmail || u.email || '',
+            Phone: u.guestPhone || u.mobileNumber || '',
+            Course: u.course?.name || '',
+            Institute: u.institute?.name || '',
+            Status: u.status || '',
+            'Applied At': u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
+        }));
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows.map(r => ({ guestName: r.Name, guestEmail: r.Email, guestPhone: r.Phone, courseName: r.Course, status: r.Status })), null, 2)], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `guest_users_${new Date().toISOString().split('T')[0]}.json`; link.click();
+            toast.success(`Exported ${data.length} guest users to JSON`);
+        } else if (format === 'csv') {
+            const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `guest_users_${new Date().toISOString().split('T')[0]}.csv`; link.click();
+            toast.success(`Exported ${data.length} guest users to CSV`);
+        } else if (format === 'excel') {
+            const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Guest Users');
+            const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `guest_users_${new Date().toISOString().split('T')[0]}.xlsx`; link.click();
+            toast.success(`Exported ${data.length} guest users to Excel`);
+        }
+    };
+
+    const handleImportLimitedUsers = (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        const filename = file.name.toLowerCase();
+        const processImport = async (parsed) => {
+            if (!Array.isArray(parsed)) { toast.error('File must contain an array'); return; }
+            const mapped = parsed.map(row => {
+                const keys = Object.keys(row);
+                return {
+                    testTitle: (keys.find(k => ['test title', 'testtitle', 'test'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['test title', 'testtitle', 'test'].includes(k.toLowerCase()))]).trim() : '',
+                    name: (keys.find(k => k.toLowerCase() === 'name')) ? String(row[keys.find(k => k.toLowerCase() === 'name')]).trim() : '',
+                    email: (keys.find(k => k.toLowerCase() === 'email')) ? String(row[keys.find(k => k.toLowerCase() === 'email')]).trim() : '',
+                    phone: (keys.find(k => ['phone', 'mobile'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['phone', 'mobile'].includes(k.toLowerCase()))]).trim() : '',
+                    score: (keys.find(k => k.toLowerCase() === 'score')) ? Number(row[keys.find(k => k.toLowerCase() === 'score')]) : 0,
+                };
+            }).filter(i => i.name && i.email && i.testTitle);
+            if (mapped.length === 0) { toast.error('No valid rows found'); return; }
+            const t = toast.loading(`Importing ${mapped.length} submissions...`);
+            try {
+                const res = await axios.post('/api/public-tests/admin/submissions/import', { submissions: mapped });
+                toast.dismiss(t); const { successCount, errors } = res.data.results;
+                toast.success(`Imported ${successCount} submissions. ${errors?.length || 0} failed.`);
+                fetchData();
+            } catch (err) { toast.dismiss(t); toast.error(err.response?.data?.message || 'Error importing'); }
+        };
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => { try { processImport(JSON.parse(evt.target.result)); } catch { toast.error('Failed to parse JSON'); } };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => { try { const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' }); processImport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])); } catch { toast.error('Failed to parse file'); } };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
+
+    const handleImportGuestUsers = (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        const filename = file.name.toLowerCase();
+        const processImport = async (parsed) => {
+            if (!Array.isArray(parsed)) { toast.error('File must contain an array'); return; }
+            const mapped = parsed.map(row => {
+                const keys = Object.keys(row);
+                return {
+                    guestName: (keys.find(k => ['guest name', 'guestname', 'name'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['guest name', 'guestname', 'name'].includes(k.toLowerCase()))]).trim() : '',
+                    guestEmail: (keys.find(k => ['guest email', 'guestemail', 'email'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['guest email', 'guestemail', 'email'].includes(k.toLowerCase()))]).trim() : '',
+                    guestPhone: (keys.find(k => ['guest phone', 'guestphone', 'phone', 'mobile'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['guest phone', 'guestphone', 'phone', 'mobile'].includes(k.toLowerCase()))]).trim() : '',
+                    courseName: (keys.find(k => ['course', 'course name', 'coursename'].includes(k.toLowerCase()))) ? String(row[keys.find(k => ['course', 'course name', 'coursename'].includes(k.toLowerCase()))]).trim() : '',
+                    status: (keys.find(k => k.toLowerCase() === 'status')) ? String(row[keys.find(k => k.toLowerCase() === 'status')]).trim() : 'Applied',
+                };
+            }).filter(i => i.guestName && i.guestPhone && i.courseName);
+            if (mapped.length === 0) { toast.error('No valid rows found'); return; }
+            const t = toast.loading(`Importing ${mapped.length} guest applications...`);
+            try {
+                const res = await axios.post('/api/setup/applications/import', { applications: mapped });
+                toast.dismiss(t); const { successCount, errors } = res.data.results;
+                toast.success(`Imported ${successCount} applications. ${errors?.length || 0} failed.`);
+                fetchData();
+            } catch (err) { toast.dismiss(t); toast.error(err.response?.data?.message || 'Error importing'); }
+        };
+        if (filename.endsWith('.json')) {
+            reader.onload = async (evt) => { try { processImport(JSON.parse(evt.target.result)); } catch { toast.error('Failed to parse JSON'); } };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async (evt) => { try { const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' }); processImport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])); } catch { toast.error('Failed to parse file'); } };
+            reader.readAsArrayBuffer(file);
+        }
+        e.target.value = '';
+    };
 
 
     const exportRoleRequests = (format) => {
@@ -858,15 +1015,66 @@ const UsersList = () => {
                             : 'View all registered user accounts and guest details for your institute.'}
                     </p>
                 </div>
-                {viewTab === 'registered' && (
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {/* Dynamic Export Dropdown */}
+                    {(() => {
+                        const exportConfig = {
+                            registered: { fn: exportUsers, label: 'registered_users' },
+                            limited: { fn: exportLimitedUsers, label: 'limited_users' },
+                            guest: { fn: exportGuestUsers, label: 'guest_users' },
+                            'role-requests': { fn: exportRoleRequests, label: 'role_requests' },
+                        };
+                        const cfg = exportConfig[viewTab];
+                        return cfg ? (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsExportDropdownOpen(v => !v)}
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white border border-[#0b1329] rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/20 cursor-pointer active:scale-95"
+                                >
+                                    <Download size={15} /> Export <ChevronDown size={13} />
+                                </button>
+                                {isExportDropdownOpen && (
+                                    <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                                        {['json', 'csv', 'excel'].map(f => (
+                                            <button key={f} onClick={() => { cfg.fn(f); setIsExportDropdownOpen(false); }} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl uppercase">{f}</button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : null;
+                    })()}
+
+                    {/* Dynamic Import Button */}
+                    {(() => {
+                        const importConfig = {
+                            registered: { ref: importUsersRef, handler: handleImportUsers },
+                            limited: { ref: importLimitedRef, handler: handleImportLimitedUsers },
+                            guest: { ref: importGuestRef, handler: handleImportGuestUsers },
+                            'role-requests': { ref: importRoleRequestsRef, handler: handleImportRoleRequests },
+                        };
+                        const cfg = importConfig[viewTab];
+                        return cfg ? (
+                            <>
+                                <button
+                                    onClick={() => cfg.ref.current?.click()}
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white border border-[#0b1329] rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/20 cursor-pointer active:scale-95"
+                                >
+                                    <Upload size={15} /> Import
+                                </button>
+                                <input ref={cfg.ref} type="file" accept=".json,.csv,.xlsx" onChange={cfg.handler} className="hidden" />
+                            </>
+                        ) : null;
+                    })()}
+
+                    {/* Recycle Bin */}
                     <button
                         onClick={() => setIsTrashOpen(true)}
-                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
                         title="Recycle Bin"
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                )}
+                </div>
             </div>
 
             {/* View Tabs */}
@@ -1306,24 +1514,33 @@ const UsersList = () => {
                                                     <span className="text-xs text-slate-400 italic px-2">You (Current Admin)</span>
                                                 )
                                             ) : viewTab === 'role-requests' ? (
-                                                u.status === 'Pending' ? (
-                                                    <div className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={() => handleApproveRoleRequest(u._id)}
-                                                            className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm cursor-pointer"
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleRejectRoleRequest(u._id)}
-                                                            className="px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all shadow-sm cursor-pointer"
-                                                        >
-                                                            Reject
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <span className={`text-xs font-bold px-3 ${u.status === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>{u.status}</span>
-                                                )
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    {u.status === 'Pending' ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleApproveRoleRequest(u._id)}
+                                                                className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRejectRoleRequest(u._id)}
+                                                                className="px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <span className={`text-xs font-bold px-3 ${u.status === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>{u.status}</span>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDeleteRoleRequest(u._id)}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Move to Recycle Bin"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             ) : viewTab === 'limited' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <button
@@ -1338,8 +1555,8 @@ const UsersList = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteCandidateGroup(u)}
-                                                        className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-55/10 rounded-lg transition-colors"
-                                                        title="Delete All Submissions"
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Move All Submissions to Recycle Bin"
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
@@ -1452,16 +1669,51 @@ const UsersList = () => {
                     </div>
                 )}
             </div>
-            <RecycleBinModal
-                isOpen={isTrashOpen}
-                onClose={() => setIsTrashOpen(false)}
-                title="System Users Recycle Bin"
-                trashUrl="/api/users/trash"
-                onRestoreSuccess={fetchData}
-                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
-                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
-                renderItemDetail={(item) => `Email: ${item.email} | Role: ${item.role}`}
-            />
+            {(() => {
+                const trashConfig = {
+                    registered: {
+                        title: 'Registered Users Recycle Bin',
+                        trashUrl: '/api/users/trash',
+                        restoreUrlPattern: (id) => `/api/users/${id}/restore`,
+                        permanentDeleteUrlPattern: (id) => `/api/users/${id}/permanent`,
+                        renderItemDetail: (item) => `Email: ${item.email} | Role: ${item.role}`
+                    },
+                    limited: {
+                        title: 'Limited Users (Submissions) Recycle Bin',
+                        trashUrl: '/api/public-tests/admin/submissions/trash',
+                        restoreUrlPattern: (id) => `/api/public-tests/admin/submissions/${id}/restore`,
+                        permanentDeleteUrlPattern: (id) => `/api/public-tests/admin/submissions/${id}/permanent`,
+                        renderItemDetail: (item) => `Email: ${item.email} | Test: ${item.test?.title || 'N/A'} | Score: ${item.score ?? 'N/A'}`
+                    },
+                    guest: {
+                        title: 'Guest Applications Recycle Bin',
+                        trashUrl: '/api/setup/applications/trash',
+                        restoreUrlPattern: (id) => `/api/setup/applications/${id}/restore`,
+                        permanentDeleteUrlPattern: (id) => `/api/setup/applications/${id}/permanent`,
+                        renderItemDetail: (item) => `Phone: ${item.guestPhone || item.mobileNumber || 'N/A'} | Status: ${item.status || 'N/A'}`
+                    },
+                    'role-requests': {
+                        title: 'Role Requests Recycle Bin',
+                        trashUrl: '/api/users/role-requests/trash',
+                        restoreUrlPattern: (id) => `/api/users/role-requests/${id}/restore`,
+                        permanentDeleteUrlPattern: (id) => `/api/users/role-requests/${id}/permanent`,
+                        renderItemDetail: (item) => `User: ${item.user?.email || 'N/A'} | Requested: ${item.requestedRole} | Status: ${item.status}`
+                    }
+                };
+                const cfg = trashConfig[viewTab] || trashConfig.registered;
+                return (
+                    <RecycleBinModal
+                        isOpen={isTrashOpen}
+                        onClose={() => setIsTrashOpen(false)}
+                        title={cfg.title}
+                        trashUrl={cfg.trashUrl}
+                        onRestoreSuccess={fetchData}
+                        restoreUrlPattern={cfg.restoreUrlPattern}
+                        permanentDeleteUrlPattern={cfg.permanentDeleteUrlPattern}
+                        renderItemDetail={cfg.renderItemDetail}
+                    />
+                );
+            })()}
             {isCandidateModalOpen && selectedCandidateGroup && (
                 <CandidateTestsModal
                     isOpen={isCandidateModalOpen}

@@ -22,7 +22,11 @@ const {
     rejectRoleRequest,
     importRoleRequests,
     importUsers,
-    switchRole
+    switchRole,
+    deleteRoleRequest,
+    getDeletedRoleRequests,
+    restoreRoleRequest,
+    permanentlyDeleteRoleRequest
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -49,6 +53,10 @@ router.delete('/:id/permanent', protect, adminOrEditor, permanentlyDeleteUser);
 router.post('/role-requests', protect, createRoleRequest);
 router.post('/role-requests/import', protect, importRoleRequests);
 router.get('/role-requests', protect, getRoleRequests);
+router.get('/role-requests/trash', protect, getDeletedRoleRequests);
+router.put('/role-requests/:id/restore', protect, restoreRoleRequest);
+router.delete('/role-requests/:id/permanent', protect, permanentlyDeleteRoleRequest);
+router.delete('/role-requests/:id', protect, deleteRoleRequest);
 router.put('/role-requests/:id/approve', protect, approveRoleRequest);
 router.put('/role-requests/:id/reject', protect, rejectRoleRequest);
 router.put('/switch-role', protect, switchRole);

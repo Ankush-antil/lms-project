@@ -102,7 +102,11 @@ const createUser = asyncHandler(async (req, res) => {
         role,
         institute,
         mobileNumber: mobileNumber || '',
-        callEnabled: callEnabled !== undefined ? callEnabled : true
+        callEnabled: callEnabled !== undefined ? callEnabled : true,
+        // Save allowedRoles from form (the pre-save hook ensures primary role is always included)
+        allowedRoles: Array.isArray(req.body.allowedRoles) && req.body.allowedRoles.length > 0
+            ? [...new Set([...(req.body.allowedRoles), role])] // ensure primary role always present
+            : [role]
     };
 
     if (role === 'Student') {
@@ -480,6 +484,15 @@ const updateUser = asyncHandler(async (req, res) => {
                 user.guestProfile.demoExpiryDate = new Date(new Date(startDate).getTime() + req.body.demoDuration * 24 * 60 * 60 * 1000);
             }
             user.markModified('guestProfile');
+        }
+
+        // Save allowedRoles if provided
+        if (req.body.allowedRoles && Array.isArray(req.body.allowedRoles)) {
+            // Ensure the user's primary/current activeRole is always in allowedRoles
+            const rolesSet = new Set(req.body.allowedRoles);
+            rolesSet.add(activeRole); // always keep the editing role
+            user.allowedRoles = [...rolesSet];
+            user.markModified('allowedRoles');
         }
 
         const updatedUser = await user.save();
@@ -1072,7 +1085,7 @@ const createRoleRequest = asyncHandler(async (req, res) => {
 // @route   GET /api/users/role-requests
 // @access  Private (Admin / Institute)
 const getRoleRequests = asyncHandler(async (req, res) => {
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     const { myRequests } = req.query;
 
     if (myRequests === 'true' || !['Admin', 'Institute'].includes(req.user.role)) {
@@ -1094,6 +1107,75 @@ const getRoleRequests = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 });
 
     res.json(requests);
+});
+
+// @desc    Delete role request (soft delete)
+// @route   DELETE /api/users/role-requests/:id
+// @access  Private (Admin / Institute)
+const deleteRoleRequest = asyncHandler(async (req, res) => {
+    const request = await RoleRequest.findById(req.params.id);
+    if (!request) {
+        res.status(404);
+        throw new Error('Role request not found');
+    }
+    if (req.user.role === 'Institute' && request.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete role requests of other institutes');
+    }
+    request.isDeleted = true;
+    await request.save();
+    res.json({ message: 'Role request moved to Recycle Bin' });
+});
+
+// @desc    Get soft-deleted role requests
+// @route   GET /api/users/role-requests/trash
+// @access  Private (Admin / Institute)
+const getDeletedRoleRequests = asyncHandler(async (req, res) => {
+    let query = { isDeleted: true };
+    if (req.user.role === 'Institute') {
+        query.institute = req.user.institute;
+    }
+    const requests = await RoleRequest.find(query)
+        .populate('user', 'name email role')
+        .populate('institute', 'name')
+        .populate('course', 'name')
+        .sort({ updatedAt: -1 });
+    res.json(requests);
+});
+
+// @desc    Restore a soft-deleted role request
+// @route   PUT /api/users/role-requests/:id/restore
+// @access  Private (Admin / Institute)
+const restoreRoleRequest = asyncHandler(async (req, res) => {
+    const request = await RoleRequest.findById(req.params.id);
+    if (!request) {
+        res.status(404);
+        throw new Error('Role request not found');
+    }
+    if (req.user.role === 'Institute' && request.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to restore role requests of other institutes');
+    }
+    request.isDeleted = false;
+    await request.save();
+    res.json({ message: 'Role request restored successfully', request });
+});
+
+// @desc    Permanently delete a role request
+// @route   DELETE /api/users/role-requests/:id/permanent
+// @access  Private (Admin / Institute)
+const permanentlyDeleteRoleRequest = asyncHandler(async (req, res) => {
+    const request = await RoleRequest.findById(req.params.id);
+    if (!request) {
+        res.status(404);
+        throw new Error('Role request not found');
+    }
+    if (req.user.role === 'Institute' && request.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to delete role requests of other institutes');
+    }
+    await request.deleteOne();
+    res.json({ message: 'Role request permanently deleted' });
 });
 
 // @desc    Approve Role Request
@@ -1119,12 +1201,18 @@ const approveRoleRequest = asyncHandler(async (req, res) => {
     request.status = 'Approved';
     await request.save();
 
-    // Push the approved role to the user's allowedRoles array
+    // Push the approved role to the user's allowedRoles and update primary role
     const targetUser = await User.findById(request.user);
     if (targetUser) {
         if (!targetUser.allowedRoles.includes(request.requestedRole)) {
             targetUser.allowedRoles.push(request.requestedRole);
         }
+        // Also preserve the old role in allowedRoles before switching
+        if (!targetUser.allowedRoles.includes(targetUser.role)) {
+            targetUser.allowedRoles.push(targetUser.role);
+        }
+        // Switch primary role to the newly approved role
+        targetUser.role = request.requestedRole;
         
         // If Student role approved, initialize studentProfile and assign course
         if (request.requestedRole === 'Student' && request.course) {
@@ -1454,5 +1542,9 @@ module.exports = {
     rejectRoleRequest,
     importRoleRequests,
     importUsers,
-    switchRole
+    switchRole,
+    deleteRoleRequest,
+    getDeletedRoleRequests,
+    restoreRoleRequest,
+    permanentlyDeleteRoleRequest
 };

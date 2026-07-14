@@ -237,7 +237,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     student: ''
                 },
                 demoCourse: '',
-                demoDuration: 1
+                demoDuration: 1,
+                allowedRoles: [role]
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -1043,6 +1044,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
             const payload = {
                 ...formData,
                 role: role,
+                allowedRoles: formData.allowedRoles && formData.allowedRoles.length > 0 ? formData.allowedRoles : [role],
                 controlsScope: controlsScope,
                 selectedPropagationStudents: selectedPropagationStudents
             };
@@ -1635,6 +1637,37 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 </div>
                                             )}
                                         </>
+                                    )}
+
+                                    {/* Assign Other Role */}
+                                    {role !== 'Guest' && (
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Assign Other Role</label>
+                                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
+                                                {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].map(r => {
+                                                    const isPrimary = r === role;
+                                                    const isChecked = (formData.allowedRoles || [role]).includes(r);
+                                                    return (
+                                                        <label key={r} className={`flex items-center gap-2 text-xs font-bold cursor-pointer select-none ${ isPrimary ? 'text-indigo-600' : 'text-slate-600' }`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                disabled={isPrimary}
+                                                                onChange={() => {
+                                                                    const current = formData.allowedRoles || [role];
+                                                                    const next = isChecked
+                                                                        ? current.filter(x => x !== r)
+                                                                        : [...current, r];
+                                                                    setFormData({ ...formData, allowedRoles: next });
+                                                                }}
+                                                                className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:opacity-60"
+                                                            />
+                                                            {r}{isPrimary && <span className="text-[9px] font-black bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-full ml-0.5">Default</span>}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
                                     )}
 
                                     <div>

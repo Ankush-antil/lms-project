@@ -76,8 +76,10 @@ const RecycleBinModal = ({
         }
     };
 
+    const getItemName = (item) => item.name || item.title || item.guestName || item.user?.name || 'Untitled';
+
     const filteredItems = items.filter(item => {
-        const name = (item.name || item.title || '').toLowerCase();
+        const name = getItemName(item).toLowerCase();
         const detail = renderItemDetail(item).toLowerCase();
         const term = searchTerm.toLowerCase();
         return name.includes(term) || detail.includes(term);
@@ -150,7 +152,7 @@ const RecycleBinModal = ({
                                     >
                                         <div className="flex-1 min-w-0">
                                             <h4 className="text-sm font-bold text-slate-800 truncate">
-                                                {item.name || item.title || 'Untitled'}
+                                                {getItemName(item)}
                                             </h4>
                                             <p className="text-xs text-slate-450 truncate mt-0.5">
                                                 {renderItemDetail(item)}

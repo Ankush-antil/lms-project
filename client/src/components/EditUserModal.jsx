@@ -211,7 +211,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
                 student: role === 'Parent' ? (user?.parentProfile?.student?._id || user?.parentProfile?.student || '') : ''
             },
             demoCourse: role === 'Guest' ? (user?.guestProfile?.demoCourse?._id || user?.guestProfile?.demoCourse || '') : '',
-            demoDuration: role === 'Guest' ? (user?.guestProfile?.demoDuration || 1) : 1
+            demoDuration: role === 'Guest' ? (user?.guestProfile?.demoDuration || 1) : 1,
+            allowedRoles: user?.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [role]
         });
     };
 
@@ -1066,7 +1067,8 @@ const handleSubmit = async (e) => {
                 parentProfile: formData.parentProfile,
                 editingRole: selectedRoleToEdit,
                 demoCourse: formData.demoCourse,
-                demoDuration: formData.demoDuration
+                demoDuration: formData.demoDuration,
+                allowedRoles: formData.allowedRoles && formData.allowedRoles.length > 0 ? formData.allowedRoles : [selectedRoleToEdit]
             };
 
             if (formData.password.trim()) {
@@ -1731,6 +1733,37 @@ const handleSubmit = async (e) => {
                                             </div>
                                         )}
                                     </>
+                                )}
+
+                                {/* Assign Other Role */}
+                                {selectedRoleToEdit !== 'Guest' && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Assign Other Role</label>
+                                        <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
+                                            {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].map(r => {
+                                                const isPrimary = r === selectedRoleToEdit;
+                                                const isChecked = (formData.allowedRoles || [selectedRoleToEdit]).includes(r);
+                                                return (
+                                                    <label key={r} className={`flex items-center gap-2 text-xs font-bold cursor-pointer select-none ${isPrimary ? 'text-indigo-600' : 'text-slate-600'}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            disabled={isPrimary}
+                                                            onChange={() => {
+                                                                const current = formData.allowedRoles || [selectedRoleToEdit];
+                                                                const next = isChecked
+                                                                    ? current.filter(x => x !== r)
+                                                                    : [...current, r];
+                                                                setFormData({ ...formData, allowedRoles: next });
+                                                            }}
+                                                            className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:opacity-60"
+                                                        />
+                                                        {r}{isPrimary && <span className="text-[9px] font-black bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-full ml-0.5">Default</span>}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 )}
 
                                 <div>

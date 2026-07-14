@@ -6,7 +6,7 @@ import {
     Users, Search, Plus, Filter, ArrowRight, Check, X, 
     Calendar, Mail, Phone, Clock, FileText, ChevronRight,
     TrendingUp, UserCheck, Inbox, RefreshCw, BarChart2,
-    Eye, MoreHorizontal, Settings
+    Eye, MoreHorizontal, Settings, Trash2
 } from 'lucide-react';
 
 const LeadsManagement = () => {
@@ -179,6 +179,23 @@ const LeadsManagement = () => {
 
         setLeads(prev => prev.map(l => l._id === id ? { ...l, stage: newStage, status: nextStatus } : l));
         toast.success(`Lead stage updated to ${newStage}`);
+    };
+
+    const handleDeleteApplication = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this lead?")) return;
+        if (id.startsWith('demo_') || id.startsWith('manual_')) {
+            setLeads(prev => prev.filter(l => l._id !== id));
+            toast.success("Lead deleted successfully");
+            return;
+        }
+        try {
+            await axios.delete(`/api/setup/applications/${id}`);
+            toast.success("Lead deleted successfully");
+            setLeads(prev => prev.filter(l => l._id !== id));
+        } catch (err) {
+            console.error("Error deleting lead:", err);
+            toast.error(err.response?.data?.message || "Failed to delete lead");
+        }
     };
 
     // Filters

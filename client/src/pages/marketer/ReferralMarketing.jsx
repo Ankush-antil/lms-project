@@ -328,7 +328,7 @@ const ReferralMarketing = () => {
                                     type="text"
                                     required
                                     value={rewardRules.refereeReward}
-                                    onChange={(e) => setNewCampaignForm({ ...rewardRules, refereeReward: e.target.value })}
+                                    onChange={(e) => setRewardRules({ ...rewardRules, refereeReward: e.target.value })}
                                     className="w-full bg-slate-50 border border-slate-150 rounded-2xl py-3 px-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                                     placeholder="e.g. 10% Discount on Enrollment"
                                 />

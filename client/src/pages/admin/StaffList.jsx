@@ -604,19 +604,19 @@ const StaffList = () => {
                 {/* Tab content routing */}
                 {activeTab === 'directory' && (
                     <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+                                <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
                                     <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                                     <input
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         placeholder="Search staff directory..."
                                         style={{
-                                            paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
+                                            width: '100%', paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
                                             border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.82rem',
                                             fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
-                                            minWidth: 260, fontFamily: 'inherit'
+                                            fontFamily: 'inherit', boxSizing: 'border-box'
                                         }}
                                     />
                                 </div>
@@ -712,7 +712,8 @@ const StaffList = () => {
                             <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8', fontWeight: 700 }}>Loading staff...</div>
                         ) : (
                             <div style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                                             {['#', 'Name', 'Email', 'Designation', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
@@ -827,6 +828,7 @@ const StaffList = () => {
                                         ))}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         )}
                     </>

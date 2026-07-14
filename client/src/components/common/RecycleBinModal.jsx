@@ -84,8 +84,8 @@ const RecycleBinModal = ({
     });
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
-            <div className="bg-white w-full max-w-2xl max-h-[80vh] rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col animate-slide-up">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center sm:p-4 font-sans animate-fade-in">
+            <div className="bg-white w-full h-full sm:h-auto max-w-2xl sm:max-h-[80vh] rounded-none sm:rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col animate-slide-up">
                 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-150 bg-white">
@@ -142,7 +142,7 @@ const RecycleBinModal = ({
                                 return (
                                     <div 
                                         key={item._id} 
-                                        className={`p-4 border rounded-2xl flex items-center justify-between gap-4 transition-all ${
+                                        className={`p-4 border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                                             isConfirming 
                                                 ? 'bg-red-50/30 border-red-200 shadow-sm' 
                                                 : 'bg-white hover:bg-slate-50/50 border-slate-150'
@@ -157,7 +157,7 @@ const RecycleBinModal = ({
                                             </p>
                                         </div>
 
-                                        <div className="flex items-center gap-2 shrink-0">
+                                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
                                             {isConfirming ? (
                                                 <div className="flex items-center gap-1.5 animate-fade-in">
                                                     <span className="text-[11px] font-black text-red-650 flex items-center gap-1">

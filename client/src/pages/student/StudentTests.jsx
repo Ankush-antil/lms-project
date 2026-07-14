@@ -188,6 +188,7 @@ const StudentTests = () => {
     const [activeFilter, setActiveFilter] = useState('Institute');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
+    const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
     const [expandedSubjects, setExpandedSubjects] = useState({});
     const [subjectFilter, setSubjectFilter] = useState('All');
     const [chatInput, setChatInput] = useState('');
@@ -983,10 +984,18 @@ const StudentTests = () => {
 
     return (
         <DashboardLayout role="Student" fullWidth={true}>
-            <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
+
+                {/* Left Sidebar backdrop */}
+                {isInboxSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+                        onClick={() => setIsInboxSidebarOpen(false)}
+                    />
+                )}
 
                 {/* ── LEFT SIDEBAR ───────────────────────────────────── */}
-                <aside className="w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden">
+                <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden transition-transform duration-300 lg:static lg:translate-x-0 ${isInboxSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="p-6 border-b border-slate-150 shrink-0">
                         <div className="flex items-center gap-2 mb-1.5">
                             <BookOpen className="text-slate-700" size={18} />
@@ -1090,6 +1099,7 @@ const StudentTests = () => {
                                                                 }
                                                                 setSelectedItem(item.id);
                                                                 setSelectedCategory(null);
+                                                                setIsInboxSidebarOpen(false);
                                                                 if (!viewMode || !['pending', 'submitted', 'returned', 'evaluated', 'study-material', 'practice', 'chat', 'analytics'].includes(viewMode)) {
                                                                     setViewMode('pending');
                                                                 }
@@ -1155,6 +1165,14 @@ const StudentTests = () => {
                     {/* Top Header Section */}
                     <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
                         <div className="flex items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setIsInboxSidebarOpen(true)}
+                                className="lg:hidden p-2 bg-slate-50 border border-slate-200 text-slate-650 hover:bg-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
+                                title="Open Activities List"
+                            >
+                                <Menu size={18} />
+                            </button>
                             <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
                                 <BookOpen size={16} />
                             </div>

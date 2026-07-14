@@ -9,15 +9,15 @@ import { useSocket } from '../../context/SocketContext';
 import toast from 'react-hot-toast';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-xl ${color} bg-opacity-10`}>
-                <Icon size={24} className={color.replace('bg-', 'text-')} />
+    <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between mb-3">
+            <div className={`p-2.5 rounded-xl ${color} bg-opacity-10`}>
+                <Icon size={20} className={color.replace('bg-', 'text-')} />
             </div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</span>
         </div>
-        <h3 className="text-3xl font-bold text-slate-800 mb-1">{value}</h3>
-        <p className="text-sm text-slate-500 font-medium">{title}</p>
+        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{value}</h3>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium">{title}</p>
     </div>
 );
 
@@ -129,22 +129,22 @@ const StudentDashboard = () => {
                         </div>
                     </div>
                 )}
-                <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Student Dashboard</h1>
-                    <p className="text-slate-500">Welcome back, {profile?.name?.split(' ')[0]}! Track your progress here.</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Student Dashboard</h1>
+                    <p className="text-slate-500 text-sm">Welcome back, {profile?.name?.split(' ')[0]}! Track your progress here.</p>
                 </div>
-                <div className="flex gap-2">
-                    <span className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold shadow-sm border border-indigo-100">
+                <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs sm:text-sm font-bold shadow-sm border border-indigo-100">
                         {profile?.studentProfile?.subject || 'No Subject Assigned'}
                     </span>
-                    <span className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold shadow-sm">
+                    <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold shadow-sm">
                         {profile?.studentProfile?.course?.name || profile?.studentProfile?.course || 'No Course'}
                     </span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-6 sm:mb-8">
                 <StatCard title="Pending Tests" value={pendingTests.length} icon={Clock} color="bg-orange-500 text-orange-500" />
                 <StatCard title="Completed Tests" value={completedTests.length} icon={CheckCircle} color="bg-emerald-500 text-emerald-500" />
             </div>

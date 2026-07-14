@@ -366,7 +366,7 @@ const ParentsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Parents Management</h1>
                     <p className="text-slate-500">Manage parents profiles and link them to students.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <input
                         type="file"
                         ref={importUsersRef}

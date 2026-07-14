@@ -370,7 +370,7 @@ const AccountantsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Accountants Management</h1>
                     <p className="text-slate-500">Manage platform accountants and track their activity.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setIsTrashOpen(true)}
                         className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"

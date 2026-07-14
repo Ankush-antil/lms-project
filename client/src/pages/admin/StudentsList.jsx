@@ -581,13 +581,13 @@ const StudentsList = () => {
                     )}
                 </div>
                 {activeTab === 'directory' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             onClick={() => setIsTrashOpen(true)}
-                            className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                            className="px-3 sm:px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-sm cursor-pointer"
                             title="Recycle Bin"
                         >
-                            <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                            <Trash2 size={16} className="text-red-500" /> <span className="hidden sm:inline">Recycle Bin</span>
                         </button>
                         <input
                             type="file"
@@ -599,17 +599,17 @@ const StudentsList = () => {
                         <button
                             type="button"
                             onClick={() => importUsersRef.current?.click()}
-                            className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                            className="px-3 sm:px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
                         >
-                            <Upload size={16} /> Import
+                            <Upload size={16} /> <span className="hidden sm:inline">Import</span>
                         </button>
                         <div className="relative">
                             <button
                                 type="button"
                                 onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                                className="px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                                className="px-3 sm:px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
                             >
-                                <Download size={16} /> Export
+                                <Download size={16} /> <span className="hidden sm:inline">Export</span>
                             </button>
                             {isExportDropdownOpen && (
                                 <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
@@ -640,54 +640,56 @@ const StudentsList = () => {
                         {(user?.role === 'Admin' || user?.institute?.controls?.student?.addStudent !== false) && (
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="btn-primary flex items-center gap-2"
+                                className="btn-primary flex items-center gap-2 whitespace-nowrap text-xs sm:text-sm"
                             >
-                                <Plus size={20} /> Add New Student
+                                <Plus size={18} /> <span className="hidden xs:inline">Add Student</span><span className="xs:hidden">Add</span>
                             </button>
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Tabs Navigation */}
-            <div className="flex border-b border-slate-200 mb-6 gap-2">
-                <button
-                    onClick={() => setActiveTab('directory')}
-                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeTab === 'directory' 
-                            ? 'border-indigo-650 text-indigo-650' 
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <UserCheck size={16} /> Student Directory
-                </button>
-                <button
-                    onClick={() => setActiveTab('attendance')}
-                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeTab === 'attendance' 
-                            ? 'border-indigo-650 text-indigo-650' 
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <Calendar size={16} /> Daily Attendance Log
-                </button>
-                <button
-                    onClick={() => setActiveTab('fee')}
-                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeTab === 'fee' 
-                            ? 'border-indigo-650 text-indigo-650' 
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <Plus size={16} /> Fee Management
-                </button>
+            {/* Tabs Navigation — scrollable on mobile */}
+            <div className="overflow-x-auto -mx-1 px-1 mb-6">
+                <div className="flex border-b border-slate-200 gap-1 min-w-max">
+                    <button
+                        onClick={() => setActiveTab('directory')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'directory' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <UserCheck size={15} /> Student Directory
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('attendance')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'attendance' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <Calendar size={15} /> Daily Attendance Log
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('fee')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'fee' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <Plus size={15} /> Fee Management
+                    </button>
+                </div>
             </div>
 
             {activeTab === 'directory' && (
                 <div className="space-y-6">
                     {/* Filters */}
-                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full animate-fade-in">
-                        <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap w-full animate-fade-in">
+                        <div className="relative w-full sm:flex-1 sm:min-w-[180px] sm:max-w-xs">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
@@ -698,7 +700,7 @@ const StudentsList = () => {
                             />
                         </div>
 
-                        <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                        <div className="flex flex-row items-center gap-2 flex-wrap">
                             {/* Entries selector */}
                             <div className="flex items-center gap-2 mr-2">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>

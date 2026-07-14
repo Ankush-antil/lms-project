@@ -533,35 +533,37 @@ const TeachersList = () => {
                 </div>
             </div>
 
-            {/* Tabs Navigation */}
-            <div className="flex border-b border-slate-200 mb-6 gap-2">
-                <button
-                    onClick={() => setActiveTab('directory')}
-                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeTab === 'directory' 
-                            ? 'border-indigo-650 text-indigo-650' 
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <UserCheck size={16} /> Teacher Directory
-                </button>
-                <button
-                    onClick={() => setActiveTab('attendance')}
-                    className={`pb-3 px-4 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeTab === 'attendance' 
-                            ? 'border-indigo-650 text-indigo-650' 
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <Calendar size={16} /> Daily Attendance Log
-                </button>
+            {/* Tabs Navigation — scrollable on mobile */}
+            <div className="overflow-x-auto -mx-1 px-1 mb-6">
+                <div className="flex border-b border-slate-200 gap-1 min-w-max">
+                    <button
+                        onClick={() => setActiveTab('directory')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'directory' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <UserCheck size={15} /> Teacher Directory
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('attendance')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'attendance' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <Calendar size={15} /> Daily Attendance Log
+                    </button>
+                </div>
             </div>
 
             {activeTab === 'directory' && (
                 <>
                     {/* Filters */}
-                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full animate-fade-in">
-                <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap w-full animate-fade-in">
+                <div className="relative w-full sm:flex-1 sm:min-w-[180px] sm:max-w-xs">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
@@ -572,7 +574,7 @@ const TeachersList = () => {
                     />
                 </div>
 
-                <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                <div className="flex flex-row items-center gap-2 flex-wrap">
                     {/* Entries selector */}
                     <div className="flex items-center gap-2 mr-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>

@@ -115,7 +115,7 @@ const CoursesList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Courses Management</h1>
                     <p className="text-slate-500">Organize curriculum and academic programs.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setIsTrashOpen(true)}
                         className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
@@ -203,34 +203,36 @@ const CoursesList = () => {
             </div>
 
             {/* Sections Tabs */}
-            <div className="flex border-b border-slate-250 mb-6 gap-6">
-                <button
-                    onClick={() => setActiveSection('lms')}
-                    className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
-                        activeSection === 'lms' ? 'text-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    LMS Courses
-                    {activeSection === 'lms' && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0b1329] rounded-full" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveSection('demo')}
-                    className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
-                        activeSection === 'demo' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
-                    }`}
-                >
-                    Demo Courses
-                    {activeSection === 'demo' && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
-                    )}
-                </button>
+            <div className="overflow-x-auto -mx-1 px-1 mb-6">
+                <div className="flex border-b border-slate-250 gap-6 min-w-max">
+                    <button
+                        onClick={() => setActiveSection('lms')}
+                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
+                            activeSection === 'lms' ? 'text-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        LMS Courses
+                        {activeSection === 'lms' && (
+                            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0b1329] rounded-full" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveSection('demo')}
+                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
+                            activeSection === 'demo' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
+                        }`}
+                    >
+                        Demo Courses
+                        {activeSection === 'demo' && (
+                            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Search and Filters */}
-            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full mb-6">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap w-full mb-6">
+                <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
@@ -241,7 +243,7 @@ const CoursesList = () => {
                     />
                 </div>
 
-                <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                <div className="flex flex-row items-center gap-2.5 flex-wrap">
                     {/* Entries selector */}
                     <div className="flex items-center gap-2 mr-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>

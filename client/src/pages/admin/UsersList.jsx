@@ -870,7 +870,8 @@ const UsersList = () => {
             </div>
 
             {/* View Tabs */}
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6 max-w-2xl">
+            <div className="overflow-x-auto -mx-1 px-1 mb-6">
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl min-w-max">
                 <button
                     onClick={() => setViewTab('registered')}
                     className={`flex-1 py-2.5 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
@@ -913,6 +914,7 @@ const UsersList = () => {
                         Role Requests ({roleRequests.filter(r => r.status === 'Pending').length})
                     </button>
                 )}
+            </div>
             </div>
 
             {/* Filters */}

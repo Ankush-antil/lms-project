@@ -321,7 +321,7 @@ const NotificationBell = ({ safeRole }) => {
             {/* Dropdown */}
             {open && (
                 <div
-                    className="absolute top-[calc(100%+10px)] right-0 w-80 bg-[#0d1635] border border-slate-700/60 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-[9999]"
+                    className="absolute top-[calc(100%+10px)] right-0 w-[min(320px,calc(100vw-1.5rem))] bg-[#0d1635] border border-slate-700/60 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-[9999]"
                     style={{ animation: 'dropIn 0.18s cubic-bezier(0.16,1,0.3,1) both' }}
                 >
                     {/* Header Row */}
@@ -456,17 +456,17 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     })();
 
     return (
-        <header className="h-16 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-4 md:px-8 flex items-center justify-between shadow-md text-white">
+        <header className="h-16 bg-[#0b1329] border-b border-slate-800 fixed top-0 left-0 right-0 z-50 px-3 sm:px-4 md:px-8 flex items-center justify-between shadow-md text-white">
             {/* Logo */}
-            <div className="flex items-center space-x-6 xl:space-x-12">
-                <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate(`/${safeRole.toLowerCase()}`)}>
-                    <div className="w-10 h-10 bg-white text-[#0b1329] rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-black/10 group-hover:scale-110 transition-transform duration-300">L</div>
-                    <span className="text-xl font-black text-white tracking-tight hidden sm:block">LMS<span className="text-slate-300">Portal</span></span>
+            <div className="flex items-center">
+                <div className="flex items-center space-x-2.5 cursor-pointer group" onClick={() => navigate(`/${safeRole.toLowerCase()}`)}>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white text-[#0b1329] rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl shadow-lg shadow-black/10 group-hover:scale-110 transition-transform duration-300">L</div>
+                    <span className="text-lg sm:text-xl font-black text-white tracking-tight hidden sm:block">LMS<span className="text-slate-300">Portal</span></span>
                 </div>
             </div>
 
             {/* Right side: Bell + Profile + Mobile */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
 
                 {/* Bell icon — Teacher & Student only */}
                 {showBell && <NotificationBell safeRole={safeRole} />}
@@ -497,7 +497,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                     {/* Profile dropdown */}
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute top-full right-0 mt-3 w-64 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50 flex flex-col gap-1.5"
+                        className="absolute top-full right-0 mt-3 w-[min(256px,calc(100vw-1.5rem))] bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-2 group-hover:translate-y-0 text-white z-50 flex flex-col gap-1.5"
                     >
                         <div
                             onClick={() => openProfile(user?._id || user?.id)}

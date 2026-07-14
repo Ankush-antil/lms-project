@@ -650,6 +650,14 @@ const StudentTests = () => {
             });
         }
 
+        const assignedSubjectsString = userInfo.studentProfile?.subject;
+        if (assignedSubjectsString) {
+            const assignedSubjects = assignedSubjectsString.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+            if (assignedSubjects.length > 0) {
+                return mapping.filter(m => assignedSubjects.includes(m.subjectName.toLowerCase()));
+            }
+        }
+
         return mapping;
     }, [userInfo]);
 
@@ -677,7 +685,16 @@ const StudentTests = () => {
             if (d && d.subjectName) allSubjectNames.add(d.subjectName.trim());
         });
         
-        return Array.from(allSubjectNames);
+        const allList = Array.from(allSubjectNames);
+        const assignedSubjectsString = userInfo.studentProfile?.subject;
+        if (assignedSubjectsString) {
+            const assignedSubjects = assignedSubjectsString.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+            if (assignedSubjects.length > 0) {
+                return allList.filter(s => assignedSubjects.includes(s.toLowerCase()));
+            }
+        }
+        
+        return allList;
     }, [userInfo]);
 
     const activeDayDetails = useMemo(() => {

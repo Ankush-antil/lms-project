@@ -24,6 +24,10 @@ const protect = async (req, res, next) => {
                 console.warn(`[AUTH] User not found for ID: ${decoded.id}`);
                 return res.status(401).json({ message: 'User not found' });
             }
+            if (req.user.isActive === false) {
+                console.warn(`[AUTH] User deactivated: ${decoded.id}`);
+                return res.status(403).json({ message: 'disabled by admin' });
+            }
             next();
         } catch (error) {
             console.error(`[AUTH] Token verification failed:`, error.message);

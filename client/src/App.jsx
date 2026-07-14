@@ -79,11 +79,12 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ScreenshotProvider } from './context/ScreenshotContext';
 import { Toaster } from 'react-hot-toast';
+import { Lock } from 'lucide-react';
 
 
 // Mock components for now
 const PrivateRoute = ({ children, role }) => {
-    const { user, loading } = useAuth();
+    const { user, loading, logout } = useAuth();
 
     if (loading) {
         return (
@@ -95,6 +96,31 @@ const PrivateRoute = ({ children, role }) => {
 
     if (!user) {
         return <Navigate to="/" />;
+    }
+
+    if (user.isActive === false) {
+        return (
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
+                <div className="max-w-md bg-white/5 backdrop-blur-md border border-white/10 rounded-[30px] p-8 shadow-2xl flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mb-6">
+                        <Lock size={32} />
+                    </div>
+                    <h1 className="text-xl font-black text-white mb-2">Account Deactivated</h1>
+                    <p className="text-sm text-slate-300 leading-relaxed mb-4">
+                        Your account has been disabled by the administrator. Please contact support or your institute head for assistance.
+                    </p>
+                    <span className="px-3.5 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold uppercase tracking-wider">
+                        disabled by admin
+                    </span>
+                    <button 
+                        onClick={logout} 
+                        className="mt-6 px-6 py-2.5 bg-white text-slate-900 font-bold rounded-xl text-sm hover:bg-slate-100 transition-all cursor-pointer"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (role) {
@@ -675,32 +701,32 @@ function App() {
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/screenshot" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <ScreenshotToolPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/screen-recorder" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <ScreenRecorderPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/voice-recorder" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <VoiceRecorderPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/video-recorder" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <VideoRecorderPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/web-calling" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <WebCallingPage />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/student/practice-tools/file-uploader" element={
-                                    <PrivateRoute role="Student">
+                                    <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                         <FileUploadPage />
                                     </PrivateRoute>
                                 } />

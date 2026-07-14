@@ -176,7 +176,12 @@ const updateInstitute = asyncHandler(async (req, res) => {
         const updatedInstitute = await institute.save();
 
         // Update the corresponding 'Institute' role user credentials
-        const linkedUser = await User.findOne({ institute: institute._id, role: 'Institute' });
+        let linkedUser = await User.findOne({ institute: institute._id, role: 'Institute' });
+
+        if (!linkedUser && contactEmail) {
+            linkedUser = await User.findOne({ email: contactEmail });
+        }
+
         if (linkedUser) {
             if (contactEmail) {
                 if (contactEmail !== linkedUser.email) {
@@ -191,6 +196,10 @@ const updateInstitute = asyncHandler(async (req, res) => {
             if (password) {
                 linkedUser.password = password; // Hashed automatically on save
             }
+            // Ensure role and institute linkage are correctly set
+            linkedUser.role = 'Institute';
+            linkedUser.institute = institute._id;
+
             await linkedUser.save();
         } else if (contactEmail) {
             // Auto-provision if user didn't exist previously
@@ -318,7 +327,7 @@ const getCourses = asyncHandler(async (req, res) => {
 // @route   POST /api/courses
 // @access  Private/Admin
 const createCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo, sectionsCount } = req.body;
 
     // Determine status based on user role (req.user is populated by protect middleware)
     const status = 'active';
@@ -354,6 +363,7 @@ const createCourse = asyncHandler(async (req, res) => {
         syllabusUrl: syllabusUrl || '',
         syllabusType: syllabusType || 'link',
         maxStudentsPerSection: maxStudentsPerSection ? parseInt(maxStudentsPerSection) : 30,
+        sectionsCount: sectionsCount ? parseInt(sectionsCount) : 1,
         duration: duration ? parseInt(duration) : 0,
         fee: fee ? parseFloat(fee) : 0,
         isDemo: isDemo === true || isDemo === 'true'
@@ -374,20 +384,31 @@ const createCourse = asyncHandler(async (req, res) => {
 const computeSection = async (courseId) => {
     const course = await Course.findById(courseId);
     if (!course) return 'A';
+    const sectionsCount = course.sectionsCount || 1;
     const capacity = course.maxStudentsPerSection || 30;
-    // Count existing students in this course
-    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
-    const sectionIndex = Math.floor(count / capacity);
-    // Convert index to letter: 0=A, 1=B, 2=C...
-    const sectionLetter = String.fromCharCode(65 + sectionIndex); // 65 = 'A'
-    return sectionLetter;
+
+    // Find the first section (from A to sectionsCount) that has space
+    for (let i = 0; i < sectionsCount; i++) {
+        const sectionLetter = String.fromCharCode(65 + i);
+        const sectionCount = await User.countDocuments({ 
+            role: 'Student', 
+            'studentProfile.course': courseId,
+            'studentProfile.section': sectionLetter,
+            isDeleted: { $ne: true }
+        });
+        if (sectionCount < capacity) {
+            return sectionLetter;
+        }
+    }
+    // If all are full, return the last section
+    return String.fromCharCode(65 + (sectionsCount - 1));
 };
 
 // @desc    Update course
 // @route   PUT /api/setup/courses/:id
 // @access  Private/Admin or Editor or Institute
 const updateCourse = asyncHandler(async (req, res) => {
-    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo } = req.body;
+    const { name, code, description, instituteId, subjects, syllabusUrl, syllabusType, maxStudentsPerSection, duration, fee, isDemo, sectionsCount } = req.body;
     const course = await Course.findById(req.params.id);
 
     if (course) {
@@ -422,6 +443,7 @@ const updateCourse = asyncHandler(async (req, res) => {
         if (syllabusUrl !== undefined) course.syllabusUrl = syllabusUrl;
         if (syllabusType !== undefined) course.syllabusType = syllabusType;
         if (maxStudentsPerSection !== undefined) course.maxStudentsPerSection = parseInt(maxStudentsPerSection);
+        if (sectionsCount !== undefined) course.sectionsCount = parseInt(sectionsCount) || 1;
         if (duration !== undefined) course.duration = parseInt(duration) || 0;
         if (fee !== undefined) course.fee = parseFloat(fee) || 0;
         if (isDemo !== undefined) course.isDemo = isDemo === true || isDemo === 'true';

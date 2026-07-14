@@ -56,6 +56,22 @@ const CourseDetailsModal = ({ isOpen, onClose, course }) => {
                         </div>
                     </div>
 
+                    {/* Course Settings */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Max Students Per Section</label>
+                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700">
+                                {course.maxStudentsPerSection || 30}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Number of Sections</label>
+                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700">
+                                {course.sectionsCount || 1}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Description */}
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course Description</label>

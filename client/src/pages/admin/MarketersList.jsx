@@ -54,6 +54,18 @@ const MarketersList = () => {
         fetchData();
     }, []);
 
+    const handleToggleStatus = async (marketerId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${marketerId}`, { isActive: nextActive });
+            setMarketers(prev => prev.map(m => m._id === marketerId ? { ...m, isActive: nextActive } : m));
+            toast.success('Marketer status updated successfully');
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this marketer?')) {
             try {
@@ -543,10 +555,22 @@ const MarketersList = () => {
                                             <TruncatedCell text={marketer.email} maxLength={25} />
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${marketer.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                {marketer.isActive !== false ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
+                                             <button
+                                                 type="button"
+                                                 onClick={() => handleToggleStatus(marketer._id, marketer.isActive)}
+                                                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                                     marketer.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                 }`}
+                                                 title={marketer.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                             >
+                                                 <span className="sr-only">Toggle status</span>
+                                                 <span
+                                                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                         marketer.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                     }`}
+                                                 />
+                                             </button>
+                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                             {user?.role === 'Admin' && (
                                                 <button

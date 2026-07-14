@@ -13,10 +13,24 @@ const computeSection = async (courseId) => {
     if (!courseId) return 'A';
     const course = await Course.findById(courseId);
     if (!course) return 'A';
+    const sectionsCount = course.sectionsCount || 1;
     const capacity = course.maxStudentsPerSection || 30;
-    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
-    const sectionIndex = Math.floor(count / capacity);
-    return String.fromCharCode(65 + sectionIndex); // 0=A,1=B,2=C...
+
+    // Find the first section (from A to sectionsCount) that has space
+    for (let i = 0; i < sectionsCount; i++) {
+        const sectionLetter = String.fromCharCode(65 + i);
+        const sectionCount = await User.countDocuments({ 
+            role: 'Student', 
+            'studentProfile.course': courseId,
+            'studentProfile.section': sectionLetter,
+            isDeleted: { $ne: true }
+        });
+        if (sectionCount < capacity) {
+            return sectionLetter;
+        }
+    }
+    // If all are full, return the last section
+    return String.fromCharCode(65 + (sectionsCount - 1));
 };
 
 // @desc    Get all users (filtered by role)
@@ -92,8 +106,8 @@ const createUser = asyncHandler(async (req, res) => {
     };
 
     if (role === 'Student') {
-        // Auto-assign section based on course capacity
-        const assignedSection = await computeSection(course);
+        // Auto-assign section based on course capacity if not specified
+        const assignedSection = req.body.section || await computeSection(course);
         userFields.studentProfile = {
             course,
             subject: subject || '',
@@ -267,17 +281,9 @@ const deleteUser = asyncHandler(async (req, res) => {
             throw new Error('Not authorized to delete users belonging to other institutes');
         }
 
-        // If student, delete their FeeRecord and sync Google Sheets
-        if (user.role === 'Student') {
-            const record = await FeeRecord.findOne({ student: user._id });
-            if (record) {
-                await deleteFromSheets(record._id, user.admissionNo, user.name);
-                await record.deleteOne();
-            }
-        }
-
-        await user.deleteOne();
-        res.json({ message: 'User removed' });
+        user.isDeleted = true;
+        await user.save();
+        res.json({ message: 'User moved to Recycle Bin' });
     } else {
         res.status(404);
         throw new Error('User not found');
@@ -988,6 +994,15 @@ const permanentlyDeleteUser = asyncHandler(async (req, res) => {
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
         res.status(403);
         throw new Error('Not authorized to delete users belonging to other institutes');
+    }
+
+    // If student, delete their FeeRecord and sync Google Sheets
+    if (user.role === 'Student') {
+        const record = await FeeRecord.findOne({ student: user._id });
+        if (record) {
+            await deleteFromSheets(record._id, user.admissionNo, user.name);
+            await record.deleteOne();
+        }
     }
 
     await user.deleteOne();

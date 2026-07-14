@@ -119,6 +119,18 @@ const StaffList = () => {
         fetchStaff();
     }, []);
 
+    const handleToggleStatus = async (staffId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${staffId}`, { isActive: nextActive });
+            setStaffList(prev => prev.map(s => s._id === staffId ? { ...s, isActive: nextActive } : s));
+            toast.success('Staff status updated successfully');
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     useEffect(() => {
         setEditingId(null);
     }, [attendanceDate, activeTab]);
@@ -755,14 +767,21 @@ const StaffList = () => {
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '13px 16px' }}>
-                                                    <span style={{
-                                                        background: s.isActive !== false ? '#dcfce7' : '#fee2e2',
-                                                        color: s.isActive !== false ? '#16a34a' : '#dc2626',
-                                                        borderRadius: '999px', padding: '3px 10px',
-                                                        fontSize: '0.65rem', fontWeight: 900
-                                                    }}>
-                                                        {s.isActive !== false ? 'Active' : 'Inactive'}
-                                                    </span>
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => handleToggleStatus(s._id, s.isActive)}
+                                                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                                             s.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                         }`}
+                                                         title={s.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                                     >
+                                                         <span className="sr-only">Toggle status</span>
+                                                         <span
+                                                             className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                                 s.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                             }`}
+                                                         />
+                                                     </button>
                                                 </td>
                                                 <td style={{ padding: '13px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>

@@ -528,44 +528,46 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         {savedAccounts.length > 0 && (
                             <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
                                 <p className="px-3 text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Switch Account</p>
-                                {savedAccounts.map((acc, index) => (
-                                    <div
-                                        key={index}
-                                        onClick={() => {
-                                            if (user?.role === 'Student') {
-                                                setSwitchingToAccount(acc);
-                                                setSwitchPassword('');
-                                            } else {
-                                                switchAccount(acc.token, acc.user);
-                                            }
-                                        }}
-                                        className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
-                                                {acc.user?.avatar ? (
-                                                    <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
-                                                ) : (
-                                                    acc.user?.name?.[0]?.toUpperCase() || 'U'
-                                                )}
-                                            </div>
-                                            <div className="text-left min-w-0">
-                                                <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
-                                                <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeAccount(acc.user?.email);
+                                <div className="max-h-[160px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1">
+                                    {savedAccounts.map((acc, index) => (
+                                        <div
+                                            key={index}
+                                            onClick={() => {
+                                                if (user?.role === 'Student') {
+                                                    setSwitchingToAccount(acc);
+                                                    setSwitchPassword('');
+                                                } else {
+                                                    switchAccount(acc.token, acc.user);
+                                                }
                                             }}
-                                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
-                                            title="Remove Account"
+                                            className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
                                         >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
+                                                    {acc.user?.avatar ? (
+                                                        <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
+                                                    ) : (
+                                                        acc.user?.name?.[0]?.toUpperCase() || 'U'
+                                                    )}
+                                                </div>
+                                                <div className="text-left min-w-0">
+                                                    <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
+                                                    <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeAccount(acc.user?.email);
+                                                }}
+                                                className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
+                                                title="Remove Account"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 

@@ -1,7 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
 import React, { useEffect, useState } from 'react';
 
-import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin, Layers } from 'lucide-react';
+import { X, Mail, Shield, Book, Building, Calendar, Phone, MapPin, Layers, Lock } from 'lucide-react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
 
@@ -10,6 +10,63 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordSaving, setPasswordSaving] = useState(false);
+    const [passwordMessage, setPasswordMessage] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+
+    const handleSavePassword = async () => {
+        setPasswordMessage('');
+        setPasswordError('');
+
+        if (newPassword.length < 4) {
+            setPasswordError('Password must be at least 4 characters');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match');
+            return;
+        }
+
+        try {
+            setPasswordSaving(true);
+            const isOwnProfile = currentUser?._id === user?._id;
+            
+            if (isOwnProfile) {
+                // Update own profile
+                await axios.put('/api/users/profile', {
+                    name: user.name,
+                    email: user.email,
+                    avatar: user.avatar,
+                    mobileNumber: user.mobileNumber,
+                    callEnabled: user.callEnabled,
+                    password: newPassword
+                });
+            } else {
+                // Admin/Institute updating someone else's password
+                await axios.put(`/api/users/${user._id}`, {
+                    password: newPassword
+                });
+            }
+
+            setPasswordMessage('Password updated successfully!');
+            setNewPassword('');
+            setConfirmPassword('');
+            setTimeout(() => {
+                setShowPasswordForm(false);
+                setPasswordMessage('');
+            }, 2000);
+        } catch (err) {
+            console.error("Error saving password:", err);
+            setPasswordError(err.response?.data?.message || 'Failed to update password');
+        } finally {
+            setPasswordSaving(false);
+        }
+    };
 
     useEffect(() => {
         let isMounted = true;
@@ -177,23 +234,22 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                                     <p className="text-[9px] font-black uppercase tracking-widest leading-none">Course Subjects List</p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                     {user.studentProfile.course.subjects.map((sub, idx) => {
-                                                         const isAssigned = user?.studentProfile?.subject
-                                                             ? user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase())
-                                                             : false;
-                                                         return (
-                                                             <span 
-                                                                 key={idx} 
-                                                                 className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors ${
-                                                                     isAssigned 
-                                                                         ? 'bg-indigo-600 border-indigo-700 text-white shadow-sm' 
-                                                                         : 'bg-white border-slate-200 text-slate-600 shadow-sm'
-                                                                 }`}
-                                                             >
-                                                                 {sub}
-                                                             </span>
-                                                        );
-                                                    })}
+                                                    {user.studentProfile.course.subjects
+                                                        .filter(sub => {
+                                                            if (!user?.studentProfile?.subject) return true;
+                                                            return user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
+                                                        })
+                                                        .map((sub, idx) => {
+                                                            return (
+                                                                <span 
+                                                                    key={idx} 
+                                                                    className="px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors bg-indigo-600 border-indigo-700 text-white shadow-sm"
+                                                                >
+                                                                    {sub}
+                                                                </span>
+                                                            );
+                                                        })
+                                                    }
                                                 </div>
                                             </div>
                                         )}
@@ -260,6 +316,74 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Change Password Section */}
+                            {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute' || currentUser?._id === user?._id) && (
+                                <div className="mt-6 border-t border-slate-100 pt-5 text-left">
+                                    {!showPasswordForm ? (
+                                        <button
+                                            onClick={() => setShowPasswordForm(true)}
+                                            className="text-xs font-black uppercase tracking-wider text-indigo-650 hover:text-indigo-850 flex items-center gap-1.5 cursor-pointer font-bold"
+                                        >
+                                            <Lock size={12} /> Change Password
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                                            <div className="flex justify-between items-center border-b border-slate-200/60 pb-2 mb-1">
+                                                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Lock size={13} className="text-indigo-600" /> Update Account Password
+                                                </h4>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowPasswordForm(false);
+                                                        setNewPassword('');
+                                                        setConfirmPassword('');
+                                                        setPasswordMessage('');
+                                                        setPasswordError('');
+                                                    }}
+                                                    className="text-[10px] font-bold text-slate-450 hover:text-slate-600"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+
+                                            {passwordMessage && <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-100">{passwordMessage}</p>}
+                                            {passwordError && <p className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-100">{passwordError}</p>}
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">New Password</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="••••••••"
+                                                        value={newPassword}
+                                                        onChange={(e) => setNewPassword(e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-black text-slate-450 uppercase tracking-widest pl-1">Confirm Password</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="••••••••"
+                                                        value={confirmPassword}
+                                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={handleSavePassword}
+                                                disabled={passwordSaving || !newPassword || !confirmPassword}
+                                                className="w-full py-2.5 bg-indigo-650 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/10 cursor-pointer"
+                                            >
+                                                {passwordSaving ? 'Updating...' : 'Update Password'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <button
                                 onClick={onClose}

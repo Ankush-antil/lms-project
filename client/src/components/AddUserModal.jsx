@@ -1072,10 +1072,16 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     const availableSubjects = selectedCourseObj?.subjects || [];
 
     const uniqueSections = useMemo(() => {
-        const secs = courseStudents.map(s => s.studentProfile?.section).filter(Boolean);
-        const unique = [...new Set(secs)].sort();
-        return unique.length > 0 ? unique : ['A', 'B', 'C'];
-    }, [courseStudents]);
+        if (!formData.course) return ['A', 'B', 'C'];
+        const selectedCourse = courses.find(c => c._id === formData.course);
+        if (!selectedCourse) return ['A', 'B', 'C'];
+        const count = selectedCourse.sectionsCount || 1;
+        const secs = [];
+        for (let i = 0; i < count; i++) {
+            secs.push(String.fromCharCode(65 + i)); // 'A', 'B', 'C'...
+        }
+        return secs;
+    }, [formData.course, courses]);
 
     const handleNextTab = (e) => {
         if (e) e.preventDefault();
@@ -1346,7 +1352,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                             setFormData({ 
                                                                 ...formData, 
                                                                 course: courseId, 
-                                                                subject: defaultSubjects 
+                                                                subject: defaultSubjects,
+                                                                section: ''
                                                             });
                                                         }}
                                                         disabled={user?.role !== 'Institute' && user?.role !== 'Editor' && !formData.institute}
@@ -1356,14 +1363,34 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                             <option key={course._id} value={course._id}>{course.name}</option>
                                                         ))}
                                                     </select>
-                                                    {sectionPreview && (
-                                                        <span className="text-[10px] text-violet-600 font-bold block mt-1.5 ml-1">
-                                                            Auto-assigned: Section {sectionPreview}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s)</label>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Section</label>
+                                                    {(() => {
+                                                        const selectedCourse = courses.find(c => c._id === formData.course);
+                                                        const count = selectedCourse?.sectionsCount || 1;
+                                                        const sectionsList = [];
+                                                        for (let i = 0; i < count; i++) {
+                                                            sectionsList.push(String.fromCharCode(65 + i)); // 'A', 'B', 'C'...
+                                                        }
+                                                        return (
+                                                            <select
+                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                                value={formData.section || ''}
+                                                                onChange={e => setFormData({ ...formData, section: e.target.value })}
+                                                            >
+                                                                <option value="">Auto-assign (Default {sectionPreview && `Section ${sectionPreview}`})</option>
+                                                                {sectionsList.map((sec, i) => (
+                                                                    <option key={i} value={sec}>Section {sec}</option>
+                                                                ))}
+                                                            </select>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s) Checklist</label>
                                                     {(() => {
                                                         const selectedCourse = courses.find(c => c._id === formData.course);
                                                         const subjectsList = selectedCourse?.subjects || [];
@@ -1386,23 +1413,36 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                                 />
                                                             );
                                                         }
+                                                        const selectedSubjects = formData.subject ? formData.subject.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                        const handleSubjectToggle = (sub) => {
+                                                            let current = [...selectedSubjects];
+                                                            if (current.includes(sub)) {
+                                                                current = current.filter(item => item !== sub);
+                                                            } else {
+                                                                current.push(sub);
+                                                            }
+                                                            setFormData({ ...formData, subject: current.join(', ') });
+                                                        };
                                                         return (
-                                                            <select
-                                                                required
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                                                                value={formData.subject}
-                                                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                            >
-                                                                <option value="">Select Subject</option>
-                                                                {subjectsList.map((sub, i) => (
-                                                                    <option key={i} value={sub}>{sub}</option>
-                                                                ))}
-                                                            </select>
+                                                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-32 overflow-y-auto space-y-2.5">
+                                                                {subjectsList.map((sub, i) => {
+                                                                    const isChecked = selectedSubjects.includes(sub);
+                                                                    return (
+                                                                        <label key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600 cursor-pointer select-none">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isChecked}
+                                                                                onChange={() => handleSubjectToggle(sub)}
+                                                                                className="w-4 h-4 rounded text-indigo-650 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                                            />
+                                                                            <span>{sub}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
                                                         );
                                                     })()}
                                                 </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 mt-4">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
                                                     <input

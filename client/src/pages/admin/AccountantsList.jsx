@@ -54,6 +54,18 @@ const AccountantsList = () => {
         fetchData();
     }, []);
 
+    const handleToggleStatus = async (accountantId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${accountantId}`, { isActive: nextActive });
+            setAccountants(prev => prev.map(a => a._id === accountantId ? { ...a, isActive: nextActive } : a));
+            toast.success('Accountant status updated successfully');
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this accountant?')) {
             try {
@@ -540,11 +552,23 @@ const AccountantsList = () => {
                                         <td className="p-4 text-slate-600 whitespace-nowrap">
                                             <TruncatedCell text={accountant.email} maxLength={25} />
                                         </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accountant.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                {accountant.isActive !== false ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
+                                         <td className="p-4 whitespace-nowrap">
+                                             <button
+                                                 type="button"
+                                                 onClick={() => handleToggleStatus(accountant._id, accountant.isActive)}
+                                                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                                     accountant.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                 }`}
+                                                 title={accountant.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                             >
+                                                 <span className="sr-only">Toggle status</span>
+                                                 <span
+                                                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                         accountant.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                     }`}
+                                                 />
+                                             </button>
+                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                             <button
                                                 onClick={() => {

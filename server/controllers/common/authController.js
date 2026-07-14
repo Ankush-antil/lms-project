@@ -51,6 +51,11 @@ const loginUser = async (req, res) => {
             .populate('guestProfile.demoCourse', 'name');
 
         if (user && (await user.matchPassword(password))) {
+            if (user.isActive === false) {
+                res.status(403).json({ message: 'disabled by admin' });
+                return;
+            }
+
             const token = generateToken(user._id);
 
             // Set Cookie

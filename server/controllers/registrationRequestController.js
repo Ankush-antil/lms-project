@@ -110,25 +110,34 @@ const resolveAdminRequest = asyncHandler(async (req, res) => {
 
 // @desc    Get all pending Teacher & Editor registration requests for active Institute
 // @route   GET /api/registration-requests/institute
-// @access  Private (Institute)
+// @access  Private (Institute or Admin)
 const getInstituteRequests = asyncHandler(async (req, res) => {
-    if (!req.user.institute) {
-        res.status(400);
-        throw new Error('User is not associated with any institute');
-    }
-
-    const requests = await RegistrationRequest.find({
-        targetInstitute: req.user.institute,
+    let query = {
         status: 'Pending',
         role: { $in: ['Teacher', 'Editor'] }
-    }).sort({ createdAt: -1 });
+    };
+
+    if (req.user.role === 'Institute') {
+        if (!req.user.institute) {
+            res.status(400);
+            throw new Error('User is not associated with any institute');
+        }
+        query.targetInstitute = req.user.institute;
+    } else if (req.user.role !== 'Admin') {
+        res.status(403);
+        throw new Error('Not authorized to view requests');
+    }
+
+    const requests = await RegistrationRequest.find(query)
+        .populate('targetInstitute', 'name code')
+        .sort({ createdAt: -1 });
 
     res.json(requests);
 });
 
 // @desc    Approve or reject Teacher/Editor request
 // @route   PUT /api/registration-requests/:id/institute-resolve
-// @access  Private (Institute)
+// @access  Private (Institute or Admin)
 const resolveInstituteRequest = asyncHandler(async (req, res) => {
     const { status } = req.body; // 'Approved' or 'Rejected'
     if (!['Approved', 'Rejected'].includes(status)) {
@@ -142,8 +151,8 @@ const resolveInstituteRequest = asyncHandler(async (req, res) => {
         throw new Error('Registration request not found');
     }
 
-    // Verify it is for this institute
-    if (request.targetInstitute.toString() !== req.user.institute.toString()) {
+    // Verify it is for this institute (only for Institute role users)
+    if (req.user.role === 'Institute' && request.targetInstitute.toString() !== req.user.institute.toString()) {
         res.status(403);
         throw new Error('Not authorized to resolve this request');
     }
@@ -163,7 +172,7 @@ const resolveInstituteRequest = asyncHandler(async (req, res) => {
             email: request.email,
             password: request.password,
             role: request.role,
-            institute: req.user.institute,
+            institute: req.user.role === 'Admin' ? request.targetInstitute : req.user.institute,
             mobileNumber: request.phone || ''
         };
 

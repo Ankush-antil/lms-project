@@ -42,6 +42,11 @@ const courseSchema = new mongoose.Schema({
         default: 30,
         min: 1
     },
+    sectionsCount: {
+        type: Number,
+        default: 1,
+        min: 1
+    },
     duration: {
         type: Number,
         default: 0

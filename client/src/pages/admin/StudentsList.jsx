@@ -86,6 +86,7 @@ const StudentsList = () => {
     const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
+    const [activeSubjectPopoverStudentId, setActiveSubjectPopoverStudentId] = useState(null);
 
     useEffect(() => {
         setEditingId(null);
@@ -834,22 +835,75 @@ const StudentsList = () => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 whitespace-nowrap text-slate-500 text-xs font-bold">{student._id}</td>
+                                                <td className="p-4 whitespace-nowrap text-slate-500 text-xs font-bold font-mono">{student._id ? `#${student._id.slice(-6)}` : 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold truncate max-w-[120px]">{student.institute?.name || 'N/A'}</td>
-                                                <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold">{student.studentProfile?.course?.name || 'N/A'}</td>
+                                                <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold truncate max-w-[120px]" title={student.studentProfile?.course?.name || 'N/A'}>{student.studentProfile?.course?.name || 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold">Section {student.studentProfile?.section || 'N/A'}</td>
-                                                <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold">{student.studentProfile?.subject || 'N/A'}</td>
+                                                <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold relative">
+                                                    {(() => {
+                                                        const subjectStr = student.studentProfile?.subject || 'N/A';
+                                                        if (subjectStr === 'N/A') return 'N/A';
+                                                        const subjects = subjectStr.split(',').map(s => s.trim()).filter(Boolean);
+                                                        if (subjects.length === 0) return 'N/A';
+                                                        
+                                                        const firstSubject = subjects[0];
+                                                        const hasMore = subjects.length > 1;
+                                                        const isPopoverOpen = activeSubjectPopoverStudentId === student._id;
+                                                        
+                                                        return (
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => setActiveSubjectPopoverStudentId(isPopoverOpen ? null : student._id)}
+                                                                    className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 hover:text-indigo-650 border border-slate-200/60 rounded-xl transition-all font-bold flex items-center gap-1 cursor-pointer select-none"
+                                                                >
+                                                                    <span>{firstSubject}</span>
+                                                                    {hasMore && (
+                                                                        <span className="text-[10px] text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded-lg font-black">
+                                                                            +{subjects.length - 1}
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+                                                                {isPopoverOpen && (
+                                                                    <>
+                                                                        <div 
+                                                                            className="fixed inset-0 z-30" 
+                                                                            onClick={() => setActiveSubjectPopoverStudentId(null)}
+                                                                        />
+                                                                        <div className="absolute left-4 top-full mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl p-3.5 z-40 min-w-[160px]">
+                                                                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-100 pb-1">
+                                                                                Assigned Subjects
+                                                                            </p>
+                                                                            <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                                                                                {subjects.map((sub, idx) => (
+                                                                                    <div key={idx} className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                                                                        <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full shrink-0" />
+                                                                                        <span>{sub}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold">{student.mobile || 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <button
+                                                        type="button"
                                                         onClick={() => handleToggleStatus(student._id, student.isActive)}
-                                                        className={`px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 border flex items-center gap-1.5 ${student.isActive === false
-                                                            ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-                                                            : 'bg-emerald-50 border-emerald-250 text-emerald-600 hover:bg-emerald-100'
-                                                            }`}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                                            student.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                        }`}
+                                                        title={student.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
                                                     >
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${student.isActive === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                                                        {student.isActive === false ? 'Inactive' : 'Active'}
+                                                        <span className="sr-only">Toggle status</span>
+                                                        <span
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                                student.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                            }`}
+                                                        />
                                                     </button>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">

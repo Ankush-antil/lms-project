@@ -281,24 +281,23 @@ const StudentDashboard = () => {
                                 Below are the subjects in <span className="font-extrabold text-slate-600">{profile.studentProfile.course.name}</span>:
                             </p>
                             <div className="flex flex-wrap gap-2">
-                                {profile.studentProfile.course.subjects.map((sub, i) => {
-                                    const isAssigned = profile?.studentProfile?.subject
-                                        ? profile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase())
-                                        : false;
-                                    return (
-                                        <div 
-                                            key={i} 
-                                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                                                isAssigned 
-                                                    ? 'bg-indigo-50 border-indigo-250 text-indigo-700 shadow-sm' 
-                                                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
-                                            }`}
-                                        >
-                                            {isAssigned && <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping"></span>}
-                                            {sub}
-                                        </div>
-                                    );
-                                })}
+                                {profile.studentProfile.course.subjects
+                                    .filter(sub => {
+                                        if (!profile?.studentProfile?.subject) return true;
+                                        return profile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
+                                    })
+                                    .map((sub, i) => {
+                                        return (
+                                            <div 
+                                                key={i} 
+                                                className="px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 bg-indigo-50 border-indigo-250 text-indigo-700 shadow-sm"
+                                            >
+                                                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping"></span>
+                                                {sub}
+                                            </div>
+                                        );
+                                    })
+                                }
                             </div>
                         </div>
                     )}

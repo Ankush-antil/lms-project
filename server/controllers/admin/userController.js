@@ -1091,7 +1091,7 @@ const getRoleRequests = asyncHandler(async (req, res) => {
     if (myRequests === 'true' || !['Admin', 'Institute'].includes(req.user.role)) {
         query.user = req.user._id;
     } else if (req.user.role === 'Admin') {
-        query.targetApprover = 'Admin';
+        // Admin can see all role requests without targetApprover restriction
     } else if (req.user.role === 'Institute') {
         query.targetApprover = 'Institute';
         query.institute = req.user.institute;
@@ -1188,11 +1188,7 @@ const approveRoleRequest = asyncHandler(async (req, res) => {
         throw new Error('Role request not found');
     }
 
-    // Verify authorization
-    if (req.user.role === 'Admin' && request.targetApprover !== 'Admin') {
-        res.status(403);
-        throw new Error('Not authorized to approve this request');
-    }
+    // Verify authorization: Admin can approve everything, Institute can only approve their own requests
     if (req.user.role === 'Institute' && (request.targetApprover !== 'Institute' || request.institute.toString() !== req.user.institute.toString())) {
         res.status(403);
         throw new Error('Not authorized to approve this request');
@@ -1243,11 +1239,7 @@ const rejectRoleRequest = asyncHandler(async (req, res) => {
         throw new Error('Role request not found');
     }
 
-    // Verify authorization
-    if (req.user.role === 'Admin' && request.targetApprover !== 'Admin') {
-        res.status(403);
-        throw new Error('Not authorized to reject this request');
-    }
+    // Verify authorization: Admin can reject everything, Institute can only reject their own requests
     if (req.user.role === 'Institute' && (request.targetApprover !== 'Institute' || request.institute.toString() !== req.user.institute.toString())) {
         res.status(403);
         throw new Error('Not authorized to reject this request');

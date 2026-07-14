@@ -222,7 +222,7 @@ const menuItems = {
     Accountant: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/accountant' },
         { name: 'Fee Portal', icon: CreditCard, path: '/accountant/fee-portal' },
-        { name: 'Asset Management', icon: Package, path: '/accountant/assets' },
+        { name: 'Asset Mgt', icon: Package, path: '/accountant/assets' },
         { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Drive', icon: HardDrive, path: '/accountant/drive' },
         { name: 'Notes', icon: StickyNote, path: '/accountant/notes' },

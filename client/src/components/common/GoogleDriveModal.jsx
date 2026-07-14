@@ -35,12 +35,19 @@ const FOLDER_COLORS = {
     "File Uploader": "bg-amber-50 border-amber-150 text-amber-700"
 };
 
-const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, toolName }) => {
+const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, toolName, currentParentId }) => {
     const { user } = useAuth();
     const [step, setStep] = useState(1); // 1: Connect Account, 2: Workspace / Dashboard
     const [selectedAccount, setSelectedAccount] = useState('');
     const [accessToken, setAccessToken] = useState('');
     const [googleUser, setGoogleUser] = useState(null);
+
+    // General Google Drive Browser states (used when fileBlob is not passed)
+    const [currentDriveFolder, setCurrentDriveFolder] = useState({ id: 'root', name: 'Google Drive' });
+    const [driveNavStack, setDriveNavStack] = useState([{ id: 'root', name: 'Google Drive' }]);
+    const [driveFiles, setDriveFiles] = useState([]);
+    const [loadingDriveFiles, setLoadingDriveFiles] = useState(false);
+    const [importingFileId, setImportingFileId] = useState('');
 
     // Folders & Upload state
     const [foldersMap, setFoldersMap] = useState({}); // { name: id }
@@ -114,7 +121,9 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                     if (fileBlob) {
                         autoSaveFlow(savedToken);
                     } else {
-                        loadHistoryRoot(savedToken);
+                        setCurrentDriveFolder({ id: 'root', name: 'Google Drive' });
+                        setDriveNavStack([{ id: 'root', name: 'Google Drive' }]);
+                        loadDriveFolder('root', savedToken);
                     }
                 } catch (e) {
                     console.error("Error parsing saved Google user info:", e);
@@ -127,7 +136,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                 setGoogleUser(null);
             }
         }
-    }, [isOpen, fileBlob]);
+    }, [isOpen, fileBlob, accessToken]);
 
     // Clean up preview URLs
     useEffect(() => {
@@ -191,7 +200,9 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                             if (fileBlob) {
                                 autoSaveFlow(token);
                             } else {
-                                loadHistoryRoot(token);
+                                setCurrentDriveFolder({ id: 'root', name: 'Google Drive' });
+                                setDriveNavStack([{ id: 'root', name: 'Google Drive' }]);
+                                loadDriveFolder('root', token);
                             }
                         } catch (err) {
                             console.error("Failed to fetch Google profile info:", err);
@@ -209,7 +220,9 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                             if (fileBlob) {
                                 autoSaveFlow(token);
                             } else {
-                                loadHistoryRoot(token);
+                                setCurrentDriveFolder({ id: 'root', name: 'Google Drive' });
+                                setDriveNavStack([{ id: 'root', name: 'Google Drive' }]);
+                                loadDriveFolder('root', token);
                             }
                         }
                     }
@@ -508,6 +521,94 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                 reject(new Error("Failed to read file buffer."));
             };
         });
+    };
+
+    // Load General Drive Folder contents
+    const loadDriveFolder = async (folderId, tokenVal = accessToken) => {
+        setLoadingDriveFiles(true);
+        setDriveFiles([]);
+        try {
+            const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+            const fields = encodeURIComponent("files(id, name, mimeType, size, webViewLink, thumbnailLink, createdTime)");
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=100`, {
+                headers: { Authorization: `Bearer ${tokenVal || accessToken}` }
+            });
+            if (!res.ok) {
+                if (res.status === 401) {
+                    clearGoogleAuth();
+                    throw new Error("Google Drive session expired. Please connect again.");
+                }
+                throw new Error(`Google Drive API returned status ${res.status}`);
+            }
+            const data = await res.json();
+            
+            // Sort: folders first, then files alphabetically
+            const sortedItems = (data.files || []).sort((a, b) => {
+                const isFolderA = a.mimeType === 'application/vnd.google-apps.folder';
+                const isFolderB = b.mimeType === 'application/vnd.google-apps.folder';
+                if (isFolderA && !isFolderB) return -1;
+                if (!isFolderA && isFolderB) return 1;
+                return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+            });
+            setDriveFiles(sortedItems);
+        } catch (err) {
+            console.error("Failed to load Google Drive folder:", err);
+            toast.error(err.message || "Failed to load files from Google Drive.");
+        } finally {
+            setLoadingDriveFiles(false);
+        }
+    };
+
+    const handleDriveFolderClick = (folder) => {
+        const newStack = [...driveNavStack, { id: folder.id, name: folder.name }];
+        setDriveNavStack(newStack);
+        setCurrentDriveFolder({ id: folder.id, name: folder.name });
+        loadDriveFolder(folder.id);
+    };
+
+    const handleDriveBreadcrumbClick = (folder, index) => {
+        const newStack = driveNavStack.slice(0, index + 1);
+        setDriveNavStack(newStack);
+        setCurrentDriveFolder(folder);
+        loadDriveFolder(folder.id);
+    };
+
+    const handleImportToLMS = async (file) => {
+        setImportingFileId(file.id);
+        const toastId = toast.loading(`Importing "${file.name}" to LMS Drive...`);
+        try {
+            // 1. Fetch file data as blob from Google Drive
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (!res.ok) {
+                throw new Error(`Failed to download from Google Drive (HTTP ${res.status})`);
+            }
+            const blob = await res.blob();
+
+            // 2. Upload file data to LMS Drive using FormData
+            const formData = new FormData();
+            formData.append('file', blob, file.name);
+            if (currentParentId) {
+                formData.append('parentId', currentParentId);
+            }
+
+            await axios.post('/api/drive/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            toast.success(`"${file.name}" imported to LMS Drive!`, { id: toastId });
+            if (onSaveSuccess) {
+                onSaveSuccess();
+            }
+        } catch (err) {
+            console.error("Failed to import file to LMS Drive:", err);
+            toast.error(err.response?.data?.message || err.message || "Failed to import file.", { id: toastId });
+        } finally {
+            setImportingFileId('');
+        }
     };
 
     // Load History Root (Level 0: Dates)
@@ -1003,7 +1104,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                             )}
 
                             {/* TAB: BROWSE DRIVE HISTORY */}
-                            {activeTab === 'history' && (
+                            {activeTab === 'history' && fileBlob && (
                                 <div className="h-full animate-fade-in flex flex-col">
                                     
                                     {/* Level 0: Date Folders List */}
@@ -1318,6 +1419,179 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                         </div>
                                     )}
 
+                                </div>
+                            )}
+
+                            {/* GENERAL BROWSER (If fileBlob is NOT present) */}
+                            {!fileBlob && (
+                                <div className="h-full animate-fade-in flex flex-col">
+                                    {/* Breadcrumbs / Path */}
+                                    <div className="flex items-center gap-2 flex-wrap mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs font-bold text-slate-500">
+                                        {driveNavStack.map((folder, idx) => (
+                                            <div key={folder.id} className="flex items-center gap-1.5">
+                                                {idx > 0 && <span className="text-slate-350">/</span>}
+                                                <button
+                                                    onClick={() => handleDriveBreadcrumbClick(folder, idx)}
+                                                    className="hover:text-[#3E3ADD] transition-colors cursor-pointer"
+                                                >
+                                                    {folder.name}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Preview pane inside the browser if a file is selected for preview */}
+                                    {previewFile ? (
+                                        <div className="space-y-4 border border-slate-150 p-4 rounded-2xl bg-slate-50 animate-fade-in">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="w-9 h-9 rounded-xl bg-indigo-50 text-[#3E3ADD] flex items-center justify-center shrink-0">
+                                                        <FileText size={18} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h4 className="text-xs font-black text-slate-800 truncate">{previewFile.name}</h4>
+                                                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                                            {previewFile.size ? `${(parseInt(previewFile.size) / 1024).toFixed(1)} KB` : 'Unknown Size'} • {new Date(previewFile.createdTime).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        setPreviewFile(null);
+                                                        if (previewUrl) {
+                                                            URL.revokeObjectURL(previewUrl);
+                                                            setPreviewUrl('');
+                                                        }
+                                                        setPreviewText('');
+                                                    }}
+                                                    className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+
+                                            {loadingPreview ? (
+                                                <div className="flex flex-col items-center justify-center py-10 space-y-2 text-slate-400">
+                                                    <Loader2 size={20} className="animate-spin text-[#3E3ADD]" />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Loading Preview...</span>
+                                                </div>
+                                            ) : (
+                                                <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[220px] overflow-y-auto p-3">
+                                                    {previewText ? (
+                                                        <pre className="text-[10px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed">{previewText}</pre>
+                                                    ) : previewUrl && (previewFile.mimeType.startsWith('image/') || previewFile.name.endsWith('.png') || previewFile.name.endsWith('.jpg') || previewFile.name.endsWith('.jpeg')) ? (
+                                                        <img src={previewUrl} alt="Preview" className="max-w-full h-auto mx-auto max-h-[200px] object-contain rounded" />
+                                                    ) : previewUrl && (previewFile.mimeType.startsWith('video/') || previewFile.name.endsWith('.mp4')) ? (
+                                                        <video src={previewUrl} controls className="max-w-full mx-auto max-h-[200px] rounded" />
+                                                    ) : previewUrl && (previewFile.mimeType.startsWith('audio/') || previewFile.name.endsWith('.mp3') || previewFile.name.endsWith('.wav') || previewFile.name.endsWith('.ogg')) ? (
+                                                        <audio src={previewUrl} controls className="w-full" />
+                                                    ) : (
+                                                        <div className="text-center py-6 text-slate-400">
+                                                            <p className="text-[10px] font-semibold">Preview not supported for this file type.</p>
+                                                            <a href={previewFile.webViewLink} target="_blank" rel="noopener noreferrer" className="text-[#3E3ADD] text-[10px] hover:underline font-bold mt-1 inline-block">Open in Google Drive Web</a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-end gap-2 pt-1">
+                                                <button
+                                                    disabled={importingFileId === previewFile.id}
+                                                    onClick={() => handleImportToLMS(previewFile)}
+                                                    className="px-4 py-2 bg-[#3E3ADD] hover:bg-[#322fba] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                >
+                                                    {importingFileId === previewFile.id ? "Importing..." : "Import to LMS"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        /* General list of files and folders */
+                                        <>
+                                            {loadingDriveFiles ? (
+                                                <div className="flex flex-col items-center justify-center py-20 space-y-3 text-slate-400">
+                                                    <Loader2 size={24} className="animate-spin text-[#3E3ADD]" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Loading Files...</span>
+                                                </div>
+                                            ) : driveFiles.length === 0 ? (
+                                                <div className="text-center py-16 text-slate-400">
+                                                    <FolderOpen size={32} className="mx-auto text-slate-300 mb-2" />
+                                                    <p className="text-xs font-semibold">This folder is empty.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                                                    {driveFiles.map((item) => {
+                                                        const isFolder = item.mimeType === 'application/vnd.google-apps.folder';
+                                                        return (
+                                                            <div 
+                                                                key={item.id} 
+                                                                className={`p-3 border rounded-2xl flex items-center justify-between gap-4 transition-all ${
+                                                                    isFolder 
+                                                                        ? 'bg-slate-50 border-slate-100 hover:border-slate-250 hover:bg-slate-100/50 cursor-pointer' 
+                                                                        : 'bg-white border-slate-100 hover:border-indigo-150'
+                                                                }`}
+                                                                onClick={() => {
+                                                                    if (isFolder) handleDriveFolderClick(item);
+                                                                }}
+                                                            >
+                                                                <div className="flex items-center gap-3 min-w-0">
+                                                                    <div className="shrink-0">
+                                                                        {isFolder ? (
+                                                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                                                                <FolderOpen size={16} />
+                                                                            </div>
+                                                                        ) : item.thumbnailLink ? (
+                                                                            <img src={item.thumbnailLink} alt="Thumb" className="w-8 h-8 rounded-lg object-cover border border-slate-200" />
+                                                                        ) : (
+                                                                            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center">
+                                                                                <FileText size={16} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <h5 className="text-[11px] font-black text-slate-800 truncate leading-tight">{item.name}</h5>
+                                                                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                                                                            {isFolder ? 'Folder' : (item.size ? `${(parseInt(item.size) / 1024).toFixed(1)} KB` : 'File')} • {new Date(item.createdTime).toLocaleDateString()}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Actions */}
+                                                                {!isFolder && (
+                                                                    <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                                                                        <button
+                                                                            onClick={() => handlePreviewFile(item)}
+                                                                            className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                                                                            title="Preview File"
+                                                                        >
+                                                                            <Eye size={14} />
+                                                                        </button>
+                                                                        <a
+                                                                            href={item.webViewLink}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                                                                            title="Open in Google Drive Web"
+                                                                        >
+                                                                            <Download size={14} />
+                                                                        </a>
+                                                                        <button
+                                                                            disabled={importingFileId === item.id}
+                                                                            onClick={() => handleImportToLMS(item)}
+                                                                            className="px-2.5 py-1.5 bg-[#3E3ADD] hover:bg-[#322fba] text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                                            title="Import this file to LMS Drive"
+                                                                        >
+                                                                            {importingFileId === item.id ? "Importing..." : "Import"}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             )}
 

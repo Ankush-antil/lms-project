@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, ShieldAlert, Video, VideoOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const SocketContext = createContext();
 
@@ -46,6 +47,8 @@ export const SocketProvider = ({ children }) => {
     const remoteVideoRef = useRef(null);
     const remoteStreamRef = useRef(null);
     const iceCandidatesQueueRef = useRef([]);
+    const localIceCandidatesQueueRef = useRef([]);
+    const canSendIceCandidatesRef = useRef(false);
     const isDrainingRef = useRef(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -54,6 +57,35 @@ export const SocketProvider = ({ children }) => {
     const ringIntervalRef = useRef(null);
     const callStateRef = useRef(callState);
     const callInfoRef = useRef(callInfo);
+
+    // Dynamic ICE servers ref with production TURN + Google STUN fallbacks
+    const iceServersRef = useRef([
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        // Production TURN server (Coturn on DigitalOcean)
+        {
+            urls: 'turn:143.110.183.139:3478',
+            username: 'lmsuser',
+            credential: 'lmspassword'
+        },
+        {
+            urls: 'turn:143.110.183.139:3478?transport=tcp',
+            username: 'lmsuser',
+            credential: 'lmspassword'
+        },
+    ]);
+
+    const fetchIceServers = async () => {
+        try {
+            const { data } = await axios.get('/api/calls/ice-servers');
+            if (data && data.iceServers && data.iceServers.length > 0) {
+                iceServersRef.current = data.iceServers;
+                console.log('[WebRTC] Loaded dynamic ICE servers:', data.iceServers.length);
+            }
+        } catch (err) {
+            console.error('[WebRTC] Error fetching dynamic ICE servers, using defaults:', err);
+        }
+    };
 
     useEffect(() => {
         callStateRef.current = callState;
@@ -295,6 +327,9 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
+        // Fetch dynamic WebRTC ICE configurations from backend
+        fetchIceServers();
+
         const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
         const s = io(socketUrl, {
             withCredentials: true,
@@ -306,7 +341,8 @@ export const SocketProvider = ({ children }) => {
 
         s.on('connect', () => {
             console.log('[SOCKET] Connected to signaling server');
-            s.emit('register', { userId: activeUser._id, role: activeUser.role, name: activeUser.name });
+            const isWebView = window.location.pathname.startsWith('/mobile-call');
+            s.emit('register', { userId: activeUser._id, role: activeUser.role, name: activeUser.name, isWebView });
             s.emit('get-online-users', (users) => {
                 setOnlineUsers(users);
             });
@@ -366,13 +402,24 @@ export const SocketProvider = ({ children }) => {
             startRingtone(false);
         });
 
-        // Call Accepted handler
         s.on('call-accepted', async ({ answer, callLogId }) => {
             console.log('[SOCKET] Call accepted');
             stopRingtone();
             setCallState('connected');
             setCallInfo(prev => ({ ...prev, callLogId }));
             
+            canSendIceCandidatesRef.current = true;
+            if (localIceCandidatesQueueRef.current.length > 0) {
+                console.log(`[WebRTC] Sending ${localIceCandidatesQueueRef.current.length} queued local ICE candidates`);
+                while (localIceCandidatesQueueRef.current.length > 0) {
+                    const cand = localIceCandidatesQueueRef.current.shift();
+                    s.emit('ice-candidate', {
+                        targetId: callInfoRef.current.targetId || callInfo.targetId,
+                        candidate: cand
+                    });
+                }
+            }
+
             try {
                 if (pcRef.current) {
                     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
@@ -475,6 +522,8 @@ export const SocketProvider = ({ children }) => {
         stopRingtone();
         cleanMedia();
         iceCandidatesQueueRef.current = []; // Clear ICE candidates queue
+        localIceCandidatesQueueRef.current = []; // Clear local ICE candidates queue
+        canSendIceCandidatesRef.current = false;
         isDrainingRef.current = false;
         
         // If we are already idle, there is no active call to end, so we shouldn't show any ending popup.
@@ -537,41 +586,7 @@ export const SocketProvider = ({ children }) => {
     const initializePeerConnection = (targetId, callType) => {
         remoteStreamRef.current = new MediaStream();
         const pc = new RTCPeerConnection({
-            iceServers: [
-                // STUN Servers (Google)
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' },
-                // Free TURN Servers (OpenRelay - Metered.ca) - required for different networks
-                {
-                    urls: 'turn:openrelay.metered.ca:80',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turns:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                // Backup free TURN server
-                {
-                    urls: 'turn:relay1.expressturn.com:3478',
-                    username: 'efKVAFBGMAS9ZMXOGN',
-                    credential: 'KiFYalDXLqZpzPQ8'
-                }
-            ],
+            iceServers: iceServersRef.current,
             iceCandidatePoolSize: 10
         });
 
@@ -593,11 +608,15 @@ export const SocketProvider = ({ children }) => {
         };
 
         pc.onicecandidate = (event) => {
-            if (event.candidate && socketRef.current) {
-                socketRef.current.emit('ice-candidate', {
-                    targetId,
-                    candidate: event.candidate
-                });
+            if (event.candidate) {
+                if (canSendIceCandidatesRef.current && socketRef.current) {
+                    socketRef.current.emit('ice-candidate', {
+                        targetId,
+                        candidate: event.candidate
+                    });
+                } else {
+                    localIceCandidatesQueueRef.current.push(event.candidate);
+                }
             }
         };
         pc.ontrack = (event) => {
@@ -606,33 +625,51 @@ export const SocketProvider = ({ children }) => {
                 remoteStreamRef.current.addTrack(event.track);
             }
 
-            if (event.track.kind === 'audio' && remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = remoteStreamRef.current;
-                remoteAudioRef.current.volume = 1.0;
-                remoteAudioRef.current.play()
-                    .then(() => {
-                        console.log('[WebRTC] Remote audio playing successfully');
-                        const activeUser = user || guestInfo;
-                        if (activeUser && activeUser.role === 'Teacher' && localStreamRef.current) {
-                            // ✅ Capture callLogId NOW (at call-connect time), before state is cleared
-                            const currentLogId = callInfoRef.current.callLogId;
-                            startRecording(localStreamRef.current, remoteStreamRef.current, currentLogId);
-                        }
-                    })
-                    .catch(e => {
-                        console.error('[WebRTC] Audio play failed, trying on user interaction:', e);
-                        const playOnGesture = () => {
-                            if (remoteAudioRef.current) {
-                                remoteAudioRef.current.play()
-                                    .then(() => {
-                                        console.log('[WebRTC] Audio played on user gesture');
-                                        document.removeEventListener('click', playOnGesture);
-                                    })
-                                    .catch(err => console.error('[WebRTC] Gesture play failed:', err));
+            if (event.track.kind === 'audio') {
+                // Route to standard audio element first
+                if (remoteAudioRef.current) {
+                    remoteAudioRef.current.srcObject = remoteStreamRef.current;
+                    remoteAudioRef.current.volume = 1.0;
+                    remoteAudioRef.current.play()
+                        .then(() => {
+                            console.log('[WebRTC] Remote audio playing successfully on HTML5 audio element');
+                            const activeUser = user || guestInfo;
+                            if (activeUser && activeUser.role === 'Teacher' && localStreamRef.current) {
+                                const currentLogId = callInfoRef.current.callLogId;
+                                startRecording(localStreamRef.current, remoteStreamRef.current, currentLogId);
                             }
-                        };
-                        document.addEventListener('click', playOnGesture);
-                    });
+                        })
+                        .catch(e => {
+                            console.error('[WebRTC] HTML5 Audio play failed, trying on user interaction:', e);
+                            const playOnGesture = () => {
+                                if (remoteAudioRef.current) {
+                                    remoteAudioRef.current.play()
+                                        .then(() => {
+                                            console.log('[WebRTC] HTML5 Audio played on user gesture');
+                                            document.removeEventListener('click', playOnGesture);
+                                        })
+                                        .catch(err => console.error('[WebRTC] Gesture play failed:', err));
+                                }
+                            };
+                            document.addEventListener('click', playOnGesture);
+                        });
+                }
+
+                // fallback: Route via Web Audio API to bypass WebView HTML5 restrictions
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) {
+                        const webAudioCtx = new AudioContextClass();
+                        const sourceNode = webAudioCtx.createMediaStreamSource(remoteStreamRef.current);
+                        sourceNode.connect(webAudioCtx.destination);
+                        if (webAudioCtx.state === 'suspended') {
+                            webAudioCtx.resume().catch(() => {});
+                        }
+                        console.log('[WebRTC] Fallback Web Audio API routing initialized successfully');
+                    }
+                } catch (webAudioErr) {
+                    console.error('[WebRTC] Fallback Web Audio API routing failed:', webAudioErr);
+                }
             }
 
             if (event.track.kind === 'video' && remoteVideoRef.current) {
@@ -668,7 +705,11 @@ export const SocketProvider = ({ children }) => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: callType === 'video'
             });
             localStreamRef.current = stream;
@@ -707,33 +748,51 @@ export const SocketProvider = ({ children }) => {
         }
     };
 
-    const acceptCall = async () => {
-        if (!socketRef.current || !callInfo.targetId) return;
+    const acceptCall = async (incomingInfo = null) => {
+        // Safe check: if incomingInfo is not a valid call configuration (does not have targetId), fall back to callInfo
+        const activeInfo = (incomingInfo && typeof incomingInfo === 'object' && incomingInfo.targetId) ? incomingInfo : callInfo;
+
+        if (!socketRef.current || !activeInfo.targetId) {
+            const errMsg = `Cannot accept call: socket connected = ${!!socketRef.current}, targetId = ${activeInfo.targetId || 'missing'}`;
+            console.error('[WebRTC]', errMsg);
+            toast.error(errMsg);
+            return;
+        }
         
+        // Populate local state if incomingInfo was passed (e.g. inside WebView)
+        if (incomingInfo && typeof incomingInfo === 'object' && incomingInfo.targetId) {
+            setCallInfo(incomingInfo);
+        }
+
         stopRingtone();
-        const callType = callInfo.callType || 'audio';
+        const callType = activeInfo.callType || 'audio';
         unlockAudioContext();
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            toast.error('Calling requires a secure connection (HTTPS) or is not supported by your browser.');
+            const errMsg = 'Calling requires a secure connection (HTTPS) or is not supported by your browser.';
+            toast.error(errMsg);
             socketRef.current.emit('reject-call', {
-                callerId: callInfo.targetId,
-                callLogId: callInfo.callLogId
+                callerId: activeInfo.targetId,
+                callLogId: activeInfo.callLogId
             });
             handleEndCallLocally('idle');
             return;
         }
 
-        console.log('[CALL] Accepting call from:', callInfo.targetId);
+        console.log('[CALL] Accepting call from:', activeInfo.targetId);
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: callType === 'video'
             });
             localStreamRef.current = stream;
 
-            const pc = initializePeerConnection(callInfo.targetId, callType);
+            const pc = initializePeerConnection(activeInfo.targetId, callType);
 
             // Bind remote audio ref immediately inside user gesture context (bypass autoplay restriction)
             if (remoteAudioRef.current && remoteStreamRef.current) {
@@ -747,25 +806,39 @@ export const SocketProvider = ({ children }) => {
                 localVideoRef.current.srcObject = stream;
             }
 
-            await pc.setRemoteDescription(new RTCSessionDescription(callInfo.offer || pcRef.current?.remoteDescription));
+            let sdpOffer = activeInfo.offer || window.mobileOffer || pcRef.current?.remoteDescription;
+            if (!sdpOffer) {
+                throw new Error('No SDP offer found to accept call');
+            }
+            if (typeof sdpOffer === 'string') {
+                try {
+                    sdpOffer = JSON.parse(sdpOffer);
+                } catch (e) {
+                    console.error('[WebRTC] Error parsing SDP offer string:', e);
+                }
+            }
+            await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer));
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+
+            canSendIceCandidatesRef.current = true;
 
             // ✅ Drain queued ICE candidates AFTER both local+remote descriptions are set
             await processQueuedCandidates();
 
             setCallState('connected');
             socketRef.current.emit('accept-call', {
-                callerId: callInfo.targetId,
+                callerId: activeInfo.targetId,
                 answer,
-                callLogId: callInfo.callLogId
-            });        } catch (err) {
+                callLogId: activeInfo.callLogId
+            });
+        } catch (err) {
             console.error('[CALL] Failed accepting call:', err);
-            toast.error('Could not connect call');
+            toast.error(`Could not connect call: ${err.name || 'Error'} - ${err.message || err}`);
             socketRef.current.emit('reject-call', {
-                callerId: callInfo.targetId,
-                callLogId: callInfo.callLogId
+                callerId: activeInfo.targetId,
+                callLogId: activeInfo.callLogId
             });
             handleEndCallLocally('idle');
         }

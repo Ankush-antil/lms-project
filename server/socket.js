@@ -2,8 +2,13 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const CallLog = require('./models/CallLog');
 
-const onlineUsers = {}; // Map of userId -> socket.id
+const onlineUsers = {}; // Map of userId -> socket.id (Native app)
+const onlineWebViews = {}; // Map of userId -> socket.id (WebView call pages)
 let ioInstance = null;
+
+const getCallSocketId = (targetId) => {
+    return onlineWebViews[targetId] || onlineUsers[targetId];
+};
 
 const initSocket = (server) => {
     const io = new Server(server, {
@@ -18,13 +23,19 @@ const initSocket = (server) => {
         console.log(`[SOCKET] Socket connected: ${socket.id}`);
 
         // Register user
-        socket.on('register', ({ userId, role, name }) => {
+        socket.on('register', ({ userId, role, name, isWebView }) => {
             if (userId) {
-                onlineUsers[userId] = socket.id;
+                if (isWebView) {
+                    onlineWebViews[userId] = socket.id;
+                    socket.isWebView = true;
+                } else {
+                    onlineUsers[userId] = socket.id;
+                    socket.isWebView = false;
+                }
                 socket.userId = userId;
                 socket.userRole = role;
                 socket.userName = name || '';
-                console.log(`[SOCKET] User registered: ${userId} (${role})`);
+                console.log(`[SOCKET] User registered: ${userId} (${role}) (WebView: ${!!isWebView})`);
                 io.emit('online-status-update', Object.keys(onlineUsers));
             }
         });
@@ -46,7 +57,7 @@ const initSocket = (server) => {
         socket.on('call-user', async ({ targetId, offer, callerName, callerId, callType }) => {
             const resolvedCallType = callType === 'video' ? 'video' : 'audio';
             console.log(`[SOCKET] ${resolvedCallType} call from ${callerId} (${callerName}) to target ${targetId}`);
-            const receiverSocketId = onlineUsers[targetId];
+            const receiverSocketId = getCallSocketId(targetId);
             const isGuest = callerId && callerId.toString().startsWith('guest_');
 
             if (!receiverSocketId) {
@@ -95,7 +106,6 @@ const initSocket = (server) => {
         // Answer call
         socket.on('accept-call', async ({ callerId, answer, callLogId }) => {
             console.log(`[SOCKET] Call accepted by ${socket.userId} for caller ${callerId}`);
-            const callerSocketId = onlineUsers[callerId];
 
             if (callLogId) {
                 try {
@@ -108,35 +118,46 @@ const initSocket = (server) => {
                 }
             }
 
-            if (callerSocketId) {
-                io.to(callerSocketId).emit('call-accepted', { answer, callLogId });
+            // Deliver call-accepted to BOTH native app socket AND WebView socket of the caller
+            // so that both the native UI and WebRTC WebView receive the answer
+            const callerNativeSocketId = onlineUsers[callerId];
+            const callerWebViewSocketId = onlineWebViews[callerId];
+
+            if (callerNativeSocketId) {
+                console.log(`[SOCKET] Sending call-accepted to native socket of ${callerId}`);
+                io.to(callerNativeSocketId).emit('call-accepted', { answer, callLogId });
+            }
+            if (callerWebViewSocketId && callerWebViewSocketId !== callerNativeSocketId) {
+                console.log(`[SOCKET] Sending call-accepted to WebView socket of ${callerId}`);
+                io.to(callerWebViewSocketId).emit('call-accepted', { answer, callLogId });
+            }
+            if (!callerNativeSocketId && !callerWebViewSocketId) {
+                console.warn(`[SOCKET] Caller ${callerId} has no active socket to deliver call-accepted`);
             }
         });
 
         // Reject call
         socket.on('reject-call', async ({ callerId, callLogId }) => {
             console.log(`[SOCKET] Call rejected by ${socket.userId} for caller ${callerId}`);
-            const callerSocketId = onlineUsers[callerId];
 
             if (callLogId) {
                 try {
-                    await CallLog.findByIdAndUpdate(callLogId, {
-                        status: 'rejected'
-                    });
+                    await CallLog.findByIdAndUpdate(callLogId, { status: 'rejected' });
                 } catch (err) {
                     console.error('[SOCKET] Error updating call log to rejected:', err);
                 }
             }
 
-            if (callerSocketId) {
-                io.to(callerSocketId).emit('call-rejected');
-            }
+            // Deliver to both native and WebView sockets
+            const callerNativeSocketId = onlineUsers[callerId];
+            const callerWebViewSocketId = onlineWebViews[callerId];
+            if (callerNativeSocketId) io.to(callerNativeSocketId).emit('call-rejected');
+            if (callerWebViewSocketId && callerWebViewSocketId !== callerNativeSocketId) io.to(callerWebViewSocketId).emit('call-rejected');
         });
 
         // End call
         socket.on('end-call', async ({ targetId, callLogId }) => {
             console.log(`[SOCKET] Call ended by ${socket.userId} with target ${targetId}`);
-            const targetSocketId = onlineUsers[targetId];
 
             if (callLogId) {
                 try {
@@ -149,17 +170,19 @@ const initSocket = (server) => {
                 }
             }
 
-            if (targetSocketId) {
-                io.to(targetSocketId).emit('call-ended');
-            }
+            // Deliver to both native and WebView sockets
+            const targetNativeSocketId = onlineUsers[targetId];
+            const targetWebViewSocketId = onlineWebViews[targetId];
+            if (targetNativeSocketId) io.to(targetNativeSocketId).emit('call-ended');
+            if (targetWebViewSocketId && targetWebViewSocketId !== targetNativeSocketId) io.to(targetWebViewSocketId).emit('call-ended');
         });
 
-        // Exchange ICE candidates
+        // Exchange ICE candidates — deliver to both native and WebView
         socket.on('ice-candidate', ({ targetId, candidate }) => {
-            const targetSocketId = onlineUsers[targetId];
-            if (targetSocketId) {
-                io.to(targetSocketId).emit('ice-candidate', { candidate });
-            }
+            const targetNativeSocketId = onlineUsers[targetId];
+            const targetWebViewSocketId = onlineWebViews[targetId];
+            if (targetNativeSocketId) io.to(targetNativeSocketId).emit('ice-candidate', { candidate });
+            if (targetWebViewSocketId && targetWebViewSocketId !== targetNativeSocketId) io.to(targetWebViewSocketId).emit('ice-candidate', { candidate });
         });
 
         // Chat Events
@@ -226,40 +249,51 @@ const initSocket = (server) => {
         socket.on('disconnect', async () => {
             console.log(`[SOCKET] Socket disconnected: ${socket.id}`);
             const userId = socket.userId;
-            if (userId && onlineUsers[userId] === socket.id) {
-                delete onlineUsers[userId];
-                console.log(`[SOCKET] Deregistered user: ${userId}`);
-                io.emit('online-status-update', Object.keys(onlineUsers));
-
-                // Clean up any active/hanging calls this user was in
-                try {
-                    const activeCalls = await CallLog.find({
-                        $or: [
-                            { caller: mongoose.Types.ObjectId.isValid(userId) ? userId : null },
-                            { receiver: mongoose.Types.ObjectId.isValid(userId) ? userId : null },
-                            { guestEmail: userId.toString().startsWith('guest_') ? userId.toString().replace('guest_', '') : null }
-                        ],
-                        status: { $in: ['initiated', 'connected'] }
-                    });
-
-                    for (const call of activeCalls) {
-                        const isUserCaller = (call.caller && call.caller.toString() === userId.toString()) || 
-                                             (call.guestEmail && ('guest_' + call.guestEmail) === userId.toString());
-                        const otherUserId = isUserCaller ? call.receiver : (call.caller || ('guest_' + call.guestEmail));
-                        const otherSocketId = onlineUsers[otherUserId];
-                        
-                        // Update DB status
-                        call.status = call.status === 'initiated' ? 'missed' : 'ended';
-                        call.endTime = new Date();
-                        await call.save();
-
-                        // Notify the other user
-                        if (otherSocketId) {
-                            io.to(otherSocketId).emit('call-ended');
-                        }
+            if (userId) {
+                if (socket.isWebView) {
+                    if (onlineWebViews[userId] === socket.id) {
+                        delete onlineWebViews[userId];
+                        console.log(`[SOCKET] Deregistered WebView: ${userId}`);
                     }
-                } catch (err) {
-                    console.error('[SOCKET] Error cleaning up active calls on disconnect:', err);
+                } else {
+                    if (onlineUsers[userId] === socket.id) {
+                        delete onlineUsers[userId];
+                        console.log(`[SOCKET] Deregistered user: ${userId}`);
+                        io.emit('online-status-update', Object.keys(onlineUsers));
+                    }
+                }
+
+                // Only clean up active database call logs if the native socket disconnected OR no sockets are left
+                if (!onlineUsers[userId] && !onlineWebViews[userId]) {
+                    try {
+                        const activeCalls = await CallLog.find({
+                            $or: [
+                                { caller: mongoose.Types.ObjectId.isValid(userId) ? userId : null },
+                                { receiver: mongoose.Types.ObjectId.isValid(userId) ? userId : null },
+                                { guestEmail: userId.toString().startsWith('guest_') ? userId.toString().replace('guest_', '') : null }
+                            ],
+                            status: { $in: ['initiated', 'connected'] }
+                        });
+
+                        for (const call of activeCalls) {
+                            const isUserCaller = (call.caller && call.caller.toString() === userId.toString()) || 
+                                                 (call.guestEmail && ('guest_' + call.guestEmail) === userId.toString());
+                            const otherUserId = isUserCaller ? call.receiver : (call.caller || ('guest_' + call.guestEmail));
+                            const otherSocketId = getCallSocketId(otherUserId);
+                            
+                            // Update DB status
+                            call.status = call.status === 'initiated' ? 'missed' : 'ended';
+                            call.endTime = new Date();
+                            await call.save();
+
+                            // Notify the other user
+                            if (otherSocketId) {
+                                io.to(otherSocketId).emit('call-ended');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[SOCKET] Error cleaning up active calls on disconnect:', err);
+                    }
                 }
             }
         });

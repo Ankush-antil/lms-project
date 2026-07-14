@@ -12,13 +12,20 @@ const {
     uploadCallRecording,
     getStudentCallHistory,
     deleteCallRecording,
-    deleteCallLog
+    deleteCallLog,
+    getIceServers
 } = require('../../controllers/teacher/callController');
 
 router.get(
     '/teachers',
     protect,
     getAllTeachers
+);
+
+router.get(
+    '/ice-servers',
+    protect,
+    getIceServers
 );
 
 router.put(

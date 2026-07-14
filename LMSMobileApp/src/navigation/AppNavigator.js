@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import TeacherActivities from '../screens/teacher/TeacherActivities';
-import { CoursesList, InstitutesList } from '../screens/admin/CoursesInstitutesList';
+import { CoursesList } from '../screens/admin/CoursesInstitutesList';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
@@ -29,6 +29,7 @@ import VideoRecorderPage from '../screens/student/tools/VideoRecorderPage';
 import ScreenRecorderPage from '../screens/student/tools/ScreenRecorderPage';
 import ScreenshotToolPage from '../screens/student/tools/ScreenshotToolPage';
 import WebCallingPage from '../screens/student/tools/WebCallingPage';
+import FileUploadPage from '../screens/student/tools/FileUploadPage';
 
 // Teacher
 import TeacherDashboard from '../screens/teacher/TeacherDashboard';
@@ -43,7 +44,10 @@ import AccountantFeePortal from '../screens/accountant/AccountantFeePortal';
 // Admin
 import AdminDashboard from '../screens/admin/AdminDashboard';
 import TeacherAttendanceRegisterScreen from '../screens/admin/TeacherAttendanceRegisterScreen';
-import { StudentsList, TeachersList, EditorsList, AccountantsList, MarketersList } from '../screens/admin/UserListScreen';
+import { StudentsList, TeachersList, EditorsList, AccountantsList, MarketersList, StaffList, ParentsList } from '../screens/admin/UserListScreen';
+import StaffScreen from '../screens/admin/StaffScreen';
+import ParentsScreen from '../screens/admin/ParentsScreen';
+import InstitutesScreen from '../screens/admin/InstitutesScreen';
 import TestsList from '../screens/admin/TestsList';
 import TestBuilder from '../screens/admin/TestBuilder';
 import UserDetailScreen from '../screens/admin/UserDetailScreen';
@@ -86,6 +90,7 @@ const StudentStack = () => (
         <Stack.Screen name="StudentFeePortal" component={StudentFeePortalScreen} />
         <Stack.Screen name="Drive" component={DriveScreen} />
         <Stack.Screen name="Notes" component={NotesScreen} />
+        <Stack.Screen name="FileUploadPage" component={FileUploadPage} />
     </Stack.Navigator>
 );
 
@@ -114,8 +119,10 @@ const AdminStack = () => (
         <Stack.Screen name="EditorsList" component={EditorsList} />
         <Stack.Screen name="AccountantsList" component={AccountantsList} />
         <Stack.Screen name="MarketersList" component={MarketersList} />
+        <Stack.Screen name="StaffList" component={StaffScreen} />
+        <Stack.Screen name="ParentsList" component={ParentsScreen} />
         <Stack.Screen name="CoursesList" component={CoursesList} />
-        <Stack.Screen name="InstitutesList" component={InstitutesList} />
+        <Stack.Screen name="InstitutesList" component={InstitutesScreen} />
         <Stack.Screen name="TestsList" component={TestsList} />
         <Stack.Screen name="TestBuilder" component={TestBuilder} />
         <Stack.Screen name="UserDetail" component={UserDetailScreen} />
@@ -132,6 +139,14 @@ const AdminStack = () => (
         <Stack.Screen name="Notes" component={NotesScreen} />
         <Stack.Screen name="AdminFeePortal" component={AdminFeePortal} />
         <Stack.Screen name="AccountantFeePortal" component={AccountantFeePortal} />
+        <Stack.Screen name="TeacherActivities" component={TeacherActivities} />
+        <Stack.Screen name="StudentPracticeTools" component={StudentPracticeTools} />
+        <Stack.Screen name="VoiceRecorderPage" component={VoiceRecorderPage} />
+        <Stack.Screen name="VideoRecorderPage" component={VideoRecorderPage} />
+        <Stack.Screen name="ScreenRecorderPage" component={ScreenRecorderPage} />
+        <Stack.Screen name="ScreenshotToolPage" component={ScreenshotToolPage} />
+        <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
+        <Stack.Screen name="FileUploadPage" component={FileUploadPage} />
     </Stack.Navigator>
 );
 

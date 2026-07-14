@@ -35,7 +35,8 @@ const saveAccountToList = async (token, userInfo) => {
             _id: userInfo._id,
             name: userInfo.name,
             email: userInfo.email,
-            role: userInfo.role
+            role: userInfo.role,
+            allowedRoles: userInfo.allowedRoles
         };
         
         accounts.unshift({ token, user: lightweightUser });

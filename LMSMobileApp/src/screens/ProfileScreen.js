@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { AppHeader, LoadingScreen, SectionCard, Badge } from '../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import ChangeRoleModal from '../components/common/ChangeRoleModal';
 
 const ProfileScreen = ({ navigation }) => {
     const { user, logout, refreshUser, savedAccounts, switchAccount } = useAuth();
@@ -18,6 +19,7 @@ const ProfileScreen = ({ navigation }) => {
     const [phone, setPhone] = useState('');
     const [saving, setSaving] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [showRoleModal, setShowRoleModal] = useState(false);
 
     const fetchProfile = async () => {
         try {
@@ -223,12 +225,22 @@ const ProfileScreen = ({ navigation }) => {
                     </SectionCard>
                 )}
 
+                {/* Change Active Role */}
+                {(user?.role === 'Admin' || user?.role === 'Institute' || (user?.allowedRoles && user.allowedRoles.length > 1)) && (
+                    <TouchableOpacity style={styles.changeRoleBtn} onPress={() => setShowRoleModal(true)} activeOpacity={0.85}>
+                        <Ionicons name="refresh-circle-outline" size={20} color={colors.accent} />
+                        <Text style={styles.changeRoleBtnText}>Change Active Role</Text>
+                    </TouchableOpacity>
+                )}
+
                 {/* Logout */}
                 <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
                     <Ionicons name="log-out-outline" size={18} color={colors.danger} />
                     <Text style={styles.logoutBtnText}>Logout</Text>
                 </TouchableOpacity>
             </ScrollView>
+
+            <ChangeRoleModal visible={showRoleModal} onClose={() => setShowRoleModal(false)} />
         </View>
     );
 };
@@ -366,6 +378,20 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 1,
     },
+    changeRoleBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#eef2ff',
+        marginHorizontal: spacing.md,
+        marginTop: spacing.md,
+        borderRadius: borderRadius.lg,
+        paddingVertical: 15,
+        borderWidth: 1,
+        borderColor: '#c7d2fe',
+    },
+    changeRoleBtnText: { color: colors.accent, fontSize: fontSizes.lg, fontWeight: '700' },
 });
 
 export default ProfileScreen;

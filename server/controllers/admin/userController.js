@@ -1301,10 +1301,10 @@ const rejectRoleRequest = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/switch-role
 // @access  Private
 const switchRole = asyncHandler(async (req, res) => {
-    const { newRole, password } = req.body;
+    const { newRole, password, institute, courseId, courseIds, section, sections } = req.body;
     const userId = req.user._id;
 
-    const validRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
+    const validRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent', 'Guest'];
     if (!validRoles.includes(newRole)) {
         res.status(400);
         throw new Error('Invalid role specified');
@@ -1352,6 +1352,20 @@ const switchRole = asyncHandler(async (req, res) => {
         user.allowedRoles.push(newRole);
     }
 
+    // Apply role-specific metadata (institute, course, section) for context switching
+    if (institute) {
+        user.institute = institute;
+    }
+    if (newRole === 'Student') {
+        if (!user.studentProfile) user.studentProfile = {};
+        if (courseId) user.studentProfile.course = courseId;
+        if (section) user.studentProfile.section = section;
+    } else if (newRole === 'Teacher') {
+        if (!user.teacherProfile) user.teacherProfile = {};
+        if (courseIds) user.teacherProfile.assignedCourses = courseIds;
+        if (sections) user.teacherProfile.assignedSections = sections;
+    }
+
     user.role = newRole;
     await user.save();
 
@@ -1364,7 +1378,9 @@ const switchRole = asyncHandler(async (req, res) => {
             email: user.email,
             role: user.role,
             allowedRoles: user.allowedRoles,
-            institute: user.institute
+            institute: user.institute,
+            studentProfile: user.studentProfile,
+            teacherProfile: user.teacherProfile
         }
     });
 });

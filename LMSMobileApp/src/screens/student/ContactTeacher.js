@@ -511,14 +511,14 @@ const ContactTeacher = ({ navigation }) => {
                                     <Ionicons name="search-outline" size={21} color={showChatSearch ? colors.accent : colors.textSecondary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    onPress={showCallingComingSoon}
+                                    onPress={() => callUser(activeContact._id, activeContact.name, 'Teacher', 'audio')}
                                     style={styles.chatHeaderActionBtn}
                                     activeOpacity={0.75}
                                 >
                                     <Ionicons name="call" size={20} color={colors.accent} />
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    onPress={showCallingComingSoon}
+                                    onPress={() => callUser(activeContact._id, activeContact.name, 'Teacher', 'video')}
                                     style={styles.chatHeaderActionBtn}
                                     activeOpacity={0.75}
                                 >

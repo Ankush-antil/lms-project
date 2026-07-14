@@ -2,239 +2,76 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const DEFAULT_STUDENT_CONTROLS = {
-    myActivity: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        inbox: {
-            upcoming: true,
-            submitted: true,
-            returned: true,
-            evaluated: true,
-            expired: true,
-            studyMaterial: true,
-            tools: true,
-            analytics: true
-        }
-    },
-    dashboard: {
-        enabled: true,
-        mode: 'hide',
-        note: ''
-    },
-    feePortal: {
-        enabled: true,
-        mode: 'hide',
-        note: ''
-    },
-    tools: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        voiceRecorder: true,
-        videoRecorder: true,
-        fileUploader: true,
-        notesWriting: true,
-        screenshotTool: true,
-        screenRecorder: true,
-        webCalling: true
-    },
-    chat: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        audioCall: true,
-        videoCall: true,
-        chatWithTeacher: true,
-        chatWithAdmin: true,
-        chatWithEditor: true
-    }
+    myActivity: { enabled: true, mode: 'hide', note: '', inbox: { upcoming: true, submitted: true, returned: true, evaluated: true, expired: true, studyMaterial: true, tools: true, analytics: true } },
+    dashboard: { enabled: true, mode: 'hide', note: '' },
+    feePortal: { enabled: true, mode: 'hide', note: '' },
+    tools: { enabled: true, mode: 'hide', note: '', voiceRecorder: true, videoRecorder: true, fileUploader: true, notesWriting: true, screenshotTool: true, screenRecorder: true, webCalling: true },
+    chat: { enabled: true, mode: 'hide', note: '', audioCall: true, videoCall: true, chatWithTeacher: true, chatWithAdmin: true, chatWithEditor: true },
+    mySnapshots: { enabled: true, mode: 'hide', note: '' },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true }
 };
 
 const DEFAULT_TEACHER_CONTROLS = {
-    dashboard: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        receivingCalls: true,
-        takeAction: true,
-        attendance: true,
-        contactStudents: true
-    },
-    studentActivities: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        student: true,
-        inbox: true,
-        inboxDetails: {
-            assign: true,
-            upcoming: true,
-            submitted: true,
-            returned: true,
-            evaluated: true,
-            expired: true,
-            studyMaterial: true,
-            tools: true,
-            analytics: true
-        }
-    },
-    evaluate: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {}
-    },
-    snapshots: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        qrAttendance: true
-    },
-    tools: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        elementsControl: true,
-        inputElements: true,
-        displayingElements: true,
-        recordingElements: true,
-        advanceElements: true,
-        addons: true,
-        theme: true,
-        createWithAi: true,
-        integrate: true,
-        import: true,
-        saveAsTemplate: true,
-        decideActivity: true,
-        templates: true,
-        locationLocked: true,
-        logicRules: true,
-        monitoring: true,
-        connectIt: true,
-        profileUnderSettings: true,
-        moreSettings: true,
-        responses: true,
-        collaborate: true,
-        manageAccess: true,
-        publicToWeb: true
-    },
-    chat: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        audioCall: true,
-        videoCall: true,
-        chatStudent: true,
-        chatEditor: true,
-        chatInstitute: true
-    }
+    dashboard: { enabled: true, mode: 'hide', note: '', receivingCalls: true, takeAction: true, attendance: true, contactStudents: true },
+    studentActivities: { enabled: true, mode: 'hide', note: '', student: true, inbox: true, inboxDetails: { assign: true, upcoming: true, submitted: true, returned: true, evaluated: true, expired: true, studyMaterial: true, tools: true, analytics: true } },
+    evaluate: { enabled: true, mode: 'hide', note: '' },
+    snapshots: { enabled: true, mode: 'hide', note: '', qrAttendance: true },
+    tools: { enabled: true, mode: 'hide', note: '', formBuilderTool: true, databaseCreatorTool: true, elementsControl: true, inputElements: true, displayingElements: true, recordingElements: true, advanceElements: true, addons: true, theme: true, createWithAi: true, integrate: true, import: true, saveAsTemplate: true, decideActivity: true, templates: true, locationLocked: true, logicRules: true, monitoring: true, connectIt: true, profileUnderSettings: true, moreSettings: true, responses: true, collaborate: true, manageAccess: true, publicToWeb: true },
+    chat: { enabled: true, mode: 'hide', note: '', audioCall: true, videoCall: true, chatStudent: true, chatEditor: true, chatInstitute: true },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true }
 };
+
 const DEFAULT_EDITOR_CONTROLS = {
-    dashboard: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        createCourse: true,
-        launchTestBuilder: true
-    },
-    teachers: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        addNewTeacher: true
-    },
-    courses: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        addNewCourses: true
-    },
-    subjects: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        addSubject: true
-    },
-    activities: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        createNewAssessment: true,
-        lmsConnectedTests: true,
-        publicWebTests: true,
-        draftTests: true
-    },
-    tools: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {}
-    },
-    chat: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        teacher: true,
-        editor: true,
-        students: true
-    }
+    dashboard: { enabled: true, mode: 'hide', note: '', createCourse: true, launchTestBuilder: true },
+    teachers: { enabled: true, mode: 'hide', note: '', addNewTeacher: true },
+    courses: { enabled: true, mode: 'hide', note: '', addNewCourses: true },
+    subjects: { enabled: true, mode: 'hide', note: '', addSubject: true },
+    activities: { enabled: true, mode: 'hide', note: '', createNewAssessment: true, lmsConnectedTests: true, publicWebTests: true, draftTests: true },
+    tools: { enabled: true, mode: 'hide', note: '' },
+    chat: { enabled: true, mode: 'hide', note: '', teacher: true, editor: true, students: true },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true }
 };
 
 const DEFAULT_ACCOUNTANT_CONTROLS = {
-    feePortal: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        collectFee: true,
-        editStructure: true,
-        deleteTransaction: true,
-        googleSheets: true,
-        viewReports: true
-    },
-    chat: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        subNotes: {},
-        teacher: true,
-        editor: true,
-        students: true,
-        chatWithAdmin: true,
-        chatWithTeacher: true,
-        chatWithEditor: true,
-        chatWithStudent: true
-    },
-    drive: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        uploadFiles: true,
-        deleteFiles: true
-    },
-    notes: {
-        enabled: true,
-        mode: 'hide',
-        note: '',
-        createNotes: true,
-        deleteNotes: true
-    }
+    dashboard: { enabled: true, mode: 'hide', note: '' },
+    feePortal: { enabled: true, mode: 'hide', note: '', dashboard: true, allStudent: { googleSheet: true, edit: true, collect: true }, collectFee: true, pendingDues: true, receipts: true, reports: true, settings: true },
+    attendance: { enabled: true, mode: 'hide', note: '' },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true },
+    chat: { enabled: true, mode: 'hide', note: '', chatWithAdmin: true, chatWithTeacher: true, chatWithEditor: true, chatWithStudent: true }
 };
+
+const DEFAULT_MARKETER_CONTROLS = {
+    dashboard: { enabled: true, mode: 'hide', note: '' },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true },
+    chat: { enabled: true, mode: 'hide', note: '' }
+};
+
+const DEFAULT_STAFF_CONTROLS = {
+    dashboard: { enabled: true, mode: 'hide', note: '' },
+    task: { enabled: true, mode: 'hide', note: '', todayTask: true, assignedTask: true, selfCreatedTask: true, myPoints: true, addExtraTask: true },
+    attendance: { enabled: true, mode: 'hide', note: '', applyForLeave: true },
+    salary: { enabled: true, mode: 'hide', note: '' },
+    drive: { enabled: true, mode: 'hide', note: '', newDrive: true, integrateDrive: true, viewDrive: true },
+    notes: { enabled: true, mode: 'hide', note: '', newNote: true, saveDraft: true, saveNotes: true },
+    chat: { enabled: true, mode: 'hide', note: '' }
+};
+
+const DEFAULT_PARENT_CONTROLS = {
+    dashboard: { enabled: true, mode: 'hide', note: '' },
+    studentFee: { enabled: true, mode: 'hide', note: '' },
+    attendance: { enabled: true, mode: 'hide', note: '' },
+    activities: { enabled: true, mode: 'hide', note: '' }
+};
+
 
 const getInboxTabLabel = (key) => {
     const labels = {
@@ -290,7 +127,15 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         studentAssignmentMode: 'all',
         assignedSections: [],
         assignedStudents: [],
-        controls: DEFAULT_STUDENT_CONTROLS
+        controls: role === 'Student' ? DEFAULT_STUDENT_CONTROLS :
+                          role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS :
+                          role === 'Editor' ? DEFAULT_EDITOR_CONTROLS :
+                          role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS :
+                          role === 'Marketer' ? DEFAULT_MARKETER_CONTROLS :
+                          role === 'Staff' ? DEFAULT_STAFF_CONTROLS :
+                          role === 'Parent' ? DEFAULT_PARENT_CONTROLS : {},
+        demoCourse: '',
+        demoDuration: 1
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -303,6 +148,29 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     const [activeTab, setActiveTab] = useState('basic');
     const [controlsScope, setControlsScope] = useState('single');
     const [selectedPropagationStudents, setSelectedPropagationStudents] = useState([]);
+    const [expandedSections, setExpandedSections] = useState({});
+    const [propagationUsers, setPropagationUsers] = useState([]);
+    const [loadingPropagationUsers, setLoadingPropagationUsers] = useState(false);
+
+    useEffect(() => {
+        const activeRole = role;
+        const instId = user?.institute?._id || user?.institute || formData.institute;
+        if (isOpen && controlsScope === 'selected' && activeRole && instId) {
+            setLoadingPropagationUsers(true);
+            axios.get(`/api/users?role=${activeRole}`)
+                .then(res => {
+                    const filtered = res.data.filter(u => {
+                        const uInstId = u.institute?._id || u.institute;
+                        return uInstId === instId;
+                    });
+                    setPropagationUsers(filtered);
+                })
+                .catch(err => console.error("Error fetching propagation users:", err))
+                .finally(() => setLoadingPropagationUsers(false));
+        } else {
+            setPropagationUsers([]);
+        }
+    }, [isOpen, controlsScope, role, formData.institute, user]);
 
     const [courseStudents, setCourseStudents] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
@@ -321,7 +189,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     }, [formData.course, role]);
 
     useEffect(() => {
-        if (formData.course && (role === 'Teacher' || role === 'Student')) {
+        if (formData.course && (role === 'Teacher' || role === 'Student' || role === 'Editor')) {
             const fetchCourseStudents = async () => {
                 try {
                     setLoadingStudents(true);
@@ -367,7 +235,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     : (role === 'Teacher' ? DEFAULT_TEACHER_CONTROLS : (role === 'Editor' ? DEFAULT_EDITOR_CONTROLS : (role === 'Accountant' ? DEFAULT_ACCOUNTANT_CONTROLS : DEFAULT_STUDENT_CONTROLS))),
                 parentProfile: {
                     student: ''
-                }
+                },
+                demoCourse: '',
+                demoDuration: 1
             });
             setCreatedUser(null);
             setSubjectDropdownOpen(false);
@@ -420,1666 +290,748 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         }
     }, [isOpen, role, formData.institute]);
 
-    const renderStudentControls = () => {
         const updateControl = (section, field, value) => {
+        setFormData(prev => {
+            const newControls = { ...prev.controls };
+            if (!newControls[section]) newControls[section] = {};
+            newControls[section] = {
+                ...newControls[section],
+                [field]: value
+            };
+            return { ...prev, controls: newControls };
+        });
+    };
+
+    const toggleSection = (sec) => {
+        setExpandedSections(prev => ({ ...prev, [sec]: !prev[sec] }));
+    };
+
+    const renderControlSection = ({ id, label, hasSubControls = false, subControls = null }) => {
+        const controls = formData.controls || {};
+        const ctrl = controls[id] || { enabled: true, mode: 'hide', note: '' };
+        const isExpanded = !!expandedSections[id];
+
+        return (
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/80 space-y-3 shadow-sm hover:shadow-md/5 transition-all">
+                <div 
+                    className="flex items-center justify-between border-b border-slate-100 pb-2 cursor-pointer select-none" 
+                    onClick={() => hasSubControls && toggleSection(id)}
+                >
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-slate-800">{label}</span>
+                        {hasSubControls && (
+                            isExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                        <select
+                            value={ctrl.mode || 'hide'}
+                            onChange={e => updateControl(id, 'mode', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-2 py-0.5 text-[10px] font-bold text-slate-600 outline-none cursor-pointer hover:border-indigo-300 transition-colors"
+                        >
+                            <option value="hide">Hide</option>
+                            <option value="disable">Disable</option>
+                        </select>
+                        <input 
+                            type="checkbox" 
+                            checked={ctrl.enabled !== false} 
+                            onChange={e => updateControl(id, 'enabled', e.target.checked)} 
+                            className="w-4 h-4 accent-indigo-650 cursor-pointer" 
+                        />
+                    </div>
+                </div>
+
+                {ctrl.enabled !== false && hasSubControls && isExpanded && (
+                    <div className="pl-1 pt-1 space-y-2 animate-fade-in">
+                        {subControls}
+                    </div>
+                )}
+
+                {ctrl.enabled === false && (
+                    <div className="w-full animate-fade-in pt-1">
+                        <label className="text-[9px] font-black text-slate-455 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
+                        <input
+                            type="text"
+                            value={ctrl.note || ''}
+                            onChange={e => updateControl(id, 'note', e.target.value)}
+                            placeholder={`Reason for deactivating ${label}`}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
+                        />
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderDriveSubControls = (section = 'drive') => {
+        const ctrl = formData.controls?.[section] || { newDrive: true, integrateDrive: true, viewDrive: true };
+        const handleSubChange = (field, val) => {
             setFormData(prev => {
-                const newControls = { ...prev.controls };
-                if (field === 'inbox') {
-                    newControls.myActivity = {
-                        ...newControls.myActivity,
-                        inbox: {
-                            ...newControls.myActivity.inbox,
-                            ...value
-                        }
-                    };
-                } else if (field === 'enabled' || field === 'mode') {
-                    newControls[section] = {
-                        ...newControls[section],
-                        [field]: value
-                    };
-                } else {
-                    newControls[section] = {
-                        ...newControls[section],
-                        [field]: value
-                    };
-                }
-                return { ...prev, controls: newControls };
+                const prevSection = prev.controls?.[section] || {};
+                return {
+                    ...prev,
+                    controls: {
+                        ...prev.controls,
+                        [section]: { ...prevSection, [field]: val }
+                    }
+                };
             });
         };
+        return (
+            <div className="flex flex-col gap-2 pl-2 border-l border-slate-200">
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.newDrive !== false} onChange={e => handleSubChange('newDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />New</label>
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.integrateDrive !== false} onChange={e => handleSubChange('integrateDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />Integrate</label>
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.viewDrive !== false} onChange={e => handleSubChange('viewDrive', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />View</label>
+            </div>
+        );
+    };
 
-        const updateSubNote = (section, key, value) => {
+    const renderNotesSubControls = (section = 'notes') => {
+        const ctrl = formData.controls?.[section] || { newNote: true, saveDraft: true, saveNotes: true };
+        const handleSubChange = (field, val) => {
+            setFormData(prev => {
+                const prevSection = prev.controls?.[section] || {};
+                return {
+                    ...prev,
+                    controls: {
+                        ...prev.controls,
+                        [section]: { ...prevSection, [field]: val }
+                    }
+                };
+            });
+        };
+        return (
+            <div className="flex flex-col gap-2 pl-2 border-l border-slate-200">
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.newNote !== false} onChange={e => handleSubChange('newNote', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />New Note</label>
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.saveDraft !== false} onChange={e => handleSubChange('saveDraft', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />Save Draft</label>
+                <label className="flex items-center gap-2 text-xs text-slate-655 font-bold cursor-pointer select-none"><input type="checkbox" checked={ctrl.saveNotes !== false} onChange={e => handleSubChange('saveNotes', e.target.checked)} className="w-3.5 h-3.5 accent-indigo-650 rounded cursor-pointer" />Save Notes</label>
+            </div>
+        );
+    };
+
+        const renderPropagationSelector = (roleLabel) => {
+        const isStudent = roleLabel === 'Student';
+        return (
+            <div className="bg-slate-100/70 p-5 rounded-3xl border border-slate-200/60 mt-6 space-y-3">
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply These Settings To</span>
+                    <p className="text-[10px] text-slate-450 font-semibold leading-normal">
+                        Propagate these feature control and note settings to other ${roleLabel.toLowerCase()}s in the system.
+                    </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                        { value: 'single', label: `This ${roleLabel} Only` },
+                        ...(isStudent ? [{ value: 'course', label: 'All Students of Course' }] : []),
+                        { value: 'selected', label: `Selected ${roleLabel}s` },
+                        { value: 'all', label: `All ${roleLabel}s of this Institute` }
+                    ].map(opt => (
+                        <label key={opt.value} className={`flex items-center gap-3 bg-white border rounded-2xl p-3 cursor-pointer select-none transition-all hover:bg-slate-50/50 ${controlsScope === opt.value ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200'}`}>
+                            <input
+                                type="radio"
+                                name="controlsScope"
+                                value={opt.value}
+                                checked={controlsScope === opt.value}
+                                onChange={() => setControlsScope(opt.value)}
+                                className="rounded-full border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+                        </label>
+                    ))}
+                </div>
+
+                {controlsScope === 'selected' && (
+                    <div className="bg-white border border-slate-200 rounded-3xl p-4 mt-3 space-y-3 max-h-60 overflow-y-auto animate-fade-in">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-xs font-bold text-slate-750">Select ${roleLabel}s to Apply Settings</span>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPropagationStudents(propagationUsers.map(u => u._id))}
+                                    className="text-[10px] font-bold text-indigo-650 hover:underline cursor-pointer"
+                                >
+                                    Select All
+                                </button>
+                                <span className="text-slate-300 text-[10px]">|</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPropagationStudents([])}
+                                    className="text-[10px] font-bold text-slate-400 hover:underline cursor-pointer"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                        </div>
+                        {loadingPropagationUsers ? (
+                            <div className="text-xs text-slate-400 text-center py-4">Loading...</div>
+                        ) : propagationUsers.length === 0 ? (
+                            <div className="text-xs text-slate-450 text-center py-4">No other ${roleLabel.toLowerCase()}s in this institute.</div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                                {propagationUsers.map(u => {
+                                    const isChecked = selectedPropagationStudents.includes(u._id);
+                                    return (
+                                        <label key={u._id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50/50 border-slate-150'}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {
+                                                    if (isChecked) {
+                                                        setSelectedPropagationStudents(prev => prev.filter(id => id !== u._id));
+                                                    } else {
+                                                        setSelectedPropagationStudents(prev => [...prev, u._id]);
+                                                    }
+                                                }}
+                                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                            />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold text-slate-700 truncate">{u.name}</span>
+                                                <span className="text-[9px] font-semibold text-slate-450 truncate">{u.email}</span>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderStudentControls = () => {
+        const ctrl = formData.controls || {};
+        const handleInboxChange = (field, checked) => {
             setFormData(prev => {
                 const newControls = { ...prev.controls };
-                if (!newControls[section]) newControls[section] = {};
-                if (!newControls[section].subNotes) newControls[section].subNotes = {};
-                newControls[section].subNotes = {
-                    ...newControls[section].subNotes,
-                    [key]: value
+                if (!newControls.myActivity) newControls.myActivity = {};
+                newControls.myActivity.inbox = {
+                    ...(newControls.myActivity.inbox || {}),
+                    [field]: checked
                 };
                 return { ...prev, controls: newControls };
             });
         };
-
-        const controls = formData.controls || DEFAULT_STUDENT_CONTROLS;
+        const handleToolsChange = (field, checked) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls.tools) newControls.tools = {};
+                newControls.tools[field] = checked;
+                return { ...prev, controls: newControls };
+            });
+        };
+        const handleChatChange = (field, checked) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls.chat) newControls.chat = {};
+                newControls.chat[field] = checked;
+                return { ...prev, controls: newControls };
+            });
+        };
 
         return (
-            <div className="space-y-6 animate-fade-in pb-4">
-                {/* 1. My Activity */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="ctrl_myActivity"
-                                checked={controls.myActivity?.enabled !== false}
-                                onChange={e => updateControl('myActivity', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="ctrl_myActivity" className="text-sm font-black text-slate-800 cursor-pointer select-none">1. My Activity</label>
+            <div className="space-y-4">
+                {renderControlSection({
+                    id: 'myActivity',
+                    label: 'My Activity Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            {['upcoming', 'submitted', 'returned', 'evaluated', 'expired', 'studyMaterial', 'tools', 'analytics'].map(tab => (
+                                <label key={tab} className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={ctrl.myActivity?.inbox?.[tab] !== false}
+                                        onChange={e => handleInboxChange(tab, e.target.checked)}
+                                        className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                    />
+                                    <span className="text-xs font-semibold text-slate-700">{getInboxTabLabel(tab)}</span>
+                                </label>
+                            ))}
                         </div>
-                        <select
-                            value={controls.myActivity?.mode || 'hide'}
-                            onChange={e => updateControl('myActivity', 'mode', e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                            <option value="hide">Hide</option>
-                            <option value="disable">Disable</option>
-                        </select>
-                    </div>
-                    {controls.myActivity?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.myActivity?.note || ''}
-                                onChange={e => updateControl('myActivity', 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Please clear your dues to activate)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
+                    )
+                })}
+
+                {renderControlSection({ id: 'dashboard', label: 'Dashboard Page' })}
+                {renderControlSection({ id: 'feePortal', label: 'Fee Portal Page' })}
+
+                {renderControlSection({
+                    id: 'tools',
+                    label: 'Tools Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            {[
+                                { id: 'voiceRecorder', label: 'Voice Recorder' },
+                                { id: 'videoRecorder', label: 'Video Recorder' },
+                                { id: 'fileUploader', label: 'File Uploader' },
+                                { id: 'notesWriting', label: 'Notes Writing' },
+                                { id: 'screenshotTool', label: 'Screenshot Tool' },
+                                { id: 'screenRecorder', label: 'Screen Recorder' },
+                                { id: 'webCalling', label: 'Web Calling' }
+                            ].map(item => (
+                                <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={ctrl.tools?.[item.id] !== false}
+                                        onChange={e => handleToolsChange(item.id, e.target.checked)}
+                                        className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                    />
+                                    <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                                </label>
+                            ))}
                         </div>
-                    )}
-                    {controls.myActivity?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Inbox Tabs Visible</span>
+                    )
+                })}
+
+                {renderControlSection({
+                    id: 'chat',
+                    label: 'Chat Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="space-y-3 pl-2 border-l border-slate-200">
+                            <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Call Functions</span>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.audioCall !== false} onChange={e => handleChatChange('audioCall', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Audio Call</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.videoCall !== false} onChange={e => handleChatChange('videoCall', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Video Call</span></label>
+                            </div>
+                            <span className="text-[10px] font-black text-slate-455 uppercase tracking-widest block pt-2 border-t border-slate-100">Talk to Contacts</span>
                             <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'upcoming', label: 'Upcoming' },
-                                    { id: 'submitted', label: 'Submitted' },
-                                    { id: 'returned', label: 'Returned' },
-                                    { id: 'evaluated', label: 'Evaluated' },
-                                    { id: 'expired', label: 'Expired' },
-                                    { id: 'studyMaterial', label: 'Study Material' },
-                                    { id: 'tools', label: 'Tools' },
-                                    { id: 'analytics', label: 'Analytics' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.myActivity?.inbox?.[item.id] !== false}
-                                            onChange={e => updateControl('myActivity', 'inbox', { [item.id]: e.target.checked })}
-                                            className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                    </label>
-                                ))}
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithTeacher !== false} onChange={e => handleChatChange('chatWithTeacher', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Teachers</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithAdmin !== false} onChange={e => handleChatChange('chatWithAdmin', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Admins</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithEditor !== false} onChange={e => handleChatChange('chatWithEditor', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Editors</span></label>
                             </div>
-                            {/* Sub-tab Notes */}
-                            {Object.entries(controls.myActivity?.inbox || {}).some(([k, v]) => v === false) && (
-                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-tab Deactivation Reasons</span>
-                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                        {Object.entries(controls.myActivity?.inbox || {}).map(([key, isEnabled]) => {
-                                            if (isEnabled === false) {
-                                                const label = getInboxTabLabel(key);
-                                                return (
-                                                    <div key={key} className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={controls.myActivity?.subNotes?.[key] || ''}
-                                                            onChange={e => updateSubNote('myActivity', key, e.target.value)}
-                                                            placeholder={`Reason for hiding ${label}`}
-                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                        />
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })}
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 2. Dashboard */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="ctrl_dashboard"
-                                checked={controls.dashboard?.enabled !== false}
-                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer select-none">2. Dashboard</label>
-                        </div>
-                        <select
-                            value={controls.dashboard?.mode || 'hide'}
-                            onChange={e => updateControl('dashboard', 'mode', e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                            <option value="hide">Hide</option>
-                            <option value="disable">Disable</option>
-                        </select>
-                    </div>
-                    {controls.dashboard?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.dashboard?.note || ''}
-                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Dashboard access restricted)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                </div>
+                {renderControlSection({ id: 'mySnapshots', label: 'My Snapshots Page' })}
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
 
-                {/* 3. Fee Portal */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="ctrl_feePortal"
-                                checked={controls.feePortal?.enabled !== false}
-                                onChange={e => updateControl('feePortal', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="ctrl_feePortal" className="text-sm font-black text-slate-800 cursor-pointer select-none">3. Fee Portal</label>
-                        </div>
-                        <select
-                            value={controls.feePortal?.mode || 'hide'}
-                            onChange={e => updateControl('feePortal', 'mode', e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                            <option value="hide">Hide</option>
-                            <option value="disable">Disable</option>
-                        </select>
-                    </div>
-                    {controls.feePortal?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.feePortal?.note || ''}
-                                onChange={e => updateControl('feePortal', 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Fees pending - contact accounts)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* 4. Tools */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="ctrl_tools"
-                                checked={controls.tools?.enabled !== false}
-                                onChange={e => updateControl('tools', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer select-none">4. Tools</label>
-                        </div>
-                        <select
-                            value={controls.tools?.mode || 'hide'}
-                            onChange={e => updateControl('tools', 'mode', e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                            <option value="hide">Hide</option>
-                            <option value="disable">Disable</option>
-                        </select>
-                    </div>
-                    {controls.tools?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.tools?.note || ''}
-                                onChange={e => updateControl('tools', 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Tools restricted)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.tools?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Available Tools</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'voiceRecorder', label: 'Voice Recorder' },
-                                    { id: 'videoRecorder', label: 'Video Recorder' },
-                                    { id: 'fileUploader', label: 'File Uploader' },
-                                    { id: 'notesWriting', label: 'Notes Writing' },
-                                    { id: 'screenshotTool', label: 'Screenshot Tool' },
-                                    { id: 'screenRecorder', label: 'Screen Recorder' },
-                                    { id: 'webCalling', label: 'Web Calling' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.tools?.[item.id] !== false}
-                                            onChange={e => updateControl('tools', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                            {/* Sub-tool Notes */}
-                            {Object.entries(controls.tools || {}).some(([k, v]) => ['voiceRecorder', 'videoRecorder', 'fileUploader', 'notesWriting', 'screenshotTool', 'screenRecorder', 'webCalling'].includes(k) && v === false) && (
-                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-tool Deactivation Reasons</span>
-                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                        {['voiceRecorder', 'videoRecorder', 'fileUploader', 'notesWriting', 'screenshotTool', 'screenRecorder', 'webCalling'].map(key => {
-                                            const isEnabled = controls.tools?.[key] !== false;
-                                            if (isEnabled === false) {
-                                                const label = getToolLabel(key);
-                                                return (
-                                                    <div key={key} className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={controls.tools?.subNotes?.[key] || ''}
-                                                            onChange={e => updateSubNote('tools', key, e.target.value)}
-                                                            placeholder={`Reason for hiding/disabling ${label}`}
-                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                        />
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* 5. Chat */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="ctrl_chat"
-                                checked={controls.chat?.enabled !== false}
-                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer select-none">5. Chat</label>
-                        </div>
-                        <select
-                            value={controls.chat?.mode || 'hide'}
-                            onChange={e => updateControl('chat', 'mode', e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                            <option value="hide">Hide</option>
-                            <option value="disable">Disable</option>
-                        </select>
-                    </div>
-                    {controls.chat?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.chat?.note || ''}
-                                onChange={e => updateControl('chat', 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Chat restricted)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.chat?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Call Functions</span>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.chat?.audioCall !== false}
-                                            onChange={e => updateControl('chat', 'audioCall', e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700">Audio Call</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.chat?.videoCall !== false}
-                                            onChange={e => updateControl('chat', 'videoCall', e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700">Video Call</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="border-t border-slate-100 pt-3">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Allowed Contacts (Talk to)</span>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: 'chatWithTeacher', label: 'Teachers' },
-                                        { id: 'chatWithAdmin', label: 'Admins' },
-                                        { id: 'chatWithEditor', label: 'Editors' }
-                                    ].map(item => (
-                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={controls.chat?.[item.id] !== false}
-                                                onChange={e => updateControl('chat', item.id, e.target.checked)}
-                                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                            />
-                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* Sub-chat Notes */}
-                            {['audioCall', 'videoCall', 'chatWithTeacher', 'chatWithAdmin', 'chatWithEditor'].some(k => controls.chat?.[k] === false) && (
-                                <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Sub-chat Deactivation Reasons</span>
-                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                        {['audioCall', 'videoCall', 'chatWithTeacher', 'chatWithAdmin', 'chatWithEditor'].map(key => {
-                                            const isEnabled = controls.chat?.[key] !== false;
-                                            if (isEnabled === false) {
-                                                const label = getChatLabel(key);
-                                                return (
-                                                    <div key={key} className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-slate-650 min-w-[120px]">{label}:</span>
-                                                        <input
-                                                            type="text"
-                                                            value={controls.chat?.subNotes?.[key] || ''}
-                                                            onChange={e => updateSubNote('chat', key, e.target.value)}
-                                                            placeholder={`Reason for hiding/disabling ${label}`}
-                                                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                        />
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-                {/* Propagation Scope Selection */}
-                <div className="bg-slate-100/70 p-5 rounded-3xl border border-slate-200/60 mt-6 space-y-3">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply These Settings To</span>
-                        <p className="text-[10px] text-slate-450 font-semibold leading-normal">Propagate these feature control and note settings to other students in the system.</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                        {[
-                            { value: 'single', label: 'This Student Only' },
-                            { value: 'course', label: 'All Students of Course' },
-                            { value: 'selected', label: 'Selected Students' },
-                            { value: 'all', label: 'All Students of this Institute' }
-                        ].map(opt => (
-                            <label key={opt.value} className={`flex items-center gap-3 bg-white border rounded-2xl p-3 cursor-pointer select-none transition-all hover:bg-slate-50/50 ${controlsScope === opt.value ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200'}`}>
-                                <input
-                                    type="radio"
-                                    name="controlsScope"
-                                    value={opt.value}
-                                    checked={controlsScope === opt.value}
-                                    onChange={() => setControlsScope(opt.value)}
-                                    className="rounded-full border-slate-350 text-[#3E3ADD] focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                />
-                                <span className="text-xs font-bold text-slate-750">{opt.label}</span>
-                            </label>
-                        ))}
-                    </div>
-
-                    {controlsScope === 'selected' && (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-4 mt-3 space-y-3 max-h-60 overflow-y-auto animate-fade-in">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-xs font-bold text-slate-700">Select Students to Apply Settings</span>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedPropagationStudents(courseStudents.map(s => s._id))}
-                                        className="text-[10px] font-bold text-[#3E3ADD] hover:underline cursor-pointer"
-                                    >
-                                        Select All
-                                    </button>
-                                    <span className="text-slate-350 text-[10px]">|</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedPropagationStudents([])}
-                                        className="text-[10px] font-bold text-slate-400 hover:underline cursor-pointer"
-                                    >
-                                        Clear All
-                                    </button>
-                                </div>
-                            </div>
-                            {loadingStudents ? (
-                                <div className="text-xs text-slate-450 text-center py-4">Loading students...</div>
-                            ) : courseStudents.length === 0 ? (
-                                <div className="text-xs text-slate-450 text-center py-4">No other students in this course.</div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-2">
-                                    {courseStudents.map(student => {
-                                        const isChecked = selectedPropagationStudents.includes(student._id);
-                                        return (
-                                            <label key={student._id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50/50 border-slate-150'}`}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isChecked) {
-                                                            setSelectedPropagationStudents(prev => prev.filter(id => id !== student._id));
-                                                        } else {
-                                                            setSelectedPropagationStudents(prev => [...prev, student._id]);
-                                                        }
-                                                    }}
-                                                    className="rounded border-slate-300 text-[#3E3ADD] focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
-                                                />
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="text-xs font-bold text-slate-700 truncate">{student.name}</span>
-                                                    <span className="text-[9px] font-semibold text-slate-450">{student.admissionNo || 'No ID'}</span>
-                                                </div>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                {renderPropagationSelector('Student')}
             </div>
         );
     };
 
     const renderTeacherControls = () => {
-        const updateControl = (section, field, value) => {
-            setFormData(prev => {
-                const newControls = { ...prev.controls };
-                if (field === 'inboxDetails') {
-                    newControls.studentActivities = {
-                        ...newControls.studentActivities,
-                        inboxDetails: {
-                            ...newControls.studentActivities.inboxDetails,
-                            ...value
-                        }
-                    };
-                } else {
-                    newControls[section] = {
-                        ...newControls[section],
-                        [field]: value
-                    };
-                }
-                return { ...prev, controls: newControls };
-            });
-        };
-
-        const updateSubNote = (section, key, value) => {
+        const ctrl = formData.controls || {};
+        const handleSubChange = (section, field, checked) => {
             setFormData(prev => {
                 const newControls = { ...prev.controls };
                 if (!newControls[section]) newControls[section] = {};
-                if (!newControls[section].subNotes) newControls[section].subNotes = {};
-                newControls[section].subNotes = {
-                    ...newControls[section].subNotes,
-                    [key]: value
+                newControls[section][field] = checked;
+                return { ...prev, controls: newControls };
+            });
+        };
+        const handleInboxChange = (field, checked) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls.studentActivities) newControls.studentActivities = {};
+                newControls.studentActivities.inboxDetails = {
+                    ...(newControls.studentActivities.inboxDetails || {}),
+                    [field]: checked
                 };
                 return { ...prev, controls: newControls };
             });
         };
 
-        const controls = formData.controls || DEFAULT_TEACHER_CONTROLS;
-        const activitiesAllowed = instituteDetails?.controls?.tools || {};
+        const activitiesAllowed = instituteDetails?.controls?.activities || {};
+        const isFormBuilderAllowed = activitiesAllowed.formBuilderTool !== false;
 
         return (
-            <div className="space-y-6 animate-fade-in pb-4">
-                {/* 1. Dashboard Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_dashboard"
-                                checked={controls.dashboard?.enabled !== false}
-                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer">Dashboard Page</label>
+            <div className="space-y-4">
+                {renderControlSection({
+                    id: 'dashboard',
+                    label: 'Dashboard Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.receivingCalls !== false} onChange={e => handleSubChange('dashboard', 'receivingCalls', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Receiving Calls</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.takeAction !== false} onChange={e => handleSubChange('dashboard', 'takeAction', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Take Actions</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.attendance !== false} onChange={e => handleSubChange('dashboard', 'attendance', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Daily Attendance</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.contactStudents !== false} onChange={e => handleSubChange('dashboard', 'contactStudents', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Contact Students</span></label>
                         </div>
-                        {controls.dashboard?.enabled === false && (
-                            <select
-                                value={controls.dashboard?.mode || 'hide'}
-                                onChange={e => updateControl('dashboard', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
+                    )
+                })}
 
-                    {controls.dashboard?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled? (e.g. Under Maintenance)"
-                                value={controls.dashboard?.note || ''}
-                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-
-                    {controls.dashboard?.enabled !== false && (
-                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Dashboard Sub-activities</span>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: 'receivingCalls', label: 'Receiving Calls' },
-                                        { id: 'takeAction', label: 'Take Action Button' },
-                                        { id: 'attendance', label: 'Attendance Management' },
-                                        { id: 'contactStudents', label: 'Contact Students Button' }
-                                    ].map(item => (
-                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={controls.dashboard?.[item.id] !== false}
-                                                onChange={e => updateControl('dashboard', item.id, e.target.checked)}
-                                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                            />
-                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
+                {renderControlSection({
+                    id: 'studentActivities',
+                    label: 'Student Activities Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="space-y-3 pl-2 border-l border-slate-200">
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.studentActivities?.student !== false} onChange={e => handleSubChange('studentActivities', 'student', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Student Profiles</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.studentActivities?.inbox !== false} onChange={e => handleSubChange('studentActivities', 'inbox', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Inbox Activities</span></label>
                             </div>
-
-                            {/* Sub Notes */}
-                            {['receivingCalls', 'takeAction', 'attendance', 'contactStudents'].some(k => controls.dashboard?.[k] === false) && (
-                                <div className="border-t border-slate-100 pt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-dashboard Deactivation Reasons</span>
-                                    {['receivingCalls', 'takeAction', 'attendance', 'contactStudents'].map(k => {
-                                        if (controls.dashboard?.[k] === false) {
-                                            const label = k === 'receivingCalls' ? 'Receiving Calls' : k === 'takeAction' ? 'Take Action' : k === 'attendance' ? 'Attendance' : 'Contact Students';
-                                            return (
-                                                <div key={k} className="flex items-center gap-3">
-                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
-                                                    <input
-                                                        type="text"
-                                                        value={controls.dashboard?.subNotes?.[k] || ''}
-                                                        onChange={e => updateSubNote('dashboard', k, e.target.value)}
-                                                        placeholder={`Reason for hiding/disabling ${label}`}
-                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                    />
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* 2. Student Activities Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_studentActivities"
-                                checked={controls.studentActivities?.enabled !== false}
-                                onChange={e => updateControl('studentActivities', 'enabled', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_studentActivities" className="text-sm font-black text-slate-800 cursor-pointer">Student Activities Page</label>
-                        </div>
-                        {controls.studentActivities?.enabled === false && (
-                            <select
-                                value={controls.studentActivities?.mode || 'hide'}
-                                onChange={e => updateControl('studentActivities', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-
-                    {controls.studentActivities?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled?"
-                                value={controls.studentActivities?.note || ''}
-                                onChange={e => updateControl('studentActivities', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-
-                    {controls.studentActivities?.enabled !== false && (
-                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sections Control</span>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: 'student', label: 'Students View' },
-                                        { id: 'inbox', label: 'Inbox View' }
-                                    ].map(item => (
-                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={controls.studentActivities?.[item.id] !== false}
-                                                onChange={e => updateControl('studentActivities', item.id, e.target.checked)}
-                                                className="rounded border-slate-300 text-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                            />
-                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {controls.studentActivities?.inbox !== false && (
-                                <div className="border-t border-slate-200/60 pt-3">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Inbox Cards Allowed</span>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {[
-                                            { id: 'assign', label: 'Assign Test' },
-                                            { id: 'upcoming', label: 'Upcoming' },
-                                            { id: 'submitted', label: 'Submitted' },
-                                            { id: 'returned', label: 'Returned' },
-                                            { id: 'evaluated', label: 'Evaluated' },
-                                            { id: 'expired', label: 'Expired' },
-                                            { id: 'studyMaterial', label: 'Study Material' },
-                                            { id: 'tools', label: 'Practice Tools' },
-                                            { id: 'analytics', label: 'Analytics' }
-                                        ].map(item => (
-                                            <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                            {ctrl.studentActivities?.inbox !== false && (
+                                <div className="border-t border-slate-100 pt-2 space-y-2">
+                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Allowed Inbox Tasks</span>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {['assign', 'upcoming', 'submitted', 'returned', 'evaluated', 'expired', 'studyMaterial', 'tools', 'analytics'].map(tab => (
+                                            <label key={tab} className="flex items-center gap-2.5 cursor-pointer select-none">
                                                 <input
                                                     type="checkbox"
-                                                    checked={controls.studentActivities?.inboxDetails?.[item.id] !== false}
-                                                    onChange={e => updateControl('studentActivities', 'inboxDetails', { [item.id]: e.target.checked })}
-                                                    className="rounded border-slate-300 text-indigo-550 h-3.5 w-3.5 cursor-pointer"
+                                                    checked={ctrl.studentActivities?.inboxDetails?.[tab] !== false}
+                                                    onChange={e => handleInboxChange(tab, e.target.checked)}
+                                                    className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer"
                                                 />
-                                                <span className="text-xs font-bold text-slate-700">{item.label}</span>
+                                                <span className="text-xs font-semibold text-slate-700">{getInboxTabLabel(tab === 'assign' ? 'assign' : tab)}</span>
                                             </label>
                                         ))}
                                     </div>
                                 </div>
                             )}
-
-                            {/* Sub notes */}
-                            {['student', 'inbox'].some(k => controls.studentActivities?.[k] === false) && (
-                                <div className="border-t border-slate-100 pt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-activities Deactivation Reasons</span>
-                                    {['student', 'inbox'].map(k => {
-                                        if (controls.studentActivities?.[k] === false) {
-                                            const label = k === 'student' ? 'Students View' : 'Inbox View';
-                                            return (
-                                                <div key={k} className="flex items-center gap-3">
-                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
-                                                    <input
-                                                        type="text"
-                                                        value={controls.studentActivities?.subNotes?.[k] || ''}
-                                                        onChange={e => updateSubNote('studentActivities', k, e.target.value)}
-                                                        placeholder={`Reason for hiding/disabling ${label}`}
-                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                    />
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-                            )}
                         </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 3. Evaluate Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_evaluate"
-                                checked={controls.evaluate?.enabled !== false}
-                                onChange={e => updateControl('evaluate', 'enabled', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_evaluate" className="text-sm font-black text-slate-800 cursor-pointer">Evaluate Page</label>
+                {renderControlSection({ id: 'evaluate', label: 'Evaluate Page' })}
+
+                {renderControlSection({
+                    id: 'snapshots',
+                    label: 'Snapshots / Attendance Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex gap-4 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.snapshots?.qrAttendance !== false} onChange={e => handleSubChange('snapshots', 'qrAttendance', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Launch QR Attendance</span></label>
                         </div>
-                        {controls.evaluate?.enabled === false && (
-                            <select
-                                value={controls.evaluate?.mode || 'hide'}
-                                onChange={e => updateControl('evaluate', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
+                    )
+                })}
 
-                    {controls.evaluate?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled?"
-                                value={controls.evaluate?.note || ''}
-                                onChange={e => updateControl('evaluate', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* 4. Snapshots Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_snapshots"
-                                checked={controls.snapshots?.enabled !== false}
-                                onChange={e => updateControl('snapshots', 'enabled', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_snapshots" className="text-sm font-black text-slate-800 cursor-pointer">Snapshots Page</label>
-                        </div>
-                        {controls.snapshots?.enabled === false && (
-                            <select
-                                value={controls.snapshots?.mode || 'hide'}
-                                onChange={e => updateControl('snapshots', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-
-                    {controls.snapshots?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled?"
-                                value={controls.snapshots?.note || ''}
-                                onChange={e => updateControl('snapshots', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-
-                    {controls.snapshots?.enabled !== false && (
-                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Snapshots Sub-activities</span>
-                                <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input
-                                        type="checkbox"
-                                        checked={controls.snapshots?.qrAttendance !== false}
-                                        onChange={e => updateControl('snapshots', 'qrAttendance', e.target.checked)}
-                                        className="rounded border-slate-300 text-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                    />
-                                    <span className="text-xs font-semibold text-slate-700">QR Attendance View</span>
-                                </label>
+                {renderControlSection({
+                    id: 'tools',
+                    label: 'Form & Database Creator Tools',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="space-y-3 pl-2 border-l border-slate-200">
+                            <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.tools?.formBuilderTool !== false} onChange={e => handleSubChange('tools', 'formBuilderTool', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-bold text-slate-700">Form Builder Tool</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.tools?.databaseCreatorTool !== false} onChange={e => handleSubChange('tools', 'databaseCreatorTool', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-bold text-slate-700">Database Creator Tool</span></label>
                             </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* 5. Tools Controls (Hierarchical checks from parent Institute) */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_tools"
-                                checked={controls.tools?.enabled !== false}
-                                onChange={e => updateControl('tools', 'enabled', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer">Tools Page</label>
-                        </div>
-                        {controls.tools?.enabled === false && (
-                            <select
-                                value={controls.tools?.mode || 'hide'}
-                                onChange={e => updateControl('tools', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-
-                    {controls.tools?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled?"
-                                value={controls.tools?.note || ''}
-                                onChange={e => updateControl('tools', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-
-                    {controls.tools?.enabled !== false && (
-                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tools Pages (Inherited from Institute)</span>
-                                
-                                {(() => {
-                                    const isFormBuilderAllowedByInstitute = activitiesAllowed.formBuilderTool !== false;
-                                    const isDatabaseAllowedByInstitute = activitiesAllowed.databaseCreatorTool !== false;
-                                    return (
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                                <label className={`flex items-center gap-2 cursor-pointer select-none p-2 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-all ${!isFormBuilderAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {ctrl.tools?.formBuilderTool !== false && (
+                                <div className="border-t border-slate-100 pt-2 space-y-2">
+                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Form Builder Granular Settings</span>
+                                    {!isFormBuilderAllowed ? (
+                                        <p className="text-[10px] text-red-500 font-extrabold italic">Disabled by Institute global settings</p>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-2.5">
+                                            {[
+                                                { id: 'elementsControl', label: 'Elements Control' },
+                                                { id: 'inputElements', label: 'Input Elements' },
+                                                { id: 'displayingElements', label: 'Displaying Elements' },
+                                                { id: 'recordingElements', label: 'Recording Elements' },
+                                                { id: 'advanceElements', label: 'Advance Elements' },
+                                                { id: 'addons', label: 'Add-ons' },
+                                                { id: 'theme', label: 'Theme Styling' },
+                                                { id: 'createWithAi', label: 'Create with AI' },
+                                                { id: 'integrate', label: 'Integration' },
+                                                { id: 'import', label: 'Import Feature' },
+                                                { id: 'saveAsTemplate', label: 'Save As Template' },
+                                                { id: 'decideActivity', label: 'Decide Activity' },
+                                                { id: 'templates', label: 'Browse Templates' },
+                                                { id: 'locationLocked', label: 'Location Lock' },
+                                                { id: 'logicRules', label: 'Logic Rules' },
+                                                { id: 'monitoring', label: 'Monitoring Log' },
+                                                { id: 'connectIt', label: 'Connect it Modules' },
+                                                { id: 'profileUnderSettings', label: 'Profile Settings' },
+                                                { id: 'moreSettings', label: 'Advanced Settings' },
+                                                { id: 'responses', label: 'View Responses' },
+                                                { id: 'collaborate', label: 'Collaborate' },
+                                                { id: 'manageAccess', label: 'Manage Access' },
+                                                { id: 'publicToWeb', label: 'Public Web Sharing' }
+                                            ].map(item => (
+                                                <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
                                                     <input
                                                         type="checkbox"
-                                                        disabled={!isFormBuilderAllowedByInstitute}
-                                                        checked={isFormBuilderAllowedByInstitute && controls.tools?.formBuilderTool !== false}
-                                                        onChange={e => updateControl('tools', 'formBuilderTool', e.target.checked)}
-                                                        className="rounded border-slate-300 text-indigo-555 h-3.5 w-3.5 cursor-pointer"
+                                                        checked={ctrl.tools?.[item.id] !== false}
+                                                        onChange={e => handleSubChange('tools', item.id, e.target.checked)}
+                                                        className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer"
                                                     />
-                                                    <span className="text-xs font-black text-slate-800 flex flex-col">
-                                                        <span>📝 Form Builder Tool</span>
-                                                        {!isFormBuilderAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider leading-none mt-0.5">(Disabled by Admin)</span>}
-                                                    </span>
+                                                    <span className="text-[11px] font-semibold text-slate-700">{item.label}</span>
                                                 </label>
-
-                                                <label className={`flex items-center gap-2 cursor-pointer select-none p-2 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-all ${!isDatabaseAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                    <input
-                                                        type="checkbox"
-                                                        disabled={!isDatabaseAllowedByInstitute}
-                                                        checked={isDatabaseAllowedByInstitute && controls.tools?.databaseCreatorTool !== false}
-                                                        onChange={e => updateControl('tools', 'databaseCreatorTool', e.target.checked)}
-                                                        className="rounded border-slate-300 text-indigo-555 h-3.5 w-3.5 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-black text-slate-800 flex flex-col">
-                                                        <span>🗄️ Database Creator Tool</span>
-                                                        {!isDatabaseAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider leading-none mt-0.5">(Disabled by Admin)</span>}
-                                                    </span>
-                                                </label>
-                                            </div>
-
-                                            {isFormBuilderAllowedByInstitute && controls.tools?.formBuilderTool !== false && (
-                                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-150/60 space-y-3">
-                                                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider block mb-1">Form Builder Sub-features</span>
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        {[
-                                                            { id: 'elementsControl', label: 'Elements Control' },
-                                                            { id: 'inputElements', label: 'Input Elements' },
-                                                            { id: 'displayingElements', label: 'Displaying Elements' },
-                                                            { id: 'recordingElements', label: 'Recording Elements' },
-                                                            { id: 'advanceElements', label: 'Advance Elements' },
-                                                            { id: 'addons', label: 'Add-ons' },
-                                                            { id: 'theme', label: 'Theme Styling' },
-                                                            { id: 'createWithAi', label: 'Create with AI' },
-                                                            { id: 'integrate', label: 'Integrate' },
-                                                            { id: 'import', label: 'Import Options' },
-                                                            { id: 'saveAsTemplate', label: 'Save As Template' },
-                                                            { id: 'decideActivity', label: 'Decide Activity' },
-                                                            { id: 'templates', label: 'Use Templates' },
-                                                            { id: 'locationLocked', label: 'Location Lock' },
-                                                            { id: 'logicRules', label: 'Logic Rules' },
-                                                            { id: 'monitoring', label: 'Proctoring/Monitoring' },
-                                                            { id: 'connectIt', label: 'Connect It' },
-                                                            { id: 'profileUnderSettings', label: 'Settings Profile' },
-                                                            { id: 'moreSettings', label: 'More Settings' },
-                                                            { id: 'responses', label: 'View Responses' },
-                                                            { id: 'collaborate', label: 'Collaborate' },
-                                                            { id: 'manageAccess', label: 'Manage Access' },
-                                                            { id: 'publicToWeb', label: 'Publish to Web' }
-                                                        ].map(item => {
-                                                            const isAllowedByInstitute = activitiesAllowed[item.id] !== false;
-                                                            return (
-                                                                <label key={item.id} className={`flex items-center gap-2 cursor-pointer select-none ${!isAllowedByInstitute ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        disabled={!isAllowedByInstitute}
-                                                                        checked={isAllowedByInstitute && controls.tools?.[item.id] !== false}
-                                                                        onChange={e => updateControl('tools', item.id, e.target.checked)}
-                                                                        className="rounded border-slate-300 text-indigo-555 h-3.5 w-3.5 cursor-pointer"
-                                                                    />
-                                                                    <span className="text-xs font-semibold text-slate-700">
-                                                                        {item.label} {!isAllowedByInstitute && <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider block leading-none mt-0.5">(Disabled by Admin)</span>}
-                                                                    </span>
-                                                                </label>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    );
-                                })()}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* 6. Chat Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="t_ctrl_chat"
-                                checked={controls.chat?.enabled !== false}
-                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="t_ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer">Chat Platform</label>
-                        </div>
-                        {controls.chat?.enabled === false && (
-                            <select
-                                value={controls.chat?.mode || 'hide'}
-                                onChange={e => updateControl('chat', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-
-                    {controls.chat?.enabled === false && (
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Lock Message Note</label>
-                            <input
-                                type="text"
-                                placeholder="Why is this page hidden/disabled?"
-                                value={controls.chat?.note || ''}
-                                onChange={e => updateControl('chat', 'note', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-
-                    {controls.chat?.enabled !== false && (
-                        <div className="border-t border-slate-200/60 pt-4 space-y-4">
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Chat Options & Calling</span>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: 'audioCall', label: 'Audio Call' },
-                                        { id: 'videoCall', label: 'Video Call' },
-                                        { id: 'chatStudent', label: 'Chat with Students' },
-                                        { id: 'chatEditor', label: 'Chat with Editors' },
-                                        { id: 'chatInstitute', label: 'Chat with Institute' }
-                                    ].map(item => (
-                                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={controls.chat?.[item.id] !== false}
-                                                onChange={e => updateControl('chat', item.id, e.target.checked)}
-                                                className="rounded border-slate-300 text-indigo-555 h-3.5 w-3.5 cursor-pointer"
-                                            />
-                                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Sub Notes */}
-                            {['audioCall', 'videoCall', 'chatStudent', 'chatEditor', 'chatInstitute'].some(k => controls.chat?.[k] === false) && (
-                                <div className="border-t border-slate-100 pt-3 space-y-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sub-chat Deactivation Reasons</span>
-                                    {['audioCall', 'videoCall', 'chatStudent', 'chatEditor', 'chatInstitute'].map(k => {
-                                        if (controls.chat?.[k] === false) {
-                                            const label = k === 'audioCall' ? 'Audio Call' : k === 'videoCall' ? 'Video Call' : k === 'chatStudent' ? 'Student Chat' : k === 'chatEditor' ? 'Editor Chat' : 'Institute Chat';
-                                            return (
-                                                <div key={k} className="flex items-center gap-3">
-                                                    <span className="text-xs font-bold text-slate-600 min-w-[120px]">{label}:</span>
-                                                    <input
-                                                        type="text"
-                                                        value={controls.chat?.subNotes?.[k] || ''}
-                                                        onChange={e => updateSubNote('chat', k, e.target.value)}
-                                                        placeholder={`Reason for hiding/disabling ${label}`}
-                                                        className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                    />
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })}
+                                    )}
                                 </div>
                             )}
                         </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* Propagation Scope Selection */}
-                <div className="bg-slate-100/70 p-5 rounded-3xl border border-slate-200/60 mt-6 space-y-3">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply These Settings To</span>
-                        <p className="text-[10px] text-slate-450 font-semibold leading-normal">Propagate these feature control and deactivation note settings to other teachers in the system.</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                        {[
-                            { value: 'single', label: 'This Teacher Only' },
-                            { value: 'selected', label: 'Selected Teachers' },
-                            { value: 'all', label: 'All Teachers of this Institute' }
-                        ].map(opt => (
-                            <label key={opt.value} className={`flex items-center gap-3 bg-white border rounded-2xl p-3 cursor-pointer select-none transition-all hover:bg-slate-50/50 ${controlsScope === opt.value ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200'}`}>
-                                <input
-                                    type="radio"
-                                    name="controlsScope"
-                                    value={opt.value}
-                                    checked={controlsScope === opt.value}
-                                    onChange={() => setControlsScope(opt.value)}
-                                    className="rounded-full border-slate-355 text-[#3E3ADD] focus:ring-indigo-500 h-4 w-4 cursor-pointer"
-                                />
-                                <span className="text-xs font-bold text-slate-700">{opt.label}</span>
-                            </label>
-                        ))}
-                    </div>
-
-                    {controlsScope === 'selected' && (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-4 mt-3 space-y-3 max-h-60 overflow-y-auto animate-fade-in">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-xs font-bold text-slate-700">Select Teachers to Apply Settings</span>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedPropagationStudents(instituteTeachers.map(t => t._id))}
-                                        className="text-[10px] font-bold text-[#3E3ADD] hover:underline cursor-pointer"
-                                    >
-                                        Select All
-                                    </button>
-                                    <span className="text-slate-300 text-[10px]">|</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedPropagationStudents([])}
-                                        className="text-[10px] font-bold text-slate-400 hover:underline cursor-pointer"
-                                    >
-                                        Clear All
-                                    </button>
-                                </div>
+                {renderControlSection({
+                    id: 'chat',
+                    label: 'Chat Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="space-y-3 pl-2 border-l border-slate-200">
+                            <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Call Functions</span>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.audioCall !== false} onChange={e => handleChatChange('audioCall', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Audio Call</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.videoCall !== false} onChange={e => handleChatChange('videoCall', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Video Call</span></label>
                             </div>
-                            {loadingTeachers ? (
-                                <div className="text-xs text-slate-400 text-center py-4">Loading teachers...</div>
-                            ) : instituteTeachers.length === 0 ? (
-                                <div className="text-xs text-slate-400 text-center py-4">No other teachers in this institute.</div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-2">
-                                    {instituteTeachers.map(teacher => {
-                                        const isChecked = selectedPropagationStudents.includes(teacher._id);
-                                        return (
-                                            <label key={teacher._id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer select-none transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50/50 border-slate-150'}`}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isChecked) {
-                                                            setSelectedPropagationStudents(prev => prev.filter(id => id !== teacher._id));
-                                                        } else {
-                                                            setSelectedPropagationStudents(prev => [...prev, teacher._id]);
-                                                        }
-                                                    }}
-                                                    className="rounded border-slate-300 text-[#3E3ADD] focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
-                                                />
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="text-xs font-bold text-slate-700 truncate">{teacher.name}</span>
-                                                    <span className="text-[9px] font-semibold text-slate-450 truncate">{teacher.email}</span>
-                                                </div>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                            <span className="text-[10px] font-black text-slate-455 uppercase tracking-widest block pt-2 border-t border-slate-100">Talk to Contacts</span>
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatStudent !== false} onChange={e => handleChatChange('chatStudent', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Students</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatEditor !== false} onChange={e => handleChatChange('chatEditor', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Editors</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatInstitute !== false} onChange={e => handleChatChange('chatInstitute', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Institutes</span></label>
+                            </div>
                         </div>
-                    )}
-                </div>
+                    )
+                })}
+
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
+
+                {renderPropagationSelector('Teacher')}
             </div>
         );
     };
 
     const renderEditorControls = () => {
-        const updateControl = (section, field, value) => {
+        const ctrl = formData.controls || {};
+        const handleSubChange = (section, field, checked) => {
             setFormData(prev => {
                 const newControls = { ...prev.controls };
-                newControls[section] = {
-                    ...newControls[section],
-                    [field]: value
-                };
+                if (!newControls[section]) newControls[section] = {};
+                newControls[section][field] = checked;
                 return { ...prev, controls: newControls };
             });
         };
 
-        const controls = formData.controls || DEFAULT_EDITOR_CONTROLS;
-
         return (
-            <div className="space-y-6 animate-fade-in pb-4">
-                {/* 1. Dashboard Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_dashboard"
-                                checked={controls.dashboard?.enabled !== false}
-                                onChange={e => updateControl('dashboard', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_dashboard" className="text-sm font-black text-slate-800 cursor-pointer select-none">Dashboard Page</label>
+            <div className="space-y-4">
+                {renderControlSection({
+                    id: 'dashboard',
+                    label: 'Dashboard Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex flex-col gap-2 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.createCourse !== false} onChange={e => handleSubChange('dashboard', 'createCourse', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Create Course</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.dashboard?.launchTestBuilder !== false} onChange={e => handleSubChange('dashboard', 'launchTestBuilder', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Launch Test Builder</span></label>
                         </div>
-                        {controls.dashboard?.enabled === false && (
-                            <select
-                                value={controls.dashboard?.mode || 'hide'}
-                                onChange={e => updateControl('dashboard', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.dashboard?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.dashboard?.note || ''}
-                                onChange={e => updateControl('dashboard', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.dashboard?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'createCourse', label: 'Create Course' },
-                                    { id: 'launchTestBuilder', label: 'Launch Test Builder' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.dashboard?.[item.id] !== false}
-                                            onChange={e => updateControl('dashboard', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 2. Teachers Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_teachers"
-                                checked={controls.teachers?.enabled !== false}
-                                onChange={e => updateControl('teachers', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_teachers" className="text-sm font-black text-slate-800 cursor-pointer select-none">Teachers Page</label>
+                {renderControlSection({
+                    id: 'teachers',
+                    label: 'Teachers Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex gap-4 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.teachers?.addNewTeacher !== false} onChange={e => handleSubChange('teachers', 'addNewTeacher', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Add New Teacher</span></label>
                         </div>
-                        {controls.teachers?.enabled === false && (
-                            <select
-                                value={controls.teachers?.mode || 'hide'}
-                                onChange={e => updateControl('teachers', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.teachers?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.teachers?.note || ''}
-                                onChange={e => updateControl('teachers', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.teachers?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'addNewTeacher', label: 'Add New Teacher' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.teachers?.[item.id] !== false}
-                                            onChange={e => updateControl('teachers', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 3. Courses Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_courses"
-                                checked={controls.courses?.enabled !== false}
-                                onChange={e => updateControl('courses', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_courses" className="text-sm font-black text-slate-800 cursor-pointer select-none">Courses Page</label>
+                {renderControlSection({
+                    id: 'courses',
+                    label: 'Courses Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex gap-4 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.courses?.addNewCourses !== false} onChange={e => handleSubChange('courses', 'addNewCourses', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Add New Course</span></label>
                         </div>
-                        {controls.courses?.enabled === false && (
-                            <select
-                                value={controls.courses?.mode || 'hide'}
-                                onChange={e => updateControl('courses', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.courses?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.courses?.note || ''}
-                                onChange={e => updateControl('courses', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.courses?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'addNewCourses', label: 'Add New Courses' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.courses?.[item.id] !== false}
-                                            onChange={e => updateControl('courses', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 4. Subjects Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_subjects"
-                                checked={controls.subjects?.enabled !== false}
-                                onChange={e => updateControl('subjects', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_subjects" className="text-sm font-black text-slate-800 cursor-pointer select-none">Subjects Page</label>
+                {renderControlSection({
+                    id: 'subjects',
+                    label: 'Subjects Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex gap-4 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.subjects?.addSubject !== false} onChange={e => handleSubChange('subjects', 'addSubject', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Add Subject</span></label>
                         </div>
-                        {controls.subjects?.enabled === false && (
-                            <select
-                                value={controls.subjects?.mode || 'hide'}
-                                onChange={e => updateControl('subjects', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.subjects?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.subjects?.note || ''}
-                                onChange={e => updateControl('subjects', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.subjects?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'addSubject', label: 'Add Subject' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.subjects?.[item.id] !== false}
-                                            onChange={e => updateControl('subjects', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 5. Activities Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_activities"
-                                checked={controls.activities?.enabled !== false}
-                                onChange={e => updateControl('activities', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_activities" className="text-sm font-black text-slate-800 cursor-pointer select-none">Activities Page</label>
+                {renderControlSection({
+                    id: 'activities',
+                    label: 'Activities Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.activities?.createNewAssessment !== false} onChange={e => handleSubChange('activities', 'createNewAssessment', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Create New Assessment</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.activities?.lmsConnectedTests !== false} onChange={e => handleSubChange('activities', 'lmsConnectedTests', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">LMS Connected Tests</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.activities?.publicWebTests !== false} onChange={e => handleSubChange('activities', 'publicWebTests', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Public Web Tests</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.activities?.draftTests !== false} onChange={e => handleSubChange('activities', 'draftTests', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Draft Tests</span></label>
                         </div>
-                        {controls.activities?.enabled === false && (
-                            <select
-                                value={controls.activities?.mode || 'hide'}
-                                onChange={e => updateControl('activities', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.activities?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.activities?.note || ''}
-                                onChange={e => updateControl('activities', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.activities?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'createNewAssessment', label: 'Create New Assessment' },
-                                    { id: 'lmsConnectedTests', label: 'LMS Connected Tests' },
-                                    { id: 'publicWebTests', label: 'Public Web Tests' },
-                                    { id: 'draftTests', label: 'Draft Tests' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.activities?.[item.id] !== false}
-                                            onChange={e => updateControl('activities', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
 
-                {/* 6. Tools Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_tools"
-                                checked={controls.tools?.enabled !== false}
-                                onChange={e => updateControl('tools', 'enabled', e.target.checked)}
-                                className="rounded border-slate-355 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_tools" className="text-sm font-black text-slate-800 cursor-pointer select-none">Tools Page</label>
-                        </div>
-                        {controls.tools?.enabled === false && (
-                            <select
-                                value={controls.tools?.mode || 'hide'}
-                                onChange={e => updateControl('tools', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.tools?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.tools?.note || ''}
-                                onChange={e => updateControl('tools', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                </div>
+                {renderControlSection({ id: 'tools', label: 'Tools Page' })}
 
-                {/* 7. Chat Controls */}
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="e_ctrl_chat"
-                                checked={controls.chat?.enabled !== false}
-                                onChange={e => updateControl('chat', 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor="e_ctrl_chat" className="text-sm font-black text-slate-800 cursor-pointer select-none">Chat Page</label>
+                {renderControlSection({
+                    id: 'chat',
+                    label: 'Chat Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.teacher !== false} onChange={e => handleSubChange('chat', 'teacher', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Teacher</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.editor !== false} onChange={e => handleSubChange('chat', 'editor', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Editor</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.students !== false} onChange={e => handleSubChange('chat', 'students', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Student</span></label>
                         </div>
-                        {controls.chat?.enabled === false && (
-                            <select
-                                value={controls.chat?.mode || 'hide'}
-                                onChange={e => updateControl('chat', 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {controls.chat?.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={controls.chat?.note || ''}
-                                onChange={e => updateControl('chat', 'note', e.target.value)}
-                                placeholder="Enter reason"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {controls.chat?.enabled !== false && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sub-controls</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'teacher', label: 'Teacher Chat' },
-                                    { id: 'editor', label: 'Editor Chat' },
-                                    { id: 'students', label: 'Student Chat' }
-                                ].map(item => (
-                                    <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={controls.chat?.[item.id] !== false}
-                                            onChange={e => updateControl('chat', item.id, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-bold text-slate-750">{item.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    )
+                })}
+
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
+
+                {renderPropagationSelector('Editor')}
             </div>
         );
     };
 
     const renderAccountantControls = () => {
-        const updateControl = (section, field, value) => {
+        const ctrl = formData.controls || {};
+        const handleSubChange = (section, field, checked) => {
             setFormData(prev => {
                 const newControls = { ...prev.controls };
-                newControls[section] = {
-                    ...newControls[section],
-                    [field]: value
+                if (!newControls[section]) newControls[section] = {};
+                newControls[section][field] = checked;
+                return { ...prev, controls: newControls };
+            });
+        };
+        const handleAllStudentChange = (field, checked) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls.feePortal) newControls.feePortal = {};
+                newControls.feePortal.allStudent = {
+                    ...(newControls.feePortal.allStudent || {}),
+                    [field]: checked
                 };
                 return { ...prev, controls: newControls };
             });
         };
 
-        const controls = formData.controls || DEFAULT_ACCOUNTANT_CONTROLS;
+        return (
+            <div className="space-y-4">
+                {renderControlSection({ id: 'dashboard', label: 'Dashboard Page' })}
 
-        const subControlOptions = {
-            feePortal: [
-                { key: 'collectFee', label: 'Record Collections / Collect Fee' },
-                { key: 'editStructure', label: 'Setup Student Fee Structure' },
-                { key: 'deleteTransaction', label: 'Delete recorded Transactions' },
-                { key: 'googleSheets', label: 'Google Sheets Sync Integration' },
-                { key: 'viewReports', label: 'Financial Reports & Charts' }
-            ],
-            chat: [
-                { key: 'chatWithAdmin', label: 'Chat with Institute Admins' },
-                { key: 'chatWithTeacher', label: 'Chat with Faculty Teachers' },
-                { key: 'chatWithEditor', label: 'Chat with Fellow Editors' },
-                { key: 'chatWithStudent', label: 'Chat with Enrolled Students' }
-            ],
-            drive: [
-                { key: 'uploadFiles', label: 'Upload files and directories' },
-                { key: 'deleteFiles', label: 'Delete files and directories' }
-            ],
-            notes: [
-                { key: 'createNotes', label: 'Create and edit notes' },
-                { key: 'deleteNotes', label: 'Delete notes' }
-            ]
-        };
-
-        const renderControlCard = (key, label, checkboxId) => {
-            const ctrl = controls[key] || { enabled: true, mode: 'hide', note: '' };
-            const subs = subControlOptions[key] || [];
-
-            return (
-                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-150 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id={checkboxId}
-                                checked={ctrl.enabled !== false}
-                                onChange={e => updateControl(key, 'enabled', e.target.checked)}
-                                className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4.5 w-4.5 cursor-pointer"
-                            />
-                            <label htmlFor={checkboxId} className="text-sm font-black text-slate-800 cursor-pointer select-none">{label}</label>
-                        </div>
-                        {ctrl.enabled === false && (
-                            <select
-                                value={ctrl.mode || 'hide'}
-                                onChange={e => updateControl(key, 'mode', e.target.value)}
-                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                            >
-                                <option value="hide">Hide completely</option>
-                                <option value="disable">Show as disabled</option>
-                            </select>
-                        )}
-                    </div>
-                    {ctrl.enabled === false && (
-                        <div className="w-full animate-fade-in">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Deactivation Reason / Note</label>
-                            <input
-                                type="text"
-                                value={ctrl.note || ''}
-                                onChange={e => updateControl(key, 'note', e.target.value)}
-                                placeholder="Enter reason (e.g. Please clear your dues to activate)"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                            />
-                        </div>
-                    )}
-                    {ctrl.enabled !== false && subs.length > 0 && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Available Actions / Tabs</span>
+                {renderControlSection({
+                    id: 'feePortal',
+                    label: 'Fee Portal Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="space-y-3 pl-2 border-l border-slate-200">
                             <div className="grid grid-cols-2 gap-3">
-                                {subs.map(sub => (
-                                    <label key={sub.key} className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={ctrl[sub.key] !== false}
-                                            onChange={e => updateControl(key, sub.key, e.target.checked)}
-                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-3.5 w-3.5 cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700">{sub.label}</span>
-                                    </label>
-                                ))}
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.dashboard !== false} onChange={e => handleSubChange('feePortal', 'dashboard', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Dashboard</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.collectFee !== false} onChange={e => handleSubChange('feePortal', 'collectFee', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Collect Fee</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.pendingDues !== false} onChange={e => handleSubChange('feePortal', 'pendingDues', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Pending Dues</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.receipts !== false} onChange={e => handleSubChange('feePortal', 'receipts', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Receipts</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.reports !== false} onChange={e => handleSubChange('feePortal', 'reports', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Reports</span></label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.settings !== false} onChange={e => handleSubChange('feePortal', 'settings', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Settings</span></label>
+                            </div>
+                            <div className="border-t border-slate-100 pt-2 space-y-2">
+                                <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">All Student Page Actions</span>
+                                <div className="flex flex-col gap-2">
+                                    <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.allStudent?.googleSheet !== false} onChange={e => handleAllStudentChange('googleSheet', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Link to Google Sheet</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.allStudent?.edit !== false} onChange={e => handleAllStudentChange('edit', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Edit Student Info</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.feePortal?.allStudent?.collect !== false} onChange={e => handleAllStudentChange('collect', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Collect Fee Button</span></label>
+                                </div>
                             </div>
                         </div>
-                    )}
-                </div>
-            );
+                    )
+                })}
+
+                {renderControlSection({ id: 'attendance', label: 'Attendance Page' })}
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
+
+                {renderControlSection({
+                    id: 'chat',
+                    label: 'Chat Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithAdmin !== false} onChange={e => handleSubChange('chat', 'chatWithAdmin', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Admin</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithTeacher !== false} onChange={e => handleSubChange('chat', 'chatWithTeacher', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Teacher</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithEditor !== false} onChange={e => handleSubChange('chat', 'chatWithEditor', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Editor</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.chat?.chatWithStudent !== false} onChange={e => handleSubChange('chat', 'chatWithStudent', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Chat with Student</span></label>
+                        </div>
+                    )
+                })}
+
+                {renderPropagationSelector('Accountant')}
+            </div>
+        );
+    };
+
+    const renderMarketerControls = () => {
+        return (
+            <div className="space-y-4">
+                {renderControlSection({ id: 'dashboard', label: 'Dashboard Page' })}
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
+                {renderControlSection({ id: 'chat', label: 'Chat Page' })}
+
+                {renderPropagationSelector('Marketer')}
+            </div>
+        );
+    };
+
+    const renderStaffControls = () => {
+        const ctrl = formData.controls || {};
+        const handleSubChange = (section, field, checked) => {
+            setFormData(prev => {
+                const newControls = { ...prev.controls };
+                if (!newControls[section]) newControls[section] = {};
+                newControls[section][field] = checked;
+                return { ...prev, controls: newControls };
+            });
         };
 
         return (
-            <div className="space-y-6 animate-fade-in pb-4">
-                {renderControlCard('feePortal', 'Fee Portal Access', 'e_ctrl_fee')}
-                {renderControlCard('chat', 'Chat Page Access', 'e_ctrl_chat')}
-                {renderControlCard('drive', 'Shared Drive Access', 'e_ctrl_drive')}
-                {renderControlCard('notes', 'Personal Notes Access', 'e_ctrl_notes')}
+            <div className="space-y-4">
+                {renderControlSection({ id: 'dashboard', label: 'Dashboard Page' })}
+
+                {renderControlSection({
+                    id: 'task',
+                    label: 'Tasks Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="grid grid-cols-2 gap-3 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.task?.todayTask !== false} onChange={e => handleSubChange('task', 'todayTask', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Today Task</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.task?.assignedTask !== false} onChange={e => handleSubChange('task', 'assignedTask', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Assigned Task</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.task?.selfCreatedTask !== false} onChange={e => handleSubChange('task', 'selfCreatedTask', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Self-Created Task</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.task?.myPoints !== false} onChange={e => handleSubChange('task', 'myPoints', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">My Points</span></label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.task?.addExtraTask !== false} onChange={e => handleSubChange('task', 'addExtraTask', e.target.checked)} className="rounded border-slate-350 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Add Extra Task</span></label>
+                        </div>
+                    )
+                })}
+
+                {renderControlSection({
+                    id: 'attendance',
+                    label: 'Attendance Page',
+                    hasSubControls: true,
+                    subControls: (
+                        <div className="flex gap-4 pl-2 border-l border-slate-200">
+                            <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" checked={ctrl.attendance?.applyForLeave !== false} onChange={e => handleSubChange('attendance', 'applyForLeave', e.target.checked)} className="rounded border-slate-300 text-indigo-650 h-3.5 w-3.5 cursor-pointer" /><span className="text-xs font-semibold text-slate-700">Apply for Leave</span></label>
+                        </div>
+                    )
+                })}
+
+                {renderControlSection({ id: 'salary', label: 'Salary Page' })}
+                {renderControlSection({ id: 'drive', label: 'Drive Page', hasSubControls: true, subControls: renderDriveSubControls('drive') })}
+                {renderControlSection({ id: 'notes', label: 'Notes Page', hasSubControls: true, subControls: renderNotesSubControls('notes') })}
+                {renderControlSection({ id: 'chat', label: 'Chat Page' })}
+
+                {renderPropagationSelector('Staff')}
+            </div>
+        );
+    };
+
+    const renderParentControls = () => {
+        return (
+            <div className="space-y-4">
+                {renderControlSection({ id: 'dashboard', label: 'Dashboard Page' })}
+                {renderControlSection({ id: 'studentFee', label: 'Student Fee Page' })}
+                {renderControlSection({ id: 'attendance', label: 'Attendance Page' })}
+                {renderControlSection({ id: 'activities', label: 'Activities Page' })}
+
+                {renderPropagationSelector('Parent')}
             </div>
         );
     };
@@ -2088,19 +1040,15 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-
-            
-
-            const payload = { 
-                ...formData, 
-                role: role, 
-                controlsScope: controlsScope, 
-                selectedPropagationStudents: selectedPropagationStudents 
+            const payload = {
+                ...formData,
+                role: role,
+                controlsScope: controlsScope,
+                selectedPropagationStudents: selectedPropagationStudents
             };
             await axios.post('/api/users', payload);
-
-            setCreatedUser({ ...payload }); // Store to show success screen
-            if (onSuccess) onSuccess(); // Refresh stats on dashboard
+            setCreatedUser({ ...payload });
+            if (onSuccess) onSuccess();
             setLoading(false);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error creating user');
@@ -2116,18 +1064,24 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
     };
 
     // Filter courses if institute selected
-    const filteredCourses = formData.institute
+    const filteredCourses = (formData.institute
         ? courses.filter(c => c.institute?._id === formData.institute || c.institute === formData.institute)
-        : courses;
+        : courses).filter(c => role === 'Guest' ? c.isDemo === true : !c.isDemo);
 
     const selectedCourseObj = courses.find(c => c._id === formData.course);
     const availableSubjects = selectedCourseObj?.subjects || [];
 
     const uniqueSections = useMemo(() => {
-        const secs = courseStudents.map(s => s.studentProfile?.section).filter(Boolean);
-        const unique = [...new Set(secs)].sort();
-        return unique.length > 0 ? unique : ['A', 'B', 'C'];
-    }, [courseStudents]);
+        if (!formData.course) return ['A', 'B', 'C'];
+        const selectedCourse = courses.find(c => c._id === formData.course);
+        if (!selectedCourse) return ['A', 'B', 'C'];
+        const count = selectedCourse.sectionsCount || 1;
+        const secs = [];
+        for (let i = 0; i < count; i++) {
+            secs.push(String.fromCharCode(65 + i)); // 'A', 'B', 'C'...
+        }
+        return secs;
+    }, [formData.course, courses]);
 
     const handleNextTab = (e) => {
         if (e) e.preventDefault();
@@ -2190,7 +1144,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl md:max-h-[90vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header Banner */}
-                <div className={`${role === 'Student' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
+                <div className={`${role === 'Student' || role === 'Guest' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xl font-medium font-black text-white tracking-tight">
                             {createdUser ? 'Success!' : `Add New ${role}`}
@@ -2202,7 +1156,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {(role === 'Student' || role === 'Teacher' || role === 'Editor' || role === 'Accountant') && !createdUser && (
+                    {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].includes(role) && !createdUser && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -2234,7 +1188,13 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                     {!createdUser ? (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {activeTab === 'controls' ? (
-                                role === 'Student' ? renderStudentControls() : (role === 'Teacher' ? renderTeacherControls() : (role === 'Editor' ? renderEditorControls() : renderAccountantControls()))
+                                role === 'Student' ? renderStudentControls() :
+                                role === 'Teacher' ? renderTeacherControls() :
+                                role === 'Editor' ? renderEditorControls() :
+                                role === 'Accountant' ? renderAccountantControls() :
+                                role === 'Marketer' ? renderMarketerControls() :
+                                role === 'Staff' ? renderStaffControls() :
+                                role === 'Parent' ? renderParentControls() : null
                             ) : (
                                 <div className="grid grid-cols-1 gap-4">
                                     {user?.role === 'Institute' || user?.role === 'Editor' ? (
@@ -2311,7 +1271,43 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         </div>
                                     </div>
 
+                                    {role === 'Guest' && (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Course</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                    required
+                                                    value={formData.demoCourse}
+                                                    onChange={e => setFormData({ ...formData, demoCourse: e.target.value })}
+                                                >
+                                                    <option value="">Select Demo Course</option>
+                                                    {filteredCourses.map(course => (
+                                                        <option key={course._id} value={course._id}>{course.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
 
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Demo Duration</label>
+                                                <select
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                    required
+                                                    value={formData.demoDuration}
+                                                    onChange={e => setFormData({ ...formData, demoDuration: parseInt(e.target.value) })}
+                                                >
+                                                    <option value="1">1 Day</option>
+                                                    <option value="2">2 Days</option>
+                                                    <option value="3">3 Days</option>
+                                                    <option value="5">5 Days</option>
+                                                    <option value="7">7 Days</option>
+                                                    <option value="10">10 Days</option>
+                                                    <option value="15">15 Days</option>
+                                                    <option value="30">30 Days</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {role === 'Parent' && (
                                         <div className="grid grid-cols-1 gap-4">
@@ -2356,7 +1352,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                             setFormData({ 
                                                                 ...formData, 
                                                                 course: courseId, 
-                                                                subject: defaultSubjects 
+                                                                subject: defaultSubjects,
+                                                                section: ''
                                                             });
                                                         }}
                                                         disabled={user?.role !== 'Institute' && user?.role !== 'Editor' && !formData.institute}
@@ -2366,14 +1363,34 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                             <option key={course._id} value={course._id}>{course.name}</option>
                                                         ))}
                                                     </select>
-                                                    {sectionPreview && (
-                                                        <span className="text-[10px] text-violet-600 font-bold block mt-1.5 ml-1">
-                                                            Auto-assigned: Section {sectionPreview}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s)</label>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Section</label>
+                                                    {(() => {
+                                                        const selectedCourse = courses.find(c => c._id === formData.course);
+                                                        const count = selectedCourse?.sectionsCount || 1;
+                                                        const sectionsList = [];
+                                                        for (let i = 0; i < count; i++) {
+                                                            sectionsList.push(String.fromCharCode(65 + i)); // 'A', 'B', 'C'...
+                                                        }
+                                                        return (
+                                                            <select
+                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                                value={formData.section || ''}
+                                                                onChange={e => setFormData({ ...formData, section: e.target.value })}
+                                                            >
+                                                                <option value="">Auto-assign (Default {sectionPreview && `Section ${sectionPreview}`})</option>
+                                                                {sectionsList.map((sec, i) => (
+                                                                    <option key={i} value={sec}>Section {sec}</option>
+                                                                ))}
+                                                            </select>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s) Checklist</label>
                                                     {(() => {
                                                         const selectedCourse = courses.find(c => c._id === formData.course);
                                                         const subjectsList = selectedCourse?.subjects || [];
@@ -2396,23 +1413,36 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                                 />
                                                             );
                                                         }
+                                                        const selectedSubjects = formData.subject ? formData.subject.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                        const handleSubjectToggle = (sub) => {
+                                                            let current = [...selectedSubjects];
+                                                            if (current.includes(sub)) {
+                                                                current = current.filter(item => item !== sub);
+                                                            } else {
+                                                                current.push(sub);
+                                                            }
+                                                            setFormData({ ...formData, subject: current.join(', ') });
+                                                        };
                                                         return (
-                                                            <select
-                                                                required
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                                                                value={formData.subject}
-                                                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                            >
-                                                                <option value="">Select Subject</option>
-                                                                {subjectsList.map((sub, i) => (
-                                                                    <option key={i} value={sub}>{sub}</option>
-                                                                ))}
-                                                            </select>
+                                                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-32 overflow-y-auto space-y-2.5">
+                                                                {subjectsList.map((sub, i) => {
+                                                                    const isChecked = selectedSubjects.includes(sub);
+                                                                    return (
+                                                                        <label key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600 cursor-pointer select-none">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isChecked}
+                                                                                onChange={() => handleSubjectToggle(sub)}
+                                                                                className="w-4 h-4 rounded text-indigo-650 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                                            />
+                                                                            <span>{sub}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
                                                         );
                                                     })()}
                                                 </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 mt-4">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
                                                     <input
@@ -2427,7 +1457,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         </>
                                     )}
 
-                                    {role === 'Teacher' && (
+                                    {(role === 'Teacher' || role === 'Editor') && (
                                         <>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
@@ -2445,7 +1475,9 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                     </select>
                                                 </div>
                                                 <div className="relative">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Teaching Subjects</label>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">
+                                                        {role === 'Teacher' ? 'Teaching Subjects' : 'Assigned Subjects'}
+                                                    </label>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -2488,7 +1520,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                                                     }
                                                                                     setFormData({ ...formData, subjects: newSubjects.join(', ') });
                                                                                 }}
-                                                                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 accent-indigo-600 cursor-pointer"
+                                                                                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
                                                                             />
                                                                             <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
                                                                                 {sub}
@@ -2505,8 +1537,8 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                                 </div>
                                             </div>
 
-                                            {formData.course && (
-                                                <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4">
+                                            {role === 'Teacher' && formData.course && (
+                                                <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                     <div>
                                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>
                                                         <div className="flex gap-4">
@@ -2609,9 +1641,10 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Temporary Password</label>
                                         <input
                                             type="text"
-                                            className="w-full bg-slate-100/50 border border-dashed border-slate-200 rounded-2xl py-3 px-4 text-sm font-mono font-bold text-indigo-600 outline-none"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-mono font-bold text-[#0b1329] outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
                                             value={formData.password}
-                                            readOnly
+                                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                            required
                                         />
                                     </div>
                                 </div>

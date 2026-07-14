@@ -883,8 +883,8 @@ exports.getTeacherAttendanceHistory = async (req, res) => {
     try {
         const { teacherId } = req.params;
         
-        const teacher = await User.findById(teacherId).select('name email avatar teacherProfile');
-        if (!teacher || teacher.role !== 'Teacher') {
+        const teacher = await User.findById(teacherId).select('name email avatar role allowedRoles teacherProfile');
+        if (!teacher || (teacher.role !== 'Teacher' && !teacher.allowedRoles?.includes('Teacher'))) {
             return res.status(404).json({ message: 'Teacher not found' });
         }
         
@@ -923,7 +923,7 @@ exports.deleteTeacherPhysicalAttendance = async (req, res) => {
         const { teacherId, date } = req.params;
         
         const teacher = await User.findById(teacherId);
-        if (!teacher || teacher.role !== 'Teacher') {
+        if (!teacher || (teacher.role !== 'Teacher' && !teacher.allowedRoles?.includes('Teacher'))) {
             return res.status(404).json({ message: 'Teacher not found' });
         }
         

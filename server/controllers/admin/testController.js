@@ -444,6 +444,103 @@ const permanentlyDeleteTest = asyncHandler(async (req, res) => {
     res.json({ message: 'Test permanently deleted' });
 });
 
+const importTests = asyncHandler(async (req, res) => {
+    const { tests } = req.body;
+    if (!Array.isArray(tests)) {
+        res.status(400);
+        throw new Error('Tests array is required');
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    // Fetch user's institute if role is Institute, Teacher or Editor
+    let currentInstName = '';
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Teacher' || req.user.role === 'Editor')) {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        if (userWithInst && userWithInst.institute) {
+            currentInstName = userWithInst.institute.name;
+        }
+    }
+
+    for (const t of tests) {
+        try {
+            const { title, course, subject, index, description, publishMode, status, settings, questions, publicSettings } = t;
+            if (!title) {
+                errors.push({ name: 'Unknown', error: 'Title is required' });
+                continue;
+            }
+
+            // Set institute
+            const testInst = currentInstName || t.institute || '';
+
+            // Extract and parse nested fields (settings, questions, publicSettings) if they are JSON strings
+            let parsedSettings = settings || {};
+            if (typeof settings === 'string') {
+                try { parsedSettings = JSON.parse(settings); } catch (e) { }
+            }
+
+            let parsedQuestions = questions || [];
+            if (typeof questions === 'string') {
+                try { parsedQuestions = JSON.parse(questions); } catch (e) { }
+            }
+
+            let parsedPublicSettings = publicSettings || {};
+            if (typeof publicSettings === 'string') {
+                try { parsedPublicSettings = JSON.parse(publicSettings); } catch (e) { }
+            }
+
+            // If duration is specified on root, set it on settings
+            if (t.duration && !parsedSettings.duration) {
+                parsedSettings.duration = Number(t.duration);
+            }
+
+            validateWebpageQuestions(parsedQuestions);
+
+            const testDetails = {
+                title,
+                description: description || '',
+                institute: testInst,
+                course: course || '',
+                subject: subject || '',
+                index: index || '',
+                publishMode: publishMode || 'connected',
+                status: status || 'active',
+                publicSettings: parsedPublicSettings
+            };
+
+            await validateInboxSubjectConflict(null, testDetails, testDetails.institute, null);
+
+            const createdTest = await Test.create({
+                ...testDetails,
+                settings: parsedSettings,
+                questions: parsedQuestions,
+                createdBy: req.user._id
+            });
+
+            // Log Activity
+            await Activity.create({
+                type: 'TEST_CREATED',
+                message: 'New Test created via Bulk Import',
+                detail: `${createdTest.title} (${createdTest.course})`,
+                user: req.user._id
+            });
+
+            successCount++;
+        } catch (err) {
+            errors.push({ name: t.title || 'Unknown', error: err.message });
+        }
+    }
+
+    res.status(200).json({
+        message: 'Import completed',
+        results: {
+            successCount,
+            errors
+        }
+    });
+});
+
 module.exports = { 
     createTest, 
     getTests, 
@@ -454,5 +551,6 @@ module.exports = {
     updateTestCollaborators,
     getDeletedTests,
     restoreTest,
-    permanentlyDeleteTest
+    permanentlyDeleteTest,
+    importTests
 };

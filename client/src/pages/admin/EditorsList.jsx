@@ -1,10 +1,11 @@
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useRef,  useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Plus, Trash2, Edit } from 'lucide-react';
+import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -17,10 +18,15 @@ const EditorsList = () => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterInstitute, setFilterInstitute] = useState('All');
+    const [filterCourse, setFilterCourse] = useState('All');
+    const [filterSubject, setFilterSubject] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [editors, setEditors] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -30,7 +36,7 @@ const EditorsList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterInstitute, filterCourse, filterSubject]);
 
     const handleToggleFlag = async (flagName) => {
         try {
@@ -51,8 +57,14 @@ const EditorsList = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('/api/users?role=Editor');
-            setEditors(res.data);
+            const [userRes, courseRes, instsRes] = await Promise.all([
+                axios.get('/api/users?role=Editor'),
+                axios.get('/api/setup/courses'),
+                axios.get('/api/setup/institutes')
+            ]);
+            setEditors(userRes.data);
+            setCourses(courseRes.data);
+            setInstitutes(instsRes.data);
 
             const instId = userInfo?.institute?._id || userInfo?.institute;
             if (instId && userInfo?.role === 'Institute') {
@@ -71,6 +83,18 @@ const EditorsList = () => {
         fetchData();
     }, []);
 
+    const handleToggleStatus = async (editorId, currentIsActive) => {
+        try {
+            const nextActive = currentIsActive === false ? true : false;
+            await axios.put(`/api/users/${editorId}`, { isActive: nextActive });
+            setEditors(prev => prev.map(e => e._id === editorId ? { ...e, isActive: nextActive } : e));
+            toast.success('Editor status updated successfully');
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this editor?')) {
             try {
@@ -84,14 +108,293 @@ const EditorsList = () => {
     };
 
     const filteredEditors = editors.filter(editor =>
-        editor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (filterCourse === 'All' || (editor.editorProfile?.assignedCourses?.some(c => c.name === filterCourse))) &&
+        (filterInstitute === 'All' || (editor.institute?._id === filterInstitute || editor.institute === filterInstitute)) &&
+        (filterSubject === 'All' || (editor.editorProfile?.subjects?.includes(filterSubject))) &&
+        (editor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         editor._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        editor.email.toLowerCase().includes(searchTerm.toLowerCase())
+        editor.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    const uniqueSubjects = [...new Set(editors.flatMap(e => e.editorProfile?.subjects || []).filter(Boolean))].sort();
 
     const totalPages = Math.ceil(filteredEditors.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedEditors = filteredEditors.slice(startIndex, startIndex + itemsPerPage);
+
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+
+    const importUsersRef = useRef(null);
+
+    const handleImportUsers = (e) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        const filename = file.name.toLowerCase();
+
+        const processImportedArray = async (parsed) => {
+
+            if (!Array.isArray(parsed)) {
+
+                toast.error('File must contain an array of rows');
+
+                return;
+
+            }
+
+            const parsedMapped = parsed.map(row => {
+
+                const keys = Object.keys(row);
+
+                const nameKey = keys.find(k => k.toLowerCase() === 'name');
+
+                const emailKey = keys.find(k => k.toLowerCase() === 'email');
+
+                const passwordKey = keys.find(k => k.toLowerCase() === 'password');
+
+                const courseKey = keys.find(k => ['course name', 'coursename', 'course'].includes(k.toLowerCase()));
+
+                const mobileKey = keys.find(k => ['mobile number', 'mobilenumber', 'mobile', 'phone'].includes(k.toLowerCase()));
+
+                return {
+
+                    name: nameKey ? String(row[nameKey]).trim() : '',
+
+                    email: emailKey ? String(row[emailKey]).trim() : '',
+
+                    password: passwordKey ? String(row[passwordKey]).trim() : '',
+
+                    role: 'Editor',
+
+                    courseName: courseKey ? String(row[courseKey]).trim() : '',
+
+                    mobileNumber: mobileKey ? String(row[mobileKey]).trim() : ''
+
+                };
+
+            }).filter(item => item.name && item.email && item.role);
+
+            if (parsedMapped.length === 0) {
+
+                toast.error('No valid rows found. Make sure each object has "Name" and "Email" columns.');
+
+                return;
+
+            }
+
+            const loadingToast = toast.loading(`Importing ${parsedMapped.length} users...`);
+
+            try {
+
+                const res = await axios.post('/api/users/import', { users: parsedMapped });
+
+                toast.dismiss(loadingToast);
+
+                const { successCount, errors } = res.data.results;
+
+                if (errors && errors.length > 0) {
+
+                    toast.success(`Successfully imported ${successCount} users. ${errors.length} failed.`);
+
+                } else {
+
+                    toast.success(`Successfully imported ${successCount} users!`);
+
+                }
+
+                if (typeof fetchData === 'function') fetchData();
+
+                else if (typeof fetchStaff === 'function') fetchStaff();
+
+            } catch (err) {
+
+                toast.dismiss(loadingToast);
+
+                toast.error(err.response?.data?.message || 'Error importing users');
+
+            }
+
+        };
+
+        if (filename.endsWith('.json')) {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const parsed = JSON.parse(evt.target.result);
+
+                    processImportedArray(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse JSON file');
+
+                }
+
+            };
+
+            reader.readAsText(file);
+
+        } else {
+
+            reader.onload = async (evt) => {
+
+                try {
+
+                    const data = new Uint8Array(evt.target.result);
+
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const parsed = XLSX.utils.sheet_to_json(worksheet);
+
+                    processImportedArray(parsed);
+
+                } catch (err) {
+
+                    toast.error('Failed to parse file');
+
+                }
+
+            };
+
+            reader.readAsArrayBuffer(file);
+
+        }
+
+        e.target.value = '';
+
+    };
+
+
+    const exportUsers = (format) => {
+
+        const list = editors;
+
+        if (list.length === 0) {
+
+            toast.error('No users to export');
+
+            return;
+
+        }
+
+        const rows = list.map(u => ({
+
+            Name: u.name || '',
+
+            Email: u.email || '',
+
+            Role: u.role || 'Editor',
+
+            'Mobile Number': u.mobileNumber || '',
+
+            Course: u.studentProfile?.course?.name || u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || '',
+
+            Batch: u.studentProfile?.batch || '',
+
+            Section: u.studentProfile?.section || '',
+
+            'Created At': u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
+
+        }));
+
+        if (format === 'json') {
+
+            const jsonContent = JSON.stringify(rows.map(r => ({
+
+                name: r.Name,
+
+                email: r.Email,
+
+                role: r.Role,
+
+                mobileNumber: r['Mobile Number'],
+
+                courseName: r.Course,
+
+                batch: r.Batch,
+
+                section: r.Section
+
+            })), null, 2);
+
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `editors_list_${new Date().toISOString().split('T')[0]}.json`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to JSON`);
+
+        } else if (format === 'csv') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `editors_list_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to CSV`);
+
+        } else if (format === 'excel') {
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            const workbook = XLSX.utils.book_new();
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+
+            link.href = url;
+
+            link.download = `editors_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            toast.success(`Exported ${list.length} users to Excel`);
+
+        }
+
+    };
+
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
@@ -125,7 +428,55 @@ const EditorsList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.institute?.controls?.editor?.addEditor !== false && (
+                    <input
+                        type="file"
+                        ref={importUsersRef}
+                        onChange={handleImportUsers}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importUsersRef.current?.click()}
+                        className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                        <Upload size={16} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        >
+                            <Download size={16} /> Export
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportUsers('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    {(user?.role === 'Admin' || user?.institute?.controls?.editor?.addEditor !== false) && (
                         <button
                             onClick={() => setIsModalOpen(true)}
                             className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
@@ -177,6 +528,53 @@ const EditorsList = () => {
                         />
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
+
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
+
+                    <div className="relative w-[150px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select
+                            value={filterCourse}
+                            onChange={(e) => setFilterCourse(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                        >
+                            <option value="All">All Courses</option>
+                            {courses.map(course => (
+                                <option key={course._id} value={course.name}>{course.name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+
+                    <div className="relative w-[150px]">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select
+                            value={filterSubject}
+                            onChange={(e) => setFilterSubject(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                        >
+                            <option value="All">All Subjects</option>
+                            {uniqueSubjects.map((sub, idx) => (
+                                <option key={idx} value={sub}>{sub}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
                 </div>
             </div>
 
@@ -189,6 +587,8 @@ const EditorsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Editor Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Assigned Course</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Assigned Subjects</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Email</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
@@ -198,7 +598,7 @@ const EditorsList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading editors...
@@ -221,7 +621,7 @@ const EditorsList = () => {
                                                     )}
                                                 </div>
                                                 <span
-                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
                                                     onClick={() => openProfile(editor._id)}
                                                 >
                                                     <TruncatedCell text={editor.name} maxLength={20} />
@@ -232,23 +632,41 @@ const EditorsList = () => {
                                         <td className="p-4 text-slate-600 whitespace-nowrap">
                                             <TruncatedCell text={editor.institute?.name || editor.institute || 'N/A'} maxLength={20} />
                                         </td>
+                                        <td className="p-4 text-slate-650 font-bold whitespace-nowrap" title={editor.editorProfile?.assignedCourses?.[0]?.name || 'N/A'}>
+                                            <TruncatedCell text={editor.editorProfile?.assignedCourses?.[0]?.name || 'N/A'} maxLength={20} />
+                                        </td>
+                                        <td className="p-4 text-slate-600 text-xs font-semibold whitespace-nowrap" title={editor.editorProfile?.subjects?.join(', ') || 'N/A'}>
+                                            <TruncatedCell text={editor.editorProfile?.subjects?.join(', ') || 'N/A'} maxLength={20} />
+                                        </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{editor.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 text-slate-600 whitespace-nowrap">
                                             <TruncatedCell text={editor.email} maxLength={25} />
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${editor.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                {editor.isActive !== false ? 'Active' : 'Inactive'}
-                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleStatus(editor._id, editor.isActive)}
+                                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                                    editor.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                }`}
+                                                title={editor.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                            >
+                                                <span className="sr-only">Toggle status</span>
+                                                <span
+                                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                        editor.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
+                                                />
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
-                                            {user?.role !== 'Admin' && user?.institute?.controls?.editor?.editEditor !== false && (
+                                            {(user?.role === 'Admin' || user?.institute?.controls?.editor?.editEditor !== false) && (
                                                 <button
                                                     onClick={() => {
                                                         setSelectedUser(editor);
                                                         setIsEditModalOpen(true);
                                                     }}
-                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2"
+                                                    className="p-2 text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 rounded-lg transition-colors ml-2 cursor-pointer"
                                                     title="Edit Editor"
                                                 >
                                                     <Edit size={20} />
@@ -256,7 +674,7 @@ const EditorsList = () => {
                                             )}
                                             <button
                                                 onClick={() => handleDelete(editor._id)}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
+                                                className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors ml-2 cursor-pointer"
                                                 title="Delete Editor"
                                             >
                                                 <Trash2 size={20} />
@@ -266,7 +684,7 @@ const EditorsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500 font-semibold">
                                         No editors found.
                                     </td>
                                 </tr>

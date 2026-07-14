@@ -182,23 +182,22 @@ const ParentDashboard = () => {
                                 <h3 className="font-bold text-sm uppercase tracking-wider text-slate-700 font-bold">Child's Syllabus</h3>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {studentProfile.studentProfile.course.subjects.map((sub, i) => {
-                                    const isAssigned = studentProfile?.studentProfile?.subject
-                                        ? studentProfile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase())
-                                        : false;
-                                    return (
-                                        <div 
-                                            key={i} 
-                                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                                                isAssigned 
-                                                    ? 'bg-indigo-50 border-indigo-250 text-indigo-700' 
-                                                    : 'bg-slate-50 border-slate-200 text-slate-600'
-                                            }`}
-                                        >
-                                            {sub}
-                                        </div>
-                                    );
-                                })}
+                                {studentProfile.studentProfile.course.subjects
+                                    .filter(sub => {
+                                        if (!studentProfile?.studentProfile?.subject) return true;
+                                        return studentProfile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
+                                    })
+                                    .map((sub, i) => {
+                                        return (
+                                            <div 
+                                                key={i} 
+                                                className="px-3 py-2 rounded-xl text-xs font-bold border transition-all bg-indigo-50 border-indigo-250 text-indigo-700"
+                                            >
+                                                {sub}
+                                            </div>
+                                        );
+                                    })
+                                }
                             </div>
                         </div>
                     )}

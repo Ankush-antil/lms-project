@@ -21,6 +21,8 @@ const CoursesList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [isDemoPreset, setIsDemoPreset] = useState(false);
+    const [activeSection, setActiveSection] = useState('lms'); // 'lms' or 'demo'
 
     const uniqueInstitutes = [
         ...new Map(
@@ -55,7 +57,7 @@ const CoursesList = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterInstitute]);
+    }, [searchTerm, filterInstitute, activeSection]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this course? This will affect students and teachers enrolled in it.')) {
@@ -79,7 +81,9 @@ const CoursesList = () => {
             filterInstitute === 'All' || 
             (course.institute && (course.institute._id === filterInstitute || course.institute === filterInstitute));
             
-        return matchesSearch && matchesInstitute;
+        const matchesSection = activeSection === 'demo' ? course.isDemo === true : !course.isDemo;
+
+        return matchesSearch && matchesInstitute && matchesSection;
     });
 
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -119,29 +123,109 @@ const CoursesList = () => {
                     >
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
-                    {user?.role !== 'Admin' && user?.role !== 'Editor' && user?.institute?.controls?.course?.addCourse !== false && (
-                        <button
-                            onClick={() => {
-                                setSelectedCourse(null);
-                                setIsModalOpen(true);
-                            }}
-                            className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
-                        >
-                            <Plus size={20} /> Add New Course
-                        </button>
+                    {user?.role !== 'Admin' && user?.role !== 'Editor' && (
+                        <>
+                            {user?.institute?.controls?.course?.addNewCourse !== false && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedCourse(null);
+                                        setIsDemoPreset(false);
+                                        setIsModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
+                                >
+                                    <Plus size={18} /> Add New Course
+                                </button>
+                            )}
+                            {user?.institute?.controls?.course?.addNewDemoCourse !== false && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedCourse(null);
+                                        setIsDemoPreset(true);
+                                        setIsModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
+                                >
+                                    <Plus size={18} /> Add New Demo Course
+                                </button>
+                            )}
+                        </>
                     )}
                     {user?.role === 'Editor' && editorControls?.courses?.addNewCourses !== false && (
-                        <button
-                            onClick={() => {
-                                setSelectedCourse(null);
-                                setIsModalOpen(true);
-                            }}
-                            className="flex items-center gap-2 px-6 py-3 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer"
-                        >
-                            <Plus size={20} /> Add New Course
-                        </button>
+                        <>
+                            <button
+                                onClick={() => {
+                                    setSelectedCourse(null);
+                                    setIsDemoPreset(false);
+                                    setIsModalOpen(true);
+                                }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
+                            >
+                                <Plus size={18} /> Add New Course
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSelectedCourse(null);
+                                    setIsDemoPreset(true);
+                                    setIsModalOpen(true);
+                                }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
+                            >
+                                <Plus size={18} /> Add New Demo Course
+                            </button>
+                        </>
+                    )}
+                    {user?.role === 'Admin' && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    setSelectedCourse(null);
+                                    setIsDemoPreset(false);
+                                    setIsModalOpen(true);
+                                }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
+                            >
+                                <Plus size={18} /> Add New Course
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSelectedCourse(null);
+                                    setIsDemoPreset(true);
+                                    setIsModalOpen(true);
+                                }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
+                            >
+                                <Plus size={18} /> Add New Demo Course
+                            </button>
+                        </>
                     )}
                 </div>
+            </div>
+
+            {/* Sections Tabs */}
+            <div className="flex border-b border-slate-250 mb-6 gap-6">
+                <button
+                    onClick={() => setActiveSection('lms')}
+                    className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
+                        activeSection === 'lms' ? 'text-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    LMS Courses
+                    {activeSection === 'lms' && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0b1329] rounded-full" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveSection('demo')}
+                    className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
+                        activeSection === 'demo' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
+                    }`}
+                >
+                    Demo Courses
+                    {activeSection === 'demo' && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                    )}
+                </button>
             </div>
 
             {/* Search and Filters */}
@@ -299,6 +383,7 @@ const CoursesList = () => {
                                                     <button
                                                         onClick={() => {
                                                             setSelectedCourse(course);
+                                                            setIsDemoPreset(course.isDemo || false);
                                                             setIsModalOpen(true);
                                                         }}
                                                         className="p-1.5 text-slate-400 hover:text-[#0b1329] hover:bg-slate-100 rounded-lg transition-all"
@@ -403,6 +488,7 @@ const CoursesList = () => {
                 }}
                 refreshData={fetchData}
                 course={selectedCourse}
+                isDemoPreset={isDemoPreset}
             />
 
             <CourseDetailsModal

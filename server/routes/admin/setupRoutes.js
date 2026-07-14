@@ -31,7 +31,8 @@ const {
     permanentlyDeleteCourse,
     getDeletedInstitutes,
     restoreInstitute,
-    permanentlyDeleteInstitute
+    permanentlyDeleteInstitute,
+    importInstitutes
 } = require('../../controllers/admin/setupController');
 const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
@@ -39,6 +40,9 @@ const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = r
 router.route('/institutes')
     .get(getInstitutes)
     .post(protect, admin, createInstitute);
+
+router.route('/institutes/import')
+    .post(protect, admin, importInstitutes);
 
 // Institute image upload (must be before /institutes/:id to avoid conflict)
 router.route('/institutes/upload-image')

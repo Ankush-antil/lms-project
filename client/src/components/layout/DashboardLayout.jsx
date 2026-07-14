@@ -6,11 +6,13 @@ import {
     Link as LinkIcon, User, Building, Menu, X, PenTool, ClipboardCheck,
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
-    Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare
+    Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
+    RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { useUserProfile } from '../common/UserProfileContext';
+import ChangeRoleModal from '../common/ChangeRoleModal';
 
 /* ─────────────────────────────────────────
    Chat Notification Bar
@@ -432,10 +434,16 @@ const NotificationBell = ({ safeRole }) => {
 const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
-    const { logout, user, switchAccount, removeAccount } = useAuth();
+    const { logout, user, switchAccount, removeAccount, login } = useAuth();
     const handleLogout = () => logout();
     const safeRole = role || 'Admin';
     const showBell = safeRole === 'Teacher' || safeRole === 'Student';
+    const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
+    
+    // Switch Account password prompt states
+    const [switchingToAccount, setSwitchingToAccount] = useState(null);
+    const [switchPassword, setSwitchPassword] = useState('');
+    const [switchLoading, setSwitchLoading] = useState(false);
 
     const savedAccounts = (() => {
         try {
@@ -501,6 +509,14 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         </div>
 
                         <button
+                            onClick={() => setIsChangeRoleModalOpen(true)}
+                            className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
+                        >
+                            <RefreshCw size={16} />
+                            <span>Change Role</span>
+                        </button>
+
+                        <button
                             onClick={() => openProfile(user?._id || user?.id)}
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
                         >
@@ -512,37 +528,46 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                         {savedAccounts.length > 0 && (
                             <div className="border-t border-b border-slate-800/80 py-2 flex flex-col gap-1">
                                 <p className="px-3 text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Switch Account</p>
-                                {savedAccounts.map((acc, index) => (
-                                    <div
-                                        key={index}
-                                        onClick={() => switchAccount(acc.token, acc.user)}
-                                        className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
-                                                {acc.user?.avatar ? (
-                                                    <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
-                                                ) : (
-                                                    acc.user?.name?.[0]?.toUpperCase() || 'U'
-                                                )}
-                                            </div>
-                                            <div className="text-left min-w-0">
-                                                <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
-                                                <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeAccount(acc.user?.email);
+                                <div className="max-h-[160px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1">
+                                    {savedAccounts.map((acc, index) => (
+                                        <div
+                                            key={index}
+                                            onClick={() => {
+                                                if (user?.role === 'Student') {
+                                                    setSwitchingToAccount(acc);
+                                                    setSwitchPassword('');
+                                                } else {
+                                                    switchAccount(acc.token, acc.user);
+                                                }
                                             }}
-                                            className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
-                                            title="Remove Account"
+                                            className="flex items-center justify-between w-full px-3 py-2 hover:bg-white/5 rounded-xl transition-all group/acc cursor-pointer"
                                         >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-200 overflow-hidden shrink-0">
+                                                    {acc.user?.avatar ? (
+                                                        <img src={acc.user.avatar} alt="Profile" className="w-full h-full object-cover rounded-lg" />
+                                                    ) : (
+                                                        acc.user?.name?.[0]?.toUpperCase() || 'U'
+                                                    )}
+                                                </div>
+                                                <div className="text-left min-w-0">
+                                                    <p className="text-xs font-bold text-slate-200 truncate leading-none">{acc.user?.name || 'Saved Account'}</p>
+                                                    <span className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">{acc.user?.role}</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeAccount(acc.user?.email);
+                                                }}
+                                                className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-950/20 rounded-md transition-all opacity-0 group-hover/acc:opacity-100"
+                                                title="Remove Account"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -576,6 +601,67 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </div>
+            <ChangeRoleModal isOpen={isChangeRoleModalOpen} onClose={() => setIsChangeRoleModalOpen(false)} />
+            {switchingToAccount && (
+                <div className="fixed inset-0 z-[9999] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#0b1329] text-white w-full max-w-md rounded-3xl p-6 border border-slate-800 shadow-2xl animate-fade-in">
+                        <h3 className="text-lg font-black text-slate-100 mb-2">Switch Account Security</h3>
+                        <p className="text-xs text-slate-400 font-bold mb-4">
+                            You are switching from a Student profile. Please enter the password for <span className="text-indigo-400">{switchingToAccount.user?.email}</span> to verify your identity.
+                        </p>
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!switchPassword) {
+                                    toast.error("Please enter password");
+                                    return;
+                                }
+                                try {
+                                    setSwitchLoading(true);
+                                    const loggedIn = await login(switchingToAccount.user?.email, switchPassword);
+                                    setSwitchingToAccount(null);
+                                    setSwitchPassword('');
+                                    switchAccount(loggedIn.token, loggedIn);
+                                } catch (err) {
+                                    toast.error(err.response?.data?.message || "Invalid password. Access denied.");
+                                } finally {
+                                    setSwitchLoading(false);
+                                }
+                            }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Account Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={switchPassword}
+                                    onChange={(e) => setSwitchPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder-slate-600"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSwitchingToAccount(null)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-all bg-transparent border border-slate-800 rounded-xl cursor-pointer"
+                                    disabled={switchLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 transition-all rounded-xl cursor-pointer shadow-lg shadow-indigo-650/15 disabled:opacity-50"
+                                    disabled={switchLoading}
+                                >
+                                    {switchLoading ? "Verifying..." : "Verify & Switch"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </header>
     );
 };
@@ -597,81 +683,111 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const items = menuItems[safeRole] || [];
 
     const preparedItems = items.map(item => {
-        if (user?.role === 'Student') {
-            const controls = user.studentProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
-                if (name === 'my activities') controlKey = 'myActivity';
-                else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
-                else if (name === 'fee portal') controlKey = 'feePortal';
-                else if (name === 'tools') controlKey = 'tools';
-                else if (name === 'chat') controlKey = 'chat';
+        // 1. Check Institute-level global controls first
+        const instControls = user?.institute?.controls || (user?.role === 'Institute' ? user?.controls : null);
+        if (instControls) {
+            const name = item.name.toLowerCase();
+            let instControlKey = '';
+            if (name === 'drive') instControlKey = 'drive';
+            else if (name === 'notes') instControlKey = 'notes';
+            else if (name === 'chat') instControlKey = 'chat';
+            else if (name === 'tools') instControlKey = 'tools';
+            else if (name === 'courses') instControlKey = 'course';
+            else if (name === 'subjects') instControlKey = 'subject';
+            else if (name === 'activities' || name === 'student activities' || name === 'my activities') instControlKey = 'activities';
+            else if (name === 'students') instControlKey = 'student';
+            else if (name === 'teachers') instControlKey = 'teacher';
+            else if (name === 'editors') instControlKey = 'editor';
+            else if (name === 'accountants') instControlKey = 'accountant';
+            else if (name === 'my staff' || name === 'all staff' || name === 'staff') instControlKey = 'staff';
+            else if (name === 'parents') instControlKey = 'parent';
+            else if (name === 'dashboard' && user?.role === 'Institute') instControlKey = 'dashboard';
 
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
+            if (instControlKey) {
+                const ctrl = instControls[instControlKey];
+                if (ctrl && ctrl.show === false && ctrl.mode === 'disable') {
+                    return { ...item, disabled: true, note: ctrl.note || 'Disabled by Institute Administrator' };
                 }
             }
-        } else if (user?.role === 'Teacher') {
-            const controls = user.teacherProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
+        }
+
+        // 2. Check User-level individual controls
+        const userRole = user?.role;
+        let userControls = null;
+        if (userRole === 'Student') userControls = user.studentProfile?.controls;
+        else if (userRole === 'Teacher') userControls = user.teacherProfile?.controls;
+        else if (userRole === 'Editor') userControls = user.editorProfile?.controls;
+        else if (userRole === 'Accountant') userControls = user.accountantProfile?.controls;
+        else if (userRole === 'Marketer') userControls = user.marketerProfile?.controls;
+        else if (userRole === 'Staff') userControls = user.staffProfile?.controls;
+        else if (userRole === 'Parent') userControls = user.parentProfile?.controls;
+
+        if (userControls) {
+            const name = item.name.toLowerCase();
+            let controlKey = '';
+            if (userRole === 'Student') {
+                if (name === 'my activities') controlKey = 'myActivity';
+                else if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'my snapshots') controlKey = 'mySnapshots';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Teacher') {
                 if (name === 'dashboard') controlKey = 'dashboard';
                 else if (name === 'student activities') controlKey = 'studentActivities';
                 else if (name === 'evaluate') controlKey = 'evaluate';
                 else if (name === 'snapshots') controlKey = 'snapshots';
                 else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
                 else if (name === 'chat') controlKey = 'chat';
-
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
-                }
-            }
-        } else if (user?.role === 'Editor') {
-            const controls = user.editorProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
+            } else if (userRole === 'Editor') {
                 if (name === 'dashboard') controlKey = 'dashboard';
                 else if (name === 'teachers') controlKey = 'teachers';
                 else if (name === 'courses') controlKey = 'courses';
                 else if (name === 'subjects') controlKey = 'subjects';
                 else if (name === 'activities') controlKey = 'activities';
                 else if (name === 'tools') controlKey = 'tools';
-                else if (name === 'chat') controlKey = 'chat';
-
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
-                }
-            }
-        } else if (user?.role === 'Accountant') {
-            const controls = user.accountantProfile?.controls;
-            if (controls) {
-                const name = item.name.toLowerCase();
-                let controlKey = '';
-                if (name === 'fee portal') controlKey = 'feePortal';
                 else if (name === 'drive') controlKey = 'drive';
                 else if (name === 'notes') controlKey = 'notes';
                 else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Accountant') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Marketer') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Staff') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'task') controlKey = 'task';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'salary') controlKey = 'salary';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Parent') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student fee') controlKey = 'studentFee';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'activities') controlKey = 'activities';
+            }
 
-                if (controlKey) {
-                    const ctrl = controls[controlKey];
-                    if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
-                        return { ...item, disabled: true, note: ctrl.note };
-                    }
+            if (controlKey) {
+                const ctrl = userControls[controlKey];
+                if (ctrl && ctrl.enabled === false && ctrl.mode === 'disable') {
+                    return { ...item, disabled: true, note: ctrl.note || 'Disabled by Administrator' };
                 }
             }
         }
+
         return item;
     });
 
@@ -680,118 +796,111 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         // Super Admins bypass all controls
         if (user?.role === 'Admin') return true;
 
-        if (user?.role === 'Student') {
-            const controls = user.studentProfile?.controls;
-            if (!controls) return true;
+        // 1. Check Institute-level global controls first if user belongs to an institute
+        const instControls = user?.institute?.controls || (user?.role === 'Institute' ? user?.controls : null);
+        if (instControls) {
+            const name = item.name.toLowerCase();
+            let instControlKey = '';
+            if (name === 'drive') instControlKey = 'drive';
+            else if (name === 'notes') instControlKey = 'notes';
+            else if (name === 'chat') instControlKey = 'chat';
+            else if (name === 'tools') instControlKey = 'tools';
+            else if (name === 'courses') instControlKey = 'course';
+            else if (name === 'subjects') instControlKey = 'subject';
+            else if (name === 'activities' || name === 'student activities' || name === 'my activities') instControlKey = 'activities';
+            else if (name === 'students') instControlKey = 'student';
+            else if (name === 'teachers') instControlKey = 'teacher';
+            else if (name === 'editors') instControlKey = 'editor';
+            else if (name === 'accountants') instControlKey = 'accountant';
+            else if (name === 'my staff' || name === 'all staff' || name === 'staff') instControlKey = 'staff';
+            else if (name === 'parents') instControlKey = 'parent';
+            else if (name === 'dashboard' && user?.role === 'Institute') instControlKey = 'dashboard';
 
+            if (instControlKey) {
+                const ctrl = instControls[instControlKey];
+                if (ctrl && ctrl.show === false && ctrl.mode === 'hide') {
+                    return false;
+                }
+            }
+        }
+
+        // 2. Check User-level individual controls
+        const userRole = user?.role;
+        let userControls = null;
+        if (userRole === 'Student') userControls = user.studentProfile?.controls;
+        else if (userRole === 'Teacher') userControls = user.teacherProfile?.controls;
+        else if (userRole === 'Editor') userControls = user.editorProfile?.controls;
+        else if (userRole === 'Accountant') userControls = user.accountantProfile?.controls;
+        else if (userRole === 'Marketer') userControls = user.marketerProfile?.controls;
+        else if (userRole === 'Staff') userControls = user.staffProfile?.controls;
+        else if (userRole === 'Parent') userControls = user.parentProfile?.controls;
+
+        if (userControls) {
             const name = item.name.toLowerCase();
             let controlKey = '';
-            if (name === 'my activities') controlKey = 'myActivity';
-            else if (name === 'dashboard' || name === 'my snapshots') controlKey = 'dashboard';
-            else if (name === 'fee portal') controlKey = 'feePortal';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
+            if (userRole === 'Student') {
+                if (name === 'my activities') controlKey = 'myActivity';
+                else if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'my snapshots') controlKey = 'mySnapshots';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Teacher') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student activities') controlKey = 'studentActivities';
+                else if (name === 'evaluate') controlKey = 'evaluate';
+                else if (name === 'snapshots') controlKey = 'snapshots';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Editor') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'teachers') controlKey = 'teachers';
+                else if (name === 'courses') controlKey = 'courses';
+                else if (name === 'subjects') controlKey = 'subjects';
+                else if (name === 'activities') controlKey = 'activities';
+                else if (name === 'tools') controlKey = 'tools';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Accountant') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'fee portal') controlKey = 'feePortal';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Marketer') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Staff') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'task') controlKey = 'task';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'salary') controlKey = 'salary';
+                else if (name === 'drive') controlKey = 'drive';
+                else if (name === 'notes') controlKey = 'notes';
+                else if (name === 'chat') controlKey = 'chat';
+            } else if (userRole === 'Parent') {
+                if (name === 'dashboard') controlKey = 'dashboard';
+                else if (name === 'student fee') controlKey = 'studentFee';
+                else if (name === 'attendance') controlKey = 'attendance';
+                else if (name === 'activities') controlKey = 'activities';
+            }
 
             if (controlKey) {
-                const ctrl = controls[controlKey];
+                const ctrl = userControls[controlKey];
                 if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
                     return false;
                 }
             }
-            return true;
         }
 
-        if (user?.role === 'Teacher') {
-            const controls = user.teacherProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'dashboard') controlKey = 'dashboard';
-            else if (name === 'student activities') controlKey = 'studentActivities';
-            else if (name === 'evaluate') controlKey = 'evaluate';
-            else if (name === 'snapshots') controlKey = 'snapshots';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if (user?.role === 'Editor') {
-            const controls = user.editorProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'dashboard') controlKey = 'dashboard';
-            else if (name === 'teachers') controlKey = 'teachers';
-            else if (name === 'courses') controlKey = 'courses';
-            else if (name === 'subjects') controlKey = 'subjects';
-            else if (name === 'activities') controlKey = 'activities';
-            else if (name === 'tools') controlKey = 'tools';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if (user?.role === 'Accountant') {
-            const controls = user.accountantProfile?.controls;
-            if (!controls) return true;
-
-            const name = item.name.toLowerCase();
-            let controlKey = '';
-            if (name === 'fee portal') controlKey = 'feePortal';
-            else if (name === 'drive') controlKey = 'drive';
-            else if (name === 'notes') controlKey = 'notes';
-            else if (name === 'chat') controlKey = 'chat';
-
-            if (controlKey) {
-                const ctrl = controls[controlKey];
-                if (ctrl && ctrl.enabled === false && ctrl.mode === 'hide') {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        const controls = user?.institute?.controls;
-        if (!controls) return true;
-
-        const name = item.name.toLowerCase();
-
-        if (name === 'dashboard') {
-            return controls.dashboard?.show !== false;
-        }
-        if (name === 'students') {
-            return controls.student?.show !== false;
-        }
-        if (name === 'teachers') {
-            return controls.teacher?.show !== false;
-        }
-        if (name === 'editors') {
-            return controls.editor?.show !== false;
-        }
-        if (name === 'courses' || name === 'subjects') {
-            return controls.course?.show !== false;
-        }
-        if (name === 'tools') {
-            return controls.tools?.show !== false;
-        }
-        if (name === 'chat') {
-            return controls.chat?.show !== false;
-        }
         return true;
     };
 

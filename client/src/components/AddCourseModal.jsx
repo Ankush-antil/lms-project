@@ -5,7 +5,7 @@ import axios from 'axios';
 import { X, Upload, Link as LinkIcon, FileText, BookOpen } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
+const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPreset = false }) => {
     const { user } = useAuth();
     const [institutes, setInstitutes] = useState([]);
     const [allSubjects, setAllSubjects] = useState([]);
@@ -13,7 +13,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
     const [formData, setFormData] = useState({
         name: '', code: '', description: '', instituteId: '', subjects: '',
         syllabusUrl: '', syllabusType: 'link', maxStudentsPerSection: 30,
-        duration: 5, fee: 0
+        sectionsCount: 1, duration: 5, fee: 0, isDemo: false
     });
     const [syllabusMode, setSyllabusMode] = useState('link'); // 'link' | 'file'
     const [syllabusFile, setSyllabusFile] = useState(null);
@@ -68,8 +68,10 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusUrl: course.syllabusUrl || '',
                     syllabusType: course.syllabusType || 'link',
                     maxStudentsPerSection: course.maxStudentsPerSection || 30,
+                    sectionsCount: course.sectionsCount || 1,
                     duration: course.duration || 5,
-                    fee: course.fee || 0
+                    fee: course.fee || 0,
+                    isDemo: course.isDemo || false
                 });
                 setSyllabusMode(course.syllabusType || 'link');
             } else {
@@ -84,14 +86,16 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                     syllabusUrl: '',
                     syllabusType: 'link',
                     maxStudentsPerSection: 30,
+                    sectionsCount: 1,
                     duration: 5,
-                    fee: 0
+                    fee: 0,
+                    isDemo: isDemoPreset || false
                 });
                 setSyllabusMode('link');
             }
             setSyllabusFile(null);
         }
-    }, [isOpen, user, course]);
+    }, [isOpen, user, course, isDemoPreset]);
 
     useEffect(() => {
         if (!isDurationManuallyEdited && allSubjects.length > 0 && formData.subjects) {
@@ -131,6 +135,11 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             toast.error('Max Students Per Section must be at least 1');
             return;
         }
+        const sectionsCountVal = parseInt(formData.sectionsCount);
+        if (isNaN(sectionsCountVal) || sectionsCountVal < 1) {
+            toast.error('Number of Sections must be at least 1');
+            return;
+        }
         const durationVal = parseInt(formData.duration);
         if (isNaN(durationVal) || durationVal < 1) {
             toast.error('Course Duration must be at least 1 day');
@@ -141,6 +150,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
             const payload = {
                 ...formData,
                 maxStudentsPerSection: sectionVal,
+                sectionsCount: sectionsCountVal,
                 duration: durationVal,
                 fee: parseFloat(formData.fee) || 0
             };
@@ -175,7 +185,12 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                         <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
                             <BookOpen size={20} className="text-indigo-400" />
                         </div>
-                        <h3 className="text-xl font-black text-white tracking-tight">{course ? 'Edit Course' : 'Add New Course'}</h3>
+                        <h3 className="text-xl font-black text-white tracking-tight">
+                            {course 
+                                ? (course.isDemo ? 'Edit Demo Course' : 'Edit Course') 
+                                : (isDemoPreset ? 'Add New Demo Course' : 'Add New Course')
+                            }
+                        </h3>
                     </div>
                     <button
                         onClick={onClose}
@@ -254,8 +269,8 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                             </div>
                         </div>
 
-                        {/* Course Settings: Max Students, Duration & Fee */}
-                        <div className="grid grid-cols-3 gap-4">
+                        {/* Course Settings: Max Students, Sections Count, Duration & Fee */}
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-0.5 truncate" title="Max Students Per Section">
                                     👥 Max Students
@@ -271,6 +286,24 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null }) => {
                                         setFormData({ ...formData, maxStudentsPerSection: val });
                                     }}
                                     placeholder="30"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block flex items-center gap-0.5 truncate" title="Number of Sections to Create">
+                                    📁 Sections Count
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
+                                    required
+                                    value={formData.sectionsCount}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setFormData({ ...formData, sectionsCount: val });
+                                    }}
+                                    placeholder="1"
                                 />
                             </div>
                             <div>

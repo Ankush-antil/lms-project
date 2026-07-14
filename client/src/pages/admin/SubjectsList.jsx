@@ -249,7 +249,7 @@ const SubjectsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Subjects Directory</h1>
                     <p className="text-slate-500">Manage all subjects, courses, institutes, and check assigned teachers and tests details.</p>
                 </div>
-                {((currentUser?.role === 'Admin' || currentUser?.role === 'Institute') || (currentUser?.role === 'Editor' && editorControls?.subjects?.addSubject !== false)) && (
+                {((currentUser?.role === 'Admin') || (currentUser?.role === 'Institute' && currentUser?.institute?.controls?.subject?.addSubject !== false) || (currentUser?.role === 'Editor' && editorControls?.subjects?.addSubject !== false)) && (
                     <button
                         onClick={openAddModal}
                         className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-650/15 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
@@ -404,7 +404,7 @@ const SubjectsList = () => {
                                             >
                                                 <Eye size={18} />
                                             </button>
-                                            {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute' || currentUser?.role === 'Editor') && (
+                                            {(currentUser?.role === 'Admin' || (currentUser?.role === 'Institute' && currentUser?.institute?.controls?.subject?.editSubject !== false) || currentUser?.role === 'Editor') && (
                                                 <button
                                                     onClick={() => openEditModal(s)}
                                                     className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"

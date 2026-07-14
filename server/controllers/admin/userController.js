@@ -5,6 +5,7 @@ const Course = require('../../models/Course');
 const StudentInboxConfig = require('../../models/StudentInboxConfig');
 const StudentActivityConfig = require('../../models/StudentActivityConfig');
 const FeeRecord = require('../../models/FeeRecord');
+const RoleRequest = require('../../models/RoleRequest');
 const { deleteFromSheets } = require('../../utils/googleSheets');
 
 // Helper: compute section letter for a student
@@ -12,10 +13,24 @@ const computeSection = async (courseId) => {
     if (!courseId) return 'A';
     const course = await Course.findById(courseId);
     if (!course) return 'A';
+    const sectionsCount = course.sectionsCount || 1;
     const capacity = course.maxStudentsPerSection || 30;
-    const count = await User.countDocuments({ role: 'Student', 'studentProfile.course': courseId });
-    const sectionIndex = Math.floor(count / capacity);
-    return String.fromCharCode(65 + sectionIndex); // 0=A,1=B,2=C...
+
+    // Find the first section (from A to sectionsCount) that has space
+    for (let i = 0; i < sectionsCount; i++) {
+        const sectionLetter = String.fromCharCode(65 + i);
+        const sectionCount = await User.countDocuments({ 
+            role: 'Student', 
+            'studentProfile.course': courseId,
+            'studentProfile.section': sectionLetter,
+            isDeleted: { $ne: true }
+        });
+        if (sectionCount < capacity) {
+            return sectionLetter;
+        }
+    }
+    // If all are full, return the last section
+    return String.fromCharCode(65 + (sectionsCount - 1));
 };
 
 // @desc    Get all users (filtered by role)
@@ -24,13 +39,20 @@ const computeSection = async (courseId) => {
 const getUsers = asyncHandler(async (req, res) => {
     const { role, course, institute } = req.query;
     const query = { isDeleted: { $ne: true } };
-    if (role) query.role = role;
+    if (role) {
+        query.$or = [
+            { role: role },
+            { allowedRoles: role }
+        ];
+    }
     if (institute) query.institute = institute;
     if (course) {
         if (role === 'Student') {
             query['studentProfile.course'] = course;
         } else if (role === 'Teacher') {
             query['teacherProfile.assignedCourses'] = course;
+        } else if (role === 'Editor') {
+            query['editorProfile.assignedCourses'] = course;
         }
     }
 
@@ -47,7 +69,9 @@ const getUsers = asyncHandler(async (req, res) => {
         .populate('studentProfile.course', 'name subjects')
         .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name')
-        .populate('teacherProfile.assignedStudents', 'name email studentProfile');
+        .populate('teacherProfile.assignedStudents', 'name email studentProfile')
+        .populate('editorProfile.assignedCourses', 'name')
+        .populate('guestProfile.demoCourse', 'name');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
     res.json(users);
@@ -82,8 +106,8 @@ const createUser = asyncHandler(async (req, res) => {
     };
 
     if (role === 'Student') {
-        // Auto-assign section based on course capacity
-        const assignedSection = await computeSection(course);
+        // Auto-assign section based on course capacity if not specified
+        const assignedSection = req.body.section || await computeSection(course);
         userFields.studentProfile = {
             course,
             subject: subject || '',
@@ -103,6 +127,8 @@ const createUser = asyncHandler(async (req, res) => {
         };
     } else if (role === 'Editor') {
         userFields.editorProfile = {
+            assignedCourses: course ? [course] : [],
+            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             controls: req.body.controls
         };
     } else if (role === 'Accountant') {
@@ -120,6 +146,17 @@ const createUser = asyncHandler(async (req, res) => {
     } else if (role === 'Parent') {
         userFields.parentProfile = {
             student: req.body.parentProfile?.student || null
+        };
+    } else if (role === 'Guest') {
+        const demoCourse = req.body.demoCourse || null;
+        const demoDuration = parseInt(req.body.demoDuration) || 1;
+        const demoExpiryDate = new Date();
+        demoExpiryDate.setDate(demoExpiryDate.getDate() + demoDuration);
+
+        userFields.guestProfile = {
+            demoCourse,
+            demoDuration,
+            demoExpiryDate
         };
     }
 
@@ -244,17 +281,9 @@ const deleteUser = asyncHandler(async (req, res) => {
             throw new Error('Not authorized to delete users belonging to other institutes');
         }
 
-        // If student, delete their FeeRecord and sync Google Sheets
-        if (user.role === 'Student') {
-            const record = await FeeRecord.findOne({ student: user._id });
-            if (record) {
-                await deleteFromSheets(record._id, user.admissionNo, user.name);
-                await record.deleteOne();
-            }
-        }
-
-        await user.deleteOne();
-        res.json({ message: 'User removed' });
+        user.isDeleted = true;
+        await user.save();
+        res.json({ message: 'User moved to Recycle Bin' });
     } else {
         res.status(404);
         throw new Error('User not found');
@@ -294,7 +323,9 @@ const updateUser = asyncHandler(async (req, res) => {
             user.password = req.body.password;
         }
 
-        if (user.role === 'Student') {
+        const activeRole = req.body.editingRole || user.role;
+
+        if (activeRole === 'Student') {
             if (!user.studentProfile) user.studentProfile = {};
             user.studentProfile.course = req.body.course || user.studentProfile.course;
             user.studentProfile.subject = req.body.subject !== undefined ? req.body.subject : user.studentProfile.subject;
@@ -329,7 +360,7 @@ const updateUser = asyncHandler(async (req, res) => {
                     }
                 }
             }
-        } else if (user.role === 'Teacher') {
+        } else if (activeRole === 'Teacher') {
             if (!user.teacherProfile) user.teacherProfile = {};
             user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;
             user.teacherProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile.subjects;
@@ -363,8 +394,10 @@ const updateUser = asyncHandler(async (req, res) => {
                     }
                 }
             }
-        } else if (user.role === 'Editor') {
+        } else if (activeRole === 'Editor') {
             if (!user.editorProfile) user.editorProfile = {};
+            user.editorProfile.assignedCourses = req.body.course ? [req.body.course] : user.editorProfile.assignedCourses;
+            user.editorProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.editorProfile.subjects;
 
             if (req.body.controls !== undefined) {
                 user.editorProfile.controls = req.body.controls;
@@ -392,7 +425,7 @@ const updateUser = asyncHandler(async (req, res) => {
                     }
                 }
             }
-        } else if (user.role === 'Accountant') {
+        } else if (activeRole === 'Accountant') {
             if (!user.accountantProfile) user.accountantProfile = {};
 
             if (req.body.controls !== undefined) {
@@ -421,7 +454,7 @@ const updateUser = asyncHandler(async (req, res) => {
                     }
                 }
             }
-        } else if (user.role === 'Staff') {
+        } else if (activeRole === 'Staff') {
             if (!user.staffProfile) user.staffProfile = {};
             if (req.body.staffProfile) {
                 user.staffProfile.designation = req.body.staffProfile.designation !== undefined ? req.body.staffProfile.designation : user.staffProfile.designation;
@@ -429,11 +462,24 @@ const updateUser = asyncHandler(async (req, res) => {
                 user.staffProfile.salary = req.body.staffProfile.salary !== undefined ? req.body.staffProfile.salary : user.staffProfile.salary;
                 user.staffProfile.salaryStatus = req.body.staffProfile.salaryStatus !== undefined ? req.body.staffProfile.salaryStatus : user.staffProfile.salaryStatus;
             }
-        } else if (user.role === 'Parent') {
+        } else if (activeRole === 'Parent') {
             if (!user.parentProfile) user.parentProfile = {};
             if (req.body.parentProfile) {
                 user.parentProfile.student = req.body.parentProfile.student !== undefined ? req.body.parentProfile.student : user.parentProfile.student;
             }
+        } else if (activeRole === 'Guest') {
+            if (!user.guestProfile) user.guestProfile = {};
+            if (req.body.demoCourse !== undefined) {
+                user.guestProfile.demoCourse = req.body.demoCourse || user.guestProfile.demoCourse;
+            }
+            if (req.body.demoDuration !== undefined) {
+                user.guestProfile.demoDuration = req.body.demoDuration;
+                // Recalculate expiry date based on new duration
+                const startDate = user.guestProfile.demoStartDate || new Date();
+                user.guestProfile.demoStartDate = startDate;
+                user.guestProfile.demoExpiryDate = new Date(new Date(startDate).getTime() + req.body.demoDuration * 24 * 60 * 60 * 1000);
+            }
+            user.markModified('guestProfile');
         }
 
         const updatedUser = await user.save();
@@ -950,8 +996,440 @@ const permanentlyDeleteUser = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to delete users belonging to other institutes');
     }
 
+    // If student, delete their FeeRecord and sync Google Sheets
+    if (user.role === 'Student') {
+        const record = await FeeRecord.findOne({ student: user._id });
+        if (record) {
+            await deleteFromSheets(record._id, user.admissionNo, user.name);
+            await record.deleteOne();
+        }
+    }
+
     await user.deleteOne();
     res.json({ message: 'User permanently deleted' });
+});
+
+// @desc    Create Role Request
+// @route   POST /api/users/role-requests
+// @access  Private
+const createRoleRequest = asyncHandler(async (req, res) => {
+    const { requestedRole, courseId } = req.body;
+    const userId = req.user._id;
+
+    if (!requestedRole) {
+        res.status(400);
+        throw new Error('Requested role is required');
+    }
+
+    if (requestedRole === 'Student' && !courseId) {
+        res.status(400);
+        throw new Error('Course selection is required when requesting the Student role');
+    }
+
+    // Check if role is already allowed for user
+    const user = await User.findById(userId);
+    if (user.allowedRoles && user.allowedRoles.includes(requestedRole)) {
+        res.status(400);
+        throw new Error('This role is already allowed for your account');
+    }
+
+    // Check if there is already a pending request for this role
+    const existingRequest = await RoleRequest.findOne({
+        user: userId,
+        requestedRole,
+        status: 'Pending'
+    });
+    if (existingRequest) {
+        res.status(400);
+        throw new Error('A request for this role is already pending approval');
+    }
+
+    // Determine targetApprover
+    let targetApprover = 'Admin';
+    if (user.role === 'Institute') {
+        targetApprover = 'Admin';
+    } else if (user.institute) {
+        targetApprover = 'Institute';
+    }
+
+    const request = await RoleRequest.create({
+        user: userId,
+        requestedRole,
+        institute: user.institute || null,
+        course: requestedRole === 'Student' ? courseId : null,
+        targetApprover,
+        status: 'Pending'
+    });
+
+    res.status(201).json({
+        success: true,
+        message: 'Role request submitted successfully',
+        request
+    });
+});
+
+// @desc    Get Role Requests
+// @route   GET /api/users/role-requests
+// @access  Private (Admin / Institute)
+const getRoleRequests = asyncHandler(async (req, res) => {
+    let query = {};
+    const { myRequests } = req.query;
+
+    if (myRequests === 'true' || !['Admin', 'Institute'].includes(req.user.role)) {
+        query.user = req.user._id;
+    } else if (req.user.role === 'Admin') {
+        query.targetApprover = 'Admin';
+    } else if (req.user.role === 'Institute') {
+        query.targetApprover = 'Institute';
+        query.institute = req.user.institute;
+    } else {
+        res.status(403);
+        throw new Error('Not authorized to view role requests');
+    }
+
+    const requests = await RoleRequest.find(query)
+        .populate('user', 'name email role')
+        .populate('institute', 'name')
+        .populate('course', 'name')
+        .sort({ createdAt: -1 });
+
+    res.json(requests);
+});
+
+// @desc    Approve Role Request
+// @route   PUT /api/users/role-requests/:id/approve
+// @access  Private (Admin / Institute)
+const approveRoleRequest = asyncHandler(async (req, res) => {
+    const request = await RoleRequest.findById(req.params.id);
+    if (!request) {
+        res.status(444);
+        throw new Error('Role request not found');
+    }
+
+    // Verify authorization
+    if (req.user.role === 'Admin' && request.targetApprover !== 'Admin') {
+        res.status(403);
+        throw new Error('Not authorized to approve this request');
+    }
+    if (req.user.role === 'Institute' && (request.targetApprover !== 'Institute' || request.institute.toString() !== req.user.institute.toString())) {
+        res.status(403);
+        throw new Error('Not authorized to approve this request');
+    }
+
+    request.status = 'Approved';
+    await request.save();
+
+    // Push the approved role to the user's allowedRoles array
+    const targetUser = await User.findById(request.user);
+    if (targetUser) {
+        if (!targetUser.allowedRoles.includes(request.requestedRole)) {
+            targetUser.allowedRoles.push(request.requestedRole);
+        }
+        
+        // If Student role approved, initialize studentProfile and assign course
+        if (request.requestedRole === 'Student' && request.course) {
+            if (!targetUser.studentProfile) {
+                targetUser.studentProfile = {};
+            }
+            targetUser.studentProfile.course = request.course;
+            targetUser.studentProfile.enrollmentDate = new Date();
+        }
+
+        await targetUser.save();
+    }
+
+    res.json({
+        success: true,
+        message: 'Role request approved successfully',
+        request
+    });
+});
+
+// @desc    Reject Role Request
+// @route   PUT /api/users/role-requests/:id/reject
+// @access  Private (Admin / Institute)
+const rejectRoleRequest = asyncHandler(async (req, res) => {
+    const request = await RoleRequest.findById(req.params.id);
+    if (!request) {
+        res.status(444);
+        throw new Error('Role request not found');
+    }
+
+    // Verify authorization
+    if (req.user.role === 'Admin' && request.targetApprover !== 'Admin') {
+        res.status(403);
+        throw new Error('Not authorized to reject this request');
+    }
+    if (req.user.role === 'Institute' && (request.targetApprover !== 'Institute' || request.institute.toString() !== req.user.institute.toString())) {
+        res.status(403);
+        throw new Error('Not authorized to reject this request');
+    }
+
+    request.status = 'Rejected';
+    await request.save();
+
+    res.json({
+        success: true,
+        message: 'Role request rejected successfully',
+        request
+    });
+});
+
+// @desc    Switch Active Role
+// @route   PUT /api/users/switch-role
+// @access  Private
+const switchRole = asyncHandler(async (req, res) => {
+    const { newRole } = req.body;
+    const userId = req.user._id;
+
+    const validRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
+    if (!validRoles.includes(newRole)) {
+        res.status(400);
+        throw new Error('Invalid role specified');
+    }
+
+    const user = await User.findById(userId);
+
+    // Admin can switch to ANY role. Institute can switch to any role EXCEPT Admin.
+    // Other users can only switch to roles in their allowedRoles array (or current active role).
+    const hasAdminPrivilege = user.role === 'Admin' || (user.allowedRoles && user.allowedRoles.includes('Admin'));
+    const hasInstitutePrivilege = user.role === 'Institute' || (user.allowedRoles && user.allowedRoles.includes('Institute'));
+
+    let isAllowed = false;
+    if (hasAdminPrivilege) {
+        isAllowed = true;
+    } else if (hasInstitutePrivilege) {
+        isAllowed = newRole !== 'Admin';
+    } else {
+        isAllowed = (user.allowedRoles && user.allowedRoles.includes(newRole)) || user.role === newRole;
+    }
+
+    if (!isAllowed) {
+        res.status(403);
+        throw new Error('You are not authorized to switch to this role');
+    }
+
+    // Ensure both current role and new role are preserved in allowedRoles so they can switch back/between them
+    if (user.role && !user.allowedRoles.includes(user.role)) {
+        user.allowedRoles.push(user.role);
+    }
+    if (!user.allowedRoles.includes(newRole)) {
+        user.allowedRoles.push(newRole);
+    }
+
+    user.role = newRole;
+    await user.save();
+
+    res.json({
+        success: true,
+        message: `Role switched to ${newRole}`,
+        user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            allowedRoles: user.allowedRoles,
+            institute: user.institute
+        }
+    });
+});
+
+// @desc    Import Role Requests
+// @route   POST /api/users/role-requests/import
+// @access  Private (Admin / Institute)
+const importRoleRequests = asyncHandler(async (req, res) => {
+    const { requests } = req.body;
+    if (!Array.isArray(requests)) {
+        res.status(400);
+        throw new Error('Requests must be an array');
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const reqItem of requests) {
+        const { email, requestedRole, courseName } = reqItem;
+        if (!email || !requestedRole) {
+            results.errors.push({ row: reqItem, error: 'Email and requestedRole are required' });
+            continue;
+        }
+
+        try {
+            // Find User
+            const userObj = await User.findOne({ email });
+            if (!userObj) {
+                results.errors.push({ row: reqItem, error: `User with email ${email} not found` });
+                continue;
+            }
+
+            // Check if user already has this role
+            if (userObj.allowedRoles && userObj.allowedRoles.includes(requestedRole)) {
+                results.errors.push({ row: reqItem, error: `Role ${requestedRole} is already allowed for ${email}` });
+                continue;
+            }
+
+            // Resolve course if Student
+            let courseId = null;
+            if (requestedRole === 'Student' && courseName) {
+                const courseObj = await Course.findOne({ 
+                    name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
+                    institute: userObj.institute || req.user.institute
+                });
+                if (!courseObj) {
+                    results.errors.push({ row: reqItem, error: `Course "${courseName}" not found in this institute` });
+                    continue;
+                }
+                courseId = courseObj._id;
+            }
+
+            // Check if pending request exists
+            const existingRequest = await RoleRequest.findOne({
+                user: userObj._id,
+                requestedRole,
+                status: 'Pending'
+            });
+
+            if (existingRequest) {
+                results.errors.push({ row: reqItem, error: `A pending request for role ${requestedRole} already exists for ${email}` });
+                continue;
+            }
+
+            // Determine targetApprover
+            let targetApprover = 'Admin';
+            if (userObj.role === 'Institute') {
+                targetApprover = 'Admin';
+            } else if (userObj.institute) {
+                targetApprover = 'Institute';
+            }
+
+            // Create request
+            await RoleRequest.create({
+                user: userObj._id,
+                requestedRole,
+                institute: userObj.institute || null,
+                course: courseId,
+                targetApprover,
+                status: 'Pending'
+            });
+
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: reqItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} role requests`,
+        results
+    });
+});
+
+// @desc    Import Users in Bulk
+// @route   POST /api/users/import
+// @access  Private (Admin / Institute)
+const importUsers = asyncHandler(async (req, res) => {
+    const { users } = req.body;
+    if (!Array.isArray(users)) {
+        res.status(400);
+        throw new Error('Users must be an array');
+    }
+
+    let creatorInstitute = req.user.institute;
+    if (req.user.role === 'Admin' && req.body.institute) {
+        creatorInstitute = req.body.institute;
+    }
+
+    const results = {
+        successCount: 0,
+        errors: []
+    };
+
+    for (const uItem of users) {
+        const { name, email, password, role, courseName, mobileNumber } = uItem;
+        if (!name || !email || !role) {
+            results.errors.push({ row: uItem, error: 'Name, email, and role are required' });
+            continue;
+        }
+
+        try {
+            const userExists = await User.findOne({ email });
+            if (userExists) {
+                results.errors.push({ row: uItem, error: `User with email ${email} already exists` });
+                continue;
+            }
+
+            let courseId = null;
+            if (courseName && ['Student', 'Teacher', 'Editor'].includes(role)) {
+                const courseObj = await Course.findOne({ 
+                    name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
+                    institute: creatorInstitute
+                });
+                if (courseObj) {
+                    courseId = courseObj._id;
+                } else if (role === 'Student') {
+                    results.errors.push({ row: uItem, error: `Course "${courseName}" not found in this institute` });
+                    continue;
+                }
+            }
+
+            const userFields = {
+                name,
+                email,
+                password: password || 'Welcome123',
+                role,
+                institute: creatorInstitute,
+                mobileNumber: mobileNumber || '',
+                callEnabled: true
+            };
+
+            if (role === 'Student') {
+                const assignedSection = await computeSection(courseId);
+                userFields.studentProfile = {
+                    course: courseId,
+                    section: assignedSection,
+                    enrollmentDate: new Date(),
+                    controls: {}
+                };
+            } else if (role === 'Teacher') {
+                userFields.teacherProfile = {
+                    assignedCourses: courseId ? [courseId] : [],
+                    subjects: [],
+                    studentAssignmentMode: 'all',
+                    assignedSections: [],
+                    assignedStudents: [],
+                    controls: {}
+                };
+            } else if (role === 'Editor') {
+                userFields.editorProfile = {
+                    assignedCourses: courseId ? [courseId] : [],
+                    subjects: [],
+                    controls: {}
+                };
+            } else if (role === 'Accountant') {
+                userFields.accountantProfile = { controls: {} };
+            } else if (role === 'Marketer') {
+                userFields.marketerProfile = { controls: {} };
+            } else if (role === 'Staff') {
+                userFields.staffProfile = { controls: {} };
+            } else if (role === 'Parent') {
+                userFields.parentProfile = { controls: {} };
+            }
+
+            await User.create(userFields);
+            results.successCount++;
+        } catch (error) {
+            results.errors.push({ row: uItem, error: error.message });
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Successfully imported ${results.successCount} users`,
+        results
+    });
 });
 
 module.exports = {
@@ -969,5 +1447,12 @@ module.exports = {
     saveActivityConfig,
     getDeletedUsers,
     restoreUser,
-    permanentlyDeleteUser
+    permanentlyDeleteUser,
+    createRoleRequest,
+    getRoleRequests,
+    approveRoleRequest,
+    rejectRoleRequest,
+    importRoleRequests,
+    importUsers,
+    switchRole
 };

@@ -178,6 +178,7 @@ const TeacherActivities = () => {
     const [expandedSubjects, setExpandedSubjects] = useState({});
     const [subjectFilter, setSubjectFilter] = useState('All');
     const [activeFilter, setActiveFilter] = useState('Institute');
+    const [selectedCourseId, setSelectedCourseId] = useState(null);
     const [loading, setLoading] = useState(false);
     const [teacherInfo, setTeacherInfo] = useState(null);
     const [students, setStudents] = useState([]);
@@ -756,10 +757,79 @@ const TeacherActivities = () => {
         }
     };
 
-    // Filter students by search bar
-    const filteredStudents = students.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    useEffect(() => {
+        if (userInfo && !selectedCourseId) {
+            const courses = userInfo.teacherProfile?.assignedCourses || [];
+            if (courses.length > 0) {
+                const defaultId = courses[0]._id || courses[0];
+                setSelectedCourseId(String(defaultId));
+            }
+        }
+    }, [userInfo, selectedCourseId]);
+
+    const teacherCoursesList = useMemo(() => {
+        if (!userInfo) return [];
+        const list = userInfo.teacherProfile?.assignedCourses || [];
+        return list.map(c => ({
+            id: c._id || c,
+            name: c.name || 'N/A'
+        })).filter(c => c.id);
+    }, [userInfo]);
+
+    const selectedStudentActiveCourseObj = useMemo(() => {
+        if (!selectedStudent || !selectedCourseId) return null;
+        const list = selectedStudent.studentProfile?.coursesList || [];
+        const foundInList = list.find(item => {
+            const cId = item.course?._id || item.course;
+            return String(cId) === String(selectedCourseId);
+        });
+        if (foundInList && foundInList.course && typeof foundInList.course === 'object') {
+            return foundInList.course;
+        }
+        const primCourse = selectedStudent.studentProfile?.course;
+        if (primCourse && String(primCourse._id || primCourse) === String(selectedCourseId)) {
+            return typeof primCourse === 'object' ? primCourse : null;
+        }
+        return null;
+    }, [selectedStudent, selectedCourseId]);
+
+    const selectedStudentAssignedSubjects = useMemo(() => {
+        if (!selectedStudent || !selectedCourseId) return [];
+        const list = selectedStudent.studentProfile?.coursesList || [];
+        const foundInList = list.find(item => {
+            const cId = item.course?._id || item.course;
+            return String(cId) === String(selectedCourseId);
+        });
+        if (foundInList) {
+            return foundInList.subjects || [];
+        }
+        const primCourse = selectedStudent.studentProfile?.course;
+        if (primCourse && String(primCourse._id || primCourse) === String(selectedCourseId)) {
+            const assignedSubjectsString = selectedStudent.studentProfile?.subject;
+            if (assignedSubjectsString) {
+                return assignedSubjectsString.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+        return [];
+    }, [selectedStudent, selectedCourseId]);
+
+    // Filter students by search bar and selected active course
+    const filteredStudents = useMemo(() => {
+        let list = students;
+        if (selectedCourseId) {
+            list = list.filter(s => {
+                const matchesPrimary = String(s.studentProfile?.course?._id || s.studentProfile?.course) === String(selectedCourseId);
+                const matchesSecondary = s.studentProfile?.coursesList?.some(item => 
+                    String(item.course?._id || item.course) === String(selectedCourseId)
+                );
+                return matchesPrimary || matchesSecondary;
+            });
+        }
+        if (searchQuery) {
+            list = list.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return list;
+    }, [students, selectedCourseId, searchQuery]);
 
     // Check if we should group students by section (if teacher has multiple sections assigned)
     const showSectionsGrouped = useMemo(() => {
@@ -782,14 +852,17 @@ const TeacherActivities = () => {
 
     // Filter assigned tests based on student profile (institute, course, subjects)
     const assignedTests = useMemo(() => {
-        if (!selectedStudent) return [];
+        if (!selectedStudent || !selectedCourseId) return [];
         const studentInstitute = selectedStudent.institute?.name?.trim() || '';
-        const studentCourse = selectedStudent.studentProfile?.course?.name?.trim() || '';
-        const studentSubject = selectedStudent.studentProfile?.subject?.trim() || '';
+        
+        // Find course name of selected course
+        const activeCourseName = userInfo?.teacherProfile?.assignedCourses?.find(c => 
+            String(c._id || c) === String(selectedCourseId)
+        )?.name?.trim();
 
-        if (!studentInstitute) return [];
+        if (!studentInstitute || !activeCourseName) return [];
 
-        const subjects = studentSubject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const subjects = selectedStudentAssignedSubjects.map(s => s.toLowerCase());
 
         return allTests.filter(test => {
             // 1. Match Institute (case-insensitive)
@@ -803,7 +876,7 @@ const TeacherActivities = () => {
 
             // 3. Match Course
             const testCourse = test.course?.trim().toLowerCase() || '';
-            if (testCourse && testCourse !== studentCourse.toLowerCase()) return false;
+            if (testCourse && testCourse !== activeCourseName.toLowerCase()) return false;
 
             // 4. Match student-specific assignment
             if (test.assignedStudents && test.assignedStudents.length > 0) {
@@ -815,7 +888,7 @@ const TeacherActivities = () => {
 
             return true;
         });
-    }, [allTests, selectedStudent]);
+    }, [allTests, selectedStudent, selectedCourseId, selectedStudentAssignedSubjects, userInfo]);
 
     const submissionMap = useMemo(() => {
         const map = new Map();
@@ -838,7 +911,7 @@ const TeacherActivities = () => {
 
     const courseDuration = useMemo(() => {
         if (!selectedStudent) return 5;
-        const profileDuration = selectedStudent.studentProfile?.course?.duration;
+        const profileDuration = selectedStudentActiveCourseObj?.duration;
         if (profileDuration && profileDuration > 0) return profileDuration;
 
         // Fallback: find highest index in tests
@@ -853,7 +926,7 @@ const TeacherActivities = () => {
             }
         });
         return Math.max(maxIndex, 5); // Default to at least 5 inboxes
-    }, [selectedStudent, assignedTests]);
+    }, [selectedStudent, selectedStudentActiveCourseObj, assignedTests]);
 
     // Group assigned tests by index for the student
     const dynamicInboxItems = useMemo(() => {
@@ -939,8 +1012,8 @@ const TeacherActivities = () => {
     }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
 
     const subjectDaysMapping = useMemo(() => {
-        if (!selectedStudent || !selectedStudent.studentProfile?.course) return [];
-        const course = selectedStudent.studentProfile.course;
+        if (!selectedStudent || !selectedStudentActiveCourseObj) return [];
+        const course = selectedStudentActiveCourseObj;
         const subjects = course.subjects || [];
         const durations = course.subjectDurations || [];
         const totalDuration = course.duration || 5;
@@ -1037,8 +1110,13 @@ const TeacherActivities = () => {
             });
         }
 
+        if (selectedStudentAssignedSubjects && selectedStudentAssignedSubjects.length > 0) {
+            const lowerAssigned = selectedStudentAssignedSubjects.map(s => s.toLowerCase());
+            return mapping.filter(m => lowerAssigned.includes(m.subjectName.toLowerCase()));
+        }
+
         return mapping;
-    }, [selectedStudent]);
+    }, [selectedStudent, selectedStudentActiveCourseObj, selectedStudentAssignedSubjects]);
 
     useEffect(() => {
         if (subjectDaysMapping.length > 0) {
@@ -3229,7 +3307,52 @@ const TeacherActivities = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
-                            {loading && !students.length ? (
+                            {activeFilter === 'Institute' && selectedCourseId && (
+                                <div className="p-2.5 bg-indigo-50/50 border border-indigo-100/40 rounded-xl flex items-center justify-between px-3 animate-fade-in mb-2 shrink-0">
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600">Active Course:</span>
+                                    <span className="text-[10px] font-black text-indigo-700 max-w-[120px] truncate" title={teacherCoursesList.find(c => String(c.id) === String(selectedCourseId))?.name || 'N/A'}>
+                                        {teacherCoursesList.find(c => String(c.id) === String(selectedCourseId))?.name || 'N/A'}
+                                    </span>
+                                </div>
+                            )}
+                            {activeFilter === 'Course' ? (
+                                teacherCoursesList.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400 text-xs font-semibold">No courses found.</div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {teacherCoursesList.map(course => {
+                                            const isSelected = String(course.id) === String(selectedCourseId);
+                                            return (
+                                                <button
+                                                    key={course.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedCourseId(String(course.id));
+                                                        setActiveFilter('Institute');
+                                                    }}
+                                                    className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between group ${
+                                                        isSelected
+                                                            ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 text-[#3E3ADD]'
+                                                            : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 text-slate-700'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`p-2.5 rounded-xl shadow-xs transition-colors ${
+                                                            isSelected ? 'bg-[#3E3ADD] text-white' : 'bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-[#3E3ADD]'
+                                                        }`}>
+                                                            <BookOpen size={16} />
+                                                        </div>
+                                                        <span className="text-xs font-black tracking-wide truncate max-w-[130px] uppercase">
+                                                            {course.name}
+                                                        </span>
+                                                    </div>
+                                                    {isSelected && <CheckCircle size={14} className="text-[#3E3ADD] shrink-0" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            ) : loading && !students.length ? (
                                 <div className="flex flex-col items-center justify-center py-12">
                                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
                                     <p className="text-xs text-indigo-950 font-semibold">Loading students...</p>

@@ -87,6 +87,7 @@ const StudentsList = () => {
     const [editingId, setEditingId] = useState(null);
     const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
     const [activeSubjectPopoverStudentId, setActiveSubjectPopoverStudentId] = useState(null);
+    const [activeCoursePopoverStudentId, setActiveCoursePopoverStudentId] = useState(null);
 
     useEffect(() => {
         setEditingId(null);
@@ -839,7 +840,56 @@ const StudentsList = () => {
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap text-slate-500 text-xs font-bold font-mono">{student._id ? `#${student._id.slice(-6)}` : 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold truncate max-w-[120px]">{student.institute?.name || 'N/A'}</td>
-                                                <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold truncate max-w-[120px]" title={student.studentProfile?.course?.name || 'N/A'}>{student.studentProfile?.course?.name || 'N/A'}</td>
+                                                <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold relative">
+                                                    {(() => {
+                                                        const assignedCourses = student.studentProfile?.coursesList && student.studentProfile.coursesList.length > 0
+                                                            ? student.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean)
+                                                            : [student.studentProfile?.course?.name || student.studentProfile?.course].filter(Boolean);
+                                                        
+                                                        if (assignedCourses.length === 0) return 'N/A';
+                                                        
+                                                        const firstCourse = assignedCourses[0];
+                                                        const hasMoreCourses = assignedCourses.length > 1;
+                                                        const isCoursePopoverOpen = activeCoursePopoverStudentId === student._id;
+                                                        
+                                                        return (
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => setActiveCoursePopoverStudentId(isCoursePopoverOpen ? null : student._id)}
+                                                                    className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 hover:text-indigo-650 border border-slate-200/60 rounded-xl transition-all font-bold flex items-center gap-1 cursor-pointer select-none"
+                                                                >
+                                                                    <span className="truncate max-w-[100px]">{firstCourse}</span>
+                                                                    {hasMoreCourses && (
+                                                                        <span className="text-[10px] text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded-lg font-black">
+                                                                            +{assignedCourses.length - 1}
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+                                                                {isCoursePopoverOpen && (
+                                                                    <>
+                                                                        <div 
+                                                                            className="fixed inset-0 z-30" 
+                                                                            onClick={() => setActiveCoursePopoverStudentId(null)}
+                                                                        />
+                                                                        <div className="absolute left-4 top-full mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl p-3.5 z-40 min-w-[160px] max-w-[240px]">
+                                                                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-100 pb-1">
+                                                                                Assigned Courses
+                                                                            </p>
+                                                                            <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                                                                                {assignedCourses.map((cName, idx) => (
+                                                                                    <div key={idx} className="flex items-center gap-2 text-xs font-bold text-slate-700 whitespace-normal">
+                                                                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-650 flex-shrink-0" />
+                                                                                        <span>{cName}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold">Section {student.studentProfile?.section || 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap text-slate-550 text-xs font-bold relative">
                                                     {(() => {

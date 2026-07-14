@@ -133,6 +133,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     });
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [selectedCoursesList, setSelectedCoursesList] = useState([]);
+    const [expandedCourseSubjects, setExpandedCourseSubjects] = useState({});
     const [allStudents, setAllStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -168,13 +170,14 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
         }
     }, [isOpen, controlsScope, selectedRoleToEdit, formData.institute, currentUser, user]);
 
-    const [courseStudents, setCourseStudents] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [instituteTeachers, setInstituteTeachers] = useState([]);
     const [loadingTeachers, setLoadingTeachers] = useState(false);
     const [instituteDetails, setInstituteDetails] = useState(null);
 
     const initializeFormData = (role) => {
+
+
         setFormData({
             name: user?.name || '',
             email: user?.email || '',
@@ -221,6 +224,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             setSubjectDropdownOpen(false);
             setControlsScope('single');
             setSelectedPropagationStudents([]);
+            setExpandedCourseSubjects({});
             
             const rolesList = user.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [user.role];
             if (rolesList.length > 1) {
@@ -256,23 +260,66 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
     }, [isOpen, user]);
 
     useEffect(() => {
-        if (formData.course && (selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor')) {
-            const fetchCourseStudents = async () => {
-                try {
-                    setLoadingStudents(true);
-                    const { data } = await axios.get(`/api/users?role=Student&course=${formData.course}`);
-                    setCourseStudents(data);
-                } catch (error) {
-                    console.error("Error fetching course students:", error);
-                } finally {
-                    setLoadingStudents(false);
-                }
-            };
-            fetchCourseStudents();
-        } else {
-            setCourseStudents([]);
+        if (isOpen && user && courses.length > 0 && selectedRoleToEdit) {
+            const role = selectedRoleToEdit;
+            if (role === 'Student' || role === 'Teacher' || role === 'Editor') {
+                const isStudent = role === 'Student';
+                const profile = isStudent 
+                    ? user.studentProfile 
+                    : (role === 'Teacher' ? user.teacherProfile : user.editorProfile);
+                const profileCourses = isStudent 
+                    ? (profile?.coursesList || [])
+                    : (profile?.assignedCourses || []).map(cId => ({ course: cId }));
+
+                const profileSubjects = isStudent 
+                    ? [] 
+                    : (profile?.subjects || []);
+
+                const initialCoursesList = profileCourses.length > 0
+                    ? profileCourses.map(c => {
+                        const cId = c.course?._id || c.course;
+                        const courseObj = courses.find(item => String(item._id) === String(cId));
+                        const courseSubjects = courseObj?.subjects || [];
+                        
+                        const subs = isStudent 
+                            ? (c.subjects || []) 
+                            : profileSubjects.filter(sub => courseSubjects.some(cs => cs.toLowerCase() === sub.toLowerCase()));
+
+                        return {
+                            courseId: cId,
+                            subjects: subs
+                        };
+                      })
+                    : (profile?.course 
+                        ? [{ 
+                            courseId: profile.course?._id || profile.course, 
+                            subjects: isStudent
+                                ? (profile.subject ? profile.subject.split(',').map(s => s.trim()).filter(Boolean) : [])
+                                : profileSubjects
+                          }] 
+                        : []
+                      );
+                setSelectedCoursesList(initialCoursesList);
+            } else {
+                setSelectedCoursesList([]);
+            }
         }
-    }, [formData.course, selectedRoleToEdit]);
+    }, [isOpen, user, courses, selectedRoleToEdit]);
+
+    const courseStudents = useMemo(() => {
+        if (selectedRoleToEdit !== 'Teacher') {
+            return allStudents.filter(s => String(s.studentProfile?.course?._id || s.studentProfile?.course) === String(formData.course));
+        }
+        const selectedCourseIds = selectedCoursesList.map(c => String(c.courseId));
+        return allStudents.filter(s => {
+            const primId = String(s.studentProfile?.course?._id || s.studentProfile?.course);
+            const matchesPrimary = selectedCourseIds.includes(primId);
+            const matchesSecondary = s.studentProfile?.coursesList?.some(c => 
+                selectedCourseIds.includes(String(c.course?._id || c.course))
+            );
+            return matchesPrimary || matchesSecondary;
+        });
+    }, [allStudents, selectedCoursesList, selectedRoleToEdit, formData.course]);
 
     useEffect(() => {
         if (isOpen && user && selectedRoleToEdit === 'Teacher') {
@@ -1053,7 +1100,7 @@ const handleSubmit = async (e) => {
                 institute: formData.institute,
                 course: formData.course,
                 subject: formData.subject,
-                subjects: formData.subjects,
+                subjects: (selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') ? [...new Set(selectedCoursesList.flatMap(c => c.subjects))] : formData.subjects,
                 mobileNumber: formData.mobileNumber,
                 batch: formData.batch,
                 section: formData.section,
@@ -1068,7 +1115,9 @@ const handleSubmit = async (e) => {
                 editingRole: selectedRoleToEdit,
                 demoCourse: formData.demoCourse,
                 demoDuration: formData.demoDuration,
-                allowedRoles: formData.allowedRoles && formData.allowedRoles.length > 0 ? formData.allowedRoles : [selectedRoleToEdit]
+                allowedRoles: formData.allowedRoles && formData.allowedRoles.length > 0 ? formData.allowedRoles : [selectedRoleToEdit],
+                coursesList: selectedRoleToEdit === 'Student' ? selectedCoursesList.map(c => ({ course: c.courseId, subjects: c.subjects })) : undefined,
+                assignedCourses: (selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') ? selectedCoursesList.map(c => c.courseId) : undefined
             };
 
             if (formData.password.trim()) {
@@ -1435,207 +1484,211 @@ const handleSubmit = async (e) => {
                                     </div>
                                 )}
 
-                                {selectedRoleToEdit === 'Student' && (
+                                {(selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') && (
                                     <>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Course</label>
-                                                <select
-                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
-                                                    required
-                                                    value={formData.course}
-                                                    onChange={e => {
-                                                        const courseId = e.target.value;
-                                                        const selectedCourseObj = courses.find(c => c._id === courseId);
-                                                        const defaultSubjects = selectedCourseObj ? (selectedCourseObj.subjects || []).join(', ') : '';
-                                                        setFormData({ 
-                                                            ...formData, 
-                                                            course: courseId, 
-                                                            subject: defaultSubjects,
-                                                            section: ''
-                                                        });
-                                                    }}
-                                                    disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
-                                                >
-                                                    <option value="">Select Course</option>
-                                                    {filteredCourses.map(course => (
-                                                        <option key={course._id} value={course._id}>{course.name}</option>
-                                                    ))}
-                                                </select>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Select Courses (Multiple allowed)</label>
+                                                <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-48 overflow-y-auto space-y-2.5">
+                                                    {filteredCourses.length === 0 ? (
+                                                        <div className="text-xs font-bold text-slate-400 opacity-60">No courses available</div>
+                                                    ) : (
+                                                        filteredCourses.map(course => {
+                                                            const isChecked = selectedCoursesList.some(c => c.courseId === course._id);
+                                                            return (
+                                                                <label key={course._id} className="flex items-center gap-3 text-sm font-bold text-slate-600 cursor-pointer select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            if (isChecked) {
+                                                                                const updated = selectedCoursesList.filter(c => c.courseId !== course._id);
+                                                                                setSelectedCoursesList(updated);
+                                                                                if (updated.length > 0) {
+                                                                                    setFormData(prev => ({
+                                                                                        ...prev,
+                                                                                        course: updated[0].courseId,
+                                                                                        subject: updated[0].subjects.join(', ')
+                                                                                    }));
+                                                                                } else {
+                                                                                    setFormData(prev => ({ ...prev, course: '', subject: '' }));
+                                                                                }
+                                                                            } else {
+                                                                                const defaultSubjects = course.subjects || [];
+                                                                                const updated = [...selectedCoursesList, { courseId: course._id, subjects: defaultSubjects }];
+                                                                                setSelectedCoursesList(updated);
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    course: course._id,
+                                                                                    subject: defaultSubjects.join(', ')
+                                                                                }));
+                                                                                setExpandedCourseSubjects(prev => ({
+                                                                                    ...prev,
+                                                                                    [course._id]: true
+                                                                                }));
+                                                                            }
+                                                                        }}
+                                                                        className="w-4 h-4 rounded text-indigo-650 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                                    />
+                                                                    <span>{course.name}</span>
+                                                                </label>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Section</label>
-                                                {(() => {
-                                                    const selectedCourse = courses.find(c => c._id === formData.course);
-                                                    const count = selectedCourse?.sectionsCount || 1;
-                                                    const sectionsList = [];
-                                                    for (let i = 0; i < count; i++) {
-                                                        sectionsList.push(String.fromCharCode(65 + i)); // 'A', 'B', 'C'...
-                                                    }
-                                                    return (
-                                                        <select
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                                                            value={formData.section || ''}
-                                                            onChange={e => setFormData({ ...formData, section: e.target.value })}
-                                                        >
-                                                            <option value="">Select Section</option>
-                                                            {sectionsList.map((sec, i) => (
-                                                                <option key={i} value={sec}>Section {sec}</option>
-                                                            ))}
-                                                        </select>
-                                                    );
-                                                })()}
-                                            </div>
+                                            {selectedRoleToEdit === 'Student' && (
+                                                <div>
+                                                    <div className="grid grid-cols-1 gap-4">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Section</label>
+                                                            {(() => {
+                                                                const primaryCourseId = selectedCoursesList[0]?.courseId || formData.course;
+                                                                const selectedCourse = courses.find(c => c._id === primaryCourseId);
+                                                                const count = selectedCourse?.sectionsCount || 1;
+                                                                const sectionsList = [];
+                                                                for (let i = 0; i < count; i++) {
+                                                                    sectionsList.push(String.fromCharCode(65 + i));
+                                                                }
+                                                                return (
+                                                                    <select
+                                                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                                                                        value={formData.section || ''}
+                                                                        onChange={e => setFormData({ ...formData, section: e.target.value })}
+                                                                    >
+                                                                        <option value="">Select Section</option>
+                                                                        {sectionsList.map((sec, i) => (
+                                                                            <option key={i} value={sec}>Section {sec}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
+                                                            <input
+                                                                type="text"
+                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                                                value={formData.batch}
+                                                                onChange={e => setFormData({ ...formData, batch: e.target.value })}
+                                                                placeholder="e.g. 2024-25"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 mt-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subject(s) Checklist</label>
-                                                {(() => {
-                                                    const selectedCourse = courses.find(c => c._id === formData.course);
-                                                    const subjectsList = selectedCourse?.subjects || [];
-                                                    if (!formData.course) {
+
+                                        {selectedCoursesList.length > 0 && (
+                                            <div className="mt-4 p-4 bg-slate-50 border border-slate-150 rounded-2xl space-y-4">
+                                                <label className="text-xs font-black text-slate-550 uppercase tracking-widest leading-none block mb-1">Subjects Selection per Course</label>
+                                                <div className="space-y-4">
+                                                    {selectedCoursesList.map((selectedItem, idx) => {
+                                                        const courseObj = courses.find(c => c._id === selectedItem.courseId);
+                                                        if (!courseObj) return null;
+                                                        const courseSubjects = courseObj.subjects || [];
+
+                                                        const handleSubjectToggleForCourse = (sub) => {
+                                                            const updated = selectedCoursesList.map(c => {
+                                                                if (c.courseId === selectedItem.courseId) {
+                                                                    const isSelected = c.subjects.includes(sub);
+                                                                    const updatedSubs = isSelected
+                                                                        ? c.subjects.filter(s => s !== sub)
+                                                                        : [...c.subjects, sub];
+                                                                    return { ...c, subjects: updatedSubs };
+                                                                }
+                                                                return c;
+                                                            });
+                                                            setSelectedCoursesList(updated);
+                                                            if (idx === 0) {
+                                                                const firstItem = updated[0];
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    subject: firstItem.subjects.join(', ')
+                                                                }));
+                                                            }
+                                                        };
+
+                                                        const isExpanded = !!expandedCourseSubjects[selectedItem.courseId];
                                                         return (
-                                                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-400 opacity-60 select-none">
-                                                                Select a course first
+                                                            <div key={selectedItem.courseId} className="bg-white border border-slate-100 rounded-xl p-3 space-y-2.5">
+                                                                <div 
+                                                                    className="text-sm font-extrabold text-slate-800 flex items-center justify-between cursor-pointer select-none"
+                                                                    onClick={() => {
+                                                                        setExpandedCourseSubjects(prev => ({
+                                                                            ...prev,
+                                                                            [selectedItem.courseId]: !prev[selectedItem.courseId]
+                                                                        }));
+                                                                    }}
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        {isExpanded ? (
+                                                                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                                            </svg>
+                                                                        ) : (
+                                                                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                            </svg>
+                                                                        )}
+                                                                        <span>{courseObj.name}</span>
+                                                                    </div>
+                                                                    <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold uppercase">Course {idx + 1}</span>
+                                                                </div>
+                                                                {isExpanded && (
+                                                                    <div className="pl-1 space-y-2 pt-2 border-t border-slate-50 animate-fade-in">
+                                                                        {courseSubjects.length === 0 ? (
+                                                                            <input
+                                                                                type="text"
+                                                                                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                                                                value={selectedItem.subjects.join(', ')}
+                                                                                onChange={e => {
+                                                                                    const updated = selectedCoursesList.map(c => {
+                                                                                        if (c.courseId === selectedItem.courseId) {
+                                                                                            return { ...c, subjects: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                                                                                        }
+                                                                                        return c;
+                                                                                    });
+                                                                                    setSelectedCoursesList(updated);
+                                                                                    if (idx === 0) {
+                                                                                        setFormData(prev => ({ ...prev, subject: e.target.value }));
+                                                                                    }
+                                                                                }}
+                                                                                placeholder="e.g. Maths, Science"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                                {courseSubjects.map((sub, sIdx) => {
+                                                                                    const isChecked = selectedItem.subjects.includes(sub);
+                                                                                    return (
+                                                                                        <label key={sIdx} className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none animate-fade-in">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={isChecked}
+                                                                                                onChange={() => handleSubjectToggleForCourse(sub)}
+                                                                                                className="w-3.5 h-3.5 rounded text-indigo-650 border-slate-350 focus:ring-indigo-550 cursor-pointer"
+                                                                                            />
+                                                                                            <span>{sub}</span>
+                                                                                        </label>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
-                                                    }
-                                                    if (subjectsList.length === 0) {
-                                                        return (
-                                                            <input
-                                                                required
-                                                                type="text"
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                                value={formData.subject}
-                                                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                                                placeholder="e.g. Maths, Science"
-                                                            />
-                                                        );
-                                                    }
-                                                    const selectedSubjects = formData.subject ? formData.subject.split(',').map(s => s.trim()).filter(Boolean) : [];
-                                                    const handleSubjectToggle = (sub) => {
-                                                        let current = [...selectedSubjects];
-                                                        if (current.includes(sub)) {
-                                                            current = current.filter(item => item !== sub);
-                                                        } else {
-                                                            current.push(sub);
-                                                        }
-                                                        setFormData({ ...formData, subject: current.join(', ') });
-                                                    };
-                                                    return (
-                                                        <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-32 overflow-y-auto space-y-2.5">
-                                                            {subjectsList.map((sub, i) => {
-                                                                const isChecked = selectedSubjects.includes(sub);
-                                                                return (
-                                                                    <label key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600 cursor-pointer select-none">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={isChecked}
-                                                                            onChange={() => handleSubjectToggle(sub)}
-                                                                            className="w-4 h-4 rounded text-indigo-650 border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                                                                        />
-                                                                        <span>{sub}</span>
-                                                                    </label>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    );
-                                                })()}
+                                                    })}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Batch / Session</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                                                    value={formData.batch}
-                                                    onChange={e => setFormData({ ...formData, batch: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
+                                        )}
                                     </>
                                 )}
 
-                                {(selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') && (
-                                    <>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Assigned Course</label>
-                                                <select
-                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
-                                                    value={formData.course}
-                                                    onChange={e => setFormData({ ...formData, course: e.target.value, subjects: '' })}
-                                                    disabled={currentUser?.role !== 'Institute' && currentUser?.role !== 'Editor' && !formData.institute}
-                                                >
-                                                    <option value="">Select Course</option>
-                                                    {filteredCourses.map(course => (
-                                                        <option key={course._id} value={course._id}>{course.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="relative">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">
-                                                    {selectedRoleToEdit === 'Teacher' ? 'Teaching Subjects' : 'Assigned Subjects'}
-                                                </label>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (availableSubjects.length > 0) {
-                                                            setSubjectDropdownOpen(!subjectDropdownOpen);
-                                                        }
-                                                    }}
-                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-750 flex justify-between items-center outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all text-left disabled:opacity-50"
-                                                    disabled={availableSubjects.length === 0}
-                                                >
-                                                    <span className="truncate">
-                                                        {formData.subjects 
-                                                            ? (formData.subjects.split(',').map(s => s.trim()).filter(Boolean).join(', '))
-                                                            : "Select Subjects"
-                                                        }
-                                                    </span>
-                                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${subjectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                    </svg>
-                                                </button>
 
-                                                {subjectDropdownOpen && availableSubjects.length > 0 && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-10" onClick={() => setSubjectDropdownOpen(false)} />
-                                                        <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 max-h-[180px] overflow-y-auto custom-scrollbar p-2">
-                                                            {availableSubjects.map(sub => {
-                                                                const currentSubjects = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                                                                const isChecked = currentSubjects.includes(sub);
-                                                                return (
-                                                                    <label key={sub} className="flex items-center gap-3 cursor-pointer group p-2 rounded-xl hover:bg-slate-50 transition-all select-none">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={isChecked}
-                                                                            onChange={() => {
-                                                                                let newSubjects;
-                                                                                if (isChecked) {
-                                                                                    newSubjects = currentSubjects.filter(s => s !== sub);
-                                                                                } else {
-                                                                                    newSubjects = [...currentSubjects, sub];
-                                                                                }
-                                                                                setFormData({ ...formData, subjects: newSubjects.join(', ') });
-                                                                            }}
-                                                                            className="rounded border-slate-350 text-indigo-650 focus:ring-indigo-550 h-4 w-4 cursor-pointer"
-                                                                        />
-                                                                        <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
-                                                                            {sub}
-                                                                        </span>
-                                                                    </label>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </>
-                                                )}
-                                                {availableSubjects.length === 0 && (
-                                                    <p className="mt-1.5 text-[10px] text-slate-400 italic">Select a course to view available subjects.</p>
-                                                )}
-                                            </div>
-                                        </div>
 
-                                        {selectedRoleToEdit === 'Teacher' && formData.course && (
+
+                                {selectedRoleToEdit === 'Teacher' && selectedCoursesList.length > 0 && (
                                             <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>
@@ -1732,8 +1785,6 @@ const handleSubmit = async (e) => {
                                                 )}
                                             </div>
                                         )}
-                                    </>
-                                )}
 
                                 {/* Assign Other Role */}
                                 {selectedRoleToEdit !== 'Guest' && (

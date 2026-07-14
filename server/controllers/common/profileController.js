@@ -7,10 +7,14 @@ const User = require('../../models/User');
 const getUserProfile = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id)
         .select('-password')
-        .populate('institute', 'name imageUrl wifiNetworks')
-        .populate('studentProfile.course', 'name subjects')
-        .populate('parentProfile.student', 'name email studentProfile')
-        .populate('teacherProfile.assignedCourses', 'name');
+        .populate([
+            { path: 'institute', select: 'name imageUrl wifiNetworks' },
+            { path: 'studentProfile.course', select: 'name subjects' },
+            { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
+            { path: 'parentProfile.student', select: 'name email studentProfile' },
+            { path: 'teacherProfile.assignedCourses', select: 'name' },
+            { path: 'editorProfile.assignedCourses', select: 'name' }
+        ]);
     if (user) {
         res.json(user);
     } else {
@@ -32,11 +36,15 @@ const getUserById = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.params.id)
         .select('-password')
-        .populate('institute', 'name imageUrl wifiNetworks')
-        .populate('studentProfile.course', 'name subjects')
-        .populate('parentProfile.student', 'name email studentProfile')
-        .populate('teacherProfile.assignedCourses', 'name')
-        .populate('teacherProfile.assignedStudents', 'name email studentProfile');
+        .populate([
+            { path: 'institute', select: 'name imageUrl wifiNetworks' },
+            { path: 'studentProfile.course', select: 'name subjects' },
+            { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
+            { path: 'parentProfile.student', select: 'name email studentProfile' },
+            { path: 'teacherProfile.assignedCourses', select: 'name' },
+            { path: 'teacherProfile.assignedStudents', select: 'name email studentProfile' },
+            { path: 'editorProfile.assignedCourses', select: 'name' }
+        ]);
 
     if (user) {
         console.log(`FETCH PROFILE - Found user: ${user.name} (${user.role})`);

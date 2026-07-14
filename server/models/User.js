@@ -56,6 +56,10 @@ const userSchema = new mongoose.Schema({
     studentProfile: {
         ledgerNo: { type: String, default: '' },
         course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+        coursesList: [{
+            course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+            subjects: [{ type: String }]
+        }],
         subject: { type: String, default: '' },   // ← new: subject assigned by admin
         batch: { type: String },
         section: { type: String, default: '' },    // ← auto-assigned section e.g. 'A', 'B', 'C'

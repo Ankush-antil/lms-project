@@ -18,6 +18,9 @@ const getTests = asyncHandler(async (req, res) => {
         .populate({
             path: 'studentProfile.course',
             populate: { path: 'institute' }
+        })
+        .populate({
+            path: 'studentProfile.coursesList.course'
         });
 
     if (!user) {
@@ -25,11 +28,9 @@ const getTests = asyncHandler(async (req, res) => {
     }
 
     const studentInstitute = user.institute?.name?.trim() || user.studentProfile?.course?.institute?.name?.trim();
-    const studentCourse = user.studentProfile?.course?.name?.trim();
-    const studentSubject = user.studentProfile?.subject?.trim();
 
     console.log(`[Student-Tests-Query] Processing for ${user.name}`);
-    console.log(`[Student-Tests-Query] Student Details: Inst="${studentInstitute}", Course="${studentCourse}", Subjects="${studentSubject}"`);
+    console.log(`[Student-Tests-Query] Student Details: Inst="${studentInstitute}"`);
 
     if (!studentInstitute) {
         console.warn(`[Student-Tests-Query] Student ${user.name} missing institute.`);
@@ -42,30 +43,56 @@ const getTests = asyncHandler(async (req, res) => {
     // 1. MUST match Institute (case-insensitive, flexible whitespace)
     query.institute = { $regex: new RegExp(`^\\s*${escapeRegex(studentInstitute)}\\s*$`, 'i') };
 
-    // 2. MUST match at least one Subject from student's comma-separated list
-    if (studentSubject) {
-        const subjects = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
-        if (subjects.length > 0) {
-            query.subject = {
-                $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
-            };
-        } else {
-            query.subject = { $in: [null, '', undefined] };
+    // 2. Query matching courses and subjects from coursesList
+    const assignedCourses = user.studentProfile?.coursesList && user.studentProfile.coursesList.length > 0
+        ? user.studentProfile.coursesList
+        : (user.studentProfile?.course ? [{ course: user.studentProfile.course, subjects: user.studentProfile.subject ? user.studentProfile.subject.split(',').map(s => s.trim()).filter(Boolean) : [] }] : []);
+
+    let courseSubjectQueries = [];
+    if (assignedCourses.length > 0) {
+        for (const item of assignedCourses) {
+            const courseObj = item.course;
+            const courseName = courseObj?.name?.trim();
+            const subjects = item.subjects || [];
+            
+            if (courseName && subjects.length > 0) {
+                courseSubjectQueries.push({
+                    $and: [
+                        {
+                            $or: [
+                                { course: { $in: [null, '', undefined] } },
+                                { course: { $regex: new RegExp(`^\\s*${escapeRegex(courseName)}\\s*$`, 'i') } }
+                            ]
+                        },
+                        {
+                            subject: {
+                                $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
+                            }
+                        }
+                    ]
+                });
+            } else if (courseName) {
+                courseSubjectQueries.push({
+                    $or: [
+                        { course: { $in: [null, '', undefined] } },
+                        { course: { $regex: new RegExp(`^\\s*${escapeRegex(courseName)}\\s*$`, 'i') } }
+                    ]
+                });
+            } else if (subjects.length > 0) {
+                courseSubjectQueries.push({
+                    subject: {
+                        $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
+                    }
+                });
+            }
         }
-    } else {
-        query.subject = { $in: [null, '', undefined] };
     }
 
-    // 3. IF the student has a course AND the test has a course name, they should match
-    // If the test has NO course name, it's visible to any course in that institute/subject.
-    if (studentCourse) {
-        query.$or = [
-            { course: { $in: [null, '', undefined] } },
-            { course: { $regex: new RegExp(`^\\s*${escapeRegex(studentCourse)}\\s*$`, 'i') } }
-        ];
+    if (courseSubjectQueries.length > 0) {
+        query.$or = courseSubjectQueries;
     }
 
-    // 4. MUST either be assigned to all students, or specifically assigned to this student
+    // 3. MUST either be assigned to all students, or specifically assigned to this student
     query.$and = [
         {
             $or: [

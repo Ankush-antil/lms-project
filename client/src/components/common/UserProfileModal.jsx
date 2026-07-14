@@ -215,43 +215,67 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
 
                                 {user?.role === 'Student' && (
                                     <>
-                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
-                                            <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                <Book size={14} />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Course</p>
-                                                <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.course?.name || 'N/A'}</p>
-                                            </div>
-                                        </div>
-
-
-                                        {/* Full Course Subjects List */}
-                                        {user?.studentProfile?.course?.subjects && user.studentProfile.course.subjects.length > 0 && (
-                                            <div className="col-span-2 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex flex-col gap-2 mt-1">
-                                                <div className="flex items-center gap-1.5 text-indigo-700">
-                                                    <Book size={12} className="animate-pulse" />
-                                                    <p className="text-[9px] font-black uppercase tracking-widest leading-none">Course Subjects List</p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {user.studentProfile.course.subjects
-                                                        .filter(sub => {
-                                                            if (!user?.studentProfile?.subject) return true;
-                                                            return user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
-                                                        })
-                                                        .map((sub, idx) => {
-                                                            return (
+                                        {user?.studentProfile?.coursesList && user.studentProfile.coursesList.length > 0 ? (
+                                            user.studentProfile.coursesList.map((cItem, cIdx) => (
+                                                <div key={cIdx} className="col-span-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-2">
+                                                    <div className="flex items-center gap-1.5 text-slate-800 font-extrabold text-sm">
+                                                        <Book size={14} className="text-indigo-600" />
+                                                        <span>{cItem.course?.name || 'N/A'}</span>
+                                                        <span className="text-[9px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase ml-auto">Course {cIdx + 1}</span>
+                                                    </div>
+                                                    {cItem.subjects && cItem.subjects.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                                            {cItem.subjects.map((sub, idx) => (
                                                                 <span 
                                                                     key={idx} 
                                                                     className="px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors bg-indigo-600 border-indigo-700 text-white shadow-sm"
                                                                 >
                                                                     {sub}
                                                                 </span>
-                                                            );
-                                                        })
-                                                    }
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-400 font-bold italic pl-1">No subjects assigned</p>
+                                                    )}
                                                 </div>
-                                            </div>
+                                            ))
+                                        ) : (
+                                            <>
+                                                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:shadow-md hover:border-indigo-100 flex flex-col gap-1.5">
+                                                    <div className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                        <Book size={14} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Course</p>
+                                                        <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.course?.name || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+
+                                                {user?.studentProfile?.course?.subjects && user.studentProfile.course.subjects.length > 0 && (
+                                                    <div className="col-span-2 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex flex-col gap-2 mt-1">
+                                                        <div className="flex items-center gap-1.5 text-indigo-700">
+                                                            <Book size={12} className="animate-pulse" />
+                                                            <p className="text-[9px] font-black uppercase tracking-widest leading-none">Course Subjects List</p>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {user.studentProfile.course.subjects
+                                                                .filter(sub => {
+                                                                    if (!user?.studentProfile?.subject) return true;
+                                                                    return user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
+                                                                })
+                                                                .map((sub, idx) => (
+                                                                    <span 
+                                                                        key={idx} 
+                                                                        className="px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors bg-indigo-600 border-indigo-700 text-white shadow-sm"
+                                                                    >
+                                                                        {sub}
+                                                                    </span>
+                                                                ))
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </>
                                 )}

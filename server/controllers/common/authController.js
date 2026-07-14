@@ -45,10 +45,14 @@ const loginUser = async (req, res) => {
         console.log(`Login attempt for: ${email}`);
 
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
-            .populate('institute', 'name imageUrl controls')
-            .populate('studentProfile.course', 'name subjects')
-            .populate('teacherProfile.assignedCourses', 'name')
-            .populate('guestProfile.demoCourse', 'name');
+            .populate([
+                { path: 'institute', select: 'name imageUrl controls' },
+                { path: 'studentProfile.course', select: 'name subjects' },
+                { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
+                { path: 'teacherProfile.assignedCourses', select: 'name' },
+                { path: 'editorProfile.assignedCourses', select: 'name' },
+                { path: 'guestProfile.demoCourse', select: 'name' }
+            ]);
 
         if (user && (await user.matchPassword(password))) {
             if (user.isActive === false) {
@@ -72,6 +76,7 @@ const loginUser = async (req, res) => {
                 avatar: user.avatar,
                 studentProfile: user.studentProfile,
                 teacherProfile: user.teacherProfile,
+                editorProfile: user.editorProfile,
                 guestProfile: user.guestProfile,
                 token: token
             });
@@ -91,11 +96,15 @@ const getMe = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
             .select('-password')
-            .populate('institute', 'name imageUrl controls')
-            .populate('studentProfile.course', 'name subjects duration subjectDurations')
-            .populate('teacherProfile.assignedCourses', 'name')
-            .populate('teacherProfile.assignedStudents', 'name email studentProfile')
-            .populate('guestProfile.demoCourse', 'name');
+            .populate([
+                { path: 'institute', select: 'name imageUrl controls' },
+                { path: 'studentProfile.course', select: 'name subjects duration subjectDurations' },
+                { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
+                { path: 'teacherProfile.assignedCourses', select: 'name' },
+                { path: 'teacherProfile.assignedStudents', select: 'name email studentProfile' },
+                { path: 'editorProfile.assignedCourses', select: 'name' },
+                { path: 'guestProfile.demoCourse', select: 'name' }
+            ]);
         if (user) {
             res.json(user);
         } else {

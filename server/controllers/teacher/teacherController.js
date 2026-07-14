@@ -23,7 +23,10 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
 
         let query = {
             role: 'Student',
-            'studentProfile.course': { $in: courseIds }
+            $or: [
+                { 'studentProfile.course': { $in: courseIds } },
+                { 'studentProfile.coursesList.course': { $in: courseIds } }
+            ]
         };
 
         if (mode === 'section') {
@@ -35,8 +38,11 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         // Find students matching assignment filters
         const students = await User.find(query)
             .select('-password')
-            .populate('institute', 'name')
-            .populate('studentProfile.course', 'name subjects duration subjectDurations');
+            .populate([
+                { path: 'institute', select: 'name' },
+                { path: 'studentProfile.course', select: 'name subjects duration subjectDurations' },
+                { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' }
+            ]);
 
         const studentsWithStats = await Promise.all(students.map(async (student) => {
             try {

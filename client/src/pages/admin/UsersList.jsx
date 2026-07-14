@@ -751,7 +751,11 @@ const UsersList = () => {
 
             'Mobile Number': u.mobileNumber || '',
 
-            Course: u.studentProfile?.course?.name || u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || '',
+            Course: u.role === 'Student'
+                ? (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0
+                    ? u.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean).join(', ')
+                    : u.studentProfile?.course?.name || '')
+                : (u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || ''),
 
             Batch: u.studentProfile?.batch || '',
 
@@ -1287,6 +1291,13 @@ const UsersList = () => {
                                                     <span className="text-xs text-slate-400">
                                                         <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.guestEmail : viewTab === 'role-requests' ? (u.user?.email || 'N/A') : u.email} maxLength={25} />
                                                     </span>
+                                                    {viewTab === 'registered' && u.role === 'Student' && (
+                                                        <span className="text-[10px] text-slate-500 font-extrabold mt-0.5 tracking-wide max-w-[200px] truncate" title={u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 ? u.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean).join(', ') : u.studentProfile?.course?.name || 'No Course'}>
+                                                            {u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0
+                                                                ? u.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean).join(', ')
+                                                                : u.studentProfile?.course?.name || 'No Course'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>

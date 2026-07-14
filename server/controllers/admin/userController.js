@@ -67,6 +67,7 @@ const getUsers = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects')
+        .populate('studentProfile.coursesList.course', 'name subjects')
         .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name')
         .populate('teacherProfile.assignedStudents', 'name email studentProfile')
@@ -81,7 +82,7 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/users
 // @access  Private/Admin or Institute
 const createUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled, studentAssignmentMode, assignedSections, assignedStudents } = req.body;
+    const { name, email, password, role, course, subjects, subject, mobileNumber, batch, callEnabled, studentAssignmentMode, assignedSections, assignedStudents, coursesList } = req.body;
     let institute = req.body.institute;
 
     // Enforce creator's institute for Institute and Editor users
@@ -111,18 +112,26 @@ const createUser = asyncHandler(async (req, res) => {
 
     if (role === 'Student') {
         // Auto-assign section based on course capacity if not specified
-        const assignedSection = req.body.section || await computeSection(course);
+        const primaryCourse = coursesList && coursesList.length > 0 ? coursesList[0].course : course;
+        const assignedSection = req.body.section || await computeSection(primaryCourse);
+        const finalCoursesList = coursesList || (course ? [{ course, subjects: subject ? subject.split(',').map(s => s.trim()).filter(Boolean) : [] }] : []);
+        const primarySubject = coursesList && coursesList.length > 0
+            ? (coursesList[0].subjects || []).join(', ')
+            : (subject || '');
+
         userFields.studentProfile = {
-            course,
-            subject: subject || '',
+            course: primaryCourse,
+            coursesList: finalCoursesList,
+            subject: primarySubject,
             batch: batch || '',
             section: assignedSection,
             enrollmentDate: new Date(),
             controls: req.body.controls
         };
     } else if (role === 'Teacher') {
+        const finalAssignedCourses = req.body.assignedCourses || (course ? [course] : []);
         userFields.teacherProfile = {
-            assignedCourses: course ? [course] : [],
+            assignedCourses: finalAssignedCourses,
             subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             studentAssignmentMode: studentAssignmentMode || 'all',
             assignedSections: assignedSections || [],
@@ -130,8 +139,9 @@ const createUser = asyncHandler(async (req, res) => {
             controls: req.body.controls
         };
     } else if (role === 'Editor') {
+        const finalAssignedCourses = req.body.assignedCourses || (course ? [course] : []);
         userFields.editorProfile = {
-            assignedCourses: course ? [course] : [],
+            assignedCourses: finalAssignedCourses,
             subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             controls: req.body.controls
         };
@@ -331,8 +341,31 @@ const updateUser = asyncHandler(async (req, res) => {
 
         if (activeRole === 'Student') {
             if (!user.studentProfile) user.studentProfile = {};
-            user.studentProfile.course = req.body.course || user.studentProfile.course;
-            user.studentProfile.subject = req.body.subject !== undefined ? req.body.subject : user.studentProfile.subject;
+            if (req.body.coursesList !== undefined) {
+                user.studentProfile.coursesList = req.body.coursesList;
+                user.markModified('studentProfile.coursesList');
+                if (Array.isArray(req.body.coursesList) && req.body.coursesList.length > 0) {
+                    user.studentProfile.course = req.body.coursesList[0].course || user.studentProfile.course;
+                    user.studentProfile.subject = (req.body.coursesList[0].subjects || []).join(', ');
+                } else {
+                    user.studentProfile.course = null;
+                    user.studentProfile.subject = '';
+                }
+            } else if (req.body.course !== undefined || req.body.subject !== undefined) {
+                user.studentProfile.course = req.body.course || user.studentProfile.course;
+                user.studentProfile.subject = req.body.subject !== undefined ? req.body.subject : user.studentProfile.subject;
+                // Sync coursesList
+                if (user.studentProfile.course) {
+                    user.studentProfile.coursesList = [{
+                        course: user.studentProfile.course,
+                        subjects: user.studentProfile.subject ? user.studentProfile.subject.split(',').map(s => s.trim()).filter(Boolean) : []
+                    }];
+                    user.markModified('studentProfile.coursesList');
+                } else {
+                    user.studentProfile.coursesList = [];
+                    user.markModified('studentProfile.coursesList');
+                }
+            }
             user.studentProfile.batch = req.body.batch !== undefined ? req.body.batch : user.studentProfile.batch;
             user.studentProfile.section = req.body.section !== undefined ? req.body.section : user.studentProfile.section;
             if (req.body.controls !== undefined) {
@@ -366,7 +399,11 @@ const updateUser = asyncHandler(async (req, res) => {
             }
         } else if (activeRole === 'Teacher') {
             if (!user.teacherProfile) user.teacherProfile = {};
-            user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;
+            if (req.body.assignedCourses !== undefined) {
+                user.teacherProfile.assignedCourses = req.body.assignedCourses;
+            } else {
+                user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;
+            }
             user.teacherProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile.subjects;
             user.teacherProfile.studentAssignmentMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile.studentAssignmentMode;
             user.teacherProfile.assignedSections = req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile.assignedSections;
@@ -400,7 +437,11 @@ const updateUser = asyncHandler(async (req, res) => {
             }
         } else if (activeRole === 'Editor') {
             if (!user.editorProfile) user.editorProfile = {};
-            user.editorProfile.assignedCourses = req.body.course ? [req.body.course] : user.editorProfile.assignedCourses;
+            if (req.body.assignedCourses !== undefined) {
+                user.editorProfile.assignedCourses = req.body.assignedCourses;
+            } else {
+                user.editorProfile.assignedCourses = req.body.course ? [req.body.course] : user.editorProfile.assignedCourses;
+            }
             user.editorProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.editorProfile.subjects;
 
             if (req.body.controls !== undefined) {
@@ -969,6 +1010,7 @@ const getDeletedUsers = asyncHandler(async (req, res) => {
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects')
+        .populate('studentProfile.coursesList.course', 'name subjects')
         .populate('teacherProfile.assignedCourses', 'name');
 
     res.json(users);

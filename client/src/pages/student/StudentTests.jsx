@@ -186,6 +186,7 @@ const StudentTests = () => {
     }, [user, viewMode]);
     const [infoModalData, setInfoModalData] = useState(null);
     const [activeFilter, setActiveFilter] = useState('Institute');
+    const [selectedCourseId, setSelectedCourseId] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [inboxSearchQuery, setInboxSearchQuery] = useState('');
     const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
@@ -452,8 +453,57 @@ const StudentTests = () => {
         [submissions]
     );
 
+    useEffect(() => {
+        if (userInfo && !selectedCourseId) {
+            const defaultId = userInfo?.studentProfile?.coursesList?.[0]?.course?._id 
+                || userInfo?.studentProfile?.coursesList?.[0]?.course
+                || userInfo?.studentProfile?.course?._id 
+                || userInfo?.studentProfile?.course;
+            if (defaultId) {
+                setSelectedCourseId(String(defaultId));
+            }
+        }
+    }, [userInfo, selectedCourseId]);
+
+    const activeCourseObj = useMemo(() => {
+        if (!userInfo || !selectedCourseId) return null;
+        const list = userInfo.studentProfile?.coursesList || [];
+        const foundInList = list.find(item => {
+            const cId = item.course?._id || item.course;
+            return String(cId) === String(selectedCourseId);
+        });
+        if (foundInList && foundInList.course && typeof foundInList.course === 'object') {
+            return foundInList.course;
+        }
+        const primCourse = userInfo.studentProfile?.course;
+        if (primCourse && String(primCourse._id || primCourse) === String(selectedCourseId)) {
+            return typeof primCourse === 'object' ? primCourse : null;
+        }
+        return null;
+    }, [userInfo, selectedCourseId]);
+
+    const activeAssignedSubjects = useMemo(() => {
+        if (!userInfo || !selectedCourseId) return [];
+        const list = userInfo.studentProfile?.coursesList || [];
+        const foundInList = list.find(item => {
+            const cId = item.course?._id || item.course;
+            return String(cId) === String(selectedCourseId);
+        });
+        if (foundInList) {
+            return foundInList.subjects || [];
+        }
+        const primCourse = userInfo.studentProfile?.course;
+        if (primCourse && String(primCourse._id || primCourse) === String(selectedCourseId)) {
+            const assignedSubjectsString = userInfo.studentProfile?.subject;
+            if (assignedSubjectsString) {
+                return assignedSubjectsString.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+        return [];
+    }, [userInfo, selectedCourseId]);
+
     const courseDuration = useMemo(() => {
-        const profileDuration = userInfo?.studentProfile?.course?.duration;
+        const profileDuration = activeCourseObj?.duration;
         if (profileDuration && profileDuration > 0) return profileDuration;
 
         // Fallback: find highest index in tests
@@ -468,7 +518,7 @@ const StudentTests = () => {
             }
         });
         return Math.max(maxIndex, 5); // Default to at least 5 inboxes
-    }, [userInfo, tests]);
+    }, [activeCourseObj, tests]);
 
     const dynamicInboxItems = useMemo(() => {
         // Group tests by normalized index
@@ -553,8 +603,8 @@ const StudentTests = () => {
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedItem);
 
     const subjectDaysMapping = useMemo(() => {
-        if (!userInfo || !userInfo.studentProfile?.course) return [];
-        const course = userInfo.studentProfile.course;
+        if (!userInfo || !activeCourseObj) return [];
+        const course = activeCourseObj;
         const subjects = course.subjects || [];
         const durations = course.subjectDurations || [];
         const totalDuration = course.duration || 5;
@@ -651,16 +701,13 @@ const StudentTests = () => {
             });
         }
 
-        const assignedSubjectsString = userInfo.studentProfile?.subject;
-        if (assignedSubjectsString) {
-            const assignedSubjects = assignedSubjectsString.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-            if (assignedSubjects.length > 0) {
-                return mapping.filter(m => assignedSubjects.includes(m.subjectName.toLowerCase()));
-            }
+        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
+            const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
+            return mapping.filter(m => lowerAssigned.includes(m.subjectName.toLowerCase()));
         }
 
         return mapping;
-    }, [userInfo]);
+    }, [userInfo, activeCourseObj, activeAssignedSubjects]);
 
     useEffect(() => {
         if (subjectDaysMapping.length > 0) {
@@ -673,8 +720,8 @@ const StudentTests = () => {
     }, [subjectDaysMapping]);
 
     const uniqueSubjects = useMemo(() => {
-        if (!userInfo || !userInfo.studentProfile?.course) return [];
-        const course = userInfo.studentProfile.course;
+        if (!activeCourseObj) return [];
+        const course = activeCourseObj;
         const subjects = course.subjects || [];
         const durations = course.subjectDurations || [];
         
@@ -687,15 +734,31 @@ const StudentTests = () => {
         });
         
         const allList = Array.from(allSubjectNames);
-        const assignedSubjectsString = userInfo.studentProfile?.subject;
-        if (assignedSubjectsString) {
-            const assignedSubjects = assignedSubjectsString.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-            if (assignedSubjects.length > 0) {
-                return allList.filter(s => assignedSubjects.includes(s.toLowerCase()));
-            }
+        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
+            const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
+            return allList.filter(s => lowerAssigned.includes(s.toLowerCase()));
         }
         
         return allList;
+    }, [activeCourseObj, activeAssignedSubjects]);
+
+    const studentCourses = useMemo(() => {
+        if (!userInfo) return [];
+        const list = userInfo.studentProfile?.coursesList || [];
+        if (list.length > 0) {
+            return list.map(item => ({
+                id: item.course?._id || item.course,
+                name: item.course?.name || 'N/A'
+            })).filter(c => c.id);
+        }
+        const primCourse = userInfo.studentProfile?.course;
+        if (primCourse) {
+            return [{
+                id: primCourse._id || primCourse,
+                name: primCourse.name || 'N/A'
+            }];
+        }
+        return [];
     }, [userInfo]);
 
     const activeDayDetails = useMemo(() => {
@@ -1051,10 +1114,55 @@ const StudentTests = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
+                        {activeFilter === 'Institute' && activeCourseObj && (
+                            <div className="p-2.5 bg-indigo-50/50 border border-indigo-100/40 rounded-xl flex items-center justify-between px-3 animate-fade-in mb-1 shrink-0">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600">Active Course:</span>
+                                <span className="text-[10px] font-black text-[#3E3ADD] max-w-[150px] truncate" title={activeCourseObj.name}>
+                                    {activeCourseObj.name}
+                                </span>
+                            </div>
+                        )}
                         {loading ? (
                             <div className="space-y-3">
                                 {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />)}
                             </div>
+                        ) : activeFilter === 'Course' ? (
+                            studentCourses.length === 0 ? (
+                                <div className="text-center py-12 text-slate-400 text-xs font-semibold">No courses found.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {studentCourses.map(course => {
+                                        const isSelected = String(course.id) === String(selectedCourseId);
+                                        return (
+                                            <button
+                                                key={course.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCourseId(String(course.id));
+                                                    setActiveFilter('Institute');
+                                                }}
+                                                className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between group ${
+                                                    isSelected
+                                                        ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 text-[#3E3ADD]'
+                                                        : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 text-slate-700'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2.5 rounded-xl shadow-xs transition-colors ${
+                                                        isSelected ? 'bg-[#3E3ADD] text-white' : 'bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-[#3E3ADD]'
+                                                    }`}>
+                                                        <BookOpen size={16} />
+                                                    </div>
+                                                    <span className="text-xs font-black tracking-wide truncate max-w-[170px] uppercase">
+                                                        {course.name}
+                                                    </span>
+                                                </div>
+                                                {isSelected && <CheckCircle size={14} className="text-[#3E3ADD] shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )
                         ) : groupedInboxItems.length === 0 ? (
                             <div className="text-center py-12 text-slate-400 text-xs font-semibold">No inboxes found.</div>
                         ) : (

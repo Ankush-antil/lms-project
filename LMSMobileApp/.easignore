@@ -1,0 +1,10 @@
+# Exclude folders that are not required for EAS cloud build
+node_modules
+.expo
+android
+ios
+dist
+web-build
+*.apk
+*.zip
+*.tar.gz

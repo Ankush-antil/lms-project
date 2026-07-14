@@ -1,0 +1,15 @@
+# Exclude client, server, and root level unneeded files for EAS build
+node_modules
+client/node_modules
+server/node_modules
+LMSMobileApp/node_modules
+client/dist
+.git
+.expo
+android
+ios
+dist
+web-build
+*.apk
+*.zip
+*.tar.gz

@@ -705,7 +705,11 @@ export const SocketProvider = ({ children }) => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: callType === 'video'
             });
             localStreamRef.current = stream;
@@ -779,7 +783,11 @@ export const SocketProvider = ({ children }) => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: callType === 'video'
             });
             localStreamRef.current = stream;
